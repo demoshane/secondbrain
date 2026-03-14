@@ -30,7 +30,6 @@ def public_note(tmp_path: Path):
     yield note
 
 
-@pytest.mark.xfail(strict=True)
 def test_pii_note_denied_no_passphrase(pii_note: Path):
     """read_note returns 1 when SB_PII_PASSPHRASE unset and getpass raises EOFError."""
     import os
@@ -44,7 +43,6 @@ def test_pii_note_denied_no_passphrase(pii_note: Path):
     assert result == 1
 
 
-@pytest.mark.xfail(strict=True)
 def test_pii_note_denied_wrong_passphrase(pii_note: Path):
     """read_note returns 1 when passphrase provided does not match SB_PII_PASSPHRASE."""
     import os
@@ -57,7 +55,6 @@ def test_pii_note_denied_wrong_passphrase(pii_note: Path):
     assert result == 1
 
 
-@pytest.mark.xfail(strict=True)
 def test_pii_note_shown_correct_passphrase(pii_note: Path):
     """read_note returns 0 when passphrase matches SB_PII_PASSPHRASE."""
     import os
@@ -70,7 +67,6 @@ def test_pii_note_shown_correct_passphrase(pii_note: Path):
     assert result == 0
 
 
-@pytest.mark.xfail(strict=True)
 def test_non_pii_note_no_gate(public_note: Path):
     """read_note returns 0 for a public note without requiring any passphrase."""
     import os
