@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Completed 04-automation/04-00-PLAN.md
-last_updated: "2026-03-14T18:16:47.989Z"
+stopped_at: Completed 04-automation/04-01-PLAN.md
+last_updated: "2026-03-14T18:17:38.413Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 27
-  completed_plans: 23
+  completed_plans: 24
   percent: 0
 ---
 
@@ -72,6 +72,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04-automation P03 | 12 | 2 tasks | 6 files |
 | Phase 04-automation P02 | 2 | 1 tasks | 2 files |
 | Phase 04-automation P00 | 4 | 2 tasks | 10 files |
+| Phase 04-automation P01 | 12 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -131,6 +132,8 @@ Recent decisions affecting current work:
 - [Phase 04-automation]: augment_prompt returns query unchanged when no context found — no empty context block injected (cleaner caller contract)
 - [Phase 04-automation]: FTS5 test queries must use real tokenizable words — single-char repeated strings don't tokenize as FTS5 words
 - [Phase 04-automation]: engine/links.py and engine/rag.py implemented fully in prior session — test files upgraded from xfail stubs to real passing tests
+- [Phase 04-automation]: add_backlinks() is best-effort: DB insert failure caught silently so capture is never blocked
+- [Phase 04-automation]: Deferred import (from engine.links import add_backlinks inside function body) avoids circular import between capture and links modules
 
 ### Pending Todos
 
@@ -145,6 +148,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T18:16:47.981Z
-Stopped at: Completed 04-automation/04-00-PLAN.md
+Last session: 2026-03-14T18:17:33.613Z
+Stopped at: Completed 04-automation/04-01-PLAN.md
 Resume file: None
