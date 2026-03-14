@@ -99,8 +99,6 @@ def main() -> None:
     watch_dir = BRAIN_ROOT / "files"
     watch_dir.mkdir(parents=True, exist_ok=True)
 
-    conn = get_connection()
-    init_schema(conn)
     adapter = router_mod.get_adapter("private", CONFIG_PATH)
 
     def on_new_file(path: Path) -> None:
@@ -117,11 +115,17 @@ def main() -> None:
         except Exception as e:
             print(f"[sb-watch] AI tagging skipped: {type(e).__name__}")
             tags = []
+        # Create connection per-call: watchdog fires callbacks from a background
+        # thread and SQLite connections cannot be shared across threads.
+        conn = get_connection()
+        init_schema(conn)
         try:
             note_path = capture_note("note", title, f"File: {path}", tags, [], "private", BRAIN_ROOT, conn)
             print(f"[sb-watch] Captured: {path.name} -> {note_path.name}")
         except Exception as e:
-            print(f"[sb-watch] Failed to capture {path.name}: {type(e).__name__}")
+            print(f"[sb-watch] Failed to capture {path.name}: {type(e).__name__}: {e}")
+        finally:
+            conn.close()
 
     print(f"[sb-watch] Watching {watch_dir} for new files (Ctrl+C to stop)...")
     observer = start_watcher(watch_dir, on_new_file)
@@ -131,4 +135,3 @@ def main() -> None:
     except KeyboardInterrupt:
         observer.stop()
     observer.join()
-    conn.close()
