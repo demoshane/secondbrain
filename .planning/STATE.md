@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 05-gdpr-and-maintenance-01-PLAN.md
-last_updated: "2026-03-14T21:10:33.836Z"
+stopped_at: Completed 05-gdpr-and-maintenance-02-PLAN.md
+last_updated: "2026-03-14T21:13:33.677Z"
 last_activity: "2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified"
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 39
-  completed_plans: 37
+  completed_plans: 38
   percent: 0
 ---
 
@@ -83,6 +83,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04.1-native-macos-ux-global-cli-launchd-watcher-autostart-git-hook-installer P02 | 10 | 2 tasks | 1 files |
 | Phase 05-gdpr-and-maintenance P00 | 2 | 2 tasks | 5 files |
 | Phase 05-gdpr-and-maintenance P01 | 6 | 1 tasks | 3 files |
+| Phase 05-gdpr-and-maintenance P02 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -170,6 +171,9 @@ Recent decisions affecting current work:
 - [Phase 05-gdpr-and-maintenance]: Exact-path IN (...) for DB deletion in forget_person — avoids LIKE '%slug%' broad-match Pitfall 5
 - [Phase 05-gdpr-and-maintenance]: SpyConnection subclass replaces monkey-patch for sqlite3 execute spy — Python 3.14 made conn.execute read-only
 - [Phase 05-gdpr-and-maintenance]: _fts5_query() phrase-quoting in search_notes — prevents OperationalError when slug contains hyphens (FTS5 subtraction operator)
+- [Phase 05-gdpr-and-maintenance]: SB_PII_PASSPHRASE_INPUT env var used for non-interactive test injection in read_note — consistent with forget_person pattern
+- [Phase 05-gdpr-and-maintenance]: Audit log in read_note is best-effort: exception in INSERT never blocks the read (consistent with search.py pattern)
+- [Phase 05-gdpr-and-maintenance]: Empty SB_PII_PASSPHRASE triggers immediate denial before getpass prompt — no interactive prompt when no passphrase configured
 
 ### Pending Todos
 
@@ -184,6 +188,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T21:10:33.830Z
-Stopped at: Completed 05-gdpr-and-maintenance-01-PLAN.md
+Last session: 2026-03-14T21:13:24.770Z
+Stopped at: Completed 05-gdpr-and-maintenance-02-PLAN.md
 Resume file: None
