@@ -149,10 +149,30 @@ Plans:
 - [ ] 06-02-PLAN.md — Wave 1b: CAP-06 memory wiring — update_memory() call site in capture.py:main() [parallel with 06-01]
 - [ ] 06-03-PLAN.md — Wave 1c: CAP-08 subagent spec expansion + CAP-09 CLAUDE.md proactive capture block [parallel with 06-01, 06-02]
 
+### Phase 7: Fix Path Format Split
+**Goal**: All DB rows store absolute paths — RAG and forget work correctly for notes captured since last reindex without requiring `sb-reindex` first
+**Depends on**: Phase 6
+**Requirements**: SEARCH-01, SEARCH-04, GDPR-01
+**Gap Closure**: Closes path format split gap from v1.5 audit
+
+Plans:
+- [ ] 07-00-PLAN.md — Wave 0: add/update tests for absolute path storage, RAG path resolution, forget path matching
+- [ ] 07-01-PLAN.md — Wave 1: fix engine/capture.py write_note_atomic() → store str(target.resolve()); verify RAG and forget
+
+### Phase 8: Fix update_memory() Routing Bypass
+**Goal**: Model routing config (config.toml) applies to memory updates — no dead parameters, no hardcoded adapter
+**Depends on**: Phase 7
+**Requirements**: AI-05
+**Gap Closure**: Closes CAP-06/AI-05 routing bypass gap from v1.5 audit
+
+Plans:
+- [ ] 08-00-PLAN.md — Wave 0: add test confirming routing config affects memory update adapter selection
+- [ ] 08-01-PLAN.md — Wave 1: wire config_path through get_adapter() in update_memory() or remove dead parameter
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -163,3 +183,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 4.1. Native macOS UX | 3/3 | Complete    | 2026-03-14 |
 | 5. GDPR and Maintenance | 4/4 | Complete   | 2026-03-14 |
 | 6. Integration Gap Closure | 2/4 | In Progress|  |
+| 7. Fix Path Format Split | 0/2 | Pending |  |
+| 8. Fix update_memory() Routing Bypass | 0/2 | Pending |  |
