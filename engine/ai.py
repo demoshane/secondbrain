@@ -1,0 +1,140 @@
+"""AI layer: proactive follow-up questions and memory update (AI-01, CAP-06)."""
+import shutil
+import subprocess
+from pathlib import Path
+
+import engine.router as _router
+from engine.adapters.claude_adapter import ClaudeAdapter
+
+
+# AI-10: system prompts are STATIC — never include user-controlled content.
+QUESTION_SYSTEM_PROMPTS = {
+    "meeting": (
+        "You are a meeting notes assistant. Given a meeting note title, generate exactly 2-3 short "
+        "follow-up questions to extract missing context (attendees, decisions, action items). "
+        "Output only a numbered list."
+    ),
+    "idea": (
+        "You are an idea development assistant. Given an idea title, generate 2-3 questions to "
+        "develop it further (problem it solves, who benefits, first step). "
+        "Output only a numbered list."
+    ),
+    "coding": (
+        "You are a software engineering assistant. Given a coding note title, generate 2-3 questions "
+        "to capture architectural context (why this approach, alternatives, risks). "
+        "Output only a numbered list."
+    ),
+    "people": (
+        "You are a professional context assistant. Given a person note title, generate 2-3 questions "
+        "to capture relationship context (how you know them, their goals, recent interactions). "
+        "Output only a numbered list."
+    ),
+    "strategy": (
+        "You are a strategy assistant. Given a strategy note title, generate 2-3 questions to "
+        "clarify intent (objective, success metric, timeline). "
+        "Output only a numbered list."
+    ),
+    "note": (
+        "You are a knowledge assistant. Given a note title, generate 2-3 questions to enrich it "
+        "(key insight, source, how it connects to current work). "
+        "Output only a numbered list."
+    ),
+}
+
+FALLBACK_QUESTIONS: dict[str, list[str]] = {
+    "meeting": ["Who were the key decision-makers present?", "What are the next action items?"],
+    "idea": ["What problem does this solve?", "Who would benefit most from this?"],
+    "coding": ["Why this approach over alternatives?", "What are the main risks?"],
+    "people": ["How did you meet this person?", "What are their current priorities?"],
+    "strategy": ["What does success look like in 90 days?", "What is the biggest obstacle?"],
+    "note": ["What is the key insight here?", "How does this connect to current work?"],
+}
+
+
+def ask_followup_questions(
+    note_type: str,
+    title: str,
+    sensitivity: str,
+    config_path: Path,
+) -> list[str]:
+    """Generate 2-3 follow-up questions for the given note.
+
+    AI-10: title is passed as user_content, NOT interpolated into system_prompt.
+    AI failure returns fallback questions — capture is never blocked.
+
+    Args:
+        note_type: Content type (e.g. 'meeting', 'idea').
+        title: Note title — passed as user_content only.
+        sensitivity: Classifier result ('pii', 'private', 'public').
+        config_path: Path to config.toml for adapter routing.
+
+    Returns:
+        List of 2-3 question strings.
+    """
+    fallback = FALLBACK_QUESTIONS.get(note_type, FALLBACK_QUESTIONS["note"])
+    system = QUESTION_SYSTEM_PROMPTS.get(note_type, QUESTION_SYSTEM_PROMPTS["note"])
+
+    try:
+        adapter = _router.get_adapter(sensitivity, config_path)
+        raw = adapter.generate(user_content=title, system_prompt=system)
+    except Exception:
+        return fallback
+
+    # Parse lines: keep lines starting with digit or dash
+    lines = [line.strip() for line in raw.splitlines() if line.strip()]
+    parsed = []
+    for line in lines:
+        if line and (line[0].isdigit() or line[0] == "-"):
+            # Strip leading "1. ", "2. ", "- " prefixes
+            if line[0].isdigit():
+                # e.g. "1. Question text" → "Question text"
+                parts = line.split(".", 1)
+                if len(parts) == 2:
+                    parsed.append(parts[1].strip())
+                else:
+                    parsed.append(line)
+            elif line.startswith("- "):
+                parsed.append(line[2:].strip())
+            else:
+                parsed.append(line.lstrip("-").strip())
+
+    questions = parsed[:3]
+    if len(questions) < 2:
+        return fallback
+    return questions
+
+
+def update_memory(note_type: str, summary: str, config_path: Path) -> None:
+    """Update Claude memory with new context from a captured note (CAP-06).
+
+    Always uses ClaudeAdapter regardless of sensitivity — summary is safe
+    (no PII, just type + controlled summary).
+
+    Error handling: logs exception type only (GDPR-05 — no content in logs).
+
+    Args:
+        note_type: Type of note captured.
+        summary: Brief summary — must not contain PII.
+        config_path: Path to config.toml (unused for memory, ClaudeAdapter is always used).
+    """
+    try:
+        system_prompt = (
+            "Update the project memory file with new context. "
+            "Do not include sensitive details. Write concise bullet points."
+        )
+        user_content = f"Note type: {note_type}. Summary: {summary}"
+
+        adapter = ClaudeAdapter()
+
+        if not shutil.which("claude"):
+            raise RuntimeError("claude CLI not found")
+
+        full_prompt = f"{system_prompt}\n\n---\n\n{user_content}"
+        subprocess.run(
+            ["claude", "-p", full_prompt, "--allowedTools", "Write,Read"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except Exception as e:
+        print(f"Memory update skipped: {type(e).__name__}")
