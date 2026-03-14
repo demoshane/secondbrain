@@ -23,7 +23,6 @@ def brain_tmp(tmp_path: Path):
     conn.close()
 
 
-@pytest.mark.xfail(strict=True)
 def test_forget_deletes_person_file(brain_tmp):
     """forget_person removes the person's file from people/."""
     from engine.forget import forget_person
@@ -37,7 +36,6 @@ def test_forget_deletes_person_file(brain_tmp):
     assert not person_file.exists()
 
 
-@pytest.mark.xfail(strict=True)
 def test_forget_deletes_sole_reference_meeting(brain_tmp):
     """Meeting whose only attendee is the forgotten person is deleted."""
     from engine.forget import forget_person
@@ -53,7 +51,6 @@ def test_forget_deletes_sole_reference_meeting(brain_tmp):
     assert not sole_meeting.exists()
 
 
-@pytest.mark.xfail(strict=True)
 def test_forget_spares_shared_meeting(brain_tmp):
     """Meeting with multiple attendees survives after one attendee is forgotten."""
     from engine.forget import forget_person
@@ -69,7 +66,6 @@ def test_forget_spares_shared_meeting(brain_tmp):
     assert multi_meeting.exists()
 
 
-@pytest.mark.xfail(strict=True)
 def test_forget_cleans_backlinks(brain_tmp):
     """Lines containing the slug are removed from note bodies after forget."""
     from engine.forget import forget_person
@@ -86,7 +82,6 @@ def test_forget_cleans_backlinks(brain_tmp):
     assert "alice-smith" not in content
 
 
-@pytest.mark.xfail(strict=True)
 def test_search_zero_after_forget(brain_tmp):
     """engine.search.search_notes returns empty list after person is forgotten."""
     from engine.forget import forget_person
@@ -96,25 +91,30 @@ def test_search_zero_after_forget(brain_tmp):
 
     forget_person("alice-smith", brain_root, conn)
 
-    results = search_mod.search_notes("alice-smith", conn)
+    results = search_mod.search_notes(conn, "alice-smith")
     assert results == []
 
 
-@pytest.mark.xfail(strict=True)
 def test_fts5_rebuild_after_forget(brain_tmp):
     """forget_person issues an FTS5 'rebuild' SQL command to keep index consistent."""
     from engine.forget import forget_person
+    from engine.db import init_schema
 
-    brain_root, conn = brain_tmp
-    executed_sql: list[str] = []
-    original_execute = conn.execute
+    # Use a spy subclass — sqlite3.Connection.execute is read-only in Python 3.14+
+    class SpyConnection(sqlite3.Connection):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._executed_sql: list[str] = []
 
-    def spy_execute(sql, *args, **kwargs):
-        executed_sql.append(sql)
-        return original_execute(sql, *args, **kwargs)
+        def execute(self, sql, *args, **kwargs):
+            self._executed_sql.append(sql)
+            return super().execute(sql, *args, **kwargs)
 
-    conn.execute = spy_execute  # type: ignore[method-assign]
+    brain_root, _conn = brain_tmp
+    spy_conn = SpyConnection(":memory:")
+    init_schema(spy_conn)
 
-    forget_person("alice-smith", brain_root, conn)
+    forget_person("alice-smith", brain_root, spy_conn)
 
-    assert any("rebuild" in sql.lower() for sql in executed_sql)
+    assert any("rebuild" in sql.lower() for sql in spy_conn._executed_sql)
+    spy_conn.close()

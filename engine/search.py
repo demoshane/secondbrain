@@ -3,6 +3,18 @@ import datetime
 import sqlite3
 
 
+def _fts5_query(query: str) -> str:
+    """Wrap a raw user query in FTS5 phrase quotes.
+
+    FTS5 treats hyphens as subtraction operators in bare queries (e.g. "alice-smith"
+    parses as "alice" minus column "smith", raising OperationalError).  Wrapping the
+    whole query in double-quotes makes it a phrase search, which is the correct
+    semantics for name/slug lookups.  Internal double-quotes are escaped by doubling.
+    """
+    escaped = query.replace('"', '""')
+    return f'"{escaped}"'
+
+
 def search_notes(
     conn: sqlite3.Connection,
     query: str,
@@ -17,13 +29,14 @@ def search_notes(
 
     Args:
         conn: SQLite connection with schema already initialised.
-        query: FTS5 MATCH query string.
+        query: Raw search query (automatically phrase-quoted for FTS5 safety).
         note_type: If provided, restrict results to notes of this type.
         limit: Maximum number of results to return.
 
     Returns:
         List of result dicts, empty list when no notes match.
     """
+    fts_query = _fts5_query(query)
     if note_type is None:
         sql = """
             SELECT n.path, n.type, n.title, n.created_at, bm25(notes_fts) AS score
@@ -33,7 +46,7 @@ def search_notes(
             ORDER BY bm25(notes_fts)
             LIMIT ?
         """
-        rows = conn.execute(sql, (query, limit)).fetchall()
+        rows = conn.execute(sql, (fts_query, limit)).fetchall()
     else:
         sql = """
             SELECT n.path, n.type, n.title, n.created_at, bm25(notes_fts) AS score
@@ -44,7 +57,7 @@ def search_notes(
             ORDER BY bm25(notes_fts)
             LIMIT ?
         """
-        rows = conn.execute(sql, (query, note_type, limit)).fetchall()
+        rows = conn.execute(sql, (fts_query, note_type, limit)).fetchall()
 
     conn.execute(
         "INSERT INTO audit_log (event_type, note_path, detail, created_at) VALUES (?, ?, ?, ?)",
