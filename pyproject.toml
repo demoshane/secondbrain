@@ -23,6 +23,7 @@ sb-capture = "engine.capture:main"
 sb-search = "engine.search:main"
 sb-watch = "engine.watcher:main"
 sb-check-links = "engine.links:main_check_links"
+sb-install = "scripts.install_native:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
