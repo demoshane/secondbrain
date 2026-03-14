@@ -1,0 +1,81 @@
+"""SQLite database layer — connection, schema init, FTS5 triggers."""
+import sqlite3
+from pathlib import Path
+from engine.paths import DB_PATH
+
+SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS notes (
+    id          INTEGER PRIMARY KEY,
+    path        TEXT UNIQUE NOT NULL,
+    type        TEXT NOT NULL DEFAULT 'note',
+    title       TEXT NOT NULL DEFAULT '',
+    body        TEXT NOT NULL DEFAULT '',
+    tags        TEXT NOT NULL DEFAULT '[]',
+    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    sensitivity TEXT NOT NULL DEFAULT 'public'
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
+    title,
+    body,
+    content=notes,
+    content_rowid=id
+);
+
+CREATE TRIGGER IF NOT EXISTS notes_ai AFTER INSERT ON notes BEGIN
+    INSERT INTO notes_fts(rowid, title, body) VALUES (new.id, new.title, new.body);
+END;
+
+CREATE TRIGGER IF NOT EXISTS notes_ad AFTER DELETE ON notes BEGIN
+    INSERT INTO notes_fts(notes_fts, rowid, title, body) VALUES ('delete', old.id, old.title, old.body);
+END;
+
+CREATE TRIGGER IF NOT EXISTS notes_au AFTER UPDATE ON notes BEGIN
+    INSERT INTO notes_fts(notes_fts, rowid, title, body) VALUES ('delete', old.id, old.title, old.body);
+    INSERT INTO notes_fts(rowid, title, body) VALUES (new.id, new.title, new.body);
+END;
+
+CREATE TABLE IF NOT EXISTS relationships (
+    source_path TEXT NOT NULL,
+    target_path TEXT NOT NULL,
+    rel_type    TEXT NOT NULL DEFAULT 'link',
+    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    PRIMARY KEY (source_path, target_path, rel_type)
+);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    id         INTEGER PRIMARY KEY,
+    event_type TEXT NOT NULL,
+    note_path  TEXT,
+    detail     TEXT,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+"""
+
+DROP_SQL = """
+DROP TABLE IF EXISTS notes_fts;
+DROP TABLE IF EXISTS notes;
+DROP TABLE IF EXISTS relationships;
+DROP TABLE IF EXISTS audit_log;
+"""
+
+
+def get_connection() -> sqlite3.Connection:
+    """Open a connection to the brain SQLite database."""
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.execute("PRAGMA journal_mode=WAL")
+    return conn
+
+
+def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
+    """Create (or optionally recreate) the full schema.
+
+    Idempotent when reset=False — uses IF NOT EXISTS throughout.
+    When reset=True, drops all tables first (DESTRUCTIVE).
+    """
+    if reset:
+        conn.executescript(DROP_SQL)
+
+    conn.executescript(SCHEMA_SQL)
