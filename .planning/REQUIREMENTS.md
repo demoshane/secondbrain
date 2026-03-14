@@ -24,7 +24,7 @@
 - [x] **CAP-03**: Capture operation is atomic: write file then index; if indexing fails, file write is rolled back
 - [ ] **CAP-04**: File watcher detects new files dropped into `files/` (presentations, .docx, .pdf) and triggers AI categorization prompt
 - [ ] **CAP-05**: Git commit hook fires when user commits in any project directory; AI summarizes the commit and offers to link it to a brain entry
-- [ ] **CAP-06**: AI automatically updates Claude memory (CLAUDE.md or memory files) when relevant project/people context is captured
+- [x] **CAP-06**: AI automatically updates Claude memory (CLAUDE.md or memory files) when relevant project/people context is captured
 - [x] **CAP-07**: Notes use consistent Markdown templates per content type (defined in `.meta/templates/`)
 
 ### People & Meetings (PEOPLE)
@@ -44,16 +44,16 @@
 
 ### AI Behavior (AI)
 
-- [ ] **AI-01**: On every `/sb-capture` invocation, AI asks 2-3 proactive questions to extract context the user didn't write (questions are content-type-aware)
-- [ ] **AI-02**: PII classifier runs locally (keyword rules + `content_sensitivity` frontmatter field) BEFORE any AI API call is made
-- [ ] **AI-03**: Notes with `content_sensitivity: pii` are routed to Ollama (local model) only — never sent to cloud APIs
-- [ ] **AI-04**: Notes with `content_sensitivity: private` or `public` are routed to Claude (Anthropic API)
-- [ ] **AI-05**: Per-content-type model routing is configurable in `.meta/config.toml` without code changes
-- [ ] **AI-06**: Other AI models (OpenAI, Gemini) can be added via adapter pattern in `engine/adapters/` without changing core logic
-- [ ] **AI-07**: `second-brain` Claude Code subagent is installable and invokable from any Claude session
-- [ ] **AI-08**: `/sb-capture` is available as a Claude Code skill (`/sb-capture`)
-- [ ] **AI-09**: File watcher includes debounce (min 5s) and rate limiting to prevent runaway API calls on bulk file operations
-- [ ] **AI-10**: Prompt injection protection: captured note content is never interpolated directly into system prompts; always passed as quoted user content
+- [x] **AI-01**: On every `/sb-capture` invocation, AI asks 2-3 proactive questions to extract context the user didn't write (questions are content-type-aware)
+- [x] **AI-02**: PII classifier runs locally (keyword rules + `content_sensitivity` frontmatter field) BEFORE any AI API call is made
+- [x] **AI-03**: Notes with `content_sensitivity: pii` are routed to Ollama (local model) only — never sent to cloud APIs
+- [x] **AI-04**: Notes with `content_sensitivity: private` or `public` are routed to Claude (Anthropic API)
+- [x] **AI-05**: Per-content-type model routing is configurable in `.meta/config.toml` without code changes
+- [x] **AI-06**: Other AI models (OpenAI, Gemini) can be added via adapter pattern in `engine/adapters/` without changing core logic
+- [x] **AI-07**: `second-brain` Claude Code subagent is installable and invokable from any Claude session
+- [x] **AI-08**: `/sb-capture` is available as a Claude Code skill (`/sb-capture`)
+- [x] **AI-09**: File watcher includes debounce (min 5s) and rate limiting to prevent runaway API calls on bulk file operations
+- [x] **AI-10**: Prompt injection protection: captured note content is never interpolated directly into system prompts; always passed as quoted user content
 
 ### Search & Retrieval (SEARCH)
 
@@ -119,17 +119,17 @@
 | GDPR-03 | Phase 2 | Complete |
 | GDPR-05 | Phase 2 | Complete |
 | GDPR-06 | Phase 2 | Complete |
-| AI-01 | Phase 3 | Pending |
-| AI-02 | Phase 3 | Pending |
-| AI-03 | Phase 3 | Pending |
-| AI-04 | Phase 3 | Pending |
-| AI-05 | Phase 3 | Pending |
-| AI-06 | Phase 3 | Pending |
-| AI-07 | Phase 3 | Pending |
-| AI-08 | Phase 3 | Pending |
-| AI-09 | Phase 3 | Pending |
-| AI-10 | Phase 3 | Pending |
-| CAP-06 | Phase 3 | Pending |
+| AI-01 | Phase 3 | Complete |
+| AI-02 | Phase 3 | Complete |
+| AI-03 | Phase 3 | Complete |
+| AI-04 | Phase 3 | Complete |
+| AI-05 | Phase 3 | Complete |
+| AI-06 | Phase 3 | Complete |
+| AI-07 | Phase 3 | Complete |
+| AI-08 | Phase 3 | Complete |
+| AI-09 | Phase 3 | Complete |
+| AI-10 | Phase 3 | Complete |
+| CAP-06 | Phase 3 | Complete |
 | CAP-04 | Phase 4 | Pending |
 | CAP-05 | Phase 4 | Pending |
 | PEOPLE-01 | Phase 4 | Pending |

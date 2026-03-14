@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Completed 03-ai-layer/03-03-PLAN.md
-last_updated: "2026-03-14T17:19:48.657Z"
+stopped_at: Completed 03-ai-layer/03-05-PLAN.md
+last_updated: "2026-03-14T17:29:12.781Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 20
-  completed_plans: 19
+  completed_plans: 20
   percent: 0
 ---
 
@@ -68,6 +68,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 03-ai-layer P02 | 2 | 2 tasks | 3 files |
 | Phase 03-ai-layer P04 | 4 | 2 tasks | 4 files |
 | Phase 03-ai-layer P03 | 3 | 2 tasks | 3 files |
+| Phase 03-ai-layer P05 | 5 | 2 tasks | 0 files |
 
 ## Accumulated Context
 
@@ -118,6 +119,8 @@ Recent decisions affecting current work:
 - [Phase 03-ai-layer]: CAP-06 memory update path confirmed in ClaudeAdapter (03-03) — no additional file needed in 03-04
 - [Phase 03-ai-layer]: Import engine.router as module ref (not from-import) so engine.router.get_adapter patches intercept correctly in tests
 - [Phase 03-ai-layer]: CONFIG_PATH alias added to engine/paths.py pointing to same path as CONFIG_FILE
+- [Phase 03-ai-layer]: Phase 3 AI layer validated via human approval — no code changes required at gate
+- [Phase 03-ai-layer]: PII routing confirmed: test_pii_zero_anthropic_calls passes (OllamaAdapter returned, ClaudeAdapter not invoked)
 
 ### Pending Todos
 
@@ -132,6 +135,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T17:19:48.648Z
-Stopped at: Completed 03-ai-layer/03-03-PLAN.md
+Last session: 2026-03-14T17:29:12.774Z
+Stopped at: Completed 03-ai-layer/03-05-PLAN.md
 Resume file: None

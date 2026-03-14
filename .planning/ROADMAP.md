@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Secure DevContainer, secrets handling, brain init, and reindex scaffold before any real data is written (completed 2026-03-14)
 - [x] **Phase 2: Storage and Index** - Atomic capture pipeline, SQLite FTS5 schema live, plain-text search working without AI (completed 2026-03-14)
-- [ ] **Phase 3: AI Layer** - PII classifier, ModelRouter, Ollama + Anthropic adapters, proactive questioning, Claude subagent
+- [x] **Phase 3: AI Layer** - PII classifier, ModelRouter, Ollama + Anthropic adapters, proactive questioning, Claude subagent (completed 2026-03-14)
 - [ ] **Phase 4: Automation** - File watcher, git hooks, people/meetings/work features, RAG-lite retrieval
 - [ ] **Phase 5: GDPR and Maintenance** - Full erasure cascade, FTS5 rebuild, access control on PII notes
 
@@ -105,6 +105,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Foundation | 10/10 | Complete   | 2026-03-14 |
 | 2. Storage and Index | 4/4 | Complete   | 2026-03-14 |
-| 3. AI Layer | 5/6 | In Progress|  |
+| 3. AI Layer | 6/6 | Complete   | 2026-03-14 |
 | 4. Automation | 0/TBD | Not started | - |
 | 5. GDPR and Maintenance | 0/TBD | Not started | - |
