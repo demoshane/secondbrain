@@ -1,6 +1,8 @@
 import sqlite3
-import pytest
+import subprocess
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+import pytest
 
 
 @pytest.fixture
@@ -48,3 +50,47 @@ def initialized_db(db_conn):
         db_conn.execute("ALTER TABLE notes ADD COLUMN people TEXT NOT NULL DEFAULT '[]'")
     db_conn.commit()
     return db_conn
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 fixtures
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def mock_adapter():
+    """MagicMock adapter whose generate() returns a canned question list."""
+    adapter = MagicMock()
+    adapter.generate.return_value = "1. Question one\n2. Question two\n3. Question three"
+    return adapter
+
+
+@pytest.fixture
+def tmp_config_toml(tmp_path):
+    """Temporary config.toml for router/adapter tests. Returns the Path."""
+    cfg = tmp_path / "config.toml"
+    cfg.write_text(
+        '[routing]\n'
+        'pii_model = "ollama/llama3.2"\n'
+        'private_model = "claude"\n'
+        'public_model = "claude"\n'
+        '\n'
+        '[ollama]\n'
+        'host = "http://host.docker.internal:11434"\n'
+        '\n'
+        '[models]\n'
+        '"ollama/llama3.2" = {adapter = "ollama", model = "llama3.2"}\n'
+        '"claude" = {adapter = "claude", model = ""}\n'
+    )
+    return cfg
+
+
+@pytest.fixture
+def mock_subprocess_claude():
+    """Context manager that patches subprocess.run with a successful Claude response."""
+    mock_result = subprocess.CompletedProcess(
+        args=[],
+        returncode=0,
+        stdout="1. Question one\n2. Question two\n3. Question three",
+        stderr="",
+    )
+    return patch("subprocess.run", return_value=mock_result)
