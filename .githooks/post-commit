@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+# post-commit hook: AI commit summarization + brain linking (CAP-05)
+# Install per-project: git config core.hooksPath /path/to/brain/.githooks
+# This hook runs in the project repo directory.
+set -e
+if command -v uv >/dev/null 2>&1; then
+    uv run --no-project python -m engine.hooks.post_commit "$@"
+else
+    python -m engine.hooks.post_commit "$@"
+fi
