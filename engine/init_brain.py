@@ -1,6 +1,7 @@
 """Brain initialization command."""
 import argparse
 import json
+import shutil
 import sys
 from pathlib import Path
 from engine.paths import BRAIN_ROOT, BRAIN_SUBDIRS, INDEX_ROOT
@@ -22,8 +23,27 @@ def validate_drive_mount(brain_root: Path) -> tuple[bool, str]:
         return False, f"Not writable: {e}"
 
 
+def seed_templates(brain_root: Path) -> dict:
+    """Copy repo skeleton templates to brain_root/.meta/templates/.
+    Idempotent — existing files are never overwritten.
+    """
+    source_dir = Path(__file__).parent.parent / "brain" / ".meta" / "templates"
+    dest_dir = brain_root / ".meta" / "templates"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    seeded = []
+    existed = []
+    for src in sorted(source_dir.glob("*.md")):
+        dest = dest_dir / src.name
+        if dest.exists():
+            existed.append(src.name)
+        else:
+            shutil.copy2(src, dest)
+            seeded.append(src.name)
+    return {"seeded": seeded, "existed": existed}
+
+
 def create_brain_structure(brain_root: Path, force: bool = False) -> dict:
-    """Create 9 brain subdirectories. Reports created vs. already existed.
+    """Create brain subdirectories. Reports created vs. already existed.
     Idempotent — safe to call multiple times (FOUND-03).
     """
     created = []
@@ -35,6 +55,7 @@ def create_brain_structure(brain_root: Path, force: bool = False) -> dict:
         else:
             p.mkdir(parents=True, exist_ok=True)
             created.append(subdir)
+    seed_templates(brain_root)
     return {"created": created, "existed": existed}
 
 
