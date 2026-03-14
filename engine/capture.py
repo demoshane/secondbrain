@@ -161,7 +161,31 @@ def main() -> None:
     tags = [t.strip() for t in args.tags.split(",") if t.strip()]
     people = [p.strip() for p in args.people.split(",") if p.strip()]
 
-    from engine.paths import BRAIN_ROOT
+    from engine.paths import BRAIN_ROOT, CONFIG_PATH
+    from engine.ai import ask_followup_questions
+    from engine.classifier import classify
+
+    # Classify sensitivity (runs locally, no network — AI-02)
+    sensitivity = classify(args.sensitivity, args.body)
+
+    # AI-01: Ask 2-3 follow-up questions (best-effort, never blocks capture)
+    try:
+        questions = ask_followup_questions(args.note_type, args.title, sensitivity, CONFIG_PATH)
+        if questions:
+            print("\nFollow-up questions to enrich your note:")
+            enrichment_answers = []
+            for i, q in enumerate(questions, 1):
+                print(f"  {i}. {q}")
+                answer = input(f"     Answer (or press Enter to skip): ").strip()
+                if answer:
+                    enrichment_answers.append(f"**{q}**\n{answer}")
+            if enrichment_answers:
+                args.body = args.body + "\n\n" + "\n\n".join(enrichment_answers)
+    except Exception as e:
+        print(f"[AI enrichment skipped: {type(e).__name__}]")
+
+    # Use classifier result as the actual sensitivity (may have been upgraded by keyword scan)
+    args.sensitivity = sensitivity
 
     conn = get_connection()
     init_schema(conn)

@@ -6,6 +6,7 @@ DB_PATH       = INDEX_ROOT / "brain.db"
 META_DIR      = BRAIN_ROOT / ".meta"
 TEMPLATES_DIR = META_DIR / "templates"
 CONFIG_FILE   = META_DIR / "config.toml"
+CONFIG_PATH   = CONFIG_FILE  # alias used by engine/ai.py and capture.py
 
 BRAIN_SUBDIRS = [
     "coding", "people", "meetings", "strategy",
