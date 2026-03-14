@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-foundation/01-08-PLAN.md
-last_updated: "2026-03-14T14:50:02.403Z"
+stopped_at: Completed 01-foundation/01-09-PLAN.md
+last_updated: "2026-03-14T14:52:26.229Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
   percent: 0
 ---
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-foundation P05 | 1 | 2 tasks | 4 files |
 | Phase 01-foundation P07 | 5 | 1 tasks | 2 files |
 | Phase 01-foundation P08 | 1 | 2 tasks | 2 files |
+| Phase 01-foundation P09 | 3 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,7 @@ Recent decisions affecting current work:
 - [Phase 01-foundation]: test_blocks_api_key uses AWS AKIA pattern (AKIAIOSFODNN7EXAMPLE) — detect-secrets AWSKeyDetector reliably catches it; pragma: allowlist secret marks fixture as known false positive # pragma: allowlist secret
 - [Phase 01-foundation]: detect-secrets has no Anthropic API key plugin as of v1.5.0 — sk-ant-api03-* limitation documented in test_anthropic_key_not_detected
 - [Phase 01-foundation]: Venv guard placed at start of main() (after arg parsing, before checks) so warning is visible even if user forgets --dev
+- [Phase 01-foundation]: Versioned hook in .githooks/ with core.hooksPath — eliminates host/container hook overwrite race condition
 
 ### Pending Todos
 
@@ -100,6 +102,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T14:50:02.397Z
-Stopped at: Completed 01-foundation/01-08-PLAN.md
+Last session: 2026-03-14T14:52:26.223Z
+Stopped at: Completed 01-foundation/01-09-PLAN.md
 Resume file: None
