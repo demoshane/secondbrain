@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Completed 02-storage-and-index/02-02-PLAN.md
-last_updated: "2026-03-14T15:38:07.074Z"
+stopped_at: "Completed 02-storage-and-index/02-03-PLAN.md (checkpoint:human-verify pending)"
+last_updated: "2026-03-14T15:41:32.147Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 14
-  completed_plans: 13
+  completed_plans: 14
   percent: 0
 ---
 
@@ -62,6 +62,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02-storage-and-index P00 | 8 | 4 tasks | 4 files |
 | Phase 02-storage-and-index P01 | 3 | 2 tasks | 10 files |
 | Phase 02-storage-and-index P02 | 2 | 2 tasks | 3 files |
+| Phase 02-storage-and-index P03 | 12 | 1 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -98,6 +99,7 @@ Recent decisions affecting current work:
 - [Phase 02-storage-and-index]: Error messages use type(e).__name__ only — body/metadata never interpolated (GDPR-05)
 - [Phase 02-storage-and-index]: load_template accepts optional templates_dir override for hermetic testing without touching container paths
 - [Phase 02-storage-and-index]: BM25 scores are negative — ORDER BY bm25(notes_fts) ASC gives best-match first; note_path=None for search audit rows (GDPR-05 alignment)
+- [Phase 02-storage-and-index]: detect-secrets test uses shutil.which guard to skip outside DevContainer — binary only installed inside container
 
 ### Pending Todos
 
@@ -112,6 +114,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T15:38:07.064Z
-Stopped at: Completed 02-storage-and-index/02-02-PLAN.md
+Last session: 2026-03-14T15:41:32.140Z
+Stopped at: Completed 02-storage-and-index/02-03-PLAN.md (checkpoint:human-verify pending)
 Resume file: None
