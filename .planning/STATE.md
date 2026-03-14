@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 05-gdpr-and-maintenance-00-PLAN.md
-last_updated: "2026-03-14T21:05:19.855Z"
+stopped_at: Completed 05-gdpr-and-maintenance-01-PLAN.md
+last_updated: "2026-03-14T21:10:33.836Z"
 last_activity: "2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified"
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 39
-  completed_plans: 36
+  completed_plans: 37
   percent: 0
 ---
 
@@ -82,6 +82,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04.1-native-macos-ux-global-cli-launchd-watcher-autostart-git-hook-installer P01 | 3 | 3 tasks | 1 files |
 | Phase 04.1-native-macos-ux-global-cli-launchd-watcher-autostart-git-hook-installer P02 | 10 | 2 tasks | 1 files |
 | Phase 05-gdpr-and-maintenance P00 | 2 | 2 tasks | 5 files |
+| Phase 05-gdpr-and-maintenance P01 | 6 | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -166,6 +167,9 @@ Recent decisions affecting current work:
 - [Phase 04.1-native-macos-ux]: sb-install entry point module path is install_native:main (not scripts.install_native:main) — hatchling packages scripts/ as flat namespace
 - [Phase 05-gdpr-and-maintenance]: Deferred imports inside xfail test bodies ensure --collect-only works before engine.forget and engine.read are implemented
 - [Phase 05-gdpr-and-maintenance]: sb-forget and sb-read wired in pyproject.toml at Wave 0 so Wave 1 implementation plans need no toml edits
+- [Phase 05-gdpr-and-maintenance]: Exact-path IN (...) for DB deletion in forget_person — avoids LIKE '%slug%' broad-match Pitfall 5
+- [Phase 05-gdpr-and-maintenance]: SpyConnection subclass replaces monkey-patch for sqlite3 execute spy — Python 3.14 made conn.execute read-only
+- [Phase 05-gdpr-and-maintenance]: _fts5_query() phrase-quoting in search_notes — prevents OperationalError when slug contains hyphens (FTS5 subtraction operator)
 
 ### Pending Todos
 
@@ -180,6 +184,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T21:05:19.846Z
-Stopped at: Completed 05-gdpr-and-maintenance-00-PLAN.md
+Last session: 2026-03-14T21:10:33.830Z
+Stopped at: Completed 05-gdpr-and-maintenance-01-PLAN.md
 Resume file: None
