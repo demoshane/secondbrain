@@ -2,6 +2,7 @@
 
 Used after volume loss or fresh install (FOUND-07).
 All path handling uses pathlib.Path — no os.path (FOUND-12).
+Stores absolute paths in DB (SEARCH-01) so RAG reads can locate files directly.
 """
 import datetime
 import json
@@ -37,11 +38,7 @@ def reindex_brain(brain_root: Path, conn=None) -> dict:
             post = frontmatter.load(str(md_path))
             meta = post.metadata
 
-            # Use relative path as the canonical identifier
-            try:
-                rel_path = str(md_path.relative_to(brain_root))
-            except ValueError:
-                rel_path = str(md_path)
+            note_path = str(md_path)
 
             tags = meta.get("tags", [])
             if isinstance(tags, list):
@@ -64,7 +61,7 @@ def reindex_brain(brain_root: Path, conn=None) -> dict:
                     sensitivity=excluded.sensitivity
                 """,
                 (
-                    rel_path,
+                    note_path,
                     meta.get("type", "note"),
                     meta.get("title", md_path.stem),
                     post.content,
