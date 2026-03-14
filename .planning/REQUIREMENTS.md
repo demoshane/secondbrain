@@ -24,7 +24,7 @@
 - [x] **CAP-03**: Capture operation is atomic: write file then index; if indexing fails, file write is rolled back
 - [x] **CAP-04**: File watcher detects new files dropped into `files/` (presentations, .docx, .pdf) and triggers AI categorization prompt
 - [x] **CAP-05**: Git commit hook fires when user commits in any project directory; AI summarizes the commit and offers to link it to a brain entry
-- [x] **CAP-06**: AI automatically updates Claude memory (CLAUDE.md or memory files) when relevant project/people context is captured
+- [ ] **CAP-06**: AI automatically updates Claude memory (CLAUDE.md or memory files) when relevant project/people context is captured
 - [x] **CAP-07**: Notes use consistent Markdown templates per content type (defined in `.meta/templates/`)
 
 ### People & Meetings (PEOPLE)
@@ -129,7 +129,7 @@
 | AI-08 | Phase 3 | Complete |
 | AI-09 | Phase 3 | Complete |
 | AI-10 | Phase 3 | Complete |
-| CAP-06 | Phase 3 | Complete |
+| CAP-06 | Phase 6 (gap closure) | Pending |
 | CAP-04 | Phase 4 | Complete |
 | CAP-05 | Phase 4 | Complete |
 | PEOPLE-01 | Phase 4 | Complete |

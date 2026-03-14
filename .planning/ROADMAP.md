@@ -17,6 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: AI Layer** - PII classifier, ModelRouter, Ollama + Anthropic adapters, proactive questioning, Claude subagent (completed 2026-03-14)
 - [ ] **Phase 4: Automation** - File watcher, git hooks, people/meetings/work features, RAG-lite retrieval
 - [x] **Phase 5: GDPR and Maintenance** - Full erasure cascade, FTS5 rebuild, access control on PII notes (completed 2026-03-14)
+- [ ] **Phase 6: Integration Gap Closure** - Wire update_memory() call, fix watcher PII routing, fix reindex path format mismatch
 
 ## Phase Details
 
@@ -129,10 +130,21 @@ Plans:
 - [ ] 05-02-PLAN.md — Wave 1b: implement engine/read.py — PII passphrase gate (GDPR-04) [parallel with 05-01]
 - [ ] 05-03-PLAN.md — Wave 2: manual verification checkpoint — end-to-end sb-forget and sb-read in real DevContainer
 
+### Phase 6: Integration Gap Closure
+**Goal**: All three cross-phase integration wires confirmed working: `update_memory()` called after every non-PII capture, watcher resolves adapter per-file via classifier, reindex stores absolute paths matching capture — RAG works after reindex, memory updates fire, PII routing holds in watcher path
+**Depends on**: Phase 5
+**Requirements**: CAP-06, AI-02 (watcher path), SEARCH-01/AI-08 (reindex path)
+**Gap Closure**: Closes gaps from v1.0 audit (v1.0-MILESTONE-AUDIT.md)
+**Success Criteria** (what must be TRUE):
+  1. After `sb-capture`, a Claude memory file is updated (or `update_memory()` is demonstrably called for non-PII notes)
+  2. Dropping a PII-keyword file via watcher routes to OllamaAdapter, not ClaudeAdapter (verified via mock/log)
+  3. After `sb-reindex`, `sb-search <query>` returns notes and `rag.py` reads their content without "[note file not readable]" fallback
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -142,3 +154,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 4. Automation | 9/12 | In Progress|  |
 | 4.1. Native macOS UX | 3/3 | Complete    | 2026-03-14 |
 | 5. GDPR and Maintenance | 4/4 | Complete   | 2026-03-14 |
+| 6. Integration Gap Closure | 0/TBD | Not started | - |
