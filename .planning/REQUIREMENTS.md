@@ -4,18 +4,18 @@
 
 ### Foundation (FOUND)
 
-- [ ] **FOUND-01**: DevContainer runs correctly on macOS with correct `remoteUser: vscode`, gcloud bind-mount, and `.env.host` injection
-- [ ] **FOUND-02**: DevContainer runs correctly on Windows (Docker Desktop + WSL2) with correct `${localEnv:HOME}` path expansion
-- [ ] **FOUND-03**: `/sb-init` creates full brain folder structure (`coding/`, `people/`, `meetings/`, `strategy/`, `projects/`, `personal/`, `ideas/`, `files/`, `.meta/`)
-- [ ] **FOUND-04**: `/sb-init` initializes SQLite schema (notes table, FTS5 index, audit log, relationships table) in named Docker volume `brain-index-data`
-- [ ] **FOUND-05**: `/sb-init` validates Google Drive mount is active and writable before completing
-- [ ] **FOUND-06**: `/sb-init` generates `.vscode/settings.json` hiding binary files from VS Code explorer
-- [ ] **FOUND-07**: `/sb-reindex` rebuilds SQLite index fully from markdown source files (used after volume loss or fresh install)
-- [ ] **FOUND-08**: Pre-commit git hook scans staged files for secrets (API keys, tokens, passwords) and blocks commit if found
-- [ ] **FOUND-09**: `.env.host` is excluded from git tracking AND from Google Drive sync (`.gdriveignore` or equivalent)
-- [ ] **FOUND-10**: `bootstrap.py --dev` validates environment: Drive mount, `.env.host` present, SQLite volume exists, Python deps installed
-- [ ] **FOUND-11**: Fresh install procedure works: clone engine repo → mount Drive folder → run `bootstrap.py` → `/sb-init` → fully operational
-- [ ] **FOUND-12**: `pathlib.Path` used throughout engine — no hardcoded path separators; `/workspace/brain` is canonical container path
+- [x] **FOUND-01**: DevContainer runs correctly on macOS with correct `remoteUser: vscode`, gcloud bind-mount, and `.env.host` injection
+- [x] **FOUND-02**: DevContainer runs correctly on Windows (Docker Desktop + WSL2) with correct `${localEnv:HOME}` path expansion
+- [x] **FOUND-03**: `/sb-init` creates full brain folder structure (`coding/`, `people/`, `meetings/`, `strategy/`, `projects/`, `personal/`, `ideas/`, `files/`, `.meta/`)
+- [x] **FOUND-04**: `/sb-init` initializes SQLite schema (notes table, FTS5 index, audit log, relationships table) in named Docker volume `brain-index-data`
+- [x] **FOUND-05**: `/sb-init` validates Google Drive mount is active and writable before completing
+- [x] **FOUND-06**: `/sb-init` generates `.vscode/settings.json` hiding binary files from VS Code explorer
+- [x] **FOUND-07**: `/sb-reindex` rebuilds SQLite index fully from markdown source files (used after volume loss or fresh install)
+- [x] **FOUND-08**: Pre-commit git hook scans staged files for secrets (API keys, tokens, passwords) and blocks commit if found
+- [x] **FOUND-09**: `.env.host` is excluded from git tracking AND from Google Drive sync (`.gdriveignore` or equivalent)
+- [x] **FOUND-10**: `bootstrap.py --dev` validates environment: Drive mount, `.env.host` present, SQLite volume exists, Python deps installed
+- [x] **FOUND-11**: Fresh install procedure works: clone engine repo → mount Drive folder → run `bootstrap.py` → `/sb-init` → fully operational
+- [x] **FOUND-12**: `pathlib.Path` used throughout engine — no hardcoded path separators; `/workspace/brain` is canonical container path
 
 ### Capture & Notes (CAP)
 
@@ -98,18 +98,18 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FOUND-01 | Phase 1 | Pending |
-| FOUND-02 | Phase 1 | Pending |
-| FOUND-03 | Phase 1 | Pending |
-| FOUND-04 | Phase 1 | Pending |
-| FOUND-05 | Phase 1 | Pending |
-| FOUND-06 | Phase 1 | Pending |
-| FOUND-07 | Phase 1 | Pending |
-| FOUND-08 | Phase 1 | Pending |
-| FOUND-09 | Phase 1 | Pending |
-| FOUND-10 | Phase 1 | Pending |
-| FOUND-11 | Phase 1 | Pending |
-| FOUND-12 | Phase 1 | Pending |
+| FOUND-01 | Phase 1 | Complete |
+| FOUND-02 | Phase 1 | Complete |
+| FOUND-03 | Phase 1 | Complete |
+| FOUND-04 | Phase 1 | Complete |
+| FOUND-05 | Phase 1 | Complete |
+| FOUND-06 | Phase 1 | Complete |
+| FOUND-07 | Phase 1 | Complete |
+| FOUND-08 | Phase 1 | Complete |
+| FOUND-09 | Phase 1 | Complete |
+| FOUND-10 | Phase 1 | Complete |
+| FOUND-11 | Phase 1 | Complete |
+| FOUND-12 | Phase 1 | Complete |
 | CAP-01 | Phase 2 | Pending |
 | CAP-02 | Phase 2 | Pending |
 | CAP-03 | Phase 2 | Pending |

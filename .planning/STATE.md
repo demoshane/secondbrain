@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
+milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Phase 1 context gathered
-last_updated: "2026-03-14T12:09:05.234Z"
+stopped_at: Completed 01-foundation/01-00-PLAN.md
+last_updated: "2026-03-14T12:40:11.305Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 7
+  completed_plans: 1
   percent: 0
 ---
 
@@ -50,6 +50,7 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: -
 
 *Updated after each plan completion*
+| Phase 01-foundation P00 | 10 | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -62,6 +63,8 @@ Recent decisions affecting current work:
 - [Pre-phase]: PII classification is local-only (rules + frontmatter) — no cloud API call before classification is confirmed false
 - [Pre-phase]: ModelRouter (AI-02 through AI-06) is the GDPR enforcement point — must be built before any feature calls an AI API
 - [Pre-phase]: .env.host excluded from git AND Drive sync; secrets never in logs or error messages
+- [Phase 01-foundation]: Run tests via uv run --no-project --with pytest — engine/ package does not exist yet so hatchling build is skipped
+- [Phase 01-foundation]: pyproject.toml dependencies field is inline array inside [project], not a separate [project.dependencies] table (PEP 517)
 
 ### Pending Todos
 
@@ -76,6 +79,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T12:09:05.225Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-foundation/01-CONTEXT.md
+Last session: 2026-03-14T12:40:11.298Z
+Stopped at: Completed 01-foundation/01-00-PLAN.md
+Resume file: None
