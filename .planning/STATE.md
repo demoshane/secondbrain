@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Completed 04-automation/04-03-PLAN.md
-last_updated: "2026-03-14T18:16:04.925Z"
+stopped_at: Completed 04-automation/04-02-PLAN.md
+last_updated: "2026-03-14T18:16:30.990Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 27
-  completed_plans: 21
+  completed_plans: 22
   percent: 0
 ---
 
@@ -70,6 +70,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 03-ai-layer P03 | 3 | 2 tasks | 3 files |
 | Phase 03-ai-layer P05 | 5 | 2 tasks | 0 files |
 | Phase 04-automation P03 | 12 | 2 tasks | 6 files |
+| Phase 04-automation P02 | 2 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -125,6 +126,9 @@ Recent decisions affecting current work:
 - [Phase 04-automation]: TYPE_TO_DIR dict used for type->subdir mapping — allows future additions without touching path construction logic
 - [Phase 04-automation]: People notes slug omits date prefix — person profiles addressed by name, not creation date
 - [Phase 04-automation]: projects and personal types added symmetrically to both QUESTION_SYSTEM_PROMPTS and FALLBACK_QUESTIONS in ai.py
+- [Phase 04-automation]: retrieve_context reads note bodies from disk (Path.read_text) not DB body column — file is source of truth, DB is index only
+- [Phase 04-automation]: augment_prompt returns query unchanged when no context found — no empty context block injected (cleaner caller contract)
+- [Phase 04-automation]: FTS5 test queries must use real tokenizable words — single-char repeated strings don't tokenize as FTS5 words
 
 ### Pending Todos
 
@@ -139,6 +143,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T18:16:04.916Z
-Stopped at: Completed 04-automation/04-03-PLAN.md
+Last session: 2026-03-14T18:16:25.671Z
+Stopped at: Completed 04-automation/04-02-PLAN.md
 Resume file: None
