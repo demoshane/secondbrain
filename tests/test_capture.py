@@ -122,3 +122,31 @@ def test_error_message_no_body_content(tmp_path, initialized_db):
     assert secret_body not in error_message, "Error message must not contain note body"
     assert "confidential" not in error_message, "Error message must not contain tags"
     assert "Eve" not in error_message, "Error message must not contain people"
+
+
+@pytest.mark.xfail(strict=True, reason="CAP-06 not wired yet")
+def test_cap06_update_memory_called_after_capture(tmp_path):
+    from unittest.mock import patch, MagicMock
+    from engine.capture import main
+
+    fake_note = tmp_path / "note.md"
+    fake_note.write_text("")
+
+    with patch("engine.ai.update_memory") as mock_update_memory, \
+         patch("engine.capture.capture_note", return_value=fake_note):
+        main(["--type", "note", "--title", "T", "--body", "B", "--sensitivity", "public"])
+        mock_update_memory.assert_called_once()
+
+
+@pytest.mark.xfail(strict=True, reason="CAP-06 not wired yet")
+def test_cap06_update_memory_skipped_for_pii(tmp_path):
+    from unittest.mock import patch, MagicMock
+    from engine.capture import main
+
+    fake_note = tmp_path / "note.md"
+    fake_note.write_text("")
+
+    with patch("engine.ai.update_memory") as mock_update_memory, \
+         patch("engine.capture.capture_note", return_value=fake_note):
+        main(["--type", "note", "--title", "T", "--body", "B", "--sensitivity", "pii"])
+        assert mock_update_memory.call_count == 0

@@ -47,3 +47,11 @@ def test_rate_limiter_resets_after_window():
     assert rl.allow() is False
     time.sleep(0.15)
     assert rl.allow() is True  # window expired, call allowed again
+
+
+@pytest.mark.xfail(strict=True, reason="CAP-08 not expanded yet")
+def test_subagent_documents_all_commands():
+    agent_file = Path(__file__).parent.parent / ".claude" / "agents" / "second-brain.md"
+    content = agent_file.read_text()
+    for cmd in ["sb-capture", "sb-search", "sb-forget", "sb-read", "sb-check-links"]:
+        assert cmd in content, f"Command '{cmd}' not documented in second-brain.md"
