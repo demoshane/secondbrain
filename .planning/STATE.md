@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-foundation/01-00-PLAN.md
-last_updated: "2026-03-14T12:40:11.305Z"
+stopped_at: Completed 01-foundation/01-01-PLAN.md
+last_updated: "2026-03-14T12:44:16.559Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 7
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -51,6 +51,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 01-foundation P00 | 10 | 2 tasks | 11 files |
+| Phase 01-foundation P01 | 2 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,9 @@ Recent decisions affecting current work:
 - [Pre-phase]: .env.host excluded from git AND Drive sync; secrets never in logs or error messages
 - [Phase 01-foundation]: Run tests via uv run --no-project --with pytest — engine/ package does not exist yet so hatchling build is skipped
 - [Phase 01-foundation]: pyproject.toml dependencies field is inline array inside [project], not a separate [project.dependencies] table (PEP 517)
+- [Phase 01-foundation]: remoteUser=vscode (UID 1000) — not root — prevents Drive sync permission failures on bind mounts
+- [Phase 01-foundation]: .env.host sourced from ~/.config/second-brain/ (outside ~/SecondBrain Drive folder) — never Drive-synced, never in git
+- [Phase 01-foundation]: SQLite uses named Docker volume brain-index-data (not bind mount) — index is rebuildable, never synced to Drive
 
 ### Pending Todos
 
@@ -79,6 +83,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T12:40:11.298Z
-Stopped at: Completed 01-foundation/01-00-PLAN.md
+Last session: 2026-03-14T12:44:16.552Z
+Stopped at: Completed 01-foundation/01-01-PLAN.md
 Resume file: None
