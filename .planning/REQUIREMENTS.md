@@ -96,14 +96,53 @@
 
 ## Traceability
 
-| REQ-ID | Phase | Status |
-|--------|-------|--------|
-| FOUND-01 – FOUND-12 | Phase 1 | Pending |
-| CAP-01 – CAP-07 | Phase 2 | Pending |
-| PEOPLE-01 – PEOPLE-05 | Phase 3 | Pending |
-| WORK-01 – WORK-04 | Phase 3 | Pending |
-| AI-01 – AI-10 | Phase 3–4 | Pending |
-| SEARCH-01 – SEARCH-04 | Phase 2–4 | Pending |
-| GDPR-01 – GDPR-06 | Phase 5 | Pending |
-
-*Traceability will be updated by roadmapper agent.*
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| FOUND-01 | Phase 1 | Pending |
+| FOUND-02 | Phase 1 | Pending |
+| FOUND-03 | Phase 1 | Pending |
+| FOUND-04 | Phase 1 | Pending |
+| FOUND-05 | Phase 1 | Pending |
+| FOUND-06 | Phase 1 | Pending |
+| FOUND-07 | Phase 1 | Pending |
+| FOUND-08 | Phase 1 | Pending |
+| FOUND-09 | Phase 1 | Pending |
+| FOUND-10 | Phase 1 | Pending |
+| FOUND-11 | Phase 1 | Pending |
+| FOUND-12 | Phase 1 | Pending |
+| CAP-01 | Phase 2 | Pending |
+| CAP-02 | Phase 2 | Pending |
+| CAP-03 | Phase 2 | Pending |
+| CAP-07 | Phase 2 | Pending |
+| SEARCH-01 | Phase 2 | Pending |
+| SEARCH-02 | Phase 2 | Pending |
+| GDPR-03 | Phase 2 | Pending |
+| GDPR-05 | Phase 2 | Pending |
+| GDPR-06 | Phase 2 | Pending |
+| AI-01 | Phase 3 | Pending |
+| AI-02 | Phase 3 | Pending |
+| AI-03 | Phase 3 | Pending |
+| AI-04 | Phase 3 | Pending |
+| AI-05 | Phase 3 | Pending |
+| AI-06 | Phase 3 | Pending |
+| AI-07 | Phase 3 | Pending |
+| AI-08 | Phase 3 | Pending |
+| AI-09 | Phase 3 | Pending |
+| AI-10 | Phase 3 | Pending |
+| CAP-06 | Phase 3 | Pending |
+| CAP-04 | Phase 4 | Pending |
+| CAP-05 | Phase 4 | Pending |
+| PEOPLE-01 | Phase 4 | Pending |
+| PEOPLE-02 | Phase 4 | Pending |
+| PEOPLE-03 | Phase 4 | Pending |
+| PEOPLE-04 | Phase 4 | Pending |
+| PEOPLE-05 | Phase 4 | Pending |
+| WORK-01 | Phase 4 | Pending |
+| WORK-02 | Phase 4 | Pending |
+| WORK-03 | Phase 4 | Pending |
+| WORK-04 | Phase 4 | Pending |
+| SEARCH-03 | Phase 4 | Pending |
+| SEARCH-04 | Phase 4 | Pending |
+| GDPR-01 | Phase 5 | Pending |
+| GDPR-02 | Phase 5 | Pending |
+| GDPR-04 | Phase 5 | Pending |
