@@ -62,3 +62,26 @@ def search_notes(
         }
         for row in rows
     ]
+
+
+def main() -> None:
+    """CLI entry point for sb-search."""
+    import argparse
+    from engine.db import get_connection, init_schema
+
+    parser = argparse.ArgumentParser(description="Search the second brain")
+    parser.add_argument("query")
+    parser.add_argument("--type", dest="note_type", default=None)
+    parser.add_argument("--limit", type=int, default=20)
+    args = parser.parse_args()
+
+    conn = get_connection()
+    init_schema(conn)
+    results = search_notes(conn, args.query, note_type=args.note_type, limit=args.limit)
+    conn.close()
+
+    if not results:
+        print("No results found.")
+        return
+    for r in results:
+        print(f"{r['path']} | {r['title']} | {r['score']:.4f}")

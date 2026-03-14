@@ -17,6 +17,8 @@ dev = [
 [project.scripts]
 sb-init = "engine.init_brain:main"
 sb-reindex = "engine.reindex:main"
+sb-capture = "engine.capture:main"
+sb-search = "engine.search:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

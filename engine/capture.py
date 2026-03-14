@@ -135,6 +135,43 @@ def write_note_atomic(
         raise RuntimeError(f"Failed to write {target}: {type(e).__name__}") from e
 
 
+def main() -> None:
+    """CLI entry point for sb-capture."""
+    import argparse
+    from engine.db import get_connection, init_schema, migrate_add_people_column
+
+    parser = argparse.ArgumentParser(description="Capture a note into the second brain")
+    parser.add_argument(
+        "--type",
+        required=True,
+        choices=["note", "meeting", "people", "coding", "strategy", "idea"],
+        dest="note_type",
+    )
+    parser.add_argument("--title", required=True)
+    parser.add_argument("--body", default="")
+    parser.add_argument("--tags", default="")
+    parser.add_argument("--people", default="")
+    parser.add_argument(
+        "--sensitivity",
+        default="public",
+        choices=["public", "private", "pii"],
+    )
+    args = parser.parse_args()
+
+    tags = [t.strip() for t in args.tags.split(",") if t.strip()]
+    people = [p.strip() for p in args.people.split(",") if p.strip()]
+
+    from engine.paths import BRAIN_ROOT
+
+    conn = get_connection()
+    init_schema(conn)
+    migrate_add_people_column(conn)
+
+    path = capture_note(args.note_type, args.title, args.body, tags, people, args.sensitivity, BRAIN_ROOT, conn)
+    conn.close()
+    print(str(path))
+
+
 def capture_note(
     note_type: str,
     title: str,
