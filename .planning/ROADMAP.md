@@ -121,7 +121,13 @@ Plans:
   1. After `/sb-forget <person>`, that person's markdown file is absent, all meeting notes referencing only them are absent, and `/sb-search <person>` returns zero results including zero FTS5 fragments
   2. `INSERT INTO notes_fts(notes_fts) VALUES('rebuild')` is confirmed executed after every `/sb-forget` call (visible in audit log or test assertion)
   3. Attempting to display a note with `content_sensitivity: pii` without the correct passphrase produces an access-denied message and no note content is printed
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 05-00-PLAN.md — Wave 0: test stubs (test_forget.py 6 tests, test_read.py 4 tests), engine/forget.py stub, engine/read.py stub, pyproject.toml entry points (sb-forget, sb-read)
+- [ ] 05-01-PLAN.md — Wave 1a: implement engine/forget.py — erasure cascade + FTS5 rebuild (GDPR-01, GDPR-02)
+- [ ] 05-02-PLAN.md — Wave 1b: implement engine/read.py — PII passphrase gate (GDPR-04) [parallel with 05-01]
+- [ ] 05-03-PLAN.md — Wave 2: manual verification checkpoint — end-to-end sb-forget and sb-read in real DevContainer
 
 ## Progress
 
@@ -135,4 +141,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 3. AI Layer | 6/6 | Complete   | 2026-03-14 |
 | 4. Automation | 9/12 | In Progress|  |
 | 4.1. Native macOS UX | 3/3 | Complete    | 2026-03-14 |
-| 5. GDPR and Maintenance | 0/TBD | Not started | - |
+| 5. GDPR and Maintenance | 0/4 | Not started | - |

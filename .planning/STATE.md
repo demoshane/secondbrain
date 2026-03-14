@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
-status: planning
-stopped_at: Phase 04.1-native-macos-ux-global-cli-launchd-watcher-autostart-git-hook-installer COMPLETE
-last_updated: "2026-03-14T20:34:49.646Z"
-last_activity: 2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified
+status: verifying
+stopped_at: Completed 05-gdpr-and-maintenance-00-PLAN.md
+last_updated: "2026-03-14T21:05:19.855Z"
+last_activity: "2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified"
 progress:
   total_phases: 6
-  completed_phases: 6
-  total_plans: 35
-  completed_plans: 35
+  completed_phases: 5
+  total_plans: 39
+  completed_plans: 36
   percent: 0
 ---
 
@@ -81,6 +81,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04.1-native-macos-ux-global-cli-launchd-watcher-autostart-git-hook-installer P00 | 2 | 2 tasks | 2 files |
 | Phase 04.1-native-macos-ux-global-cli-launchd-watcher-autostart-git-hook-installer P01 | 3 | 3 tasks | 1 files |
 | Phase 04.1-native-macos-ux-global-cli-launchd-watcher-autostart-git-hook-installer P02 | 10 | 2 tasks | 1 files |
+| Phase 05-gdpr-and-maintenance P00 | 2 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -163,6 +164,8 @@ Recent decisions affecting current work:
 - [Phase 04.1-native-macos-ux]: sb-watch shim path resolved as find_uv().parent / 'sb-watch' — same bin directory as uv binary
 - [Phase 04.1-native-macos-ux]: launchd first-run requires manual bootstrap gui/<uid> <plist> — idempotent on subsequent runs; expected macOS behavior
 - [Phase 04.1-native-macos-ux]: sb-install entry point module path is install_native:main (not scripts.install_native:main) — hatchling packages scripts/ as flat namespace
+- [Phase 05-gdpr-and-maintenance]: Deferred imports inside xfail test bodies ensure --collect-only works before engine.forget and engine.read are implemented
+- [Phase 05-gdpr-and-maintenance]: sb-forget and sb-read wired in pyproject.toml at Wave 0 so Wave 1 implementation plans need no toml edits
 
 ### Pending Todos
 
@@ -177,6 +180,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T20:34:49.638Z
-Stopped at: Phase 04.1 complete — all human verification items passed 2026-03-14
+Last session: 2026-03-14T21:05:19.846Z
+Stopped at: Completed 05-gdpr-and-maintenance-00-PLAN.md
 Resume file: None
