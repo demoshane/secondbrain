@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Completed 04.1-native-macos-ux-global-cli-launchd-watcher-autostart-git-hook-installer/04.1-00-PLAN.md
-last_updated: "2026-03-14T20:20:00.871Z"
+stopped_at: Completed 04.1-native-macos-ux-global-cli-launchd-watcher-autostart-git-hook-installer/04.1-01-PLAN.md
+last_updated: "2026-03-14T20:23:12.576Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 35
-  completed_plans: 33
+  completed_plans: 34
   percent: 0
 ---
 
@@ -79,6 +79,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04-automation P08 | 12 | 2 tasks | 8 files |
 | Phase 04-automation P11 | 2 | 1 tasks | 2 files |
 | Phase 04.1-native-macos-ux-global-cli-launchd-watcher-autostart-git-hook-installer P00 | 2 | 2 tasks | 2 files |
+| Phase 04.1-native-macos-ux-global-cli-launchd-watcher-autostart-git-hook-installer P01 | 3 | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -156,6 +157,9 @@ Recent decisions affecting current work:
 - [Phase 04-automation]: on_new_file derives title from path.stem with hyphen/underscore->space and title-case; sensitivity hardcoded to private for dropped files
 - [Phase 04-automation]: conn and adapter initialized once before on_new_file closure; conn.close() deferred to after observer.join()
 - [Phase 04.1-native-macos-ux]: patch.object(install_native, PLIST_PATH) for hermetic plist write tests without touching ~/Library/LaunchAgents
+- [Phase 04.1-native-macos-ux]: write_plist accepts optional plist_path override so tests can redirect output to tmp_path without touching ~/Library/LaunchAgents
+- [Phase 04.1-native-macos-ux]: launchctl bootout form is gui/<uid>/<label>; bootstrap form is gui/<uid> <plist_path> — different launchd API shapes
+- [Phase 04.1-native-macos-ux]: sb-watch shim path resolved as find_uv().parent / 'sb-watch' — same bin directory as uv binary
 
 ### Pending Todos
 
@@ -170,6 +174,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T20:19:56.349Z
-Stopped at: Completed 04.1-native-macos-ux-global-cli-launchd-watcher-autostart-git-hook-installer/04.1-00-PLAN.md
+Last session: 2026-03-14T20:23:12.569Z
+Stopped at: Completed 04.1-native-macos-ux-global-cli-launchd-watcher-autostart-git-hook-installer/04.1-01-PLAN.md
 Resume file: None

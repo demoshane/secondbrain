@@ -105,7 +105,7 @@ Plans:
 **Goal:** One-command native macOS setup — `uv tool install --editable` makes all sb-* commands globally accessible; launchd LaunchAgent runs sb-watch at login with crash restart; git hook installer points any project repo at the shared .githooks/ dir
 **Requirements**: 4.1-CLI-01, 4.1-CLI-02, 4.1-LAUNCHD-01, 4.1-LAUNCHD-02, 4.1-LAUNCHD-03, 4.1-HOOK-01, 4.1-HOOK-02
 **Depends on:** Phase 4
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 04.1-00-PLAN.md — Wave 0: test stubs (7 tests in test_install_native.py) + scripts/install_native.py stub
