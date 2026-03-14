@@ -1,0 +1,7 @@
+## Context
+
+${body}
+
+## Decision
+
+## Consequences
