@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Completed 04-automation/04-07-PLAN.md
-last_updated: "2026-03-14T19:20:16.879Z"
+stopped_at: Completed 04-automation/04-08-PLAN.md
+last_updated: "2026-03-14T19:22:15.480Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 31
-  completed_plans: 28
+  completed_plans: 29
   percent: 0
 ---
 
@@ -76,6 +76,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04-automation P04 | 5 | 1 tasks | 2 files |
 | Phase 04-automation P05 | 8 | 1 tasks | 3 files |
 | Phase 04-automation P07 | 5 | 2 tasks | 2 files |
+| Phase 04-automation P08 | 12 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -141,6 +142,8 @@ Recent decisions affecting current work:
 - [Phase 04-automation]: FSEvents history guard uses monotonic-to-wall-clock conversion with 1s slack for ctime comparison
 - [Phase 04-automation]: patch engine.router.get_adapter (module ref) not engine.hooks.post_commit.get_adapter — deferred import means get_adapter is not a module-level attribute of post_commit
 - [Phase 04-automation]: ensure_person_profile() creates skeleton on first access — eliminates silent skip for missing people profiles
+- [Phase 04-automation]: seed_templates() source path relative to __file__ (engine/) so repo templates found regardless of brain_root location; existing files never overwritten matching config.toml seeding contract
+- [Phase 04-automation]: BRAIN_SUBDIRS count assertion in test_paths.py updated from 9 to 10 — test must track intentional additions to the list
 
 ### Pending Todos
 
@@ -155,6 +158,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T19:20:16.873Z
-Stopped at: Completed 04-automation/04-07-PLAN.md
+Last session: 2026-03-14T19:22:15.472Z
+Stopped at: Completed 04-automation/04-08-PLAN.md
 Resume file: None
