@@ -89,6 +89,27 @@ def main():
     else:
         print("  [OK] Schema initialized (idempotent)")
 
+    print("[sb-init] Writing AI config...")
+    config_path = BRAIN_ROOT / ".meta" / "config.toml"
+    if not config_path.exists():
+        config_path.write_text(
+            '[routing]\n'
+            'pii_model    = "ollama/llama3.2"\n'
+            'private_model = "claude"\n'
+            'public_model  = "claude"\n'
+            '\n'
+            '[ollama]\n'
+            'host = "http://host.docker.internal:11434"\n'
+            '\n'
+            '[models]\n'
+            '"ollama/llama3.2" = {adapter = "ollama", model = "llama3.2"}\n'
+            '"claude"          = {adapter = "claude", model = ""}\n',
+            encoding="utf-8",
+        )
+        print(f"  [CREATED] {config_path}")
+    else:
+        print(f"  [EXISTS]  {config_path}")
+
     print("[sb-init] Generating VS Code settings...")
     settings_path = generate_vscode_settings(BRAIN_ROOT)
     print(f"  [OK] {settings_path}")
