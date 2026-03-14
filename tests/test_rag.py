@@ -143,3 +143,36 @@ def test_ask_followup_questions_without_conn_uses_raw_title(tmp_path):
     # Without conn, user_content must be exactly the raw title
     assert captured_user_content.get("value") == "my raw title"
     assert "RETRIEVED CONTEXT" not in captured_user_content.get("value", "")
+
+
+# ---------------------------------------------------------------------------
+# Phase 7: RAG path resolution after capture (SEARCH-04)
+# ---------------------------------------------------------------------------
+
+def test_retrieve_context_reads_captured_note(tmp_path):
+    """retrieve_context must read file content — not fall back to '[note file not readable]'."""
+    import sqlite3
+    from engine.db import init_schema
+    from engine.capture import write_note_atomic, build_post
+    from engine.rag import retrieve_context
+
+    brain_root = tmp_path.resolve() / "brain"
+    notes_dir = brain_root / "notes"
+    notes_dir.mkdir(parents=True)
+
+    conn = sqlite3.connect(":memory:")
+    init_schema(conn)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(notes)").fetchall()}
+    if "people" not in cols:
+        conn.execute("ALTER TABLE notes ADD COLUMN people TEXT NOT NULL DEFAULT '[]'")
+    conn.commit()
+
+    target = notes_dir / "2026-phase7-rag-test.md"
+    post = build_post("note", "Phase7 RAG Test", "unique rag path resolution content", [], [], "public")
+    write_note_atomic(target, post, conn)
+
+    context = retrieve_context("rag path resolution", conn)
+    assert "[note file not readable]" not in context, (
+        f"RAG must read file directly; got fallback. context={context!r}"
+    )
+    conn.close()

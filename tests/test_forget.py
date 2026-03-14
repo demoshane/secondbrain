@@ -118,3 +118,130 @@ def test_fts5_rebuild_after_forget(brain_tmp):
 
     assert any("rebuild" in sql.lower() for sql in spy_conn._executed_sql)
     spy_conn.close()
+
+
+def test_forget_removes_notes_row_from_db(brain_tmp):
+    """forget_person deletes the person's row from the notes table."""
+    from engine.forget import forget_person
+
+    brain_root, conn = brain_tmp
+    person_path = str(brain_root / "people" / "alice-smith.md")
+    conn.execute(
+        "INSERT INTO notes (path, type, title, body, tags) VALUES (?, ?, ?, ?, ?)",
+        (person_path, "person", "Alice Smith", "", "[]"),
+    )
+    conn.commit()
+
+    forget_person("alice-smith", brain_root, conn)
+
+    row = conn.execute("SELECT 1 FROM notes WHERE path = ?", (person_path,)).fetchone()
+    assert row is None
+
+
+def test_forget_removes_relationships_from_db(brain_tmp):
+    """forget_person deletes relationships where the person is source or target."""
+    from engine.forget import forget_person
+
+    brain_root, conn = brain_tmp
+    person_path = str(brain_root / "people" / "alice-smith.md")
+    other_path = str(brain_root / "notes" / "other.md")
+    conn.execute(
+        "INSERT INTO relationships (source_path, target_path) VALUES (?, ?)",
+        (person_path, other_path),
+    )
+    conn.execute(
+        "INSERT INTO relationships (source_path, target_path) VALUES (?, ?)",
+        (other_path, person_path),
+    )
+    conn.commit()
+
+    forget_person("alice-smith", brain_root, conn)
+
+    rows = conn.execute(
+        "SELECT 1 FROM relationships WHERE source_path = ? OR target_path = ?",
+        (person_path, person_path),
+    ).fetchall()
+    assert rows == []
+
+
+def test_forget_removes_prior_audit_log_entries(brain_tmp):
+    """forget_person deletes prior audit_log rows referencing the person's path."""
+    from engine.forget import forget_person
+
+    brain_root, conn = brain_tmp
+    person_path = str(brain_root / "people" / "alice-smith.md")
+    conn.execute(
+        "INSERT INTO audit_log (event_type, note_path) VALUES (?, ?)",
+        ("read", person_path),
+    )
+    conn.commit()
+
+    forget_person("alice-smith", brain_root, conn)
+
+    row = conn.execute(
+        "SELECT 1 FROM audit_log WHERE note_path = ?", (person_path,)
+    ).fetchone()
+    assert row is None
+
+
+def test_forget_logs_erasure_event_in_audit_log(brain_tmp):
+    """forget_person writes a 'forget' audit event with detail 'person:<slug>'."""
+    from engine.forget import forget_person
+
+    brain_root, conn = brain_tmp
+
+    forget_person("alice-smith", brain_root, conn)
+
+    row = conn.execute(
+        "SELECT detail FROM audit_log WHERE event_type = 'forget'"
+    ).fetchone()
+    assert row is not None
+    assert row[0] == "person:alice-smith"
+
+
+def test_forget_nonexistent_person_is_noop(brain_tmp):
+    """forget_person on an unknown slug returns empty lists and does not raise."""
+    from engine.forget import forget_person
+
+    brain_root, conn = brain_tmp
+
+    result = forget_person("nobody-here", brain_root, conn)
+
+    assert result["deleted_files"] == []
+    assert result["cleaned_backlinks"] == []
+    assert result["errors"] == []
+
+
+# ---------------------------------------------------------------------------
+# Phase 7: Forget after capture — path consistency (GDPR-01)
+# ---------------------------------------------------------------------------
+
+def test_forget_removes_row_stored_by_capture(tmp_path):
+    """forget_person must delete the DB row for a note stored by capture_note (no reindex)."""
+    import sqlite3
+    from engine.db import init_schema
+    from engine.capture import write_note_atomic, build_post
+    from engine.forget import forget_person
+
+    brain_root = tmp_path.resolve() / "brain"
+    (brain_root / "people").mkdir(parents=True)
+    (brain_root / "meetings").mkdir(parents=True)
+
+    conn = sqlite3.connect(":memory:")
+    init_schema(conn)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(notes)").fetchall()}
+    if "people" not in cols:
+        conn.execute("ALTER TABLE notes ADD COLUMN people TEXT NOT NULL DEFAULT '[]'")
+    conn.commit()
+
+    target = brain_root / "people" / "carol-danvers.md"
+    post = build_post("people", "Carol Danvers", "profile body", [], [], "public")
+    write_note_atomic(target, post, conn)
+
+    forget_person("carol-danvers", brain_root, conn)
+
+    row = conn.execute(
+        "SELECT 1 FROM notes WHERE title = ?", ("Carol Danvers",)
+    ).fetchone()
+    assert row is None, "forget_person must delete the row that capture stored"
+    conn.close()
