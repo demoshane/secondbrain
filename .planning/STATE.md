@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Completed 02-storage-and-index/02-03-PLAN.md
-last_updated: "2026-03-14T16:41:46.988Z"
+stopped_at: Completed 03-ai-layer/03-00-PLAN.md
+last_updated: "2026-03-14T17:09:06.269Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 14
-  completed_plans: 14
+  total_plans: 20
+  completed_plans: 15
   percent: 0
 ---
 
@@ -63,6 +63,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02-storage-and-index P01 | 3 | 2 tasks | 10 files |
 | Phase 02-storage-and-index P02 | 2 | 2 tasks | 3 files |
 | Phase 02-storage-and-index P03 | 12 | 1 tasks | 4 files |
+| Phase 03-ai-layer P00 | 10 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,8 @@ Recent decisions affecting current work:
 - [Phase 02-storage-and-index]: load_template accepts optional templates_dir override for hermetic testing without touching container paths
 - [Phase 02-storage-and-index]: BM25 scores are negative — ORDER BY bm25(notes_fts) ASC gives best-match first; note_path=None for search audit rows (GDPR-05 alignment)
 - [Phase 02-storage-and-index]: detect-secrets test uses shutil.which guard to skip outside DevContainer — binary only installed inside container
+- [Phase 03-ai-layer]: mock_subprocess_claude is a context manager factory (returns patch()) so tests can use 'with mock_subprocess_claude as mock_run'
+- [Phase 03-ai-layer]: pyyaml not added as dependency — test_subagent_frontmatter_valid uses manual key extraction via splitlines()
 
 ### Pending Todos
 
@@ -114,6 +117,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T16:14:31.489Z
-Stopped at: Completed 02-storage-and-index/02-03-PLAN.md
+Last session: 2026-03-14T17:09:06.262Z
+Stopped at: Completed 03-ai-layer/03-00-PLAN.md
 Resume file: None
