@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Completed 04-automation/04-11-PLAN.md
-last_updated: "2026-03-14T20:03:05.999Z"
+stopped_at: Completed 04.1-native-macos-ux-global-cli-launchd-watcher-autostart-git-hook-installer/04.1-00-PLAN.md
+last_updated: "2026-03-14T20:20:00.871Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 32
-  completed_plans: 32
+  total_plans: 35
+  completed_plans: 33
   percent: 0
 ---
 
@@ -78,6 +78,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04-automation P07 | 5 | 2 tasks | 2 files |
 | Phase 04-automation P08 | 12 | 2 tasks | 8 files |
 | Phase 04-automation P11 | 2 | 1 tasks | 2 files |
+| Phase 04.1-native-macos-ux-global-cli-launchd-watcher-autostart-git-hook-installer P00 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -154,6 +155,7 @@ Recent decisions affecting current work:
 - [Phase 04-automation]: Post-commit hook cds to brain repo before uv run; original project dir passed via SB_PROJECT_DIR so git commands target correct repo
 - [Phase 04-automation]: on_new_file derives title from path.stem with hyphen/underscore->space and title-case; sensitivity hardcoded to private for dropped files
 - [Phase 04-automation]: conn and adapter initialized once before on_new_file closure; conn.close() deferred to after observer.join()
+- [Phase 04.1-native-macos-ux]: patch.object(install_native, PLIST_PATH) for hermetic plist write tests without touching ~/Library/LaunchAgents
 
 ### Pending Todos
 
@@ -168,6 +170,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T19:51:19.855Z
-Stopped at: Completed 04-automation/04-11-PLAN.md
+Last session: 2026-03-14T20:19:56.349Z
+Stopped at: Completed 04.1-native-macos-ux-global-cli-launchd-watcher-autostart-git-hook-installer/04.1-00-PLAN.md
 Resume file: None
