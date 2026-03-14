@@ -79,7 +79,7 @@ def test_relationship_row_inserted(tmp_path):
 
 
 def test_missing_person_skipped(tmp_path):
-    """add_backlinks silently skips when person file does not exist."""
+    """add_backlinks silently skips when person file does not exist — legacy behaviour replaced by auto-create."""
     from engine.links import add_backlinks
 
     brain_root = tmp_path / "brain"
@@ -89,7 +89,61 @@ def test_missing_person_skipped(tmp_path):
 
     conn = _init_conn()
     result = add_backlinks(meeting_path, ["bob nobody"], brain_root, conn)
-    assert result is None
+    # Now the profile is created instead of skipped
+    assert (brain_root / "people" / "bob-nobody.md").exists()
+
+
+def test_ensure_person_profile_creates_skeleton(tmp_path):
+    """ensure_person_profile creates file with name heading and Backlinks section when absent."""
+    from engine.links import ensure_person_profile
+
+    brain_root = tmp_path / "brain"
+    (brain_root / "people").mkdir(parents=True)
+
+    path = ensure_person_profile("alice-smith", brain_root)
+
+    assert path == brain_root / "people" / "alice-smith.md"
+    assert path.exists()
+    text = path.read_text(encoding="utf-8")
+    assert text.startswith("# Alice Smith")
+    assert "## Backlinks" in text
+
+
+def test_ensure_person_profile_idempotent(tmp_path):
+    """ensure_person_profile does not overwrite an existing file."""
+    from engine.links import ensure_person_profile
+
+    brain_root = tmp_path / "brain"
+    (brain_root / "people").mkdir(parents=True)
+
+    person_file = brain_root / "people" / "alice-smith.md"
+    original = "# Alice Smith\n\nExisting content.\n"
+    person_file.write_text(original, encoding="utf-8")
+
+    path = ensure_person_profile("alice-smith", brain_root)
+
+    assert path == person_file
+    assert person_file.read_text(encoding="utf-8") == original
+
+
+def test_add_backlinks_creates_profile_when_missing(tmp_path):
+    """add_backlinks creates person profile when none exists, then appends backlink."""
+    from engine.links import add_backlinks
+
+    brain_root = tmp_path / "brain"
+    (brain_root / "people").mkdir(parents=True)
+
+    meeting_path = brain_root / "meeting" / "2026-03-14-standup.md"
+
+    conn = _init_conn()
+    add_backlinks(meeting_path, ["charlie brown"], brain_root, conn)
+
+    person_file = brain_root / "people" / "charlie-brown.md"
+    assert person_file.exists()
+    text = person_file.read_text(encoding="utf-8")
+    assert "# Charlie Brown" in text
+    assert "## Backlinks" in text
+    assert f"[[{meeting_path}]]" in text
 
 
 def test_orphan_missing_target(tmp_path):

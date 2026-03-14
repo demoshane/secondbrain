@@ -4,6 +4,22 @@ import sqlite3
 import datetime
 
 
+def ensure_person_profile(slug: str, brain_root: Path) -> Path:
+    """Return path to brain_root/people/{slug}.md, creating a skeleton if absent.
+
+    - Idempotent: existing files are never modified.
+    - Skeleton format: "# {Display Name}\\n\\n## Backlinks\\n"
+      where display_name = slug.replace('-', ' ').title()
+    """
+    person_file = brain_root / "people" / f"{slug}.md"
+    if not person_file.exists():
+        display_name = slug.replace("-", " ").title()
+        person_file.write_text(
+            f"# {display_name}\n\n## Backlinks\n", encoding="utf-8"
+        )
+    return person_file
+
+
 def add_backlinks(
     note_path: Path,
     people: list[str],
@@ -13,17 +29,14 @@ def add_backlinks(
     """Append backlink to each person's profile and record in relationships table.
 
     - Normalizes person slug: strip, lowercase, spaces -> hyphens
-    - Searches brain_root/people/ with glob *{slug}*.md (handles date-prefixed files)
+    - Calls ensure_person_profile(slug, brain_root) to get/create the profile
     - Appends backlink only if not already present (idempotent)
     - Inserts relationships row with INSERT OR IGNORE (idempotent)
-    - Never raises — missing person file is silently skipped
+    - Never raises — DB errors are silently swallowed (best-effort)
     """
     for person_raw in people:
         slug = person_raw.strip().lower().replace(" ", "-")
-        matches = list((brain_root / "people").glob(f"*{slug}*.md"))
-        if not matches:
-            continue
-        person_file = matches[0]
+        person_file = ensure_person_profile(slug, brain_root)
         text = person_file.read_text(encoding="utf-8")
         backlink = f"\n- [[{note_path}]]"
         if str(note_path) not in text:
