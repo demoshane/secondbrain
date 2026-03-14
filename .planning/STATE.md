@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 07-00-PLAN.md — Phase 07 Wave 0 RED stubs added
-last_updated: "2026-03-14T23:50:40.503Z"
+stopped_at: Completed 07-01-PLAN.md — path-format split fix applied, all 4 phase-7 tests GREEN
+last_updated: "2026-03-14T23:53:33.302Z"
 last_activity: "2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified"
 progress:
   total_phases: 9
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 45
-  completed_plans: 44
+  completed_plans: 45
   percent: 0
 ---
 
@@ -90,6 +90,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 06-integration-gap-closure P00 | 8 | 2 tasks | 4 files |
 | Phase 06-integration-gap-closure P03 | 15 | 2 tasks | 2 files |
 | Phase 07-fix-path-format-split P00 | 2 | 2 tasks | 3 files |
+| Phase 07-fix-path-format-split P01 | 5 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -188,6 +189,8 @@ Recent decisions affecting current work:
 - [Phase 06-integration-gap-closure]: Wave 0 xfail stubs replaced by plain passing tests — all 6 behaviors already implemented in prior plans (06-01, 06-02, 06-03) before wave 0 ran
 - [Phase 06-integration-gap-closure]: CAP-09 target (~/.claude/CLAUDE.md) lives outside repo — checkpoint used for manual verification; idempotency guard skips append if section present
 - [Phase 07-fix-path-format-split]: Tests use tmp_path.resolve() as brain_root — canonical macOS path contract; raw tmp_path may return /var/... while resolve() gives /private/var/...
+- [Phase 07-fix-path-format-split]: Use .resolve() not .absolute() — macOS tmp_path is /var/... symlink to /private/var/...; only .resolve() gives canonical form
+- [Phase 07-fix-path-format-split]: No changes to rag.py/forget.py — root cause was exclusively capture's path storage; consumers were already correct
 
 ### Pending Todos
 
@@ -202,6 +205,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T23:50:40.492Z
-Stopped at: Completed 07-00-PLAN.md — Phase 07 Wave 0 RED stubs added
+Last session: 2026-03-14T23:53:33.293Z
+Stopped at: Completed 07-01-PLAN.md — path-format split fix applied, all 4 phase-7 tests GREEN
 Resume file: None
