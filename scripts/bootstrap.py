@@ -4,7 +4,7 @@ Bootstrap validator for Second Brain DevContainer.
 Run on the HOST before opening the devcontainer, or inside the container
 to verify the environment is correctly configured.
 
-Usage: python scripts/bootstrap.py --dev
+Usage: uv run python scripts/bootstrap.py --dev
 """
 import argparse
 import importlib.util
@@ -95,6 +95,12 @@ def main():
     if not args.dev:
         ap.print_help()
         sys.exit(0)
+
+    if sys.prefix == sys.base_prefix:
+        print("[WARN] Not running inside a virtual environment.")
+        print("[WARN] Run via: uv run python scripts/bootstrap.py --dev")
+        print("[WARN] python-frontmatter and other deps may be missing.")
+        print()
 
     print("[bootstrap] Second Brain — environment check")
     print()
