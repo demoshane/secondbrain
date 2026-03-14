@@ -22,8 +22,8 @@
 - [x] **CAP-01**: `/sb-capture` CLI prompts for content type, title, body, and optional tags; writes atomic markdown note with YAML frontmatter
 - [x] **CAP-02**: YAML frontmatter includes: `type`, `title`, `date`, `tags`, `people` (refs), `created_at`, `updated_at`, `content_sensitivity` (public/private/pii)
 - [x] **CAP-03**: Capture operation is atomic: write file then index; if indexing fails, file write is rolled back
-- [ ] **CAP-04**: File watcher detects new files dropped into `files/` (presentations, .docx, .pdf) and triggers AI categorization prompt
-- [ ] **CAP-05**: Git commit hook fires when user commits in any project directory; AI summarizes the commit and offers to link it to a brain entry
+- [x] **CAP-04**: File watcher detects new files dropped into `files/` (presentations, .docx, .pdf) and triggers AI categorization prompt
+- [x] **CAP-05**: Git commit hook fires when user commits in any project directory; AI summarizes the commit and offers to link it to a brain entry
 - [x] **CAP-06**: AI automatically updates Claude memory (CLAUDE.md or memory files) when relevant project/people context is captured
 - [x] **CAP-07**: Notes use consistent Markdown templates per content type (defined in `.meta/templates/`)
 
@@ -31,9 +31,9 @@
 
 - [x] **PEOPLE-01**: `brain/people/<name>.md` profile created via `/sb-capture --type people`; includes role, notes, growth discussion history section
 - [x] **PEOPLE-02**: Meeting notes captured to `brain/meetings/` with attendees list that references `people/` entries by filename
-- [ ] **PEOPLE-03**: When a meeting note is created with attendees, each referenced person's profile is auto-updated with a backlink to the meeting
-- [ ] **PEOPLE-04**: `/sb-check-links` validates all people↔meetings↔projects bidirectional links and reports orphans
-- [ ] **PEOPLE-05**: `/sb-search --type people <name>` returns all notes, meetings, and projects referencing that person
+- [x] **PEOPLE-03**: When a meeting note is created with attendees, each referenced person's profile is auto-updated with a backlink to the meeting
+- [x] **PEOPLE-04**: `/sb-check-links` validates all people↔meetings↔projects bidirectional links and reports orphans
+- [x] **PEOPLE-05**: `/sb-search --type people <name>` returns all notes, meetings, and projects referencing that person
 
 ### Strategy & Work (WORK)
 
@@ -59,7 +59,7 @@
 
 - [x] **SEARCH-01**: `/sb-search <query>` performs FTS5 full-text search across all notes with BM25 ranking
 - [x] **SEARCH-02**: `/sb-search --type <type> <query>` scopes search to a single content type folder
-- [ ] **SEARCH-03**: `/sb-check-links` reports all orphaned bidirectional links across people/meetings/projects
+- [x] **SEARCH-03**: `/sb-check-links` reports all orphaned bidirectional links across people/meetings/projects
 - [x] **SEARCH-04**: AI queries automatically retrieve relevant notes via FTS5 as context before generating responses (RAG-lite)
 
 ### GDPR & Security (GDPR)
@@ -130,18 +130,18 @@
 | AI-09 | Phase 3 | Complete |
 | AI-10 | Phase 3 | Complete |
 | CAP-06 | Phase 3 | Complete |
-| CAP-04 | Phase 4 | Pending |
-| CAP-05 | Phase 4 | Pending |
+| CAP-04 | Phase 4 | Complete |
+| CAP-05 | Phase 4 | Complete |
 | PEOPLE-01 | Phase 4 | Complete |
 | PEOPLE-02 | Phase 4 | Complete |
-| PEOPLE-03 | Phase 4 | Pending |
-| PEOPLE-04 | Phase 4 | Pending |
-| PEOPLE-05 | Phase 4 | Pending |
+| PEOPLE-03 | Phase 4 | Complete |
+| PEOPLE-04 | Phase 4 | Complete |
+| PEOPLE-05 | Phase 4 | Complete |
 | WORK-01 | Phase 4 | Complete |
 | WORK-02 | Phase 4 | Complete |
 | WORK-03 | Phase 4 | Complete |
 | WORK-04 | Phase 4 | Complete |
-| SEARCH-03 | Phase 4 | Pending |
+| SEARCH-03 | Phase 4 | Complete |
 | SEARCH-04 | Phase 4 | Complete |
 | GDPR-01 | Phase 5 | Pending |
 | GDPR-02 | Phase 5 | Pending |

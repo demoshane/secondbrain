@@ -3,8 +3,11 @@
 Installed per-project by user:
     git config core.hooksPath /path/to/brain/.githooks
 
-Post-commit hook runs in the project repo directory (not brain repo).
+The shell hook cds to the brain repo so `uv run` finds the right venv,
+then passes the original project directory via SB_PROJECT_DIR so git
+commands here still target the correct repo.
 """
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -16,25 +19,28 @@ def get_commit_info() -> dict:
     Returns dict with keys: message (str), stat (str), repo (str).
     Falls back to `git show --stat HEAD` if HEAD~1 does not exist (initial commit).
     """
+    project_dir = os.environ.get("SB_PROJECT_DIR")
+    git = ["git", "-C", project_dir] if project_dir else ["git"]
+
     message = subprocess.run(
-        ["git", "log", "-1", "--format=%s", "HEAD"],
+        git + ["log", "-1", "--format=%s", "HEAD"],
         capture_output=True, text=True, timeout=10,
     ).stdout.strip()
 
     stat_result = subprocess.run(
-        ["git", "diff", "HEAD~1", "HEAD", "--stat"],
+        git + ["diff", "HEAD~1", "HEAD", "--stat"],
         capture_output=True, text=True, timeout=10,
     )
     if stat_result.returncode != 0:
         # Initial commit: no HEAD~1
         stat_result = subprocess.run(
-            ["git", "show", "--stat", "HEAD"],
+            git + ["show", "--stat", "HEAD"],
             capture_output=True, text=True, timeout=10,
         )
     stat = stat_result.stdout.strip()
 
     repo_result = subprocess.run(
-        ["git", "rev-parse", "--show-toplevel"],
+        git + ["rev-parse", "--show-toplevel"],
         capture_output=True, text=True, timeout=10,
     )
     repo = Path(repo_result.stdout.strip()).name if repo_result.returncode == 0 else "unknown"

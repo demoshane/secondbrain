@@ -3,8 +3,11 @@
 # Install per-project: git config core.hooksPath /path/to/brain/.githooks
 # This hook runs in the project repo directory.
 set -e
+# Resolve the second-brain repo from this hook's location
+BRAIN_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PROJECT_DIR="$(pwd)"
 if command -v uv >/dev/null 2>&1; then
-    uv run --no-project python -m engine.hooks.post_commit "$@"
+    cd "$BRAIN_DIR" && SB_PROJECT_DIR="$PROJECT_DIR" uv run python -m engine.hooks.post_commit "$@"
 else
-    python -m engine.hooks.post_commit "$@"
+    cd "$BRAIN_DIR" && SB_PROJECT_DIR="$PROJECT_DIR" python -m engine.hooks.post_commit "$@"
 fi

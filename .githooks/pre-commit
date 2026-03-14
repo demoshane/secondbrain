@@ -6,6 +6,9 @@
 
 set -e
 
+# Skip silently if this repo has no pre-commit config
+[ -f .pre-commit-config.yaml ] || exit 0
+
 if command -v uv >/dev/null 2>&1; then
     exec uv run pre-commit run --hook-stage pre-commit --color always "$@"
 else
