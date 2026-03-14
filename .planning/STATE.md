@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 06-integration-gap-closure-00-PLAN.md
-last_updated: "2026-03-14T22:56:38.874Z"
+stopped_at: Completed 06-03-PLAN.md — Phase 06 integration gap closure complete
+last_updated: "2026-03-14T23:00:38.950Z"
 last_activity: "2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified"
 progress:
   total_phases: 7
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 43
-  completed_plans: 42
+  completed_plans: 43
   percent: 0
 ---
 
@@ -88,6 +88,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 06-integration-gap-closure P02 | 15 | 1 tasks | 2 files |
 | Phase 06-integration-gap-closure P01 | 12 | 2 tasks | 4 files |
 | Phase 06-integration-gap-closure P00 | 8 | 2 tasks | 4 files |
+| Phase 06-integration-gap-closure P03 | 15 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -184,6 +185,7 @@ Recent decisions affecting current work:
 - [Phase 06-integration-gap-closure]: Store str(md_path) absolute path in reindex — not relative_to(brain_root) — so RAG reads locate files without brain_root reconstruction
 - [Phase 06-integration-gap-closure]: classify() called inside on_new_file() per-file with deferred import — mirrors capture.py pattern; removes daemon-level adapter binding
 - [Phase 06-integration-gap-closure]: Wave 0 xfail stubs replaced by plain passing tests — all 6 behaviors already implemented in prior plans (06-01, 06-02, 06-03) before wave 0 ran
+- [Phase 06-integration-gap-closure]: CAP-09 target (~/.claude/CLAUDE.md) lives outside repo — checkpoint used for manual verification; idempotency guard skips append if section present
 
 ### Pending Todos
 
@@ -198,6 +200,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T22:56:38.866Z
-Stopped at: Completed 06-integration-gap-closure-00-PLAN.md
+Last session: 2026-03-14T23:00:38.941Z
+Stopped at: Completed 06-03-PLAN.md — Phase 06 integration gap closure complete
 Resume file: None
