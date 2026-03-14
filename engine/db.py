@@ -69,6 +69,14 @@ def get_connection() -> sqlite3.Connection:
     return conn
 
 
+def migrate_add_people_column(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: add 'people' TEXT column to notes if absent."""
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(notes)").fetchall()}
+    if "people" not in cols:
+        conn.execute("ALTER TABLE notes ADD COLUMN people TEXT NOT NULL DEFAULT '[]'")
+        conn.commit()
+
+
 def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     """Create (or optionally recreate) the full schema.
 
@@ -79,3 +87,4 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
         conn.executescript(DROP_SQL)
 
     conn.executescript(SCHEMA_SQL)
+    migrate_add_people_column(conn)
