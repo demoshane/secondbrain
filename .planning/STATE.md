@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-foundation/01-03-PLAN.md
-last_updated: "2026-03-14T12:52:18.772Z"
+stopped_at: Completed 01-foundation/01-04-PLAN.md
+last_updated: "2026-03-14T12:55:43.784Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 7
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -54,6 +54,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-foundation P01 | 2 | 2 tasks | 6 files |
 | Phase 01-foundation P02 | 2 | 2 tasks | 3 files |
 | Phase 01-foundation P03 | 8 | 2 tasks | 6 files |
+| Phase 01-foundation P04 | 3 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,8 @@ Recent decisions affecting current work:
 - [Phase 01-foundation]: pre-commit install deferred to DevContainer postCreateCommand; test_blocks_api_key skips outside container via skipif guard
 - [Phase 01-foundation]: Use conn.executescript() for multi-statement SQL in init_schema — trigger bodies contain semicolons that break naive split
 - [Phase 01-foundation]: validate_drive_mount writes a .sb-write-probe file before any mkdir — ensures actual write permission on Drive mount
+- [Phase 01-foundation]: reindex_brain accepts optional conn parameter so tests can pass in-memory SQLite connection without touching disk
+- [Phase 01-foundation]: Relative path from brain_root used as canonical note ID in reindex — portable across installs and containers
 
 ### Pending Todos
 
@@ -89,6 +92,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T12:52:18.766Z
-Stopped at: Completed 01-foundation/01-03-PLAN.md
+Last session: 2026-03-14T12:55:43.779Z
+Stopped at: Completed 01-foundation/01-04-PLAN.md
 Resume file: None
