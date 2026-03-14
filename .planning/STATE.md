@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Completed 04-automation/04-08-PLAN.md
-last_updated: "2026-03-14T19:22:15.480Z"
+stopped_at: Completed 04-automation/04-10-PLAN.md (gap closure complete — all 4 gap plans executed)
+last_updated: "2026-03-14T19:40:00.000Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
   total_phases: 5
@@ -144,6 +144,9 @@ Recent decisions affecting current work:
 - [Phase 04-automation]: ensure_person_profile() creates skeleton on first access — eliminates silent skip for missing people profiles
 - [Phase 04-automation]: seed_templates() source path relative to __file__ (engine/) so repo templates found regardless of brain_root location; existing files never overwritten matching config.toml seeding contract
 - [Phase 04-automation]: BRAIN_SUBDIRS count assertion in test_paths.py updated from 9 to 10 — test must track intentional additions to the list
+- [Phase 04-automation]: ask_followup_questions() conn=None param is optional for backwards compat; augment_prompt called only when conn provided
+- [Phase 04-automation]: FilesDropHandler redesigned with single shared _batch_timer — all files dropped within DEBOUNCE_SECONDS processed as one batch; rate-limited batches retry after window
+- [Phase 04-automation]: Post-commit hook cds to brain repo before uv run; original project dir passed via SB_PROJECT_DIR so git commands target correct repo
 
 ### Pending Todos
 
@@ -158,6 +161,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T19:22:15.472Z
-Stopped at: Completed 04-automation/04-08-PLAN.md
+Last session: 2026-03-14T19:40:00.000Z
+Stopped at: Completed 04-automation/04-10-PLAN.md (gap closure complete)
 Resume file: None
