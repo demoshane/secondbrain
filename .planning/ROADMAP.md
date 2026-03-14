@@ -105,12 +105,13 @@ Plans:
 **Goal:** One-command native macOS setup — `uv tool install --editable` makes all sb-* commands globally accessible; launchd LaunchAgent runs sb-watch at login with crash restart; git hook installer points any project repo at the shared .githooks/ dir
 **Requirements**: 4.1-CLI-01, 4.1-CLI-02, 4.1-LAUNCHD-01, 4.1-LAUNCHD-02, 4.1-LAUNCHD-03, 4.1-HOOK-01, 4.1-HOOK-02
 **Depends on:** Phase 4
+**Status:** Complete (2026-03-14)
 **Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 04.1-00-PLAN.md — Wave 0: test stubs (7 tests in test_install_native.py) + scripts/install_native.py stub
-- [ ] 04.1-01-PLAN.md — Wave 1: implement all 3 installer functions (global CLI, launchd, git hooks) — all tests GREEN
-- [ ] 04.1-02-PLAN.md — Wave 2: sb-install entry point in pyproject.toml + manual verification checkpoint
+- [x] 04.1-00-PLAN.md — Wave 0: test stubs (7 tests in test_install_native.py) + scripts/install_native.py stub
+- [x] 04.1-01-PLAN.md — Wave 1: implement all 3 installer functions (global CLI, launchd, git hooks) — all tests GREEN
+- [x] 04.1-02-PLAN.md — Wave 2: sb-install entry point in pyproject.toml + manual verification checkpoint
 
 ### Phase 5: GDPR and Maintenance
 **Goal**: Right to erasure is complete and verifiable — no content fragment for a deleted person survives in markdown, binary attachments, SQLite rows, or FTS5 shadow tables; PII notes require passphrase confirmation before display
@@ -133,5 +134,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Storage and Index | 4/4 | Complete   | 2026-03-14 |
 | 3. AI Layer | 6/6 | Complete   | 2026-03-14 |
 | 4. Automation | 9/12 | In Progress|  |
-| 4.1. Native macOS UX | 0/3 | Not started | - |
+| 4.1. Native macOS UX | 3/3 | Complete    | 2026-03-14 |
 | 5. GDPR and Maintenance | 0/TBD | Not started | - |
