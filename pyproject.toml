@@ -1,0 +1,28 @@
+[project]
+name = "second-brain"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+[project.dependencies]
+python-frontmatter = ">=1.0"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "detect-secrets>=1.5.0",
+    "pre-commit>=3.0",
+]
+
+[project.scripts]
+sb-init = "engine.init_brain:main"
+sb-reindex = "engine.reindex:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
