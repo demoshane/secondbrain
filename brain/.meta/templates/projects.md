@@ -1,19 +1,13 @@
----
-type: projects
-title: "{{title}}"
-date: "{{date}}"
-tags: []
-people: []
-created_at: "{{created_at}}"
-updated_at: "{{updated_at}}"
-content_sensitivity: private
----
+# {{title}}
 
-## Client / Account
+**Status:** active
+**Started:** {{date}}
+**Goal:**
 
-## Key Contacts
-<!-- link to people/ entries, e.g. [[people/alice-smith]] -->
+## Context
 
-## Status
+## Progress
 
-## Meeting History
+## Next Steps
+
+## Backlinks

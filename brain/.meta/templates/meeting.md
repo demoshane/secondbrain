@@ -1,11 +1,13 @@
-## Attendees
+# {{title}}
 
-${people}
+**Date:** {{date}}
+**Attendees:** {{people}}
+**Project:**
 
 ## Agenda
 
 ## Notes
 
-${body}
-
 ## Action Items
+
+## Backlinks

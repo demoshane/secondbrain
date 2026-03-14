@@ -1,12 +1,9 @@
-## Profile
+# {{name}}
 
 **Role:**
-**Team:**
+**Company:**
+**Contact:**
 
 ## Notes
 
-${body}
-
-## Growth Discussion History
-
-## Meetings & References
+## Backlinks

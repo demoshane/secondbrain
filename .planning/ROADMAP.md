@@ -84,7 +84,7 @@ Plans:
   3. Creating a meeting note with two attendees automatically adds a backlink to each person's profile; `/sb-check-links` reports zero orphans in a correctly populated brain
   4. `/sb-search --type people "Alice"` returns Alice's profile plus all meetings and projects that reference her
   5. An AI query response demonstrably includes context pulled from FTS5-retrieved notes (visible in debug output or prompt log)
-**Plans**: 7 plans
+**Plans**: 11 plans
 
 Plans:
 - [ ] 04-00-PLAN.md — Wave 0: test stubs (test_watcher, test_hooks, test_links, test_rag), stub engine modules, pyproject.toml (watchdog dep, sb-watch + sb-check-links entry points)
@@ -94,6 +94,10 @@ Plans:
 - [ ] 04-04-PLAN.md — File watcher daemon: engine/watcher.py (FilesDropHandler, start_watcher, sb-watch main) (CAP-04)
 - [ ] 04-05-PLAN.md — Git hook: engine/hooks/post_commit.py, .githooks/post-commit shell wrapper (CAP-05)
 - [ ] 04-06-PLAN.md — Manual verification checkpoint: all 5 Phase 4 success criteria
+- [ ] 04-07-PLAN.md — Gap closure: person profile auto-creation in links.py (PEOPLE-03, PEOPLE-04, PEOPLE-05, SEARCH-03)
+- [ ] 04-08-PLAN.md — Gap closure: templates directory seeding in init_brain.py (PEOPLE-01, PEOPLE-02, WORK-01–04)
+- [ ] 04-09-PLAN.md — Gap closure: RAG wiring — conn param + augment_prompt() call in ai.py/capture.py (SEARCH-04)
+- [ ] 04-10-PLAN.md — Gap closure: watcher batch fix + post-commit /dev/tty stdin fix (CAP-04, CAP-05)
 
 ### Phase 5: GDPR and Maintenance
 **Goal**: Right to erasure is complete and verifiable — no content fragment for a deleted person survives in markdown, binary attachments, SQLite rows, or FTS5 shadow tables; PII notes require passphrase confirmation before display
@@ -115,5 +119,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Foundation | 10/10 | Complete   | 2026-03-14 |
 | 2. Storage and Index | 4/4 | Complete   | 2026-03-14 |
 | 3. AI Layer | 6/6 | Complete   | 2026-03-14 |
-| 4. Automation | 5/7 | In Progress|  |
+| 4. Automation | 7/11 | In Progress|  |
 | 5. GDPR and Maintenance | 0/TBD | Not started | - |

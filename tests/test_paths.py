@@ -51,4 +51,4 @@ def test_paths_module_exports_expected_symbols():
     assert isinstance(INDEX_ROOT, Path)
     assert isinstance(DB_PATH, Path)
     assert isinstance(BRAIN_SUBDIRS, list)
-    assert len(BRAIN_SUBDIRS) == 9
+    assert len(BRAIN_SUBDIRS) == 10

@@ -1,20 +1,15 @@
----
-type: coding
-title: "{{title}}"
-date: "{{date}}"
-tags: []
-people: []
-created_at: "{{created_at}}"
-updated_at: "{{updated_at}}"
-content_sensitivity: private
----
+# {{title}}
 
-## Context
+**Date:** {{date}}
+**Language/Stack:**
+**Tags:** {{tags}}
 
-## Decision
+## Problem
 
-## Alternatives Considered
+## Solution
 
-## Consequences
+## Code
 
-## GitHub Repo
+## References
+
+## Backlinks
