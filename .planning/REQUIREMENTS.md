@@ -60,7 +60,7 @@
 - [x] **SEARCH-01**: `/sb-search <query>` performs FTS5 full-text search across all notes with BM25 ranking
 - [x] **SEARCH-02**: `/sb-search --type <type> <query>` scopes search to a single content type folder
 - [ ] **SEARCH-03**: `/sb-check-links` reports all orphaned bidirectional links across people/meetings/projects
-- [ ] **SEARCH-04**: AI queries automatically retrieve relevant notes via FTS5 as context before generating responses (RAG-lite)
+- [x] **SEARCH-04**: AI queries automatically retrieve relevant notes via FTS5 as context before generating responses (RAG-lite)
 
 ### GDPR & Security (GDPR)
 
@@ -142,7 +142,7 @@
 | WORK-03 | Phase 4 | Complete |
 | WORK-04 | Phase 4 | Complete |
 | SEARCH-03 | Phase 4 | Pending |
-| SEARCH-04 | Phase 4 | Pending |
+| SEARCH-04 | Phase 4 | Complete |
 | GDPR-01 | Phase 5 | Pending |
 | GDPR-02 | Phase 5 | Pending |
 | GDPR-04 | Phase 5 | Pending |
