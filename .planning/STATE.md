@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Completed 03-ai-layer/03-01-PLAN.md
-last_updated: "2026-03-14T17:10:51.178Z"
+stopped_at: Completed 03-ai-layer/03-02-PLAN.md
+last_updated: "2026-03-14T17:14:31.317Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 20
-  completed_plans: 16
+  completed_plans: 17
   percent: 0
 ---
 
@@ -65,6 +65,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02-storage-and-index P03 | 12 | 1 tasks | 4 files |
 | Phase 03-ai-layer P00 | 10 | 2 tasks | 6 files |
 | Phase 03-ai-layer P01 | 3 | 2 tasks | 7 files |
+| Phase 03-ai-layer P02 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,9 @@ Recent decisions affecting current work:
 - [Phase 03-ai-layer]: ClaudeAdapter uses subprocess.run(['claude', '-p', ...]) — no anthropic SDK import (Max plan constraint)
 - [Phase 03-ai-layer]: classify() frontmatter field wins over keyword scan — explicit user declaration takes priority
 - [Phase 03-ai-layer]: OllamaAdapter default host is host.docker.internal:11434 for DevContainer compatibility
+- [Phase 03-ai-layer]: load_config() has no module-level caching — every call reads disk for hot config reload without restart (AI-05)
+- [Phase 03-ai-layer]: Unknown sensitivity in get_adapter() falls back to public_model routing (safe default)
+- [Phase 03-ai-layer]: init_brain.py writes config.toml as raw string — no tomllib import in init path; idempotent (no overwrite)
 
 ### Pending Todos
 
@@ -121,6 +125,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T17:10:51.170Z
-Stopped at: Completed 03-ai-layer/03-01-PLAN.md
+Last session: 2026-03-14T17:14:31.311Z
+Stopped at: Completed 03-ai-layer/03-02-PLAN.md
 Resume file: None
