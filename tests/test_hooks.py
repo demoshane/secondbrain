@@ -73,7 +73,7 @@ def test_initial_commit_fallback():
 
 
 def test_non_interactive_skips_prompt(capsys):
-    """main() skips input() when sys.stdin is not a TTY."""
+    """main() skips prompt when /dev/tty is unavailable (no controlling terminal)."""
     mock_adapter = MagicMock()
     mock_adapter.generate.return_value = "summary text"
 
@@ -84,15 +84,11 @@ def test_non_interactive_skips_prompt(capsys):
             "repo": "my-project",
         }),
         patch("engine.router.get_adapter", return_value=mock_adapter),
-        patch("sys.stdin") as mock_stdin,
+        patch("builtins.open", side_effect=OSError("not a tty")),
     ):
-        mock_stdin.isatty.return_value = False
-
         from engine.hooks.post_commit import main
 
         main()
 
     captured = capsys.readouterr()
     assert "non-interactive" in captured.err
-    # input() should never have been called
-    mock_stdin.readline.assert_not_called()
