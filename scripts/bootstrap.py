@@ -1,8 +1,8 @@
 """
 Bootstrap validator for Second Brain DevContainer.
 
-Run on the HOST (not inside container) to verify all prerequisites
-before opening the devcontainer.
+Run on the HOST before opening the devcontainer, or inside the container
+to verify the environment is correctly configured.
 
 Usage: python scripts/bootstrap.py --dev
 """
@@ -15,6 +15,9 @@ from pathlib import Path
 # All checks registered via the @check decorator
 _checks = []
 
+# Detect container environment
+_IN_CONTAINER = Path("/.dockerenv").exists()
+
 
 def check(label: str):
     """Register a check function."""
@@ -26,9 +29,11 @@ def check(label: str):
 
 @check("Drive folder exists and is writable")
 def check_drive():
-    drive_path = Path.home() / "SecondBrain"
+    # Inside container the brain is bind-mounted at /workspace/brain
+    drive_path = Path("/workspace/brain") if _IN_CONTAINER else Path.home() / "SecondBrain"
     if not drive_path.is_dir():
-        return False, f"{drive_path} not found — create ~/SecondBrain and sync Google Drive"
+        hint = f"{drive_path} not found — brain bind-mount missing" if _IN_CONTAINER else f"{drive_path} not found — create ~/SecondBrain and sync Google Drive"
+        return False, hint
     probe = drive_path / ".sb-probe"
     try:
         probe.write_text("probe")
@@ -40,13 +45,12 @@ def check_drive():
 
 @check(".env.host file present")
 def check_env_host():
-    env_path = Path.home() / ".config" / "second-brain" / ".env.host"
+    # Inside container .env.host is bind-mounted at /workspace/.env.host
+    env_path = Path("/workspace/.env.host") if _IN_CONTAINER else Path.home() / ".config" / "second-brain" / ".env.host"
     if env_path.exists():
         return True, str(env_path)
-    return (
-        False,
-        f"{env_path} not found — copy .env.host.example to {env_path}",
-    )
+    hint = f"{env_path} not found — .env.host bind-mount missing" if _IN_CONTAINER else f"{env_path} not found — copy .env.host.example to {env_path}"
+    return False, hint
 
 
 @check("Python dependency: python-frontmatter")
