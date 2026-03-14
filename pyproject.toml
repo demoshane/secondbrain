@@ -5,6 +5,7 @@ requires-python = ">=3.12"
 dependencies = [
     "python-frontmatter>=1.0",
     "ollama>=0.6",
+    "watchdog>=6.0",
 ]
 
 [project.optional-dependencies]
@@ -20,6 +21,8 @@ sb-init = "engine.init_brain:main"
 sb-reindex = "engine.reindex:main"
 sb-capture = "engine.capture:main"
 sb-search = "engine.search:main"
+sb-watch = "engine.watcher:main"
+sb-check-links = "engine.links:main_check_links"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

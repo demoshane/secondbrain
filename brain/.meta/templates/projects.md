@@ -1,5 +1,5 @@
 ---
-type: coding
+type: projects
 title: "{{title}}"
 date: "{{date}}"
 tags: []
@@ -9,12 +9,11 @@ updated_at: "{{updated_at}}"
 content_sensitivity: private
 ---
 
-## Context
+## Client / Account
 
-## Decision
+## Key Contacts
+<!-- link to people/ entries, e.g. [[people/alice-smith]] -->
 
-## Alternatives Considered
+## Status
 
-## Consequences
-
-## GitHub Repo
+## Meeting History
