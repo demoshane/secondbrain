@@ -53,7 +53,7 @@ completed: 2026-03-14
 - **Duration:** ~12 min
 - **Started:** 2026-03-14T15:40:00Z
 - **Completed:** 2026-03-14T15:52:00Z
-- **Tasks:** 1 of 1 (checkpoint pending human verification)
+- **Tasks:** 1 of 1 + checkpoint approved
 - **Files modified:** 4
 
 ## Accomplishments
@@ -92,10 +92,18 @@ completed: 2026-03-14
 - **Verification:** Test suite shows `s` (skip) for that test on host, all others pass.
 - **Committed in:** `3991d69` (Task 1 commit)
 
+**2. [Rule 3 - Blocking] Dockerfile missing PATH entries for venv and local bin**
+- **Found during:** Checkpoint verification (human-verify)
+- **Issue:** Inside DevContainer, `sb-capture` and `sb-search` were not found on PATH — the venv bin dir (`/workspaces/second-brain/.venv/bin`) and `~/.local/bin` were not in the vscode user's shell PATH.
+- **Fix:** Added both directories to the vscode user's `.bashrc` in the Dockerfile so console_scripts entry points are discoverable after `pip install -e .`
+- **Files modified:** .devcontainer/Dockerfile
+- **Verification:** Checkpoint approved — sb-capture and sb-search invocable from DevContainer shell.
+- **Committed in:** `e0592fa` (devcontainer infrastructure fix)
+
 ---
 
-**Total deviations:** 1 auto-fixed (1 bug fix)
-**Impact on plan:** Fix necessary for correctness — crash vs. skip is the difference between broken CI and working CI. No scope creep.
+**Total deviations:** 2 auto-fixed (1 bug fix, 1 blocking infrastructure fix)
+**Impact on plan:** Both fixes necessary for correctness. No scope creep.
 
 ## Issues Encountered
 
@@ -109,8 +117,8 @@ None - no external service configuration required.
 
 - All Phase 2 automated tests pass (39 passed, 4 skipped)
 - CLI entry points registered and ready for `pip install -e .`
-- Checkpoint awaiting DevContainer verification of end-to-end capture+search flow
-- Phase 3 (Templates and Context) can begin once checkpoint is approved
+- Checkpoint approved: DevContainer end-to-end capture+search flow verified
+- Phase 3 (Templates and Context) is unblocked and ready to begin
 
 ---
 *Phase: 02-storage-and-index*
