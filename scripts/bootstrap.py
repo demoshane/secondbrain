@@ -15,8 +15,14 @@ from pathlib import Path
 # All checks registered via the @check decorator
 _checks = []
 
-# Detect container environment
-_IN_CONTAINER = Path("/.dockerenv").exists()
+# Detect container environment — /.dockerenv is absent in some DevContainer builds;
+# fall back to checking the VS Code env var and the workspace mount point.
+import os as _os
+_IN_CONTAINER = (
+    Path("/.dockerenv").exists()
+    or _os.environ.get("REMOTE_CONTAINERS") == "true"
+    or Path("/workspace").is_dir()
+)
 
 
 def check(label: str):

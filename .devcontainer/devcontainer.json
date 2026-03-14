@@ -28,9 +28,12 @@
     "source=${localEnv:HOME}/.config/second-brain/.env.host,target=/workspace/.env.host,type=bind,consistency=cached",
     // Claude config and auth across rebuilds
     "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.config/claude,target=/home/vscode/.config/claude,type=bind,consistency=cached"
+    "source=${localEnv:HOME}/.config/claude,target=/home/vscode/.config/claude,type=bind,consistency=cached",
+    // Git identity from host
+    "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,consistency=cached"
   ],
   "runArgs": ["--env-file", "${localEnv:HOME}/.config/second-brain/.env.host"],
-  "postCreateCommand": "npm install -g @anthropic-ai/claude-code && uv pip install -e '.[dev]'",
+  "postCreateCommand": "sudo npm install -g @anthropic-ai/claude-code && uv pip install -e '.[dev]' && uv run pre-commit install",
+  "postStartCommand": "sudo chown vscode:vscode /workspace/brain-index",
   "remoteUser": "vscode"
 }
