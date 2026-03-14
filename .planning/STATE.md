@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Completed 04-automation/04-10-PLAN.md (gap closure complete — all 4 gap plans executed)
-last_updated: "2026-03-14T19:40:00.000Z"
+stopped_at: Completed 04-automation/04-11-PLAN.md
+last_updated: "2026-03-14T19:51:19.863Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
-  total_phases: 5
-  completed_phases: 3
-  total_plans: 31
-  completed_plans: 29
+  total_phases: 6
+  completed_phases: 4
+  total_plans: 32
+  completed_plans: 32
   percent: 0
 ---
 
@@ -77,8 +77,13 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04-automation P05 | 8 | 1 tasks | 3 files |
 | Phase 04-automation P07 | 5 | 2 tasks | 2 files |
 | Phase 04-automation P08 | 12 | 2 tasks | 8 files |
+| Phase 04-automation P11 | 2 | 1 tasks | 2 files |
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 4.1 inserted after Phase 4: Native macOS UX — global CLI, launchd watcher autostart, git hook installer (URGENT — day-to-day friction fix)
 
 ### Decisions
 
@@ -147,6 +152,8 @@ Recent decisions affecting current work:
 - [Phase 04-automation]: ask_followup_questions() conn=None param is optional for backwards compat; augment_prompt called only when conn provided
 - [Phase 04-automation]: FilesDropHandler redesigned with single shared _batch_timer — all files dropped within DEBOUNCE_SECONDS processed as one batch; rate-limited batches retry after window
 - [Phase 04-automation]: Post-commit hook cds to brain repo before uv run; original project dir passed via SB_PROJECT_DIR so git commands target correct repo
+- [Phase 04-automation]: on_new_file derives title from path.stem with hyphen/underscore->space and title-case; sensitivity hardcoded to private for dropped files
+- [Phase 04-automation]: conn and adapter initialized once before on_new_file closure; conn.close() deferred to after observer.join()
 
 ### Pending Todos
 
@@ -161,6 +168,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T19:40:00.000Z
-Stopped at: Completed 04-automation/04-10-PLAN.md (gap closure complete)
+Last session: 2026-03-14T19:51:19.855Z
+Stopped at: Completed 04-automation/04-11-PLAN.md
 Resume file: None

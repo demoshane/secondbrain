@@ -84,7 +84,7 @@ Plans:
   3. Creating a meeting note with two attendees automatically adds a backlink to each person's profile; `/sb-check-links` reports zero orphans in a correctly populated brain
   4. `/sb-search --type people "Alice"` returns Alice's profile plus all meetings and projects that reference her
   5. An AI query response demonstrably includes context pulled from FTS5-retrieved notes (visible in debug output or prompt log)
-**Plans**: 11 plans
+**Plans**: 12 plans
 
 Plans:
 - [ ] 04-00-PLAN.md — Wave 0: test stubs (test_watcher, test_hooks, test_links, test_rag), stub engine modules, pyproject.toml (watchdog dep, sb-watch + sb-check-links entry points)
@@ -98,6 +98,17 @@ Plans:
 - [ ] 04-08-PLAN.md — Gap closure: templates directory seeding in init_brain.py (PEOPLE-01, PEOPLE-02, WORK-01–04)
 - [ ] 04-09-PLAN.md — Gap closure: RAG wiring — conn param + augment_prompt() call in ai.py/capture.py (SEARCH-04)
 - [ ] 04-10-PLAN.md — Gap closure: watcher batch fix + post-commit /dev/tty stdin fix (CAP-04, CAP-05)
+- [ ] 04-11-PLAN.md — Gap closure: watcher headless on_new_file — replace input() with AI-auto-classify so batch loop is non-blocking (CAP-04)
+
+### Phase 04.1: Native macOS UX: global CLI, launchd watcher autostart, git hook installer (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 4
+**Plans:** 12/12 plans complete
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 04.1 to break down)
 
 ### Phase 5: GDPR and Maintenance
 **Goal**: Right to erasure is complete and verifiable — no content fragment for a deleted person survives in markdown, binary attachments, SQLite rows, or FTS5 shadow tables; PII notes require passphrase confirmation before display
@@ -119,5 +130,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Foundation | 10/10 | Complete   | 2026-03-14 |
 | 2. Storage and Index | 4/4 | Complete   | 2026-03-14 |
 | 3. AI Layer | 6/6 | Complete   | 2026-03-14 |
-| 4. Automation | 9/11 | In Progress|  |
+| 4. Automation | 9/12 | In Progress|  |
 | 5. GDPR and Maintenance | 0/TBD | Not started | - |
