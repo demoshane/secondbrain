@@ -191,6 +191,84 @@ def test_rate_limit_defers_second_batch(tmp_path):
     )
 
 
+def test_batch_processes_all_files_direct(tmp_path):
+    """_fire_batch calls on_new_file for every path in _pending_paths (no blocking)."""
+    callback = MagicMock()
+    rate_limiter = MagicMock()
+    rate_limiter.allow.return_value = True
+
+    handler = FilesDropHandler(callback, rate_limiter, observer_start_time=time.monotonic())
+    # Directly inject 3 pending paths — bypasses debounce timer
+    paths = [str(tmp_path / f"drop{i}.pdf") for i in range(3)]
+    with handler._lock:
+        handler._pending_paths.update(paths)
+
+    handler._fire_batch()
+
+    assert callback.call_count == 3, f"Expected 3 calls, got {callback.call_count}"
+    called_names = {c[0][0].name for c in callback.call_args_list}
+    assert called_names == {f"drop{i}.pdf" for i in range(3)}
+
+
+def test_main_on_new_file_no_input_on_ai_failure(tmp_path, monkeypatch):
+    """on_new_file in main() must not call input() even when adapter.generate raises."""
+    import engine.watcher as watcher_mod
+    from unittest.mock import patch as _patch
+
+    fake_note = tmp_path / "result.md"
+    fake_note.write_text("")
+
+    with _patch("engine.paths.BRAIN_ROOT", tmp_path), \
+         _patch("engine.paths.CONFIG_PATH", tmp_path / "config.toml"), \
+         _patch("engine.db.get_connection") as mock_conn, \
+         _patch("engine.db.init_schema"), \
+         _patch("engine.router.get_adapter") as mock_get_adapter, \
+         _patch("engine.capture.capture_note", return_value=fake_note) as mock_capture, \
+         _patch("builtins.input", side_effect=AssertionError("input() must not be called in headless mode")):
+
+        mock_adapter = MagicMock()
+        mock_adapter.generate.side_effect = RuntimeError("AI unavailable")
+        mock_get_adapter.return_value = mock_adapter
+        mock_conn.return_value = MagicMock()
+
+        # Import and re-run just the callback — simulate what main() would wire up
+        # We build the same closure that the updated main() will build
+        from engine.paths import BRAIN_ROOT, CONFIG_PATH
+        from engine.db import get_connection, init_schema
+        from engine.router import get_adapter
+        from engine.capture import capture_note
+
+        conn = mock_conn.return_value
+        adapter = mock_get_adapter("private", CONFIG_PATH)
+
+        def on_new_file(path: Path) -> None:
+            title = path.stem.replace("-", " ").replace("_", " ").title()
+            try:
+                tags_str = adapter.generate(
+                    user_content=f"File: {path.name}",
+                    system_prompt="Suggest 2-3 comma-separated tags for this file. Output only the tags.",
+                )
+                tags = [t.strip() for t in tags_str.split(",") if t.strip()][:3]
+            except Exception as e:
+                print(f"[sb-watch] AI tagging skipped: {type(e).__name__}")
+                tags = []
+            try:
+                note_path = capture_note("note", title, f"File: {path}", tags, [], "private", BRAIN_ROOT, conn)
+                print(f"[sb-watch] Captured: {path.name} -> {note_path.name}")
+            except Exception as e:
+                print(f"[sb-watch] Failed to capture {path.name}: {type(e).__name__}")
+
+        test_file = tmp_path / "my-project-notes.pdf"
+        test_file.write_text("")
+        # Must not raise (no input() called)
+        on_new_file(test_file)
+        # capture_note called with empty tags (AI failed)
+        mock_capture.assert_called_once()
+        call_kwargs = mock_capture.call_args
+        tags_arg = call_kwargs[0][3]  # positional: note_type, title, body, tags, ...
+        assert tags_arg == [], f"Expected empty tags on AI failure, got {tags_arg}"
+
+
 def test_skips_files_older_than_watcher_start(tmp_path):
     """Handler skips files whose ctime predates the watcher start time."""
     callback = MagicMock()

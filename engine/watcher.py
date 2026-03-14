@@ -91,39 +91,37 @@ def start_watcher(watch_dir: Path, on_new_file) -> Observer:
 
 def main() -> None:
     """CLI entry point: sb-watch daemon. Watches BRAIN_ROOT/files/ for dropped files."""
-    from engine.paths import BRAIN_ROOT
-    from engine.router import get_adapter
-    from engine.paths import CONFIG_PATH
+    from engine.paths import BRAIN_ROOT, CONFIG_PATH
+    from engine.capture import capture_note
+    from engine.db import get_connection, init_schema
+    import engine.router as router_mod
 
     watch_dir = BRAIN_ROOT / "files"
     watch_dir.mkdir(parents=True, exist_ok=True)
 
+    conn = get_connection()
+    init_schema(conn)
+    adapter = router_mod.get_adapter("private", CONFIG_PATH)
+
     def on_new_file(path: Path) -> None:
-        print(f"\n[sb-watch] New file detected: {path.name}")
-        answer = input("Categorize this file as a brain note? [y/N]: ").strip().lower()
-        if answer != "y":
-            return
-        title = input("Title for this note: ").strip()
-        if not title:
-            return
-        from engine.capture import capture_note
-        from engine.db import get_connection, init_schema
-        conn = get_connection()
-        init_schema(conn)
-        adapter = get_adapter("public", CONFIG_PATH)
-        system = "You are a file categorization assistant. Given a filename, suggest 2-3 tags."
+        print(f"[sb-watch] Detected: {path.name}")
+        # Derive title from filename (stem, no extension)
+        title = path.stem.replace("-", " ").replace("_", " ").title()
+        # AI tag suggestion — best-effort, never blocks
         try:
             tags_str = adapter.generate(
-                user_content=f"File: {path.name}\nTitle: {title}",
-                system_prompt=system,
+                user_content=f"File: {path.name}",
+                system_prompt="Suggest 2-3 comma-separated tags for this file. Output only the tags.",
             )
             tags = [t.strip() for t in tags_str.split(",") if t.strip()][:3]
         except Exception as e:
             print(f"[sb-watch] AI tagging skipped: {type(e).__name__}")
             tags = []
-        capture_note("note", title, f"File: {path}", tags, [], "private", BRAIN_ROOT, conn)
-        conn.close()
-        print("[sb-watch] Brain note created.")
+        try:
+            note_path = capture_note("note", title, f"File: {path}", tags, [], "private", BRAIN_ROOT, conn)
+            print(f"[sb-watch] Captured: {path.name} -> {note_path.name}")
+        except Exception as e:
+            print(f"[sb-watch] Failed to capture {path.name}: {type(e).__name__}")
 
     print(f"[sb-watch] Watching {watch_dir} for new files (Ctrl+C to stop)...")
     observer = start_watcher(watch_dir, on_new_file)
@@ -133,3 +131,4 @@ def main() -> None:
     except KeyboardInterrupt:
         observer.stop()
     observer.join()
+    conn.close()
