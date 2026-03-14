@@ -140,7 +140,7 @@ def write_note_atomic(
         raise RuntimeError(f"Failed to write {target}: {type(e).__name__}") from e
 
 
-def main() -> None:
+def main(argv=None) -> None:
     """CLI entry point for sb-capture."""
     import argparse
     from engine.db import get_connection, init_schema, migrate_add_people_column
@@ -161,7 +161,7 @@ def main() -> None:
         default="public",
         choices=["public", "private", "pii"],
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     tags = [t.strip() for t in args.tags.split(",") if t.strip()]
     people = [p.strip() for p in args.people.split(",") if p.strip()]
@@ -198,6 +198,13 @@ def main() -> None:
 
     path = capture_note(args.note_type, args.title, args.body, tags, people, args.sensitivity, BRAIN_ROOT, conn)
     conn.close()
+    # CAP-06: best-effort memory update — outside transaction, never blocks capture
+    if sensitivity != "pii":
+        try:
+            from engine.ai import update_memory
+            update_memory(args.note_type, f"{args.note_type} note: {args.title}", CONFIG_PATH)
+        except Exception as e:
+            print(f"[sb-capture] Memory update skipped: {type(e).__name__}")
     print(str(path))
 
 

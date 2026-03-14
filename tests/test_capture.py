@@ -124,29 +124,50 @@ def test_error_message_no_body_content(tmp_path, initialized_db):
     assert "Eve" not in error_message, "Error message must not contain people"
 
 
-@pytest.mark.xfail(strict=True, reason="CAP-06 not wired yet")
+# ---------------------------------------------------------------------------
+# CAP-06: Memory update call site
+# ---------------------------------------------------------------------------
+
 def test_cap06_update_memory_called_after_capture(tmp_path):
-    from unittest.mock import patch, MagicMock
+    """update_memory() is called exactly once after a non-PII capture."""
+    from unittest.mock import patch
     from engine.capture import main
 
     fake_note = tmp_path / "note.md"
     fake_note.write_text("")
 
+    # Deferred imports inside main() must be patched at their source modules.
     with patch("engine.ai.update_memory") as mock_update_memory, \
-         patch("engine.capture.capture_note", return_value=fake_note):
+         patch("engine.capture.capture_note", return_value=fake_note), \
+         patch("engine.db.get_connection"), \
+         patch("engine.db.init_schema"), \
+         patch("engine.db.migrate_add_people_column"), \
+         patch("engine.ai.ask_followup_questions", return_value=[]), \
+         patch("engine.classifier.classify", return_value="public"):
         main(["--type", "note", "--title", "T", "--body", "B", "--sensitivity", "public"])
-        mock_update_memory.assert_called_once()
+
+    mock_update_memory.assert_called_once()
+    call_args = mock_update_memory.call_args[0]
+    assert call_args[0] == "note"    # note_type
+    assert "T" in call_args[1]       # title in summary
 
 
-@pytest.mark.xfail(strict=True, reason="CAP-06 not wired yet")
 def test_cap06_update_memory_skipped_for_pii(tmp_path):
-    from unittest.mock import patch, MagicMock
+    """update_memory() is never called after a PII capture."""
+    from unittest.mock import patch
     from engine.capture import main
 
     fake_note = tmp_path / "note.md"
     fake_note.write_text("")
 
+    # Deferred imports inside main() must be patched at their source modules.
     with patch("engine.ai.update_memory") as mock_update_memory, \
-         patch("engine.capture.capture_note", return_value=fake_note):
+         patch("engine.capture.capture_note", return_value=fake_note), \
+         patch("engine.db.get_connection"), \
+         patch("engine.db.init_schema"), \
+         patch("engine.db.migrate_add_people_column"), \
+         patch("engine.ai.ask_followup_questions", return_value=[]), \
+         patch("engine.classifier.classify", return_value="pii"):
         main(["--type", "note", "--title", "T", "--body", "B", "--sensitivity", "pii"])
-        assert mock_update_memory.call_count == 0
+
+    mock_update_memory.assert_not_called()
