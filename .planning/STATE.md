@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-foundation/01-01-PLAN.md
-last_updated: "2026-03-14T12:44:16.559Z"
+stopped_at: Completed 01-foundation/01-02-PLAN.md
+last_updated: "2026-03-14T12:47:56.476Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 7
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -52,6 +52,7 @@ Progress: [░░░░░░░░░░] 0%
 *Updated after each plan completion*
 | Phase 01-foundation P00 | 10 | 2 tasks | 11 files |
 | Phase 01-foundation P01 | 2 | 2 tasks | 6 files |
+| Phase 01-foundation P02 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,8 @@ Recent decisions affecting current work:
 - [Phase 01-foundation]: remoteUser=vscode (UID 1000) — not root — prevents Drive sync permission failures on bind mounts
 - [Phase 01-foundation]: .env.host sourced from ~/.config/second-brain/ (outside ~/SecondBrain Drive folder) — never Drive-synced, never in git
 - [Phase 01-foundation]: SQLite uses named Docker volume brain-index-data (not bind mount) — index is rebuildable, never synced to Drive
+- [Phase 01-foundation]: .secrets.baseline manually generated outside DevContainer; must be regenerated inside via detect-secrets scan after first open
+- [Phase 01-foundation]: pre-commit install deferred to DevContainer postCreateCommand; test_blocks_api_key skips outside container via skipif guard
 
 ### Pending Todos
 
@@ -83,6 +86,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T12:44:16.552Z
-Stopped at: Completed 01-foundation/01-01-PLAN.md
+Last session: 2026-03-14T12:47:56.469Z
+Stopped at: Completed 01-foundation/01-02-PLAN.md
 Resume file: None
