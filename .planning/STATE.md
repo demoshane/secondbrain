@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Completed 02-storage-and-index/02-00-PLAN.md
-last_updated: "2026-03-14T15:29:28.995Z"
+stopped_at: Completed 02-storage-and-index/02-01-PLAN.md
+last_updated: "2026-03-14T15:34:50.876Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 14
-  completed_plans: 11
+  completed_plans: 12
   percent: 0
 ---
 
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-foundation P08 | 1 | 2 tasks | 2 files |
 | Phase 01-foundation P09 | 3 | 2 tasks | 3 files |
 | Phase 02-storage-and-index P00 | 8 | 4 tasks | 4 files |
+| Phase 02-storage-and-index P01 | 3 | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,10 @@ Recent decisions affecting current work:
 - [Phase 01-foundation]: Versioned hook in .githooks/ with core.hooksPath — eliminates host/container hook overwrite race condition
 - [Phase 02-storage-and-index]: Defer engine.capture/engine.search imports to test body so pytest --collect-only succeeds before modules exist
 - [Phase 02-storage-and-index]: seeded_db and initialized_db guard against missing 'people' column via PRAGMA table_info check
+- [Phase 02-storage-and-index]: Temp file always in target.parent via mkstemp(dir=target.parent) — never /tmp — guarantees atomic os.replace on same filesystem
+- [Phase 02-storage-and-index]: conn.commit() before os.replace() — DB is source of truth; partial file never exists without a DB record
+- [Phase 02-storage-and-index]: Error messages use type(e).__name__ only — body/metadata never interpolated (GDPR-05)
+- [Phase 02-storage-and-index]: load_template accepts optional templates_dir override for hermetic testing without touching container paths
 
 ### Pending Todos
 
@@ -105,6 +110,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T15:29:24.880Z
-Stopped at: Completed 02-storage-and-index/02-00-PLAN.md
+Last session: 2026-03-14T15:34:50.869Z
+Stopped at: Completed 02-storage-and-index/02-01-PLAN.md
 Resume file: None
