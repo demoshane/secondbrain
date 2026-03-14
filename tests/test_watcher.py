@@ -239,9 +239,11 @@ def test_main_on_new_file_no_input_on_ai_failure(tmp_path, monkeypatch):
         from engine.capture import capture_note
 
         conn = mock_conn.return_value
-        adapter = mock_get_adapter("private", CONFIG_PATH)
 
         def on_new_file(path: Path) -> None:
+            import engine.router as router_mod
+            sensitivity = "private"
+            adapter = router_mod.get_adapter(sensitivity, CONFIG_PATH)
             title = path.stem.replace("-", " ").replace("_", " ").title()
             try:
                 tags_str = adapter.generate(
@@ -253,7 +255,7 @@ def test_main_on_new_file_no_input_on_ai_failure(tmp_path, monkeypatch):
                 print(f"[sb-watch] AI tagging skipped: {type(e).__name__}")
                 tags = []
             try:
-                note_path = capture_note("note", title, f"File: {path}", tags, [], "private", BRAIN_ROOT, conn)
+                note_path = capture_note("note", title, f"File: {path}", tags, [], sensitivity, BRAIN_ROOT, conn)
                 print(f"[sb-watch] Captured: {path.name} -> {note_path.name}")
             except Exception as e:
                 print(f"[sb-watch] Failed to capture {path.name}: {type(e).__name__}")
@@ -301,3 +303,110 @@ def test_skips_files_older_than_watcher_start(tmp_path):
     # Callback must NOT have been called — file predates watcher
     callback.assert_not_called()
     rate_limiter.allow.assert_not_called()
+
+
+def test_watcher_pii_routes_to_ollama(tmp_path):
+    """on_new_file must call get_adapter with 'pii' when classifier returns 'pii'."""
+    import engine.watcher as watcher_mod
+    import engine.router as router_mod
+    from pathlib import Path as _Path
+    from unittest.mock import patch as _patch
+
+    fake_note = tmp_path / "result.md"
+    fake_note.write_text("")
+
+    with _patch("engine.paths.BRAIN_ROOT", tmp_path), \
+         _patch("engine.paths.CONFIG_PATH", tmp_path / "config.toml"), \
+         _patch("engine.db.get_connection") as mock_conn, \
+         _patch("engine.db.init_schema"), \
+         _patch("engine.classifier.classify", return_value="pii"), \
+         _patch("engine.router.get_adapter") as mock_get_adapter, \
+         _patch("engine.capture.capture_note", return_value=fake_note):
+
+        mock_adapter = MagicMock()
+        mock_adapter.generate.return_value = "tag1, tag2"
+        mock_get_adapter.return_value = mock_adapter
+        mock_conn.return_value = MagicMock()
+
+        from engine.paths import CONFIG_PATH
+        from engine.capture import capture_note
+
+        conn = mock_conn.return_value
+
+        def on_new_file(path: _Path) -> None:
+            import engine.router as _router_mod
+            import engine.classifier as _classifier_mod
+            sensitivity = _classifier_mod.classify(path)
+            adapter = _router_mod.get_adapter(sensitivity, CONFIG_PATH)
+            title = path.stem.replace("-", " ").replace("_", " ").title()
+            try:
+                tags_str = adapter.generate(
+                    user_content=f"File: {path.name}",
+                    system_prompt="Suggest 2-3 comma-separated tags.",
+                )
+                tags = [t.strip() for t in tags_str.split(",") if t.strip()][:3]
+            except Exception:
+                tags = []
+            capture_note("note", title, f"File: {path}", tags, [], sensitivity, tmp_path, conn)
+
+        test_file = tmp_path / "medical-records.pdf"
+        test_file.write_text("")
+        on_new_file(test_file)
+
+        # get_adapter must have been called with "pii" (not "private")
+        mock_get_adapter.assert_called_with("pii", CONFIG_PATH)
+
+
+def test_watcher_binary_fallback_to_private(tmp_path):
+    """on_new_file falls back to 'private' sensitivity when read_text raises UnicodeDecodeError."""
+    import engine.router as router_mod
+    from pathlib import Path as _Path
+    from unittest.mock import patch as _patch
+
+    fake_note = tmp_path / "result.md"
+    fake_note.write_text("")
+
+    with _patch("engine.paths.BRAIN_ROOT", tmp_path), \
+         _patch("engine.paths.CONFIG_PATH", tmp_path / "config.toml"), \
+         _patch("engine.db.get_connection") as mock_conn, \
+         _patch("engine.db.init_schema"), \
+         _patch("engine.router.get_adapter") as mock_get_adapter, \
+         _patch("engine.capture.capture_note", return_value=fake_note):
+
+        mock_adapter = MagicMock()
+        mock_adapter.generate.return_value = "tag1"
+        mock_get_adapter.return_value = mock_adapter
+        mock_conn.return_value = MagicMock()
+
+        from engine.paths import CONFIG_PATH
+        from engine.capture import capture_note
+
+        conn = mock_conn.return_value
+
+        def on_new_file(path: _Path) -> None:
+            import engine.router as _router_mod
+            try:
+                path.read_text()
+                sensitivity = "public"
+            except UnicodeDecodeError:
+                sensitivity = "private"
+            adapter = _router_mod.get_adapter(sensitivity, CONFIG_PATH)
+            title = path.stem.replace("-", " ").replace("_", " ").title()
+            tags = []
+            try:
+                tags_str = adapter.generate(
+                    user_content=f"File: {path.name}",
+                    system_prompt="Suggest 2-3 comma-separated tags.",
+                )
+                tags = [t.strip() for t in tags_str.split(",") if t.strip()][:3]
+            except Exception:
+                tags = []
+            capture_note("note", title, f"File: {path}", tags, [], sensitivity, tmp_path, conn)
+
+        test_file = tmp_path / "binary.pdf"
+        test_file.write_bytes(b"\x80\x81\x82\x83")  # invalid UTF-8
+
+        on_new_file(test_file)
+
+        # get_adapter must have been called with "private" (binary fallback)
+        mock_get_adapter.assert_called_with("private", CONFIG_PATH)

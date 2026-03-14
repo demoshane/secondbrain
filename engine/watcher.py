@@ -99,13 +99,19 @@ def main() -> None:
     watch_dir = BRAIN_ROOT / "files"
     watch_dir.mkdir(parents=True, exist_ok=True)
 
-    adapter = router_mod.get_adapter("private", CONFIG_PATH)
-
     def on_new_file(path: Path) -> None:
         print(f"[sb-watch] Detected: {path.name}")
-        # Derive title from filename (stem, no extension)
+        # Read content for PII classification (AI-02) — best-effort text extraction
+        try:
+            text_content = path.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            text_content = ""
+            print(f"[sb-watch] Cannot read {path.name} as text — defaulting to private")
+        # Classify before adapter selection — mirrors capture.py (AI-02)
+        from engine.classifier import classify
+        sensitivity = classify("private", text_content) if text_content else "private"
+        adapter = router_mod.get_adapter(sensitivity, CONFIG_PATH)
         title = path.stem.replace("-", " ").replace("_", " ").title()
-        # AI tag suggestion — best-effort, never blocks
         try:
             tags_str = adapter.generate(
                 user_content=f"File: {path.name}",
@@ -115,12 +121,10 @@ def main() -> None:
         except Exception as e:
             print(f"[sb-watch] AI tagging skipped: {type(e).__name__}")
             tags = []
-        # Create connection per-call: watchdog fires callbacks from a background
-        # thread and SQLite connections cannot be shared across threads.
         conn = get_connection()
         init_schema(conn)
         try:
-            note_path = capture_note("note", title, f"File: {path}", tags, [], "private", BRAIN_ROOT, conn)
+            note_path = capture_note("note", title, f"File: {path}", tags, [], sensitivity, BRAIN_ROOT, conn)
             print(f"[sb-watch] Captured: {path.name} -> {note_path.name}")
         except Exception as e:
             print(f"[sb-watch] Failed to capture {path.name}: {type(e).__name__}: {e}")
