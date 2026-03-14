@@ -26,6 +26,8 @@
 - [x] **CAP-05**: Git commit hook fires when user commits in any project directory; AI summarizes the commit and offers to link it to a brain entry
 - [ ] **CAP-06**: AI automatically updates Claude memory (CLAUDE.md or memory files) when relevant project/people context is captured
 - [x] **CAP-07**: Notes use consistent Markdown templates per content type (defined in `.meta/templates/`)
+- [ ] **CAP-08**: All sb-* commands are invocable from Claude Code and Claude Cowork interfaces via the `second-brain` subagent spec; the subagent YAML documents every available command with usage examples
+- [ ] **CAP-09**: `~/.claude/CLAUDE.md` contains second-brain proactive capture instructions — when Claude observes capturable content (decisions, people, meetings, project context) in any session it asks "Should I add this to your second brain?" before invoking `sb-capture`
 
 ### People & Meetings (PEOPLE)
 
@@ -130,6 +132,8 @@
 | AI-09 | Phase 3 | Complete |
 | AI-10 | Phase 3 | Complete |
 | CAP-06 | Phase 6 (gap closure) | Pending |
+| CAP-08 | Phase 6 | Pending |
+| CAP-09 | Phase 6 | Pending |
 | CAP-04 | Phase 4 | Complete |
 | CAP-05 | Phase 4 | Complete |
 | PEOPLE-01 | Phase 4 | Complete |

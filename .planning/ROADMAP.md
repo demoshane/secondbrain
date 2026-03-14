@@ -130,15 +130,17 @@ Plans:
 - [ ] 05-02-PLAN.md — Wave 1b: implement engine/read.py — PII passphrase gate (GDPR-04) [parallel with 05-01]
 - [ ] 05-03-PLAN.md — Wave 2: manual verification checkpoint — end-to-end sb-forget and sb-read in real DevContainer
 
-### Phase 6: Integration Gap Closure
-**Goal**: All three cross-phase integration wires confirmed working: `update_memory()` called after every non-PII capture, watcher resolves adapter per-file via classifier, reindex stores absolute paths matching capture — RAG works after reindex, memory updates fire, PII routing holds in watcher path
+### Phase 6: Integration Gap Closure + Claude Interface Wiring
+**Goal**: All five integration gaps resolved: `update_memory()` fires after every non-PII capture; watcher classifies per-file before routing; reindex stores absolute paths; all sb-* commands are invocable from Claude Code and Claude Cowork; and Claude proactively offers to capture relevant context it encounters in any session
 **Depends on**: Phase 5
-**Requirements**: CAP-06, AI-02 (watcher path), SEARCH-01/AI-08 (reindex path)
+**Requirements**: CAP-06, CAP-08, CAP-09, AI-02 (watcher path), SEARCH-01/AI-08 (reindex path)
 **Gap Closure**: Closes gaps from v1.0 audit (v1.0-MILESTONE-AUDIT.md)
 **Success Criteria** (what must be TRUE):
-  1. After `sb-capture`, a Claude memory file is updated (or `update_memory()` is demonstrably called for non-PII notes)
-  2. Dropping a PII-keyword file via watcher routes to OllamaAdapter, not ClaudeAdapter (verified via mock/log)
-  3. After `sb-reindex`, `sb-search <query>` returns notes and `rag.py` reads their content without "[note file not readable]" fallback
+  1. After `sb-capture`, a Claude memory file is updated (`update_memory()` called for non-PII notes, verified via test)
+  2. Dropping a PII-keyword file via watcher routes to OllamaAdapter, not ClaudeAdapter (verified via mock)
+  3. After `sb-reindex`, `sb-search <query>` returns notes and RAG reads their content without "[note file not readable]" fallback
+  4. All sb-* commands (`sb-capture`, `sb-search`, `sb-forget`, `sb-read`, `sb-check-links`) are invocable from a Claude Code session via the `second-brain` subagent spec; Claude Cowork interface has equivalent access documented
+  5. `~/.claude/CLAUDE.md` contains second-brain instructions: when Claude spots capturable content (decisions, people, meetings, project context) it asks the user "Should I add this to your second brain?" before calling `sb-capture`
 **Plans**: TBD
 
 ## Progress
