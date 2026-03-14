@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Completed 04-automation/04-04-PLAN.md
-last_updated: "2026-03-14T18:21:46.700Z"
+stopped_at: Completed 04-automation/04-05-PLAN.md
+last_updated: "2026-03-14T18:23:27.428Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 27
-  completed_plans: 25
+  completed_plans: 26
   percent: 0
 ---
 
@@ -74,6 +74,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04-automation P00 | 4 | 2 tasks | 10 files |
 | Phase 04-automation P01 | 12 | 2 tasks | 3 files |
 | Phase 04-automation P04 | 5 | 1 tasks | 2 files |
+| Phase 04-automation P05 | 8 | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -137,6 +138,7 @@ Recent decisions affecting current work:
 - [Phase 04-automation]: Deferred import (from engine.links import add_backlinks inside function body) avoids circular import between capture and links modules
 - [Phase 04-automation]: watchdog Observer not started in unit tests — handler class methods tested directly (avoids real filesystem events in CI)
 - [Phase 04-automation]: FSEvents history guard uses monotonic-to-wall-clock conversion with 1s slack for ctime comparison
+- [Phase 04-automation]: patch engine.router.get_adapter (module ref) not engine.hooks.post_commit.get_adapter — deferred import means get_adapter is not a module-level attribute of post_commit
 
 ### Pending Todos
 
@@ -151,6 +153,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T18:21:46.689Z
-Stopped at: Completed 04-automation/04-04-PLAN.md
+Last session: 2026-03-14T18:23:27.419Z
+Stopped at: Completed 04-automation/04-05-PLAN.md
 Resume file: None
