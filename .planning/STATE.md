@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-03-14T22:53:00.126Z"
+stopped_at: Completed 06-integration-gap-closure-00-PLAN.md
+last_updated: "2026-03-14T22:56:38.874Z"
 last_activity: "2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified"
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 43
-  completed_plans: 41
+  completed_plans: 42
   percent: 0
 ---
 
@@ -87,6 +87,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 05-gdpr-and-maintenance P03 | 5 | 2 tasks | 0 files |
 | Phase 06-integration-gap-closure P02 | 15 | 1 tasks | 2 files |
 | Phase 06-integration-gap-closure P01 | 12 | 2 tasks | 4 files |
+| Phase 06-integration-gap-closure P00 | 8 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -182,6 +183,7 @@ Recent decisions affecting current work:
 - [Phase 06-integration-gap-closure]: Patch deferred imports at source module (engine.db.get_connection), not call site (engine.capture.get_connection) — Python 3.14 mock is strict
 - [Phase 06-integration-gap-closure]: Store str(md_path) absolute path in reindex — not relative_to(brain_root) — so RAG reads locate files without brain_root reconstruction
 - [Phase 06-integration-gap-closure]: classify() called inside on_new_file() per-file with deferred import — mirrors capture.py pattern; removes daemon-level adapter binding
+- [Phase 06-integration-gap-closure]: Wave 0 xfail stubs replaced by plain passing tests — all 6 behaviors already implemented in prior plans (06-01, 06-02, 06-03) before wave 0 ran
 
 ### Pending Todos
 
@@ -196,6 +198,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T22:53:00.118Z
-Stopped at: Completed 06-01-PLAN.md
+Last session: 2026-03-14T22:56:38.866Z
+Stopped at: Completed 06-integration-gap-closure-00-PLAN.md
 Resume file: None
