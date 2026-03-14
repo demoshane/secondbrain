@@ -39,6 +39,14 @@ QUESTION_SYSTEM_PROMPTS = {
         "(key insight, source, how it connects to current work). "
         "Output only a numbered list."
     ),
+    "projects": (
+        "You are a project management assistant. Given a project or client note title, generate 2-3 "
+        "questions to capture key context: client goals, key contacts, current status."
+    ),
+    "personal": (
+        "You are a personal journal assistant. Given a personal note title, generate 2-3 reflective "
+        "questions to deepen the capture: what matters most, what action follows."
+    ),
 }
 
 FALLBACK_QUESTIONS: dict[str, list[str]] = {
@@ -48,6 +56,8 @@ FALLBACK_QUESTIONS: dict[str, list[str]] = {
     "people": ["How did you meet this person?", "What are their current priorities?"],
     "strategy": ["What does success look like in 90 days?", "What is the biggest obstacle?"],
     "note": ["What is the key insight here?", "How does this connect to current work?"],
+    "projects": ["Who is the primary stakeholder?", "What does success look like?"],
+    "personal": ["What prompted this reflection?", "What action do you want to take?"],
 }
 
 

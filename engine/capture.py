@@ -8,6 +8,11 @@ from pathlib import Path
 
 import frontmatter
 
+# Maps CLI --type value to brain subdirectory name where types differ
+TYPE_TO_DIR: dict[str, str] = {
+    "idea": "ideas",
+}
+
 
 def build_post(
     note_type: str,
@@ -144,7 +149,7 @@ def main() -> None:
     parser.add_argument(
         "--type",
         required=True,
-        choices=["note", "meeting", "people", "coding", "strategy", "idea"],
+        choices=["note", "meeting", "people", "coding", "strategy", "idea", "projects", "personal"],
         dest="note_type",
     )
     parser.add_argument("--title", required=True)
@@ -221,8 +226,12 @@ def capture_note(
     Returns:
         Path to the written note file.
     """
-    slug = datetime.date.today().isoformat() + "-" + title[:40].replace(" ", "-").lower()
-    target = brain_root / note_type / f"{slug}.md"
+    if note_type == "people":
+        slug = title[:40].replace(" ", "-").lower()
+    else:
+        slug = datetime.date.today().isoformat() + "-" + title[:40].replace(" ", "-").lower()
+    subdir = TYPE_TO_DIR.get(note_type, note_type)
+    target = brain_root / subdir / f"{slug}.md"
     target.parent.mkdir(parents=True, exist_ok=True)
 
     post = build_post(note_type, title, body, tags, people, content_sensitivity)
