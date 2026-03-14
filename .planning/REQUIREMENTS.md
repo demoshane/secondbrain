@@ -64,10 +64,10 @@
 
 ### GDPR & Security (GDPR)
 
-- [ ] **GDPR-01**: `/sb-forget <person>` deletes: person's markdown file, all meeting notes that reference only that person, FTS5 shadow table entries (explicit purge), audit log entries, backlinks in other notes
-- [ ] **GDPR-02**: After `/sb-forget`, FTS5 index is rebuilt (`INSERT INTO notes_fts(notes_fts) VALUES('rebuild')`) to ensure no content fragments remain
+- [x] **GDPR-01**: `/sb-forget <person>` deletes: person's markdown file, all meeting notes that reference only that person, FTS5 shadow table entries (explicit purge), audit log entries, backlinks in other notes
+- [x] **GDPR-02**: After `/sb-forget`, FTS5 index is rebuilt (`INSERT INTO notes_fts(notes_fts) VALUES('rebuild')`) to ensure no content fragments remain
 - [x] **GDPR-03**: Every note creation, access, and modification is recorded in SQLite audit log with timestamp and operation type
-- [ ] **GDPR-04**: Access control: notes with `content_sensitivity: pii` require passphrase confirmation before displaying content in CLI
+- [x] **GDPR-04**: Access control: notes with `content_sensitivity: pii` require passphrase confirmation before displaying content in CLI
 - [x] **GDPR-05**: `.env.host` secrets are never logged, never included in error messages, never written to any file except `.env.host` itself
 - [x] **GDPR-06**: Engine code passes `detect-secrets` scan (zero baseline violations) — enforced in CI
 
@@ -143,6 +143,6 @@
 | WORK-04 | Phase 4 | Complete |
 | SEARCH-03 | Phase 4 | Complete |
 | SEARCH-04 | Phase 4 | Complete |
-| GDPR-01 | Phase 5 | Pending |
-| GDPR-02 | Phase 5 | Pending |
-| GDPR-04 | Phase 5 | Pending |
+| GDPR-01 | Phase 5 | Complete |
+| GDPR-02 | Phase 5 | Complete |
+| GDPR-04 | Phase 5 | Complete |

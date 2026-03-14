@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Storage and Index** - Atomic capture pipeline, SQLite FTS5 schema live, plain-text search working without AI (completed 2026-03-14)
 - [x] **Phase 3: AI Layer** - PII classifier, ModelRouter, Ollama + Anthropic adapters, proactive questioning, Claude subagent (completed 2026-03-14)
 - [ ] **Phase 4: Automation** - File watcher, git hooks, people/meetings/work features, RAG-lite retrieval
-- [ ] **Phase 5: GDPR and Maintenance** - Full erasure cascade, FTS5 rebuild, access control on PII notes
+- [x] **Phase 5: GDPR and Maintenance** - Full erasure cascade, FTS5 rebuild, access control on PII notes (completed 2026-03-14)
 
 ## Phase Details
 
@@ -141,4 +141,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 3. AI Layer | 6/6 | Complete   | 2026-03-14 |
 | 4. Automation | 9/12 | In Progress|  |
 | 4.1. Native macOS UX | 3/3 | Complete    | 2026-03-14 |
-| 5. GDPR and Maintenance | 0/4 | Not started | - |
+| 5. GDPR and Maintenance | 4/4 | Complete   | 2026-03-14 |
