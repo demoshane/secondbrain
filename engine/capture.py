@@ -173,9 +173,16 @@ def main() -> None:
     # Classify sensitivity (runs locally, no network — AI-02)
     sensitivity = classify(args.sensitivity, args.body)
 
+    # Use classifier result as the actual sensitivity (may have been upgraded by keyword scan)
+    args.sensitivity = sensitivity
+
+    conn = get_connection()
+    init_schema(conn)
+    migrate_add_people_column(conn)
+
     # AI-01: Ask 2-3 follow-up questions (best-effort, never blocks capture)
     try:
-        questions = ask_followup_questions(args.note_type, args.title, sensitivity, CONFIG_PATH)
+        questions = ask_followup_questions(args.note_type, args.title, sensitivity, CONFIG_PATH, conn)
         if questions:
             print("\nFollow-up questions to enrich your note:")
             enrichment_answers = []
@@ -188,13 +195,6 @@ def main() -> None:
                 args.body = args.body + "\n\n" + "\n\n".join(enrichment_answers)
     except Exception as e:
         print(f"[AI enrichment skipped: {type(e).__name__}]")
-
-    # Use classifier result as the actual sensitivity (may have been upgraded by keyword scan)
-    args.sensitivity = sensitivity
-
-    conn = get_connection()
-    init_schema(conn)
-    migrate_add_people_column(conn)
 
     path = capture_note(args.note_type, args.title, args.body, tags, people, args.sensitivity, BRAIN_ROOT, conn)
     conn.close()
