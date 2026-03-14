@@ -70,7 +70,7 @@ Everything else is automatic:
 Run inside the container:
 
 ```bash
-python scripts/bootstrap.py --dev
+uv run python scripts/bootstrap.py --dev
 # Expected: all checks [PASS]
 
 uv run sb-init
