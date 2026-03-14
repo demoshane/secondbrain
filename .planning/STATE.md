@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: verifying
-stopped_at: Phase 6 context gathered
-last_updated: "2026-03-14T22:32:09.065Z"
+stopped_at: Completed 06-02-PLAN.md — CAP-06 update_memory() call site wired
+last_updated: "2026-03-14T22:52:15.174Z"
 last_activity: "2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified"
 progress:
   total_phases: 7
   completed_phases: 6
-  total_plans: 39
-  completed_plans: 39
+  total_plans: 43
+  completed_plans: 40
   percent: 0
 ---
 
@@ -85,6 +85,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 05-gdpr-and-maintenance P01 | 6 | 1 tasks | 3 files |
 | Phase 05-gdpr-and-maintenance P02 | 3 | 2 tasks | 2 files |
 | Phase 05-gdpr-and-maintenance P03 | 5 | 2 tasks | 0 files |
+| Phase 06-integration-gap-closure P02 | 15 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -176,6 +177,8 @@ Recent decisions affecting current work:
 - [Phase 05-gdpr-and-maintenance]: Audit log in read_note is best-effort: exception in INSERT never blocks the read (consistent with search.py pattern)
 - [Phase 05-gdpr-and-maintenance]: Empty SB_PII_PASSPHRASE triggers immediate denial before getpass prompt — no interactive prompt when no passphrase configured
 - [Phase 05-gdpr-and-maintenance]: UAT pre-confirmed by user (9/9 manual steps passed) before this plan ran; checkpoint treated as auto-approved
+- [Phase 06-integration-gap-closure]: Deferred import pattern for update_memory() — consistent with add_backlinks; ImportError caught automatically
+- [Phase 06-integration-gap-closure]: Patch deferred imports at source module (engine.db.get_connection), not call site (engine.capture.get_connection) — Python 3.14 mock is strict
 
 ### Pending Todos
 
@@ -190,6 +193,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T22:32:09.058Z
-Stopped at: Phase 6 context gathered
-Resume file: .planning/phases/06-integration-gap-closure/06-CONTEXT.md
+Last session: 2026-03-14T22:52:15.167Z
+Stopped at: Completed 06-02-PLAN.md — CAP-06 update_memory() call site wired
+Resume file: None

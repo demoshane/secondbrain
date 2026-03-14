@@ -141,7 +141,13 @@ Plans:
   3. After `sb-reindex`, `sb-search <query>` returns notes and RAG reads their content without "[note file not readable]" fallback
   4. All sb-* commands (`sb-capture`, `sb-search`, `sb-forget`, `sb-read`, `sb-check-links`) are invocable from a Claude Code session via the `second-brain` subagent spec; Claude Cowork interface has equivalent access documented
   5. `~/.claude/CLAUDE.md` contains second-brain instructions: when Claude spots capturable content (decisions, people, meetings, project context) it asks the user "Should I add this to your second brain?" before calling `sb-capture`
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 06-00-PLAN.md — Wave 0: test stubs for all 6 new behaviors + fix 3 existing path/closure assertions
+- [ ] 06-01-PLAN.md — Wave 1a: reindex absolute path fix (SEARCH-01/AI-08) + watcher per-file PII classification (AI-02)
+- [ ] 06-02-PLAN.md — Wave 1b: CAP-06 memory wiring — update_memory() call site in capture.py:main() [parallel with 06-01]
+- [ ] 06-03-PLAN.md — Wave 1c: CAP-08 subagent spec expansion + CAP-09 CLAUDE.md proactive capture block [parallel with 06-01, 06-02]
 
 ## Progress
 
@@ -156,4 +162,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 4. Automation | 9/12 | In Progress|  |
 | 4.1. Native macOS UX | 3/3 | Complete    | 2026-03-14 |
 | 5. GDPR and Maintenance | 4/4 | Complete   | 2026-03-14 |
-| 6. Integration Gap Closure | 0/TBD | Not started | - |
+| 6. Integration Gap Closure | 0/4 | Not started | - |
