@@ -103,11 +103,12 @@ def write_note_atomic(
         updated_at = post.get("updated_at", created_at)
         sensitivity = post.get("content_sensitivity", "public")
 
+        resolved_path = str(target.resolve())
         conn.execute(
             "INSERT INTO notes (path, type, title, body, tags, people, created_at, updated_at, sensitivity)"
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
-                str(target),
+                resolved_path,
                 post.get("type", "note"),
                 post.get("title", ""),
                 post.content,
@@ -118,7 +119,7 @@ def write_note_atomic(
                 sensitivity,
             ),
         )
-        log_audit(conn, "create", str(target))
+        log_audit(conn, "create", resolved_path)
         conn.commit()
 
         # Phase 3: atomic rename — only after DB commit succeeds
