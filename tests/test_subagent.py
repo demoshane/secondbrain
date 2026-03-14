@@ -49,7 +49,6 @@ def test_rate_limiter_resets_after_window():
     assert rl.allow() is True  # window expired, call allowed again
 
 
-@pytest.mark.xfail(strict=True, reason="CAP-08 not expanded yet")
 def test_subagent_documents_all_commands():
     agent_file = Path(__file__).parent.parent / ".claude" / "agents" / "second-brain.md"
     content = agent_file.read_text()
