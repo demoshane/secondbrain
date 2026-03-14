@@ -1,5 +1,6 @@
 """AI layer: proactive follow-up questions and memory update (AI-01, CAP-06)."""
 import shutil
+import sqlite3
 import subprocess
 from pathlib import Path
 
@@ -66,6 +67,7 @@ def ask_followup_questions(
     title: str,
     sensitivity: str,
     config_path: Path,
+    conn: sqlite3.Connection | None = None,
 ) -> list[str]:
     """Generate 2-3 follow-up questions for the given note.
 
@@ -77,6 +79,7 @@ def ask_followup_questions(
         title: Note title — passed as user_content only.
         sensitivity: Classifier result ('pii', 'private', 'public').
         config_path: Path to config.toml for adapter routing.
+        conn: Optional SQLite connection for RAG context injection (SEARCH-04).
 
     Returns:
         List of 2-3 question strings.
@@ -86,7 +89,9 @@ def ask_followup_questions(
 
     try:
         adapter = _router.get_adapter(sensitivity, config_path)
-        raw = adapter.generate(user_content=title, system_prompt=system)
+        from engine.rag import augment_prompt
+        user_content = augment_prompt(title, conn) if conn is not None else title
+        raw = adapter.generate(user_content=user_content, system_prompt=system)
     except Exception:
         return fallback
 

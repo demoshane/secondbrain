@@ -81,3 +81,65 @@ def test_note_body_truncated(tmp_path):
     # Trim trailing newline before footer
     body_in_result = result[body_start:footer_pos].rstrip("\n")
     assert len(body_in_result) <= 500
+
+
+# --- Wiring tests: ask_followup_questions integrates with augment_prompt ---
+
+def test_ask_followup_questions_with_conn_injects_context(tmp_path):
+    """When conn is provided, ask_followup_questions passes augmented content to adapter."""
+    from unittest.mock import patch, MagicMock
+    from engine.ai import ask_followup_questions
+    from engine.paths import CONFIG_PATH
+
+    conn = _make_db(tmp_path)
+    _seed_note(
+        conn, tmp_path,
+        title="Python Testing Patterns",
+        body="pytest fixtures and parametrize patterns for python testing.",
+        path_name="pytest.md",
+    )
+
+    captured_user_content = {}
+
+    def fake_generate(user_content, system_prompt):
+        captured_user_content["value"] = user_content
+        return "1. What testing framework?\n2. What coverage target?"
+
+    mock_adapter = MagicMock()
+    mock_adapter.generate.side_effect = fake_generate
+
+    with patch("engine.router.get_adapter", return_value=mock_adapter):
+        result = ask_followup_questions("coding", "python testing", "public", CONFIG_PATH, conn=conn)
+
+    # Result should be a list of questions (not the fallback)
+    assert isinstance(result, list)
+    assert len(result) >= 2
+    # The user_content passed to adapter should contain RETRIEVED CONTEXT (FTS5 match found)
+    assert "RETRIEVED CONTEXT" in captured_user_content.get("value", ""), (
+        f"Expected RETRIEVED CONTEXT in user_content but got: {captured_user_content.get('value', '')!r}"
+    )
+
+
+def test_ask_followup_questions_without_conn_uses_raw_title(tmp_path):
+    """When conn=None, ask_followup_questions passes raw title to adapter (no augmentation)."""
+    from unittest.mock import patch, MagicMock
+    from engine.ai import ask_followup_questions
+    from engine.paths import CONFIG_PATH
+
+    captured_user_content = {}
+
+    def fake_generate(user_content, system_prompt):
+        captured_user_content["value"] = user_content
+        return "1. What is the key insight?\n2. How does this connect to current work?"
+
+    mock_adapter = MagicMock()
+    mock_adapter.generate.side_effect = fake_generate
+
+    with patch("engine.router.get_adapter", return_value=mock_adapter):
+        result = ask_followup_questions("note", "my raw title", "public", CONFIG_PATH, conn=None)
+
+    assert isinstance(result, list)
+    assert len(result) >= 2
+    # Without conn, user_content must be exactly the raw title
+    assert captured_user_content.get("value") == "my raw title"
+    assert "RETRIEVED CONTEXT" not in captured_user_content.get("value", "")
