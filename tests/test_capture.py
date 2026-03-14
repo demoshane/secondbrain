@@ -171,3 +171,51 @@ def test_cap06_update_memory_skipped_for_pii(tmp_path):
         main(["--type", "note", "--title", "T", "--body", "B", "--sensitivity", "pii"])
 
     mock_update_memory.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Phase 7: Absolute path storage contract (SEARCH-01)
+# ---------------------------------------------------------------------------
+
+def test_write_note_atomic_stores_absolute_path(tmp_path, initialized_db):
+    """DB path column must equal str(target.resolve()) — canonical symlink-free form."""
+    from engine.capture import write_note_atomic, build_post
+
+    base = tmp_path.resolve()
+    target_dir = base / "notes"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / "2026-phase7-test.md"
+
+    post = build_post("note", "Phase7 AbsPath Test", "body content", [], [], "public")
+    write_note_atomic(target, post, initialized_db)
+
+    row = initialized_db.execute(
+        "SELECT path FROM notes WHERE title = ?", ("Phase7 AbsPath Test",)
+    ).fetchone()
+    assert row is not None, "Row must exist in DB after write_note_atomic"
+    stored_path = row[0]
+    assert stored_path == str(target.resolve()), (
+        f"Stored path {stored_path!r} must equal resolved target {str(target.resolve())!r}"
+    )
+
+
+def test_write_note_atomic_path_is_absolute(tmp_path, initialized_db):
+    """Stored DB path must be absolute (starts with '/') — no relative paths allowed."""
+    from engine.capture import write_note_atomic, build_post
+
+    base = tmp_path.resolve()
+    target_dir = base / "notes"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / "2026-phase7-abscheck.md"
+
+    post = build_post("note", "Phase7 AbsCheck Test", "body content", [], [], "public")
+    write_note_atomic(target, post, initialized_db)
+
+    row = initialized_db.execute(
+        "SELECT path FROM notes WHERE title = ?", ("Phase7 AbsCheck Test",)
+    ).fetchone()
+    assert row is not None
+    stored_path = row[0]
+    assert stored_path.startswith("/"), (
+        f"DB path must start with '/' but got: {stored_path!r}"
+    )
