@@ -236,4 +236,10 @@ def capture_note(
 
     post = build_post(note_type, title, body, tags, people, content_sensitivity)
     write_note_atomic(target, post, conn)
+
+    # Auto-backlink: update referenced people's profiles
+    if people:
+        from engine.links import add_backlinks
+        add_backlinks(target, people, brain_root, conn)
+
     return target

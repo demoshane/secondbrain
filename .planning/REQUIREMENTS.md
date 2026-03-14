@@ -29,18 +29,18 @@
 
 ### People & Meetings (PEOPLE)
 
-- [ ] **PEOPLE-01**: `brain/people/<name>.md` profile created via `/sb-capture --type people`; includes role, notes, growth discussion history section
-- [ ] **PEOPLE-02**: Meeting notes captured to `brain/meetings/` with attendees list that references `people/` entries by filename
+- [x] **PEOPLE-01**: `brain/people/<name>.md` profile created via `/sb-capture --type people`; includes role, notes, growth discussion history section
+- [x] **PEOPLE-02**: Meeting notes captured to `brain/meetings/` with attendees list that references `people/` entries by filename
 - [ ] **PEOPLE-03**: When a meeting note is created with attendees, each referenced person's profile is auto-updated with a backlink to the meeting
 - [ ] **PEOPLE-04**: `/sb-check-links` validates all people↔meetings↔projects bidirectional links and reports orphans
 - [ ] **PEOPLE-05**: `/sb-search --type people <name>` returns all notes, meetings, and projects referencing that person
 
 ### Strategy & Work (WORK)
 
-- [ ] **WORK-01**: `brain/strategy/` supports OKR notes with structured template (objective, key results, status, linked initiatives)
-- [ ] **WORK-02**: `brain/projects/` supports client/account notes with client name, key contacts (linked to `people/`), status, meeting history
-- [ ] **WORK-03**: `brain/coding/` supports architecture decision records (ADR) and project notes with links to GitHub repos
-- [ ] **WORK-04**: `brain/ideas/` captures ideas; on capture AI asks 2-3 elaboration questions to develop the idea further
+- [x] **WORK-01**: `brain/strategy/` supports OKR notes with structured template (objective, key results, status, linked initiatives)
+- [x] **WORK-02**: `brain/projects/` supports client/account notes with client name, key contacts (linked to `people/`), status, meeting history
+- [x] **WORK-03**: `brain/coding/` supports architecture decision records (ADR) and project notes with links to GitHub repos
+- [x] **WORK-04**: `brain/ideas/` captures ideas; on capture AI asks 2-3 elaboration questions to develop the idea further
 
 ### AI Behavior (AI)
 
@@ -132,15 +132,15 @@
 | CAP-06 | Phase 3 | Complete |
 | CAP-04 | Phase 4 | Pending |
 | CAP-05 | Phase 4 | Pending |
-| PEOPLE-01 | Phase 4 | Pending |
-| PEOPLE-02 | Phase 4 | Pending |
+| PEOPLE-01 | Phase 4 | Complete |
+| PEOPLE-02 | Phase 4 | Complete |
 | PEOPLE-03 | Phase 4 | Pending |
 | PEOPLE-04 | Phase 4 | Pending |
 | PEOPLE-05 | Phase 4 | Pending |
-| WORK-01 | Phase 4 | Pending |
-| WORK-02 | Phase 4 | Pending |
-| WORK-03 | Phase 4 | Pending |
-| WORK-04 | Phase 4 | Pending |
+| WORK-01 | Phase 4 | Complete |
+| WORK-02 | Phase 4 | Complete |
+| WORK-03 | Phase 4 | Complete |
+| WORK-04 | Phase 4 | Complete |
 | SEARCH-03 | Phase 4 | Pending |
 | SEARCH-04 | Phase 4 | Pending |
 | GDPR-01 | Phase 5 | Pending |
