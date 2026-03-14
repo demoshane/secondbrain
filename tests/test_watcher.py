@@ -110,20 +110,85 @@ def test_bulk_drop_debounce(tmp_path):
         assert callback.call_count <= 1
 
 
-def test_rate_limit_gates_ai_call():
-    """RateLimiter suppresses second _fire() call within window."""
+def test_multi_file_drop_all_processed(tmp_path):
+    """Dropping N files near-simultaneously processes ALL N files (batch design)."""
     callback = MagicMock()
-    # Real RateLimiter: max_calls=1, window=5s — second call within window returns False
-    rate_limiter = RateLimiter(max_calls=1, window_seconds=5.0)
+    rate_limiter = MagicMock()
+    rate_limiter.allow.return_value = True
 
-    handler = FilesDropHandler(callback, rate_limiter, observer_start_time=time.monotonic())
+    with patch("engine.watcher.threading.Timer") as MockTimer, \
+         patch("pathlib.Path.stat") as mock_stat:
+        mock_stat.return_value = _make_stat(time.time())
 
-    # Call _fire twice for different paths in rapid succession (<1ms apart)
-    handler._fire("/brain/files/a.md")
-    handler._fire("/brain/files/b.md")
+        captured_timers = []
 
-    # Only the first call should have triggered the callback
-    assert callback.call_count == 1
+        def make_timer(delay, fn, args=None):
+            t = MagicMock()
+            captured_timers.append((t, fn, args or []))
+            return t
+
+        MockTimer.side_effect = make_timer
+
+        handler = FilesDropHandler(callback, rate_limiter, observer_start_time=time.monotonic())
+
+        # Simulate 5 files dropped together — each gets its own on_created event
+        paths = [str(tmp_path / f"file{i}.md") for i in range(5)]
+        for p in paths:
+            handler.on_created(_make_event(p))
+
+        # Fire the batch timer (last timer = the shared batch timer)
+        _, fn, args = captured_timers[-1]
+        fn(*args)
+
+    # All 5 files must have triggered the callback
+    assert callback.call_count == 5, f"Expected 5 calls, got {callback.call_count}"
+    called_paths = {call_args[0][0].name for call_args in callback.call_args_list}
+    expected_names = {f"file{i}.md" for i in range(5)}
+    assert called_paths == expected_names
+
+
+def test_rate_limit_defers_second_batch(tmp_path):
+    """Second batch within rate-limit window is retried (deferred), not silently dropped."""
+    callback = MagicMock()
+    rate_limiter = MagicMock()
+    # First batch: allowed; second batch: blocked
+    rate_limiter.allow.side_effect = [True, False]
+
+    with patch("engine.watcher.threading.Timer") as MockTimer, \
+         patch("pathlib.Path.stat") as mock_stat:
+        mock_stat.return_value = _make_stat(time.time())
+
+        captured_timers = []
+
+        def make_timer(delay, fn, args=None):
+            t = MagicMock()
+            captured_timers.append((t, fn, args or []))
+            return t
+
+        MockTimer.side_effect = make_timer
+
+        handler = FilesDropHandler(callback, rate_limiter, observer_start_time=time.monotonic())
+
+        # First batch: one file
+        handler.on_created(_make_event(str(tmp_path / "first.md")))
+        # Fire the batch timer for first batch
+        _, fn, args = captured_timers[-1]
+        fn(*args)
+
+        first_batch_timer_count = len(captured_timers)
+
+        # Second batch arrives while window still active
+        handler.on_created(_make_event(str(tmp_path / "second.md")))
+        # Fire the batch timer for second batch (allow() returns False this time)
+        _, fn, args = captured_timers[-1]
+        fn(*args)
+
+    # First batch processed (callback called once for first.md)
+    assert callback.call_count >= 1
+    # A retry timer was scheduled after the failed batch (timer count grew)
+    assert len(captured_timers) > first_batch_timer_count, (
+        "Expected a retry timer to be scheduled when rate limit blocks second batch"
+    )
 
 
 def test_skips_files_older_than_watcher_start(tmp_path):

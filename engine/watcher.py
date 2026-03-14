@@ -15,16 +15,23 @@ DEBOUNCE_SECONDS = 5.0
 class FilesDropHandler(FileSystemEventHandler):
     """Watch brain/files/ for new files; debounce + rate-limit AI categorization.
 
+    Uses a single shared batch timer: all files dropped within DEBOUNCE_SECONDS are
+    collected into _pending_paths and processed together in one batch. The rate limiter
+    gates batches (not individual files). If a batch is rate-limited, it is retried after
+    the window expires rather than silently dropped.
+
     Args:
-        on_new_file: Callable[Path] -> None — called when a new file is stable.
-        rate_limiter: RateLimiter(max_calls=1, window_seconds=5.0) — gates AI calls.
+        on_new_file: Callable[Path] -> None — called for each stable file.
+        rate_limiter: RateLimiter(max_calls=1, window_seconds=5.0) — gates AI calls per batch.
         observer_start_time: monotonic time when observer was started (FSEvents history guard).
     """
 
     def __init__(self, on_new_file, rate_limiter: RateLimiter, observer_start_time: float | None = None):
         self._on_new_file = on_new_file
         self._rate_limiter = rate_limiter
-        self._pending: dict[str, threading.Timer] = {}
+        self._pending_paths: set[str] = set()
+        self._batch_timer: threading.Timer | None = None
+        self._lock = threading.Lock()
         self._start_time = observer_start_time or time.monotonic()
 
     def on_created(self, event: FileCreatedEvent) -> None:
@@ -38,18 +45,37 @@ class FilesDropHandler(FileSystemEventHandler):
                 return
         except OSError:
             return
-        # Debounce: cancel pending timer for this path, restart
-        if path in self._pending:
-            self._pending[path].cancel()
-        timer = threading.Timer(DEBOUNCE_SECONDS, self._fire, args=[path])
-        self._pending[path] = timer
+        # Accumulate path; reset the single shared debounce timer
+        with self._lock:
+            self._pending_paths.add(path)
+            if self._batch_timer is not None:
+                self._batch_timer.cancel()
+            timer = threading.Timer(DEBOUNCE_SECONDS, self._fire_batch)
+            self._batch_timer = timer
         timer.start()
 
-    def _fire(self, path: str) -> None:
-        self._pending.pop(path, None)
+    def _fire_batch(self) -> None:
+        """Process all accumulated paths as one batch. Defers if rate-limited."""
+        with self._lock:
+            batch = set(self._pending_paths)
+            self._pending_paths.clear()
+            self._batch_timer = None
+
+        if not batch:
+            return
+
         if self._rate_limiter.allow():
-            self._on_new_file(Path(path))
-        # else: silently skip — rate limit exceeded
+            for path in batch:
+                self._on_new_file(Path(path))
+        else:
+            # Rate-limited: put paths back and schedule a retry after window expires
+            with self._lock:
+                self._pending_paths.update(batch)
+                retry_timer = threading.Timer(
+                    self._rate_limiter._window, self._fire_batch
+                )
+                self._batch_timer = retry_timer
+            retry_timer.start()
 
 
 def start_watcher(watch_dir: Path, on_new_file) -> Observer:
