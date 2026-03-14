@@ -31,15 +31,16 @@ cp .env.host.example ~/.config/second-brain/.env.host
 #   ANTHROPIC_API_KEY=sk-ant-api03-...
 ```
 
-### 5. pre-commit (for committing from the host)
-If you commit from outside the container, install pre-commit on the host:
+### 5. Activate git hooks (one-time, after cloning)
+The repo ships a portable hook in `.githooks/`. Point git at it with:
 
 ```bash
-brew install pre-commit
-pre-commit install
+git config core.hooksPath .githooks
 ```
 
-> Skip this if you only commit from inside the container — it's installed automatically there.
+> DevContainer does this automatically in `postCreateCommand`. Host users must run this once after cloning.
+>
+> Requires [uv](https://docs.astral.sh/uv/getting-started/installation/) on the host (`brew install uv` on macOS).
 
 ### 6. Git identity
 Ensure `~/.gitconfig` has your name and email (it is bind-mounted into the container):
@@ -59,7 +60,7 @@ git config --global user.email "you@example.com"
 
 Everything else is automatic:
 - Python deps installed (`uv pip install -e '.[dev]'`)
-- pre-commit hooks installed
+- git hooks path set to `.githooks/` (`git config core.hooksPath .githooks`)
 - Claude Code installed globally
 - SQLite volume ownership fixed
 

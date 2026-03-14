@@ -33,7 +33,8 @@
     "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,consistency=cached"
   ],
   "runArgs": ["--env-file", "${localEnv:HOME}/.config/second-brain/.env.host"],
-  "postCreateCommand": "sudo npm install -g @anthropic-ai/claude-code && uv pip install -e '.[dev]' && uv run pre-commit install",
+  // Note: .git/hooks/ is bypassed — core.hooksPath points to .githooks/ instead.
+  "postCreateCommand": "sudo npm install -g @anthropic-ai/claude-code && uv pip install -e '.[dev]' && git config core.hooksPath .githooks",
   "postStartCommand": "sudo chown vscode:vscode /workspace/brain-index",
   "remoteUser": "vscode"
 }
