@@ -69,15 +69,20 @@ def main() -> None:
 
     print(f"\n[second-brain] {info['repo']}: {summary}")
 
-    if not sys.stdin.isatty():
+    # git redirects hook stdin to /dev/null — open the controlling terminal directly
+    try:
+        tty = open("/dev/tty", "r")
+    except OSError:
         print("[sb-hook] non-interactive: skipping brain link prompt", file=sys.stderr)
         return
 
-    answer = input("Link this commit to a brain entry? [y/N]: ").strip().lower()
-    if answer != "y":
-        return
-
-    title = input("Brain entry title (or press Enter to skip): ").strip()
+    with tty:
+        print("Link this commit to a brain entry? [y/N]: ", end="", flush=True)
+        answer = tty.readline().strip().lower()
+        if answer != "y":
+            return
+        print("Brain entry title (or press Enter to skip): ", end="", flush=True)
+        title = tty.readline().strip()
     if not title:
         return
 
