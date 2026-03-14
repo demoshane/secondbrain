@@ -30,7 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `.env.host` does not appear in `git status` output and is not present in the Drive-synced folder
   4. `/sb-init` creates all nine brain subdirectories and a populated SQLite schema in the named volume; `/sb-reindex` runs to completion on an empty brain with zero errors
   5. A file written inside the container to `/workspace/brain/` is immediately visible on the host at `~/SecondBrain/` with correct ownership
-**Plans**: 7 plans
+**Plans**: 10 plans
 
 Plans:
 - [ ] 01-00-PLAN.md — Test infrastructure (Wave 0): pyproject.toml, pytest config, 10 stub test files, conftest.py fixtures
@@ -40,6 +40,9 @@ Plans:
 - [ ] 01-04-PLAN.md — Reindex command: engine/reindex.py (/sb-reindex)
 - [ ] 01-05-PLAN.md — Bootstrap validator: scripts/bootstrap.py --dev, static analysis tests (FOUND-12)
 - [ ] 01-06-PLAN.md — Manual verification checkpoint: DevContainer on macOS, bind mount ownership, fresh install sequence
+- [ ] 01-07-PLAN.md — Gap closure: fix test_blocks_api_key to use detectable secret; add test_anthropic_key_not_detected
+- [ ] 01-08-PLAN.md — Gap closure: fix bootstrap.py invocation docs (uv run) and add venv detection guard
+- [ ] 01-09-PLAN.md — Gap closure: replace hardcoded Homebrew pre-commit hook with portable .githooks/ wrapper
 
 ### Phase 2: Storage and Index
 **Goal**: Every capture operation writes an atomic, schema-valid markdown note and indexes it into SQLite FTS5; search returns ranked results; the audit log records every operation — all without requiring an AI API call
@@ -94,7 +97,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 6/7 | In Progress|  |
+| 1. Foundation | 8/10 | In Progress|  |
 | 2. Storage and Index | 0/TBD | Not started | - |
 | 3. AI Layer | 0/TBD | Not started | - |
 | 4. Automation | 0/TBD | Not started | - |

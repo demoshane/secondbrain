@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-foundation/01-05-PLAN.md
-last_updated: "2026-03-14T12:59:29.354Z"
+stopped_at: Completed 01-foundation/01-07-PLAN.md
+last_updated: "2026-03-14T14:47:30.340Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 7
-  completed_plans: 6
+  total_plans: 10
+  completed_plans: 8
   percent: 0
 ---
 
@@ -56,6 +56,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-foundation P03 | 8 | 2 tasks | 6 files |
 | Phase 01-foundation P04 | 3 | 1 tasks | 2 files |
 | Phase 01-foundation P05 | 1 | 2 tasks | 4 files |
+| Phase 01-foundation P07 | 5 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,8 @@ Recent decisions affecting current work:
 - [Phase 01-foundation]: Relative path from brain_root used as canonical note ID in reindex — portable across installs and containers
 - [Phase 01-foundation]: bootstrap.py runs on HOST using Path.home() directly — no engine.paths import (container paths not valid on host)
 - [Phase 01-foundation]: FOUND-12 pathlib-only enforced by static analysis tests in test_paths.py — makes convention a hard test failure
+- [Phase 01-foundation]: test_blocks_api_key uses AWS AKIA pattern (AKIAIOSFODNN7EXAMPLE) — detect-secrets AWSKeyDetector reliably catches it; pragma: allowlist secret marks fixture as known false positive # pragma: allowlist secret
+- [Phase 01-foundation]: detect-secrets has no Anthropic API key plugin as of v1.5.0 — sk-ant-api03-* limitation documented in test_anthropic_key_not_detected
 
 ### Pending Todos
 
@@ -95,6 +98,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T12:59:29.342Z
-Stopped at: Completed 01-foundation/01-05-PLAN.md
+Last session: 2026-03-14T14:47:30.334Z
+Stopped at: Completed 01-foundation/01-07-PLAN.md
 Resume file: None
