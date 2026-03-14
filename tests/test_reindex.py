@@ -60,7 +60,7 @@ def test_reindex_parses_frontmatter_fields(brain_root, db_conn):
 
 
 def test_reindex_stores_absolute_paths(brain_root, db_conn):
-    """After reindex, every path stored in the DB must be absolute (start with /)."""
+    """After reindex, every path stored in the DB must be absolute (SEARCH-01)."""
     init_schema(db_conn)
     _make_note(brain_root, "note1.md", "type: note\ntitle: Note One", "Body one")
     reindex_brain(brain_root, db_conn)
