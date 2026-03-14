@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-foundation/01-09-PLAN.md
-last_updated: "2026-03-14T15:10:17.060Z"
+stopped_at: Completed 02-storage-and-index/02-00-PLAN.md
+last_updated: "2026-03-14T15:29:28.995Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 10
-  completed_plans: 10
+  total_plans: 14
+  completed_plans: 11
   percent: 0
 ---
 
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-foundation P07 | 5 | 1 tasks | 2 files |
 | Phase 01-foundation P08 | 1 | 2 tasks | 2 files |
 | Phase 01-foundation P09 | 3 | 2 tasks | 3 files |
+| Phase 02-storage-and-index P00 | 8 | 4 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,8 @@ Recent decisions affecting current work:
 - [Phase 01-foundation]: detect-secrets has no Anthropic API key plugin as of v1.5.0 — sk-ant-api03-* limitation documented in test_anthropic_key_not_detected
 - [Phase 01-foundation]: Venv guard placed at start of main() (after arg parsing, before checks) so warning is visible even if user forgets --dev
 - [Phase 01-foundation]: Versioned hook in .githooks/ with core.hooksPath — eliminates host/container hook overwrite race condition
+- [Phase 02-storage-and-index]: Defer engine.capture/engine.search imports to test body so pytest --collect-only succeeds before modules exist
+- [Phase 02-storage-and-index]: seeded_db and initialized_db guard against missing 'people' column via PRAGMA table_info check
 
 ### Pending Todos
 
@@ -102,6 +105,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T14:52:26.223Z
-Stopped at: Completed 01-foundation/01-09-PLAN.md
+Last session: 2026-03-14T15:29:24.880Z
+Stopped at: Completed 02-storage-and-index/02-00-PLAN.md
 Resume file: None

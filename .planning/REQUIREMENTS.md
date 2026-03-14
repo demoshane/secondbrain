@@ -19,13 +19,13 @@
 
 ### Capture & Notes (CAP)
 
-- [ ] **CAP-01**: `/sb-capture` CLI prompts for content type, title, body, and optional tags; writes atomic markdown note with YAML frontmatter
-- [ ] **CAP-02**: YAML frontmatter includes: `type`, `title`, `date`, `tags`, `people` (refs), `created_at`, `updated_at`, `content_sensitivity` (public/private/pii)
-- [ ] **CAP-03**: Capture operation is atomic: write file then index; if indexing fails, file write is rolled back
+- [x] **CAP-01**: `/sb-capture` CLI prompts for content type, title, body, and optional tags; writes atomic markdown note with YAML frontmatter
+- [x] **CAP-02**: YAML frontmatter includes: `type`, `title`, `date`, `tags`, `people` (refs), `created_at`, `updated_at`, `content_sensitivity` (public/private/pii)
+- [x] **CAP-03**: Capture operation is atomic: write file then index; if indexing fails, file write is rolled back
 - [ ] **CAP-04**: File watcher detects new files dropped into `files/` (presentations, .docx, .pdf) and triggers AI categorization prompt
 - [ ] **CAP-05**: Git commit hook fires when user commits in any project directory; AI summarizes the commit and offers to link it to a brain entry
 - [ ] **CAP-06**: AI automatically updates Claude memory (CLAUDE.md or memory files) when relevant project/people context is captured
-- [ ] **CAP-07**: Notes use consistent Markdown templates per content type (defined in `.meta/templates/`)
+- [x] **CAP-07**: Notes use consistent Markdown templates per content type (defined in `.meta/templates/`)
 
 ### People & Meetings (PEOPLE)
 
@@ -57,8 +57,8 @@
 
 ### Search & Retrieval (SEARCH)
 
-- [ ] **SEARCH-01**: `/sb-search <query>` performs FTS5 full-text search across all notes with BM25 ranking
-- [ ] **SEARCH-02**: `/sb-search --type <type> <query>` scopes search to a single content type folder
+- [x] **SEARCH-01**: `/sb-search <query>` performs FTS5 full-text search across all notes with BM25 ranking
+- [x] **SEARCH-02**: `/sb-search --type <type> <query>` scopes search to a single content type folder
 - [ ] **SEARCH-03**: `/sb-check-links` reports all orphaned bidirectional links across people/meetings/projects
 - [ ] **SEARCH-04**: AI queries automatically retrieve relevant notes via FTS5 as context before generating responses (RAG-lite)
 
@@ -66,10 +66,10 @@
 
 - [ ] **GDPR-01**: `/sb-forget <person>` deletes: person's markdown file, all meeting notes that reference only that person, FTS5 shadow table entries (explicit purge), audit log entries, backlinks in other notes
 - [ ] **GDPR-02**: After `/sb-forget`, FTS5 index is rebuilt (`INSERT INTO notes_fts(notes_fts) VALUES('rebuild')`) to ensure no content fragments remain
-- [ ] **GDPR-03**: Every note creation, access, and modification is recorded in SQLite audit log with timestamp and operation type
+- [x] **GDPR-03**: Every note creation, access, and modification is recorded in SQLite audit log with timestamp and operation type
 - [ ] **GDPR-04**: Access control: notes with `content_sensitivity: pii` require passphrase confirmation before displaying content in CLI
-- [ ] **GDPR-05**: `.env.host` secrets are never logged, never included in error messages, never written to any file except `.env.host` itself
-- [ ] **GDPR-06**: Engine code passes `detect-secrets` scan (zero baseline violations) — enforced in CI
+- [x] **GDPR-05**: `.env.host` secrets are never logged, never included in error messages, never written to any file except `.env.host` itself
+- [x] **GDPR-06**: Engine code passes `detect-secrets` scan (zero baseline violations) — enforced in CI
 
 ---
 
@@ -110,15 +110,15 @@
 | FOUND-10 | Phase 1 | Complete |
 | FOUND-11 | Phase 1 | Complete |
 | FOUND-12 | Phase 1 | Complete |
-| CAP-01 | Phase 2 | Pending |
-| CAP-02 | Phase 2 | Pending |
-| CAP-03 | Phase 2 | Pending |
-| CAP-07 | Phase 2 | Pending |
-| SEARCH-01 | Phase 2 | Pending |
-| SEARCH-02 | Phase 2 | Pending |
-| GDPR-03 | Phase 2 | Pending |
-| GDPR-05 | Phase 2 | Pending |
-| GDPR-06 | Phase 2 | Pending |
+| CAP-01 | Phase 2 | Complete |
+| CAP-02 | Phase 2 | Complete |
+| CAP-03 | Phase 2 | Complete |
+| CAP-07 | Phase 2 | Complete |
+| SEARCH-01 | Phase 2 | Complete |
+| SEARCH-02 | Phase 2 | Complete |
+| GDPR-03 | Phase 2 | Complete |
+| GDPR-05 | Phase 2 | Complete |
+| GDPR-06 | Phase 2 | Complete |
 | AI-01 | Phase 3 | Pending |
 | AI-02 | Phase 3 | Pending |
 | AI-03 | Phase 3 | Pending |

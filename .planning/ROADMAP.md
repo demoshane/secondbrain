@@ -54,7 +54,13 @@ Plans:
   3. `/sb-search "some phrase"` returns the note containing that phrase, ranked by BM25, within two seconds on a 1000-note index
   4. Every capture, read, and update operation produces a row in the SQLite audit log with correct timestamp and operation type
   5. `detect-secrets` scan of the engine codebase reports zero baseline violations; no secret value appears in any log file or error message
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 02-00-PLAN.md — Test scaffold (Wave 0): test_capture.py, test_search.py, test_audit.py stubs + conftest fixtures
+- [ ] 02-01-PLAN.md — Capture pipeline: engine/db.py migration, engine/capture.py, engine/templates.py, 6 template files
+- [ ] 02-02-PLAN.md — Search engine: engine/search.py, FTS5 BM25, type filter, audit on search
+- [ ] 02-03-PLAN.md — CLI wiring: sb-capture + sb-search entry points, remaining test stubs, manual verification checkpoint
 
 ### Phase 3: AI Layer
 **Goal**: The PII classifier runs locally and enforces routing before any API call is made; notes flagged as PII go only to Ollama; non-PII notes go to Claude; proactive questioning enriches every capture; the Claude Code subagent is installable and usable from any Claude session
@@ -98,7 +104,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 10/10 | Complete   | 2026-03-14 |
-| 2. Storage and Index | 0/TBD | Not started | - |
+| 2. Storage and Index | 1/4 | In Progress|  |
 | 3. AI Layer | 0/TBD | Not started | - |
 | 4. Automation | 0/TBD | Not started | - |
 | 5. GDPR and Maintenance | 0/TBD | Not started | - |
