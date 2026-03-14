@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+# Portable pre-commit wrapper.
+# Works on macOS host (uv in PATH) and inside DevContainer (uv in venv).
+# Activate via: git config core.hooksPath .githooks
+# (DevContainer sets this automatically in postCreateCommand.)
+
+set -e
+
+if command -v uv >/dev/null 2>&1; then
+    exec uv run pre-commit run --hook-stage pre-commit --color always "$@"
+else
+    echo "[pre-commit] ERROR: uv not found. Install uv: https://docs.astral.sh/uv/getting-started/installation/"
+    exit 1
+fi
