@@ -63,19 +63,21 @@ def test_retrieve_context_empty(tmp_path):
 def test_note_body_truncated(tmp_path):
     """retrieve_context truncates each note's body to 500 chars."""
     conn = _make_db(tmp_path)
-    long_body = "A" * 1000
+    # Use a real word repeated so FTS5 can match it, padded to >500 chars total
+    word = "verbosity "
+    long_body = word * 110  # ~1100 chars, contains the word 'verbosity' many times
     _seed_note(conn, tmp_path, title="Long Note", body=long_body, path_name="long.md")
 
-    result = retrieve_context("AAAA", conn)
+    result = retrieve_context("verbosity", conn)
 
-    # Should contain content but the body portion should be truncated
     assert "Long Note" in result
-    # Count A chars in result — should not exceed 500 from this note
-    a_count = result.count("A" * 1)
-    # The body is 500 'A' chars max; header/footer contain no 'A' in the sentinel strings
-    # More precise: extract body portion between note header and footer
-    lines = result.split("\n")
-    body_chars = "".join(
-        line for line in lines if line.startswith("A") or (line and line[0] == "A")
-    )
-    assert len(body_chars) <= 500
+    # The body in the context block must be <= 500 chars.
+    # Extract the body portion: after the note header line "[Long Note] (...)"
+    header_marker = "[Long Note]"
+    header_pos = result.index(header_marker)
+    # Body starts after the newline following the header line
+    body_start = result.index("\n", header_pos) + 1
+    footer_pos = result.index("=== END RETRIEVED CONTEXT ===")
+    # Trim trailing newline before footer
+    body_in_result = result[body_start:footer_pos].rstrip("\n")
+    assert len(body_in_result) <= 500
