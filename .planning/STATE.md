@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-foundation/01-02-PLAN.md
-last_updated: "2026-03-14T12:47:56.476Z"
+stopped_at: Completed 01-foundation/01-03-PLAN.md
+last_updated: "2026-03-14T12:52:18.772Z"
 last_activity: 2026-03-14 — Roadmap created; all 48 v1 requirements mapped across 5 phases
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 7
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -53,6 +53,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-foundation P00 | 10 | 2 tasks | 11 files |
 | Phase 01-foundation P01 | 2 | 2 tasks | 6 files |
 | Phase 01-foundation P02 | 2 | 2 tasks | 3 files |
+| Phase 01-foundation P03 | 8 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,8 @@ Recent decisions affecting current work:
 - [Phase 01-foundation]: SQLite uses named Docker volume brain-index-data (not bind mount) — index is rebuildable, never synced to Drive
 - [Phase 01-foundation]: .secrets.baseline manually generated outside DevContainer; must be regenerated inside via detect-secrets scan after first open
 - [Phase 01-foundation]: pre-commit install deferred to DevContainer postCreateCommand; test_blocks_api_key skips outside container via skipif guard
+- [Phase 01-foundation]: Use conn.executescript() for multi-statement SQL in init_schema — trigger bodies contain semicolons that break naive split
+- [Phase 01-foundation]: validate_drive_mount writes a .sb-write-probe file before any mkdir — ensures actual write permission on Drive mount
 
 ### Pending Todos
 
@@ -86,6 +89,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T12:47:56.469Z
-Stopped at: Completed 01-foundation/01-02-PLAN.md
+Last session: 2026-03-14T12:52:18.766Z
+Stopped at: Completed 01-foundation/01-03-PLAN.md
 Resume file: None
