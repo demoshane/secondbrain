@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Intelligence + GUI Hub
 status: executing
-stopped_at: Completed 18-01-PLAN.md
-last_updated: "2026-03-15T20:41:44.651Z"
+stopped_at: Completed 18-02-PLAN.md
+last_updated: "2026-03-15T20:47:16.050Z"
 last_activity: 2026-03-15 — 14-01 complete (deps + RED scaffold); 14-02 task 1 committed (DDL + config)
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 19
-  completed_plans: 17
+  completed_plans: 18
   percent: 10
 ---
 
@@ -63,6 +63,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 17 P02 | 8 | 1 tasks | 1 files |
 | Phase 18-gui-hub P00 | 251 | 2 tasks | 4 files |
 | Phase 18-gui-hub P01 | 446 | 2 tasks | 5 files |
+| Phase 18-gui-hub P02 | 3 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -106,6 +107,8 @@ Recent decisions affecting current work:
 - [Phase 18-gui-hub]: Test URL for absolute paths uses f'/notes{p}' not f'/notes/{p}' to avoid double-slash Flask 308 redirect
 - [Phase 18-gui-hub]: _SlashNormMiddleware added to handle /notes//abs/path URL patterns — Flask path converter cannot match double-slash URLs
 - [Phase 18-gui-hub]: POST /notes writes frontmatter markdown directly — capture_note() has too many required deps for a thin API endpoint
+- [Phase 18-gui-hub]: EasyMDE vendored via Python urllib (curl blocked by hook) — offline-safe, no CDN dependency at runtime
+- [Phase 18-gui-hub]: threading.Event gate in _start_sidecar blocks main() until /health responds — 10s timeout before sys.exit
 
 ### Pending Todos
 
@@ -119,6 +122,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T20:41:44.644Z
-Stopped at: Completed 18-01-PLAN.md
+Last session: 2026-03-15T20:47:10.921Z
+Stopped at: Completed 18-02-PLAN.md
 Resume file: None
