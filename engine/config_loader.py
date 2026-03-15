@@ -15,6 +15,10 @@ DEFAULT_CONFIG = {
         "ollama/llama3.2": {"adapter": "ollama", "model": "llama3.2"},
         "claude": {"adapter": "claude", "model": ""},
     },
+    "embeddings": {
+        "provider": "fastembed",
+        "batch_size": 32,
+    },
 }
 
 

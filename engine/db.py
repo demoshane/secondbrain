@@ -51,6 +51,15 @@ CREATE TABLE IF NOT EXISTS audit_log (
     detail     TEXT,
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
+
+CREATE TABLE IF NOT EXISTS note_embeddings (
+    note_path    TEXT PRIMARY KEY,
+    embedding    BLOB,
+    content_hash TEXT,
+    stale        BOOL NOT NULL DEFAULT 0,
+    created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
 """
 
 DROP_SQL = """
