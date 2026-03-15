@@ -200,10 +200,39 @@ Plans:
 - [ ] 11-02-PLAN.md — Wave 1b: implement engine/anonymize.py — anonymize_note() token scrubbing + atomic write + FTS5 update via trigger (GDPR-03 expanded) [parallel with 11-01]
 - [ ] 11-03-PLAN.md — Wave 1c: implement prompt_consent() in engine/init_brain.py + wire into main() + human checkpoint (GDPR-06 expanded) [parallel with 11-01, 11-02]
 
+### Phase 12: Micro-Code Fixes
+**Goal**: All five v1.5 audit gaps closed — `sb-anonymize` and `sb-update-memory` are registered CLI entry points; `sb-export` initialises the DB schema before querying; `sb-reindex` stores absolute paths and preserves the `people` column
+**Depends on**: Phase 11
+**Requirements**: GDPR-03, GDPR-01, GDPR-05, CAP-02, AI-06
+**Gap Closure**: Closes 5 requirement gaps and 4 integration gaps from v1.5 audit; restores Flow 2 (GDPR forget) and Flow 5 (sb-export)
+**Success Criteria** (what must be TRUE):
+  1. `sb-anonymize --help` runs without error (entry point registered)
+  2. `sb-update-memory --help` runs without error (entry point registered)
+  3. `sb-export` on a fresh install completes without OperationalError
+  4. After `sb-reindex` then `sb-forget <person>`, DELETE matches > 0 rows (resolved path match)
+  5. After `sb-reindex`, notes retain their original `people` field values
+
+Plans:
+- [ ] 12-00-PLAN.md — Wave 0: regression tests for all 5 fixes (pyproject entries, export init_schema, reindex resolve, reindex people column)
+- [ ] 12-01-PLAN.md — Wave 1a: pyproject.toml — add `sb-anonymize` and `sb-update-memory` entry points (GDPR-03, AI-06)
+- [ ] 12-02-PLAN.md — Wave 1b: engine/export.py — call `init_schema(conn)` after `get_connection()` (GDPR-05) [parallel with 12-01]
+- [ ] 12-03-PLAN.md — Wave 1c: engine/reindex.py — `str(md_path)` → `str(md_path.resolve())`; add `people` to INSERT/DO UPDATE (GDPR-01, CAP-02) [parallel with 12-01, 12-02]
+- [ ] 12-04-PLAN.md — Wave 2: manual verification checkpoint — run all 5 success criteria end-to-end
+
+### Phase 13: Nyquist Completion
+**Goal**: Phase 10 and Phase 11 reach `nyquist_compliant: true` — VALIDATION.md created for Phase 10, updated to true for Phase 11
+**Depends on**: Phase 12
+**Requirements**: (tech debt — no new requirements)
+**Tech Debt**: Closes Nyquist compliance gap from v1.5 audit (Phase 10 missing VALIDATION.md; Phase 11 draft/false)
+
+Plans:
+- [ ] 13-00-PLAN.md — Write Phase 10 VALIDATION.md (nyquist_compliant: true); update Phase 11 VALIDATION.md to nyquist_compliant: true
+- [ ] 13-01-PLAN.md — Verify all phases 1–13 are nyquist_compliant: true; run /gsd:audit-milestone to confirm clean pass
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -219,3 +248,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 9. Nyquist Sign-off | 1/1 | Complete   | 2026-03-15 |
 | 10. Quick Code Fixes | 1/1 | Complete    | 2026-03-15 |
 | 11. GDPR Scope Expansion | 4/4 | Complete    | 2026-03-15 |
+| 12. Micro-Code Fixes | 1/5 | In Progress|  |
+| 13. Nyquist Completion | 0/2 | Pending |  |

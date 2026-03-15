@@ -113,20 +113,20 @@
 | FOUND-11 | Phase 1 | Complete |
 | FOUND-12 | Phase 1 | Complete |
 | CAP-01 | Phase 2 | Complete |
-| CAP-02 | Phase 2 | Complete |
+| CAP-02 | Phase 12 (gap closure) | Complete |
 | CAP-03 | Phase 2 | Complete |
 | CAP-07 | Phase 2 | Complete |
 | SEARCH-01 | Phase 7 (gap closure) | Complete |
 | SEARCH-02 | Phase 2 | Complete |
-| GDPR-03 | Phase 2 | Complete |
-| GDPR-05 | Phase 2 | Complete |
+| GDPR-03 | Phase 12 (gap closure) | Complete |
+| GDPR-05 | Phase 12 (gap closure) | Complete |
 | GDPR-06 | Phase 2 | Complete |
 | AI-01 | Phase 3 | Complete |
 | AI-02 | Phase 3 | Complete |
 | AI-03 | Phase 3 | Complete |
 | AI-04 | Phase 3 | Complete |
 | AI-05 | Phase 8 (gap closure) | Complete |
-| AI-06 | Phase 3 | Complete |
+| AI-06 | Phase 12 (gap closure) | Complete |
 | AI-07 | Phase 3 | Complete |
 | AI-08 | Phase 3 | Complete |
 | AI-09 | Phase 3 | Complete |
@@ -147,6 +147,6 @@
 | WORK-04 | Phase 4 | Complete |
 | SEARCH-03 | Phase 4 | Complete |
 | SEARCH-04 | Phase 7 (gap closure) | Complete |
-| GDPR-01 | Phase 7 (gap closure) | Complete |
+| GDPR-01 | Phase 12 (gap closure) | Complete |
 | GDPR-02 | Phase 5 | Complete |
 | GDPR-04 | Phase 5 | Complete |

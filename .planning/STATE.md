@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 11-02-PLAN.md — anonymize_note() implemented, 6 tests passing
-last_updated: "2026-03-15T11:26:26.133Z"
+stopped_at: Completed 12-00-PLAN.md — Wave 0 regression tests written, 3 RED tests confirm bugs
+last_updated: "2026-03-15T11:58:00.004Z"
 last_activity: "2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified"
 progress:
-  total_phases: 12
+  total_phases: 14
   completed_phases: 12
-  total_plans: 53
-  completed_plans: 53
+  total_plans: 58
+  completed_plans: 54
   percent: 0
 ---
 
@@ -97,6 +97,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 10-quick-code-fixes P00 | 5 | 3 tasks | 2 files |
 | Phase 11-gdpr-scope-expansion P00 | 2 | 2 tasks | 7 files |
 | Phase 11-gdpr-scope-expansion P03 | 15 | 2 tasks | 2 files |
+| Phase 12-micro-code-fixes P00 | 15 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -212,6 +213,8 @@ Recent decisions affecting current work:
 - [Phase 11-gdpr-scope-expansion]: note_path=NULL in audit_log for export — operation-level event, consistent with forget.py and search.py
 - [Phase 11-gdpr-scope-expansion]: re.escape(token) always applied before re.sub — tokens may contain email dots, hyphens, parens which are regex metacharacters
 - [Phase 11-gdpr-scope-expansion]: FTS5 updated automatically by notes_au trigger on UPDATE notes — no manual rebuild needed for single-note anonymize
+- [Phase 12-micro-code-fixes]: test_reindex_stores_absolute_paths was already present — not duplicated; only test_reindex_preserves_people_column added in plan 12-00
+- [Phase 12-micro-code-fixes]: Wave 0 test_export_initialises_schema_on_fresh_db passes by design — confirms OperationalError exists (bug present), fix goes in main() not export_brain()
 
 ### Pending Todos
 
@@ -226,6 +229,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T11:20:20.881Z
-Stopped at: Completed 11-02-PLAN.md — anonymize_note() implemented, 6 tests passing
+Last session: 2026-03-15T11:57:59.995Z
+Stopped at: Completed 12-00-PLAN.md — Wave 0 regression tests written, 3 RED tests confirm bugs
 Resume file: None
