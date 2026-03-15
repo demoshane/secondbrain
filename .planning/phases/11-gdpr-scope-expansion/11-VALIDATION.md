@@ -50,10 +50,10 @@ created: 2026-03-15
 | 11-02-03 | 02 | 1 | GDPR-03 | unit | `pytest tests/test_anonymize.py::test_anonymize_updates_db_row -x` | ✅ W0 | ⬜ pending |
 | 11-02-04 | 02 | 1 | GDPR-03 | unit | `pytest tests/test_anonymize.py::test_anonymize_downgrades_sensitivity -x` | ✅ W0 | ⬜ pending |
 | 11-02-05 | 02 | 1 | GDPR-03 | unit | `pytest tests/test_anonymize.py::test_anonymize_audit_logged -x` | ✅ W0 | ⬜ pending |
-| 11-03-01 | 03 | 1 | GDPR-06 | unit | `pytest tests/test_consent.py::test_consent_sentinel_written -x` | ✅ W0 | ⬜ pending |
-| 11-03-02 | 03 | 1 | GDPR-06 | unit | `pytest tests/test_consent.py::test_check_consent_returns_true_when_sentinel -x` | ✅ W0 | ⬜ pending |
-| 11-03-03 | 03 | 1 | GDPR-06 | unit | `pytest tests/test_consent.py::test_check_consent_returns_false_when_missing -x` | ✅ W0 | ⬜ pending |
-| 11-03-04 | 03 | 1 | GDPR-06 | unit | `pytest tests/test_consent.py::test_yes_flag_skips_prompt -x` | ✅ W0 | ⬜ pending |
+| 11-03-01 | 03 | 1 | GDPR-06 | unit | `pytest tests/test_consent.py::test_consent_skips_when_sentinel_exists -x` | ✅ W0 | ⬜ pending |
+| 11-03-02 | 03 | 1 | GDPR-06 | unit | `pytest tests/test_consent.py::test_consent_yes_flag_writes_sentinel -x` | ✅ W0 | ⬜ pending |
+| 11-03-03 | 03 | 1 | GDPR-06 | unit | `pytest tests/test_consent.py::test_consent_interactive_yes -x` | ✅ W0 | ⬜ pending |
+| 11-03-04 | 03 | 1 | GDPR-06 | unit | `pytest tests/test_consent.py::test_consent_interactive_no -x` | ✅ W0 | ⬜ pending |
 | 11-03-05 | 03 | 1 | GDPR-06 | manual | n/a — TTY prompt | n/a | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
