@@ -6,6 +6,7 @@ dependencies = [
     "python-frontmatter>=1.0",
     "ollama>=0.6",
     "watchdog>=6.0",
+    "sqlite-vec>=0.1",
 ]
 
 [project.optional-dependencies]
@@ -41,3 +42,4 @@ packages = ["engine", "scripts"]
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
