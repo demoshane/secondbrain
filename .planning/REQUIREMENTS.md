@@ -108,59 +108,59 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| EMBED-01 | — | Pending |
-| EMBED-02 | — | Pending |
-| EMBED-03 | — | Pending |
-| EMBED-04 | — | Pending |
-| INTL-01 | — | Pending |
-| INTL-02 | — | Pending |
-| INTL-03 | — | Pending |
-| INTL-04 | — | Pending |
-| INTL-05 | — | Pending |
-| INTL-06 | — | Pending |
-| INTL-07 | — | Pending |
-| INTL-08 | — | Pending |
-| INTL-09 | — | Pending |
-| INTL-10 | — | Pending |
-| SRCH-01 | — | Pending |
-| SRCH-02 | — | Pending |
-| SRCH-03 | — | Pending |
-| SRCH-04 | — | Pending |
-| DIAG-01 | — | Pending |
-| DIAG-02 | — | Pending |
-| DIAG-03 | — | Pending |
-| DIAG-04 | — | Pending |
-| SETUP-01 | — | Pending |
-| SETUP-02 | — | Pending |
-| SETUP-03 | — | Pending |
-| SETUP-04 | — | Pending |
-| GUI-01 | — | Pending |
-| GUI-02 | — | Pending |
-| GUI-03 | — | Pending |
-| GUI-04 | — | Pending |
-| GUI-05 | — | Pending |
-| GUI-06 | — | Pending |
-| GUI-07 | — | Pending |
-| GUI-08 | — | Pending |
-| GUI-09 | — | Pending |
-| GUI-10 | — | Pending |
-| GUI-11 | — | Pending |
-| MCP-01 | — | Pending |
-| MCP-02 | — | Pending |
-| MCP-03 | — | Pending |
-| MCP-04 | — | Pending |
-| MCP-05 | — | Pending |
-| MCP-06 | — | Pending |
-| MCP-07 | — | Pending |
-| MCP-08 | — | Pending |
-| MCP-09 | — | Pending |
-| MCP-10 | — | Pending |
+| EMBED-01 | Phase 14 | Pending |
+| EMBED-02 | Phase 14 | Pending |
+| EMBED-03 | Phase 14 | Pending |
+| EMBED-04 | Phase 14 | Pending |
+| INTL-01 | Phase 15 | Pending |
+| INTL-02 | Phase 15 | Pending |
+| INTL-03 | Phase 15 | Pending |
+| INTL-04 | Phase 15 | Pending |
+| INTL-05 | Phase 15 | Pending |
+| INTL-06 | Phase 15 | Pending |
+| INTL-07 | Phase 15 | Pending |
+| INTL-08 | Phase 15 | Pending |
+| INTL-09 | Phase 15 | Pending |
+| INTL-10 | Phase 15 | Pending |
+| SRCH-01 | Phase 16 | Pending |
+| SRCH-02 | Phase 16 | Pending |
+| SRCH-03 | Phase 16 | Pending |
+| SRCH-04 | Phase 16 | Pending |
+| DIAG-01 | Phase 16 | Pending |
+| DIAG-02 | Phase 16 | Pending |
+| DIAG-03 | Phase 16 | Pending |
+| DIAG-04 | Phase 16 | Pending |
+| SETUP-01 | Phase 17 | Pending |
+| SETUP-02 | Phase 17 | Pending |
+| SETUP-03 | Phase 17 | Pending |
+| SETUP-04 | Phase 17 | Pending |
+| GUI-01 | Phase 18 | Pending |
+| GUI-02 | Phase 18 | Pending |
+| GUI-03 | Phase 18 | Pending |
+| GUI-04 | Phase 18 | Pending |
+| GUI-05 | Phase 18 | Pending |
+| GUI-06 | Phase 18 | Pending |
+| GUI-07 | Phase 18 | Pending |
+| GUI-08 | Phase 18 | Pending |
+| GUI-09 | Phase 18 | Pending |
+| GUI-10 | Phase 18 | Pending |
+| GUI-11 | Phase 18 | Pending |
+| MCP-01 | Phase 19 | Pending |
+| MCP-02 | Phase 19 | Pending |
+| MCP-03 | Phase 19 | Pending |
+| MCP-04 | Phase 19 | Pending |
+| MCP-05 | Phase 19 | Pending |
+| MCP-06 | Phase 19 | Pending |
+| MCP-07 | Phase 19 | Pending |
+| MCP-08 | Phase 19 | Pending |
+| MCP-09 | Phase 19 | Pending |
+| MCP-10 | Phase 19 | Pending |
 
 **Coverage:**
 - v2.0 requirements: 47 total
-- Mapped to phases: 0
-- Unmapped: 47 ⚠️
+- Mapped to phases: 47
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-15*
-*Last updated: 2026-03-15 after initial definition*
+*Last updated: 2026-03-15 after v2.0 roadmap creation*
