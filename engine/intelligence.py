@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 
 from engine.router import get_adapter as _get_adapter
+from engine.db import get_connection, init_schema, migrate_add_action_items_table
 
 STATE_PATH = Path.home() / ".meta" / "intelligence_state.json"
 VAULT_GATE = 20  # minimum notes before any proactive offer fires
@@ -114,7 +115,6 @@ def extract_action_items(note_path: Path, body: str, sensitivity: str, conn) -> 
 def actions_main(argv=None) -> None:
     """Entry point for sb-actions CLI."""
     import argparse
-    from engine.db import get_connection, init_schema, migrate_add_action_items_table
 
     parser = argparse.ArgumentParser(prog="sb-actions", description="Manage action items")
     parser.add_argument("--done", type=int, metavar="ID", help="Mark item complete")
@@ -128,7 +128,6 @@ def actions_main(argv=None) -> None:
         conn.execute("UPDATE action_items SET done=1 WHERE id=?", (args.done,))
         conn.commit()
         print(f"Marked item {args.done} complete.")
-        conn.close()
         return
 
     rows = conn.execute(
@@ -283,7 +282,6 @@ def check_connections(note_path: Path, conn, brain_root: Path) -> None:
 def recap_main(argv=None) -> None:
     """Entry point for sb-recap CLI."""
     import argparse
-    from engine.db import get_connection, init_schema
 
     parser = argparse.ArgumentParser(prog="sb-recap", description="Summarise recent activity")
     parser.add_argument("context", nargs="?", help="Context name (default: auto-detect from git)")
