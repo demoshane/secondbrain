@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 12-04-PLAN.md — end-to-end verification, all 5 CLI fixes confirmed, Phase 12 complete
-last_updated: "2026-03-15T12:17:53.836Z"
+stopped_at: "Completed 13-00-PLAN.md — Phase 10 and Phase 11 VALIDATION.md signed off as nyquist_compliant: true"
+last_updated: "2026-03-15T13:40:38.106Z"
 last_activity: "2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified"
 progress:
   total_phases: 14
   completed_phases: 13
-  total_plans: 58
-  completed_plans: 58
+  total_plans: 60
+  completed_plans: 59
   percent: 0
 ---
 
@@ -102,6 +102,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 12-micro-code-fixes P01 | 2 | 2 tasks | 2 files |
 | Phase 12-micro-code-fixes P03 | 5 | 1 tasks | 1 files |
 | Phase 12-micro-code-fixes P04 | 15 | 2 tasks | 0 files |
+| Phase 13-nyquist-completion P00 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -225,6 +226,8 @@ Recent decisions affecting current work:
 - [Phase 12-micro-code-fixes]: md_path.resolve() not .absolute() in reindex — dereferences macOS symlink; consistent with forget.py and capture.py
 - [Phase 12-micro-code-fixes]: people normalisation mirrors tags pattern in reindex.py — isinstance guard + json.dumps; no new imports needed
 - [Phase 12-micro-code-fixes]: uv tool install --editable . must be re-run after adding new [project.scripts] entries — tests verify importability but not shell executable registration
+- [Phase 13-nyquist-completion]: Phase 10 row 10-00-01 marked manual-only — docstring review has no automated test
+- [Phase 13-nyquist-completion]: Phase 11 row 11-03-05 marked manual-only — TTY consent prompt inherently untestable without real terminal; does not block nyquist sign-off
 
 ### Pending Todos
 
@@ -239,6 +242,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T12:13:09.419Z
-Stopped at: Completed 12-04-PLAN.md — end-to-end verification, all 5 CLI fixes confirmed, Phase 12 complete
+Last session: 2026-03-15T13:40:38.094Z
+Stopped at: Completed 13-00-PLAN.md — Phase 10 and Phase 11 VALIDATION.md signed off as nyquist_compliant: true
 Resume file: None
