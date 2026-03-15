@@ -244,6 +244,61 @@ def generate_vscode_settings(brain_root: Path) -> Path:
     return settings_path
 
 
+def write_mcp_config(sb_mcp_bin: str | None = None, _cfg_path=None) -> None:
+    """Write the second-brain MCP server entry to Claude Desktop config.
+
+    Args:
+        sb_mcp_bin: Path to the sb-mcp-server binary. If None, resolved via shutil.which.
+        _cfg_path: Override config path (used in tests; if None, platform default is used).
+    """
+    import json
+    import platform
+
+    if sb_mcp_bin is None:
+        sb_mcp_bin = shutil.which("sb-mcp-server")
+    if sb_mcp_bin is None:
+        print(
+            "  [MCP] sb-mcp-server not found in PATH — skipping Claude Desktop config.",
+            file=sys.stderr,
+        )
+        return
+
+    if _cfg_path is not None:
+        cfg_path = Path(_cfg_path)
+    else:
+        system = platform.system()
+        if system == "Darwin":
+            cfg_path = (
+                Path.home() / "Library" / "Application Support" / "Claude"
+                / "claude_desktop_config.json"
+            )
+        elif system == "Windows":
+            import os
+            cfg_path = (
+                Path(os.environ.get("APPDATA", "")) / "Claude"
+                / "claude_desktop_config.json"
+            )
+        else:
+            # Linux: Claude Desktop not available — skip silently
+            return
+
+    cfg: dict = {}
+    if cfg_path.exists():
+        try:
+            cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            cfg = {}
+
+    cfg.setdefault("mcpServers", {})["second-brain"] = {
+        "command": sb_mcp_bin,
+        "args": [],
+    }
+    cfg_path.parent.mkdir(parents=True, exist_ok=True)
+    cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+    print(f"  [MCP] Wrote Claude Desktop config: {cfg_path}", file=sys.stderr)
+    print("  [MCP] Restart Claude Desktop to activate the MCP server.", file=sys.stderr)
+
+
 def main():
     ap = argparse.ArgumentParser(description="Initialize the Second Brain folder structure and SQLite schema")
     ap.add_argument("--force", action="store_true", help="Recreate missing dirs (notes preserved)")
@@ -315,5 +370,8 @@ def main():
     print("[sb-init] Generating VS Code settings...")
     settings_path = generate_vscode_settings(BRAIN_ROOT)
     print(f"  [OK] {settings_path}")
+
+    print("[sb-init] Writing Claude Desktop MCP config...")
+    write_mcp_config()
 
     print("[sb-init] Done.")
