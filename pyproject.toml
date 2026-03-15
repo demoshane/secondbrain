@@ -7,6 +7,9 @@ dependencies = [
     "ollama>=0.6",
     "watchdog>=6.0",
     "sqlite-vec>=0.1",
+    "flask>=3.0",
+    "waitress>=3.0",
+    "flask-cors>=4.0",
 ]
 
 [project.optional-dependencies]
@@ -33,6 +36,7 @@ sb-update-memory = "engine.ai:main"
 sb-recap         = "engine.intelligence:recap_main"
 sb-actions       = "engine.intelligence:actions_main"
 sb-digest        = "engine.digest:digest_main"
+sb-api           = "engine.api:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
