@@ -184,3 +184,148 @@ class TestSerialize:
         from engine.embeddings import _serialize
         vector = [0.1] * 384
         assert len(_serialize(vector)) == 384 * 4
+
+
+# ---------------------------------------------------------------------------
+# Task 3 — embed_pass() and reindex_brain() embedding second pass
+# ---------------------------------------------------------------------------
+
+class FakeEmbeddingsModule:
+    """Minimal stand-in for engine.embeddings when testing reindex."""
+
+    @staticmethod
+    def embed_texts(texts, provider="sentence-transformers", batch_size=32):
+        """Return deterministic 384-float BLOBs without any model download."""
+        import struct
+        blob = struct.pack("384f", *[0.1] * 384)
+        return [blob for _ in texts]
+
+
+class TestReindexGeneratesEmbeddings:
+    """EMBED-01: Running sb-reindex populates note_embeddings."""
+
+    def test_reindex_generates_embeddings(self, brain_root, db_conn):
+        """After reindex, note_embeddings has one row per note."""
+        import sys
+        import types
+        from engine.db import init_schema
+
+        # Provide a fake engine.embeddings so no download occurs
+        fake_mod = types.ModuleType("engine.embeddings")
+        fake_mod.embed_texts = FakeEmbeddingsModule.embed_texts
+        sys.modules["engine.embeddings"] = fake_mod
+
+        try:
+            init_schema(db_conn)
+            note = brain_root / "note1.md"
+            note.write_text("---\ntype: note\ntitle: Note One\n---\nBody one")
+
+            from engine.reindex import reindex_brain
+            result = reindex_brain(brain_root, db_conn)
+
+            count = db_conn.execute("SELECT COUNT(*) FROM note_embeddings").fetchone()[0]
+            assert count == 1, f"Expected 1 embedding row, got {count}"
+            assert result["embed_updated"] == 1
+            assert result["embed_unchanged"] == 0
+        finally:
+            sys.modules.pop("engine.embeddings", None)
+
+    def test_reindex_full_flag(self, brain_root, db_conn):
+        """EMBED-01: --full flag re-embeds all notes regardless of hash state."""
+        import sys
+        import types
+        from engine.db import init_schema
+
+        fake_mod = types.ModuleType("engine.embeddings")
+        fake_mod.embed_texts = FakeEmbeddingsModule.embed_texts
+        sys.modules["engine.embeddings"] = fake_mod
+
+        try:
+            init_schema(db_conn)
+            note = brain_root / "note1.md"
+            note.write_text("---\ntype: note\ntitle: Note One\n---\nBody one")
+
+            from engine.reindex import reindex_brain
+
+            # First pass — embeds once
+            reindex_brain(brain_root, db_conn)
+
+            # Second pass with full=True — must re-embed even though hash unchanged
+            result = reindex_brain(brain_root, db_conn, full=True)
+            assert result["embed_updated"] == 1
+            assert result["embed_unchanged"] == 0
+        finally:
+            sys.modules.pop("engine.embeddings", None)
+
+    def test_reindex_incremental_skips_unchanged(self, brain_root, db_conn):
+        """EMBED-03: Second reindex without edits leaves all updated_at unchanged."""
+        import sys
+        import types
+        from engine.db import init_schema
+
+        fake_mod = types.ModuleType("engine.embeddings")
+        fake_mod.embed_texts = FakeEmbeddingsModule.embed_texts
+        sys.modules["engine.embeddings"] = fake_mod
+
+        try:
+            init_schema(db_conn)
+            note = brain_root / "note1.md"
+            note.write_text("---\ntype: note\ntitle: Note One\n---\nBody one")
+
+            from engine.reindex import reindex_brain
+
+            # First pass
+            reindex_brain(brain_root, db_conn)
+            ts_before = db_conn.execute(
+                "SELECT updated_at FROM note_embeddings"
+            ).fetchone()[0]
+
+            # Second pass — same content, no changes
+            result = reindex_brain(brain_root, db_conn)
+            ts_after = db_conn.execute(
+                "SELECT updated_at FROM note_embeddings"
+            ).fetchone()[0]
+
+            assert result["embed_updated"] == 0
+            assert result["embed_unchanged"] == 1
+            assert ts_before == ts_after, "updated_at changed on unchanged note"
+        finally:
+            sys.modules.pop("engine.embeddings", None)
+
+    def test_reindex_incremental_reembeds_changed(self, brain_root, db_conn):
+        """EMBED-03: Editing a note body triggers re-embedding on next reindex."""
+        import sys
+        import types
+        from engine.db import init_schema
+
+        fake_mod = types.ModuleType("engine.embeddings")
+        fake_mod.embed_texts = FakeEmbeddingsModule.embed_texts
+        sys.modules["engine.embeddings"] = fake_mod
+
+        try:
+            init_schema(db_conn)
+            note = brain_root / "note1.md"
+            note.write_text("---\ntype: note\ntitle: Note One\n---\nOriginal body")
+
+            from engine.reindex import reindex_brain
+
+            # First pass
+            reindex_brain(brain_root, db_conn)
+            hash_before = db_conn.execute(
+                "SELECT content_hash FROM note_embeddings"
+            ).fetchone()[0]
+
+            # Edit note body
+            note.write_text("---\ntype: note\ntitle: Note One\n---\nEdited body")
+
+            # Second pass — must detect hash change and re-embed
+            result = reindex_brain(brain_root, db_conn)
+            hash_after = db_conn.execute(
+                "SELECT content_hash FROM note_embeddings"
+            ).fetchone()[0]
+
+            assert result["embed_updated"] == 1
+            assert result["embed_unchanged"] == 0
+            assert hash_before != hash_after, "content_hash did not change after edit"
+        finally:
+            sys.modules.pop("engine.embeddings", None)
