@@ -16,7 +16,7 @@ DEFAULT_CONFIG = {
         "claude": {"adapter": "claude", "model": ""},
     },
     "embeddings": {
-        "provider": "fastembed",
+        "provider": "ollama",
         "batch_size": 32,
     },
 }

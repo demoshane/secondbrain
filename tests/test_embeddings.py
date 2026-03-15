@@ -66,9 +66,9 @@ class TestEmbeddingsConfig:
         assert "embeddings" in DEFAULT_CONFIG
 
     def test_default_config_embeddings_provider(self):
-        """DEFAULT_CONFIG['embeddings']['provider'] must be 'sentence-transformers'."""
+        """DEFAULT_CONFIG['embeddings']['provider'] must be 'ollama'."""
         from engine.config_loader import DEFAULT_CONFIG
-        assert DEFAULT_CONFIG["embeddings"]["provider"] == "sentence-transformers"
+        assert DEFAULT_CONFIG["embeddings"]["provider"] == "ollama"
 
     def test_default_config_embeddings_batch_size(self):
         """DEFAULT_CONFIG['embeddings']['batch_size'] must be 32."""
