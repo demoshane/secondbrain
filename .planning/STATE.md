@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: verifying
-stopped_at: "Completed 09-00-PLAN.md — Nyquist sign-off complete, all 10 VALIDATION.md files nyquist_compliant: true"
-last_updated: "2026-03-15T10:26:35.803Z"
+stopped_at: Completed 10-00-PLAN.md — docstring fix and forget_person .resolve() symlink-safe canonicalization
+last_updated: "2026-03-15T10:43:38.559Z"
 last_activity: "2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified"
 progress:
   total_phases: 12
-  completed_phases: 10
-  total_plans: 48
-  completed_plans: 48
+  completed_phases: 11
+  total_plans: 49
+  completed_plans: 49
   percent: 0
 ---
 
@@ -94,6 +94,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 08-fix-update-memory-routing P00 | 3 | 1 tasks | 1 files |
 | Phase 08-fix-update-memory-routing P01 | 5 | 2 tasks | 1 files |
 | Phase 09-nyquist-sign-off P00 | 5 | 3 tasks | 10 files |
+| Phase 10-quick-code-fixes P00 | 5 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -198,6 +199,8 @@ Recent decisions affecting current work:
 - [Phase 08-fix-update-memory-routing]: update_memory() hardcodes sensitivity='public' internally — call site in capture.py already guards PII before calling this function
 - [Phase 08-fix-update-memory-routing]: ClaudeAdapter import removed from engine/ai.py — all adapter calls now go through _router.get_adapter module ref
 - [Phase 09-nyquist-sign-off]: Phases with human_needed rows (01, 03, 04, 04.1) carry live-env caveat in Approval — manual-only annotation not blocking nyquist sign-off
+- [Phase 10-quick-code-fixes]: update_memory() docstring updated to reflect ModelRouter routing, not ClaudeAdapter
+- [Phase 10-quick-code-fixes]: brain_root.resolve() inserted at forget_person() entry — all downstream path ops and DB DELETE paths canonical
 
 ### Pending Todos
 
@@ -212,6 +215,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T10:24:11.086Z
-Stopped at: Completed 09-00-PLAN.md — Nyquist sign-off complete, all 10 VALIDATION.md files nyquist_compliant: true
+Last session: 2026-03-15T10:43:38.437Z
+Stopped at: Completed 10-00-PLAN.md — docstring fix and forget_person .resolve() symlink-safe canonicalization
 Resume file: None
