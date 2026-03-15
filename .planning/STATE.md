@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 10-00-PLAN.md — docstring fix and forget_person .resolve() symlink-safe canonicalization
-last_updated: "2026-03-15T10:45:11.900Z"
+stopped_at: "Completed 11-00-PLAN.md — Wave 0 GDPR stubs: 15 xfail tests, export/anonymize/consent module stubs"
+last_updated: "2026-03-15T11:08:18.988Z"
 last_activity: "2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified"
 progress:
   total_phases: 12
   completed_phases: 11
-  total_plans: 49
-  completed_plans: 49
+  total_plans: 53
+  completed_plans: 50
   percent: 0
 ---
 
@@ -95,6 +95,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 08-fix-update-memory-routing P01 | 5 | 2 tasks | 1 files |
 | Phase 09-nyquist-sign-off P00 | 5 | 3 tasks | 10 files |
 | Phase 10-quick-code-fixes P00 | 5 | 3 tasks | 2 files |
+| Phase 11-gdpr-scope-expansion P00 | 2 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -201,6 +202,9 @@ Recent decisions affecting current work:
 - [Phase 09-nyquist-sign-off]: Phases with human_needed rows (01, 03, 04, 04.1) carry live-env caveat in Approval — manual-only annotation not blocking nyquist sign-off
 - [Phase 10-quick-code-fixes]: update_memory() docstring updated to reflect ModelRouter routing, not ClaudeAdapter
 - [Phase 10-quick-code-fixes]: brain_root.resolve() inserted at forget_person() entry — all downstream path ops and DB DELETE paths canonical
+- [Phase 11-gdpr-scope-expansion]: Deferred import inside xfail test bodies ensures --collect-only works before modules implemented (consistent with Phase 5 pattern)
+- [Phase 11-gdpr-scope-expansion]: prompt_consent() is a NotImplementedError stub in Wave 0 — wiring to main() deferred to plan 11-03
+- [Phase 11-gdpr-scope-expansion]: sb-export entry point wired at Wave 0 so plans 11-01/02/03 need no pyproject.toml edits
 
 ### Pending Todos
 
@@ -215,6 +219,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T10:43:38.437Z
-Stopped at: Completed 10-00-PLAN.md — docstring fix and forget_person .resolve() symlink-safe canonicalization
+Last session: 2026-03-15T11:08:18.980Z
+Stopped at: Completed 11-00-PLAN.md — Wave 0 GDPR stubs: 15 xfail tests, export/anonymize/consent module stubs
 Resume file: None

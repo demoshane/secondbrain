@@ -192,12 +192,13 @@ Plans:
 **Depends on**: Phase 10
 **Requirements**: GDPR-02, GDPR-03, GDPR-06
 **Tech Debt**: Closes GDPR definition ambiguity from v1.5 audit
+**Plans**: 4 plans
 
 Plans:
-- [ ] 11-00-PLAN.md — Wave 0: test stubs for sb-export, anonymize(), and consent prompt
-- [ ] 11-01-PLAN.md — Wave 1a: implement engine/export.py (sb-export CLI — data portability)
-- [ ] 11-02-PLAN.md — Wave 1b: implement anonymize() in engine/read.py or engine/gdpr.py [parallel with 11-01]
-- [ ] 11-03-PLAN.md — Wave 1c: first-run consent prompt in bootstrap.py or sb-init [parallel with 11-01, 11-02]
+- [ ] 11-00-PLAN.md — Wave 0 (Wave 1): test stubs (15 total: test_export.py 4, test_anonymize.py 6, test_consent.py 5) + engine/export.py stub + engine/anonymize.py stub + init_brain.py consent functions stub + pyproject.toml sb-export entry point
+- [ ] 11-01-PLAN.md — Wave 1a: implement engine/export.py — export_brain() JSON export + sb-export CLI (GDPR-02 expanded)
+- [ ] 11-02-PLAN.md — Wave 1b: implement engine/anonymize.py — anonymize_note() token scrubbing + atomic write + FTS5 update via trigger (GDPR-03 expanded) [parallel with 11-01]
+- [ ] 11-03-PLAN.md — Wave 1c: implement prompt_consent() in engine/init_brain.py + wire into main() + human checkpoint (GDPR-06 expanded) [parallel with 11-01, 11-02]
 
 ## Progress
 
@@ -217,4 +218,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 8. Fix update_memory() Routing Bypass | 0/2 | Pending |  |
 | 9. Nyquist Sign-off | 1/1 | Complete   | 2026-03-15 |
 | 10. Quick Code Fixes | 1/1 | Complete    | 2026-03-15 |
-| 11. GDPR Scope Expansion | 0/4 | Pending |  |
+| 11. GDPR Scope Expansion | 1/4 | In Progress|  |
