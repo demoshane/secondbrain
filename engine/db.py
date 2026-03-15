@@ -60,6 +60,14 @@ CREATE TABLE IF NOT EXISTS note_embeddings (
     created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
+
+CREATE TABLE IF NOT EXISTS action_items (
+    id         INTEGER PRIMARY KEY,
+    note_path  TEXT NOT NULL,
+    text       TEXT NOT NULL,
+    done       BOOL NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
 """
 
 DROP_SQL = """
@@ -86,6 +94,20 @@ def migrate_add_people_column(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
+def migrate_add_action_items_table(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: create action_items table if absent."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS action_items (
+            id         INTEGER PRIMARY KEY,
+            note_path  TEXT NOT NULL,
+            text       TEXT NOT NULL,
+            done       BOOL NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+        )
+    """)
+    conn.commit()
+
+
 def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     """Create (or optionally recreate) the full schema.
 
@@ -97,3 +119,4 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
 
     conn.executescript(SCHEMA_SQL)
     migrate_add_people_column(conn)
+    migrate_add_action_items_table(conn)
