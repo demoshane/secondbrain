@@ -7,6 +7,9 @@ from pathlib import Path
 STATE_PATH = Path.home() / ".meta" / "intelligence_state.json"
 VAULT_GATE = 20
 
+# Placeholder for LLM router — patched in tests; replaced by real instance in implementation
+_router = None
+
 
 def _load_state() -> dict:
     return {}
