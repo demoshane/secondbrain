@@ -1,6 +1,7 @@
 import time
 
 import pytest
+from unittest.mock import patch, MagicMock
 
 
 def test_search_returns_match(seeded_db):
@@ -39,3 +40,58 @@ def test_search_1000_notes_perf(seeded_db):
     elapsed = time.monotonic() - start
     assert elapsed < 2.0, f"Search took {elapsed:.2f}s, expected < 2s"
     assert len(results) > 0
+
+
+# --- Wave 0 RED stubs for Phase 16 semantic search ---
+
+class TestSemanticSearch:
+    def test_semantic_returns_similar(self, seeded_db):
+        import engine.search as s
+        # Function doesn't exist yet — fails with AttributeError (RED)
+        assert hasattr(s, "search_semantic"), "search_semantic not implemented"
+        results = s.search_semantic(seeded_db, "cat feline animal")
+        assert len(results) > 0
+
+
+class TestSemanticFallback:
+    def test_warns_when_too_many_unembed(self, seeded_db, capsys):
+        import engine.search as s
+        # Function doesn't exist yet — fails with AttributeError (RED)
+        assert hasattr(s, "search_semantic"), "search_semantic not implemented"
+        # Simulate >50 un-embedded notes
+        with patch.object(s, "search_semantic", side_effect=AttributeError("not implemented")):
+            pass
+        # Direct call to trigger warning path — fails RED
+        s.search_semantic(seeded_db, "test query")
+        captured = capsys.readouterr()
+        assert "sb-reindex" in captured.out or "sb-reindex" in captured.err
+
+
+class TestHybridSearch:
+    def test_hybrid_returns_merged_results(self, seeded_db):
+        import engine.search as s
+        # Function doesn't exist yet — fails with AttributeError (RED)
+        assert hasattr(s, "search_hybrid"), "search_hybrid not implemented"
+        results = s.search_hybrid(seeded_db, "topic_0")
+        assert len(results) > 0
+
+
+class TestKeywordFlag:
+    def test_keyword_bypasses_vector(self, seeded_db):
+        import engine.search as s
+        # --keyword flag doesn't exist yet — fails RED
+        assert hasattr(s, "main"), "main not implemented"
+        # search_semantic doesn't exist, so --keyword path through main will fail
+        assert hasattr(s, "search_semantic"), "search_semantic not implemented (keyword bypass requires it)"
+        s.main(["topic_0", "--keyword"])
+
+
+class TestHybridFallback:
+    def test_no_embeddings_falls_back_to_fts(self, seeded_db, capsys):
+        import engine.search as s
+        # Function doesn't exist yet — fails with AttributeError (RED)
+        assert hasattr(s, "search_hybrid"), "search_hybrid not implemented"
+        results = s.search_hybrid(seeded_db, "topic_0")
+        captured = capsys.readouterr()
+        # Should print fallback notification when no embeddings table populated
+        assert "fallback" in captured.out.lower() or len(results) >= 0

@@ -284,3 +284,39 @@ class TestClaudeMdHook:
         assert claude_md.exists(), "~/.claude/CLAUDE.md must exist"
         content = claude_md.read_text()
         assert "sb-recap" in content  # not yet added → RED
+
+
+# --- Wave 0 RED stubs for Phase 16 recap_entity ---
+
+class TestRecapEntity:
+    def test_recap_entity_returns_prose_and_actions(self, seeded_db):
+        """recap_entity("alice", conn) returns prose summary — fails RED (not implemented)."""
+        from engine.intelligence import recap_entity  # ImportError until Plan 03 implements
+        result = recap_entity("alice", seeded_db)
+        assert result is not None
+        assert len(result) > 0
+
+
+class TestRecapEntityEmpty:
+    def test_unknown_entity_graceful(self, seeded_db, capsys):
+        """recap_entity with unknown entity prints 'No notes found about' — fails RED."""
+        from engine.intelligence import recap_entity  # ImportError until Plan 03 implements
+        recap_entity("unknown_xyz_entity_404", seeded_db)
+        captured = capsys.readouterr()
+        assert "No notes found about" in captured.out
+
+
+class TestRecapEntityPIIRouting:
+    def test_pii_notes_use_ollama_adapter(self, seeded_db):
+        """recap_entity with PII note routes to Ollama adapter, not Claude — fails RED."""
+        from engine import intelligence
+        from engine.intelligence import recap_entity  # ImportError until Plan 03 implements
+        mock_router = MagicMock()
+        mock_adapter = MagicMock()
+        mock_adapter.generate.return_value = "Summary about alice."
+        mock_router.get_adapter.return_value = mock_adapter
+        with patch.object(intelligence, "_router", mock_router):
+            recap_entity("alice", seeded_db)
+        # Verify it was called with "pii" sensitivity (not "public")
+        calls = mock_router.get_adapter.call_args_list
+        assert any(c[0][0] == "pii" for c in calls), "Expected Ollama adapter called with pii sensitivity"
