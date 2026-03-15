@@ -31,7 +31,7 @@
 
 **Milestone Goal:** Elevate the brain from a capture/search tool to an active knowledge partner with proactive intelligence and a cross-platform desktop GUI.
 
-- [ ] **Phase 14: Embedding Infrastructure** — sqlite-vec KNN table, sentence-transformers local embeddings, content-hash staleness detection
+- [x] **Phase 14: Embedding Infrastructure** — sqlite-vec KNN table, sentence-transformers local embeddings, content-hash staleness detection (completed 2026-03-15)
 - [ ] **Phase 15: Intelligence Layer** — Session recap, action item extraction, stale nudges, connection surfacing, proactive budget
 - [ ] **Phase 16: Semantic Search and Digest** — `sb-search --semantic`, RRF hybrid search, weekly digest via APScheduler, cross-context synthesis CLI
 - [ ] **Phase 17: API Layer and Setup Automation** — FastAPI HTTP facade (`engine/api.py`), Drive auto-detection, Ollama auto-install
@@ -49,7 +49,13 @@
   2. The `note_embeddings` table in `brain.db` contains a `content_hash` column and marks rows `stale=true` when a note is edited before the next reindex
   3. Running `sb-forget <person>` removes that person's embedding rows from `note_embeddings` along with all other note data
   4. `sb-reindex` completes without error and embeddings are queryable via sqlite-vec KNN
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 14-01-PLAN.md — Add sentence-transformers + sqlite-vec deps; write failing test scaffold (Wave 0)
+- [ ] 14-02-PLAN.md — note_embeddings DDL in db.py; engine/embeddings.py provider dispatch (Wave 1)
+- [ ] 14-03-PLAN.md — embed_pass() + incremental reindex + --full flag in reindex.py (Wave 2)
+- [ ] 14-04-PLAN.md — GDPR cascade delete from note_embeddings in forget.py (Wave 2)
 
 ### Phase 15: Intelligence Layer
 **Goal**: The brain proactively surfaces the right context at the right moment — session recap, action items, stale notes, and connection suggestions — with a single notification budget so it never becomes noise
@@ -126,7 +132,7 @@
 | 11. GDPR Scope Expansion | v1.5 | 4/4 | Complete | 2026-03-15 |
 | 12. Micro-Code Fixes | v1.5 | 5/5 | Complete | 2026-03-15 |
 | 13. Nyquist Completion | v1.5 | 2/2 | Complete | 2026-03-15 |
-| 14. Embedding Infrastructure | v2.0 | 0/TBD | Not started | - |
+| 14. Embedding Infrastructure | 3/4 | Complete    | 2026-03-15 | - |
 | 15. Intelligence Layer | v2.0 | 0/TBD | Not started | - |
 | 16. Semantic Search and Digest | v2.0 | 0/TBD | Not started | - |
 | 17. API Layer and Setup Automation | v2.0 | 0/TBD | Not started | - |
