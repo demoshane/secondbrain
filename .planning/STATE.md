@@ -4,7 +4,7 @@ milestone: v1.5
 milestone_name: milestone
 status: verifying
 stopped_at: Completed 11-02-PLAN.md — anonymize_note() implemented, 6 tests passing
-last_updated: "2026-03-15T11:20:20.889Z"
+last_updated: "2026-03-15T11:20:24.951Z"
 last_activity: "2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified"
 progress:
   total_phases: 12
@@ -210,6 +210,8 @@ Recent decisions affecting current work:
 - [Phase 11-gdpr-scope-expansion]: Sentinel at brain_root/.meta/consent.json (Drive-synced path) — survives DevContainer rebuilds; devcontainer.json callers must use --yes flag
 - [Phase 11-gdpr-scope-expansion]: No passphrase gate on export — Article 20 does not permit withholding personal data; user owns their data
 - [Phase 11-gdpr-scope-expansion]: note_path=NULL in audit_log for export — operation-level event, consistent with forget.py and search.py
+- [Phase 11-gdpr-scope-expansion]: re.escape(token) always applied before re.sub — tokens may contain email dots, hyphens, parens which are regex metacharacters
+- [Phase 11-gdpr-scope-expansion]: FTS5 updated automatically by notes_au trigger on UPDATE notes — no manual rebuild needed for single-note anonymize
 
 ### Pending Todos
 
