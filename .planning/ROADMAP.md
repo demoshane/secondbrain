@@ -138,7 +138,7 @@ Plans:
 | 12. Micro-Code Fixes | v1.5 | 5/5 | Complete | 2026-03-15 |
 | 13. Nyquist Completion | v1.5 | 2/2 | Complete | 2026-03-15 |
 | 14. Embedding Infrastructure | v2.0 | 4/4 | Complete | 2026-03-15 |
-| 15. Intelligence Layer | 1/3 | In Progress|  | - |
+| 15. Intelligence Layer | 2/3 | In Progress|  | - |
 | 16. Semantic Search and Digest | v2.0 | 0/TBD | Not started | - |
 | 17. API Layer and Setup Automation | v2.0 | 0/TBD | Not started | - |
 | 18. GUI Hub | v2.0 | 0/TBD | Not started | - |

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Intelligence + GUI Hub
 status: executing
-stopped_at: Completed 15-01-PLAN.md (Wave 0 RED scaffold)
-last_updated: "2026-03-15T17:46:06.031Z"
+stopped_at: "Completed 15-02: budget gate, action items, stale nudge — 11 tests GREEN"
+last_updated: "2026-03-15T17:53:12.005Z"
 last_activity: 2026-03-15 — 14-01 complete (deps + RED scaffold); 14-02 task 1 committed (DDL + config)
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
   percent: 10
 ---
 
@@ -51,6 +51,7 @@ Progress: [█░░░░░░░░░] 10%
 
 *Updated after each plan completion*
 | Phase 15 P01 | 206s | 2 tasks | 3 files |
+| Phase 15 P02 | 18 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,8 @@ Recent decisions affecting current work:
 - [v2.0 Roadmap]: Proactive budget = one unsolicited offer per session; cooldown persisted in `~/.meta/intelligence_state.json`; vault gate = 20 notes minimum
 - [v2.0 Roadmap]: GUI calls `engine/api.py` only — never imports `engine/` modules directly (C1 hard dependency)
 - [Phase 15]: _router = None placeholder added to intelligence.py for mock patching; action_items DDL in both SCHEMA_SQL and separate migration function
+- [Phase 15]: Used _RouterShim wrapping engine.router.get_adapter() — router.py exports bare function, not ModelRouter class
+- [Phase 15]: Module-level imports for get_connection in intelligence.py so tests can patch engine.intelligence.get_connection
 
 ### Pending Todos
 
@@ -81,6 +84,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T17:46:06.025Z
-Stopped at: Completed 15-01-PLAN.md (Wave 0 RED scaffold)
+Last session: 2026-03-15T17:53:11.999Z
+Stopped at: Completed 15-02: budget gate, action items, stale nudge — 11 tests GREEN
 Resume file: None
