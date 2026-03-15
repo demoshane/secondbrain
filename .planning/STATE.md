@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Intelligence + GUI Hub
 status: completed
-stopped_at: Completed 19-01-PLAN.md — MCP server Wave 0 scaffold complete
-last_updated: "2026-03-15T21:39:19.004Z"
+stopped_at: Completed 19-02-PLAN.md — 10 MCP tools implemented, 14 tests GREEN
+last_updated: "2026-03-15T21:41:00.814Z"
 last_activity: 2026-03-15 — 18-03 complete (human verification sign-off; all 11 GUI requirements approved)
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 23
-  completed_plans: 20
+  completed_plans: 21
   percent: 100
 ---
 
@@ -66,6 +66,7 @@ Progress: [██████████] 100%
 | Phase 18-gui-hub P02 | 3 | 2 tasks | 6 files |
 | Phase 18-gui-hub P03 | 5 | 2 tasks | 0 files |
 | Phase 19-mcp-server P01 | 362 | 3 tasks | 5 files |
+| Phase 19-mcp-server P02 | 25 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -115,6 +116,10 @@ Recent decisions affecting current work:
 - [Phase 19-mcp-server]: FastMCP 3.x uses asyncio.run(mcp.list_tools()) not _tool_manager._tools for tool enumeration
 - [Phase 19-mcp-server]: mcp_server.py auto-implemented in full at Wave 0 — Plans 02-04 scope absorbed; those plans verify and extend only
 - [Phase 19-mcp-server]: sb_recap wraps get_connection() in _retry_call() to satisfy MCP-08 retry contract
+- [Phase 19-mcp-server]: get_adapter('pii', CONFIG_PATH) for PII routing in sb_read — router.py takes (sensitivity, config_path), not (name)
+- [Phase 19-mcp-server]: sb_recap self-import trick (import engine.mcp_server as _self) so tenacity retry closure sees monkeypatched get_connection
+- [Phase 19-mcp-server]: sb_edit must load frontmatter.load() and call write_note_atomic(p, post, conn) — cannot pass raw body string
+- [Phase 19-mcp-server]: sb_capture idempotency via notes WHERE title=? lookup — capture_note() returns Path not status dict
 
 ### Pending Todos
 
@@ -128,6 +133,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T21:39:18.995Z
-Stopped at: Completed 19-01-PLAN.md — MCP server Wave 0 scaffold complete
+Last session: 2026-03-15T21:41:00.807Z
+Stopped at: Completed 19-02-PLAN.md — 10 MCP tools implemented, 14 tests GREEN
 Resume file: None
