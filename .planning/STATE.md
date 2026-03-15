@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Intelligence + GUI Hub
 status: executing
-stopped_at: Completed 16-02-PLAN.md
-last_updated: "2026-03-15T19:27:41.981Z"
+stopped_at: Completed 16-03-PLAN.md
+last_updated: "2026-03-15T19:35:14.730Z"
 last_activity: 2026-03-15 — 14-01 complete (deps + RED scaffold); 14-02 task 1 committed (DDL + config)
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 12
-  completed_plans: 10
+  completed_plans: 11
   percent: 10
 ---
 
@@ -56,6 +56,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 15 P04 | 8 | 2 tasks | 2 files |
 | Phase 16 P01 | 4 | 2 tasks | 6 files |
 | Phase 16 P02 | 8 | 2 tasks | 3 files |
+| Phase 16 P03 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,8 @@ Recent decisions affecting current work:
 - [Phase 16]: search_semantic returns [] when note_embeddings empty; search_hybrid falls back silently to FTS5 in that case
 - [Phase 16]: main() accepts argv parameter for test injection — avoids sys.argv patching in unit tests
 - [Phase 16]: conftest seeded_db seeds 100 note_embeddings rows with stub BLOBs so TestSemanticSearch can assert results > 0 without downloading models
+- [Phase 16]: recap_entity returns string (not None) to satisfy test assertion; tagged people/tags query is authoritative source to prevent FTS false positives
+- [Phase 16]: seeded_db fixture extended with alice PII notes so entity recap tests have data without real vault files
 
 ### Pending Todos
 
@@ -96,6 +99,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T19:27:41.976Z
-Stopped at: Completed 16-02-PLAN.md
+Last session: 2026-03-15T19:35:09.708Z
+Stopped at: Completed 16-03-PLAN.md
 Resume file: None

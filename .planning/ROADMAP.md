@@ -145,7 +145,7 @@ Plans:
 | 13. Nyquist Completion | v1.5 | 2/2 | Complete | 2026-03-15 |
 | 14. Embedding Infrastructure | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 15. Intelligence Layer | v2.0 | 4/4 | Complete | 2026-03-15 |
-| 16. Semantic Search and Digest | 2/4 | In Progress|  | - |
+| 16. Semantic Search and Digest | 3/4 | In Progress|  | - |
 | 17. API Layer and Setup Automation | v2.0 | 0/TBD | Not started | - |
 | 18. GUI Hub | v2.0 | 0/TBD | Not started | - |
 | 19. MCP Server | v2.0 | 0/TBD | Not started | - |
