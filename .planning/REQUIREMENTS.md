@@ -50,29 +50,29 @@
 ### GUI Hub
 
 - [x] **GUI-01**: User can launch brain GUI via `sb-gui` on macOS and Windows
-- [ ] **GUI-02**: GUI displays notes browsable by folder/type in a sidebar
-- [ ] **GUI-03**: User can search notes from the GUI (keyword + semantic)
-- [ ] **GUI-04**: User can edit notes inline with WYSIWYG Markdown editing — changes saved atomically
-- [ ] **GUI-05**: GUI shows backlinks and related notes for the currently open note
-- [ ] **GUI-06**: User can create new notes of any type (meeting, project, person, idea, etc.) from the GUI
-- [ ] **GUI-07**: User can browse binary files organized by mirrored subfolder structure (`files/meetings/`, `files/projects/`, etc.)
-- [ ] **GUI-08**: User can move/recategorize files between subfolders in the GUI
-- [ ] **GUI-09**: GUI shows action items panel — user can view and mark items done
-- [ ] **GUI-10**: GUI shows intelligence panel (recent recap, stale nudges)
-- [ ] **GUI-11**: GUI opens note in system default editor as an alternative to inline editing
+- [x] **GUI-02**: GUI displays notes browsable by folder/type in a sidebar
+- [x] **GUI-03**: User can search notes from the GUI (keyword + semantic)
+- [x] **GUI-04**: User can edit notes inline with WYSIWYG Markdown editing — changes saved atomically
+- [x] **GUI-05**: GUI shows backlinks and related notes for the currently open note
+- [x] **GUI-06**: User can create new notes of any type (meeting, project, person, idea, etc.) from the GUI
+- [x] **GUI-07**: User can browse binary files organized by mirrored subfolder structure (`files/meetings/`, `files/projects/`, etc.)
+- [x] **GUI-08**: User can move/recategorize files between subfolders in the GUI
+- [x] **GUI-09**: GUI shows action items panel — user can view and mark items done
+- [x] **GUI-10**: GUI shows intelligence panel (recent recap, stale nudges)
+- [x] **GUI-11**: GUI opens note in system default editor as an alternative to inline editing
 
 ### MCP Server
 
-- [ ] **MCP-01**: User can connect brain to Claude Desktop and Claude.ai via `sb-mcp-server`
-- [ ] **MCP-02**: `sb-init` auto-writes Claude Desktop MCP config
-- [ ] **MCP-03**: MCP exposes full feature parity with GUI — search, capture (any type), read, edit, create, forget, recap, digest, connections, action items, file listing
-- [ ] **MCP-04**: Destructive tools (`sb-forget`, `sb-anonymize`) require two-step confirmation with a 60-second token
-- [ ] **MCP-05**: PII routing is inherited from existing ModelRouter — no new bypass
-- [ ] **MCP-06**: MCP server returns structured errors with error codes — never silently fails or returns partial data
-- [ ] **MCP-07**: All tool inputs are validated before execution — type, path, size limits enforced
-- [ ] **MCP-08**: Transient failures (DB locked, Ollama timeout) are retried with exponential backoff before returning an error
-- [ ] **MCP-09**: Write tools are idempotent — calling `sb-capture` twice with the same content does not create duplicates
-- [ ] **MCP-10**: MCP server logs all tool calls to the existing audit log
+- [x] **MCP-01**: User can connect brain to Claude Desktop and Claude.ai via `sb-mcp-server`
+- [x] **MCP-02**: `sb-init` auto-writes Claude Desktop MCP config
+- [x] **MCP-03**: MCP exposes full feature parity with GUI — search, capture (any type), read, edit, create, forget, recap, digest, connections, action items, file listing
+- [x] **MCP-04**: Destructive tools (`sb-forget`, `sb-anonymize`) require two-step confirmation with a 60-second token
+- [x] **MCP-05**: PII routing is inherited from existing ModelRouter — no new bypass
+- [x] **MCP-06**: MCP server returns structured errors with error codes — never silently fails or returns partial data
+- [x] **MCP-07**: All tool inputs are validated before execution — type, path, size limits enforced
+- [x] **MCP-08**: Transient failures (DB locked, Ollama timeout) are retried with exponential backoff before returning an error
+- [x] **MCP-09**: Write tools are idempotent — calling `sb-capture` twice with the same content does not create duplicates
+- [x] **MCP-10**: MCP server logs all tool calls to the existing audit log
 
 ## v3.0 Requirements
 
@@ -135,26 +135,26 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SETUP-03 | Phase 17 | Complete |
 | SETUP-04 | Phase 17 | Complete |
 | GUI-01 | Phase 18 | Complete |
-| GUI-02 | Phase 18 | Pending |
-| GUI-03 | Phase 18 | Pending |
-| GUI-04 | Phase 18 | Pending |
-| GUI-05 | Phase 18 | Pending |
-| GUI-06 | Phase 18 | Pending |
-| GUI-07 | Phase 18 | Pending |
-| GUI-08 | Phase 18 | Pending |
-| GUI-09 | Phase 18 | Pending |
-| GUI-10 | Phase 18 | Pending |
-| GUI-11 | Phase 18 | Pending |
-| MCP-01 | Phase 19 | Pending |
-| MCP-02 | Phase 19 | Pending |
-| MCP-03 | Phase 19 | Pending |
-| MCP-04 | Phase 19 | Pending |
-| MCP-05 | Phase 19 | Pending |
-| MCP-06 | Phase 19 | Pending |
-| MCP-07 | Phase 19 | Pending |
-| MCP-08 | Phase 19 | Pending |
-| MCP-09 | Phase 19 | Pending |
-| MCP-10 | Phase 19 | Pending |
+| GUI-02 | Phase 18 | Complete |
+| GUI-03 | Phase 18 | Complete |
+| GUI-04 | Phase 18 | Complete |
+| GUI-05 | Phase 18 | Complete |
+| GUI-06 | Phase 18 | Complete |
+| GUI-07 | Phase 18 | Complete |
+| GUI-08 | Phase 18 | Complete |
+| GUI-09 | Phase 18 | Complete |
+| GUI-10 | Phase 18 | Complete |
+| GUI-11 | Phase 18 | Complete |
+| MCP-01 | Phase 19 | Complete |
+| MCP-02 | Phase 19 | Complete |
+| MCP-03 | Phase 19 | Complete |
+| MCP-04 | Phase 19 | Complete |
+| MCP-05 | Phase 19 | Complete |
+| MCP-06 | Phase 19 | Complete |
+| MCP-07 | Phase 19 | Complete |
+| MCP-08 | Phase 19 | Complete |
+| MCP-09 | Phase 19 | Complete |
+| MCP-10 | Phase 19 | Complete |
 
 **Coverage:**
 - v2.0 requirements: 47 total

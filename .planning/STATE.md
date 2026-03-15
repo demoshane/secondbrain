@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Intelligence + GUI Hub
 status: completed
-stopped_at: Completed 18-03-PLAN.md — Phase 18 GUI Hub fully complete
-last_updated: "2026-03-15T21:03:18.027Z"
+stopped_at: Completed 19-01-PLAN.md — MCP server Wave 0 scaffold complete
+last_updated: "2026-03-15T21:39:19.004Z"
 last_activity: 2026-03-15 — 18-03 complete (human verification sign-off; all 11 GUI requirements approved)
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 19
-  completed_plans: 19
+  total_plans: 23
+  completed_plans: 20
   percent: 100
 ---
 
@@ -65,6 +65,7 @@ Progress: [██████████] 100%
 | Phase 18-gui-hub P01 | 446 | 2 tasks | 5 files |
 | Phase 18-gui-hub P02 | 3 | 2 tasks | 6 files |
 | Phase 18-gui-hub P03 | 5 | 2 tasks | 0 files |
+| Phase 19-mcp-server P01 | 362 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -111,6 +112,9 @@ Recent decisions affecting current work:
 - [Phase 18-gui-hub]: EasyMDE vendored via Python urllib (curl blocked by hook) — offline-safe, no CDN dependency at runtime
 - [Phase 18-gui-hub]: threading.Event gate in _start_sidecar blocks main() until /health responds — 10s timeout before sys.exit
 - [Phase 18-gui-hub]: GUI-09/GUI-10 empty states are valid — fresh brain has no action items or recap; panels render "none found" messages correctly
+- [Phase 19-mcp-server]: FastMCP 3.x uses asyncio.run(mcp.list_tools()) not _tool_manager._tools for tool enumeration
+- [Phase 19-mcp-server]: mcp_server.py auto-implemented in full at Wave 0 — Plans 02-04 scope absorbed; those plans verify and extend only
+- [Phase 19-mcp-server]: sb_recap wraps get_connection() in _retry_call() to satisfy MCP-08 retry contract
 
 ### Pending Todos
 
@@ -124,6 +128,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T21:00:00.000Z
-Stopped at: Completed 18-03-PLAN.md — Phase 18 GUI Hub fully complete
+Last session: 2026-03-15T21:39:18.995Z
+Stopped at: Completed 19-01-PLAN.md — MCP server Wave 0 scaffold complete
 Resume file: None

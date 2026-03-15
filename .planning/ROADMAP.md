@@ -134,7 +134,13 @@ Plans:
   2. Calling `sb_forget` or `sb_anonymize` via MCP requires a two-step confirmation: first call returns a token, second call within 60 seconds with the token executes the action — a single call does nothing destructive
   3. PII notes returned by `sb_read` are routed through Ollama; MCP tools never bypass the existing ModelRouter
   4. All MCP tool inputs are validated before execution (type, path, size limits); transient failures retry with exponential backoff; every tool call is recorded in the audit log; write tools are idempotent (duplicate `sb_capture` with identical content creates no duplicate note)
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 19-01-PLAN.md — Wave 0: install fastmcp+tenacity, engine/mcp_server.py stubs, tests/test_mcp.py RED scaffold (all requirements)
+- [ ] 19-02-PLAN.md — Wave 1: implement 10 non-destructive tools — search, capture, read, edit, recap, digest, connections, actions, files (MCP-01/03/05–10)
+- [ ] 19-03-PLAN.md — Wave 1: two-step confirmation for sb_forget + sb_anonymize; sb-init writes Claude Desktop config (MCP-02/04)
+- [ ] 19-04-PLAN.md — Wave 2: human verification — Claude Desktop discovers server and sb_search runs live (MCP-01/02)
 
 ## Progress
 
@@ -158,5 +164,5 @@ Plans:
 | 15. Intelligence Layer | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 16. Semantic Search and Digest | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 17. API Layer and Setup Automation | v2.0 | 3/3 | Complete | 2026-03-15 |
-| 18. GUI Hub | 4/4 | Complete    | 2026-03-15 | - |
-| 19. MCP Server | v2.0 | 0/TBD | Not started | - |
+| 18. GUI Hub | v2.0 | 4/4 | Complete | 2026-03-15 |
+| 19. MCP Server | 1/4 | In Progress|  | - |
