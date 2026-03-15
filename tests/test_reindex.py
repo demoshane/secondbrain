@@ -68,3 +68,17 @@ def test_reindex_stores_absolute_paths(brain_root, db_conn):
     assert len(rows) >= 1
     for (path,) in rows:
         assert Path(path).is_absolute(), f"Expected absolute path, got: {path}"
+
+
+def test_reindex_preserves_people_column(tmp_path, db_conn):
+    """After reindex, people field from frontmatter must survive in the DB."""
+    import json
+    init_schema(db_conn)
+    note = tmp_path / "people" / "alice.md"
+    note.parent.mkdir(parents=True, exist_ok=True)
+    note.write_text("---\ntype: people\ntitle: Alice\npeople:\n  - alice\n---\nProfile")
+    reindex_brain(tmp_path.resolve(), db_conn)
+    row = db_conn.execute("SELECT people FROM notes WHERE title='Alice'").fetchone()
+    assert row is not None, "Note not indexed"
+    people = json.loads(row[0])
+    assert "alice" in people, f"people column lost after reindex: {row[0]}"

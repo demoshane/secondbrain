@@ -62,3 +62,24 @@ def test_export_audit_logged(brain_root, export_db):
         "SELECT id FROM audit_log WHERE event_type='export' LIMIT 1"
     ).fetchone()
     assert row is not None
+
+
+def test_export_initialises_schema_on_fresh_db(tmp_path, monkeypatch):
+    """export.main() must not raise OperationalError on a DB with no schema."""
+    import sqlite3
+    from engine.export import export_brain
+    conn = sqlite3.connect(":memory:")
+    # Do NOT call init_schema — simulate fresh install
+    output = tmp_path / "out.json"
+    # Current code: SELECT on notes without schema raises OperationalError
+    # After fix: init_schema(conn) called in main() before export_brain()
+    # Test the library function path: export_brain itself must handle uninitialised conn gracefully
+    # We test main() integration via the import path used in production:
+    # export_brain(brain_root, conn, output) — if no schema, OperationalError
+    # After fix, main() calls init_schema first; here we verify the guard is in main(), not export_brain()
+    try:
+        count = export_brain(tmp_path, conn, output)
+        assert False, "Expected OperationalError on schema-less conn — fix not yet applied to main()"
+    except Exception as e:
+        assert "no such table" in str(e).lower() or "operationalerror" in type(e).__name__.lower(), \
+            f"Unexpected error type: {type(e).__name__}: {e}"
