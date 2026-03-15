@@ -250,4 +250,12 @@ def capture_note(
         from engine.links import add_backlinks
         add_backlinks(target, people, brain_root, conn)
 
+    # Phase 15: best-effort intelligence hooks — never block capture
+    try:
+        from engine.intelligence import check_connections, extract_action_items
+        check_connections(target, conn, brain_root)
+        extract_action_items(target, body, content_sensitivity, conn)
+    except Exception:
+        pass
+
     return target

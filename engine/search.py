@@ -91,10 +91,19 @@ def main() -> None:
     conn = get_connection()
     init_schema(conn)
     results = search_notes(conn, args.query, note_type=args.note_type, limit=args.limit)
-    conn.close()
 
     if not results:
         print("No results found.")
+        conn.close()
         return
     for r in results:
         print(f"{r['path']} | {r['title']} | {r['score']:.4f}")
+
+    # Phase 15: best-effort stale nudge — never blocks search
+    try:
+        from engine.intelligence import check_stale_nudge
+        check_stale_nudge(conn)
+    except Exception:
+        pass
+
+    conn.close()
