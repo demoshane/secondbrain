@@ -1,9 +1,9 @@
 ---
 phase: 4
 slug: automation
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-14
 ---
 
@@ -38,13 +38,13 @@ created: 2026-03-14
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 4-00-01 | 00 | 0 | CAP-04,CAP-05,PEOPLE-01..05,WORK-01..04,SEARCH-03,SEARCH-04 | stub | `pytest tests/test_watcher.py tests/test_hooks.py tests/test_links.py tests/test_rag.py -q` | ❌ W0 | ⬜ pending |
-| 4-01-01 | 01 | 1 | CAP-04 | unit | `pytest tests/test_watcher.py -q` | ❌ W0 | ⬜ pending |
-| 4-01-02 | 01 | 1 | CAP-05 | unit | `pytest tests/test_hooks.py -q` | ❌ W0 | ⬜ pending |
-| 4-02-01 | 02 | 2 | PEOPLE-01,PEOPLE-02,PEOPLE-03 | unit | `pytest tests/test_links.py -q` | ❌ W0 | ⬜ pending |
-| 4-02-02 | 02 | 2 | PEOPLE-04,PEOPLE-05,WORK-01..04 | unit | `pytest tests/test_links.py tests/test_capture.py -q` | ❌ W0 | ⬜ pending |
-| 4-03-01 | 03 | 3 | SEARCH-03,SEARCH-04 | unit | `pytest tests/test_rag.py tests/test_search.py -q` | ❌ W0 | ⬜ pending |
-| 4-04-01 | 04 | 4 | all | integration | `pytest -q` | ✅ existing | ⬜ pending |
+| 4-00-01 | 00 | 0 | CAP-04,CAP-05,PEOPLE-01..05,WORK-01..04,SEARCH-03,SEARCH-04 | stub | `pytest tests/test_watcher.py tests/test_hooks.py tests/test_links.py tests/test_rag.py -q` | ✅ | ✅ green |
+| 4-01-01 | 01 | 1 | CAP-04 | unit | `pytest tests/test_watcher.py -q` | ✅ | ✅ green |
+| 4-01-02 | 01 | 1 | CAP-05 | unit | `pytest tests/test_hooks.py -q` | ✅ | ✅ green |
+| 4-02-01 | 02 | 2 | PEOPLE-01,PEOPLE-02,PEOPLE-03 | unit | `pytest tests/test_links.py -q` | ✅ | ✅ green |
+| 4-02-02 | 02 | 2 | PEOPLE-04,PEOPLE-05,WORK-01..04 | unit | `pytest tests/test_links.py tests/test_capture.py -q` | ✅ | ✅ green |
+| 4-03-01 | 03 | 3 | SEARCH-03,SEARCH-04 | unit | `pytest tests/test_rag.py tests/test_search.py -q` | ✅ | ✅ green |
+| 4-04-01 | 04 | 4 | all | integration | `pytest -q` | ✅ existing | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -52,11 +52,11 @@ created: 2026-03-14
 
 ## Wave 0 Requirements
 
-- [ ] `tests/test_watcher.py` — stubs for CAP-04 (file watcher, debounce)
-- [ ] `tests/test_hooks.py` — stubs for CAP-05 (git post-commit hook)
-- [ ] `tests/test_links.py` — stubs for PEOPLE-01..05 (backlinks, orphan check)
-- [ ] `tests/test_rag.py` — stubs for SEARCH-03, SEARCH-04 (RAG-lite retrieval)
-- [ ] `tests/conftest.py` — extend fixtures: tmp brain dir, mock git repo
+- [x] `tests/test_watcher.py` — stubs for CAP-04 (file watcher, debounce)
+- [x] `tests/test_hooks.py` — stubs for CAP-05 (git post-commit hook)
+- [x] `tests/test_links.py` — stubs for PEOPLE-01..05 (backlinks, orphan check)
+- [x] `tests/test_rag.py` — stubs for SEARCH-03, SEARCH-04 (RAG-lite retrieval)
+- [x] `tests/conftest.py` — extend fixtures: tmp brain dir, mock git repo
 
 ---
 
@@ -73,11 +73,11 @@ created: 2026-03-14
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 10s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 10s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved (automated coverage confirmed; live-env manual items annotated manual-only — not blocking nyquist sign-off)
