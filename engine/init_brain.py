@@ -2,6 +2,7 @@
 import argparse
 import json
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from engine.paths import BRAIN_ROOT, BRAIN_SUBDIRS, INDEX_ROOT
@@ -69,6 +70,123 @@ def validate_drive_mount(brain_root: Path) -> tuple[bool, str]:
         return False, f"Not writable: {e}"
 
 
+def detect_drive_macos(home=None):
+    """Return first GoogleDrive-*/My Drive path under ~/Library/CloudStorage, or None."""
+    base = (home or Path.home()) / "Library" / "CloudStorage"
+    for candidate in sorted(base.glob("GoogleDrive-*")):
+        my_drive = candidate / "My Drive"
+        if my_drive.is_dir():
+            return my_drive
+    return None
+
+
+def detect_drive_windows(home=None):
+    """Return Google Drive My Drive path on Windows, or None."""
+    base = home or Path.home()
+    candidate = base / "GFS" / "My Drive"
+    if candidate.is_dir():
+        return candidate
+    for letter in "GHIJKLMNOPQRSTUVWXYZ":
+        p = Path(f"{letter}:/My Drive")
+        if p.is_dir():
+            return p
+    return None
+
+
+def detect_drive_path(home=None):
+    """Platform-dispatch Drive detection."""
+    if sys.platform == "darwin":
+        return detect_drive_macos(home)
+    elif sys.platform == "win32":
+        return detect_drive_windows(home)
+    return None
+
+
+def assert_drive_or_exit(home=None, base_path=None):
+    """Detect Drive path; sys.exit(1) with readable message if not found.
+
+    base_path: override used by tests to pass a tmp_path directly.
+    """
+    if base_path is not None:
+        # Test isolation: treat base_path as the home directory
+        path = detect_drive_macos(home=base_path) or detect_drive_windows(home=base_path)
+    else:
+        path = detect_drive_path(home)
+    if path is None:
+        print(
+            "[sb-init] ERROR: Google Drive not found.\n"
+            "  macOS: ensure Google Drive for Desktop is installed and signed in\n"
+            "         (https://drive.google.com/drive/download).\n"
+            "  Windows: ensure Google Drive for Desktop is installed\n"
+            "           (https://drive.google.com/drive/download).",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return path
+
+
+def ollama_ensure(verbose=True):
+    """Detect Ollama; install via package manager if missing. Return True if ready."""
+    if not shutil.which("ollama"):
+        if sys.platform == "darwin" and shutil.which("brew"):
+            if verbose:
+                print("[sb-init] Installing Ollama via Homebrew...")
+            subprocess.run(["brew", "install", "ollama"], check=True)
+        elif sys.platform == "win32" and shutil.which("winget"):
+            if verbose:
+                print("[sb-init] Installing Ollama via winget...")
+            subprocess.run(["winget", "install", "Ollama.Ollama"], check=True)
+        else:
+            if verbose:
+                print(
+                    "[sb-init] ERROR: Ollama not found and no package manager available.\n"
+                    "  Install manually from https://ollama.com/download",
+                    file=sys.stderr,
+                )
+            return False
+    # HTTP probe — binary may exist but service not running
+    try:
+        import urllib.request
+        urllib.request.urlopen("http://localhost:11434", timeout=2)
+    except Exception:
+        if verbose:
+            print(
+                "[sb-init] Ollama binary found but service not running.\n"
+                "  Start the Ollama app or run: ollama serve"
+            )
+    return True
+
+
+def ollama_model_size_warning(model="nomic-embed-text"):
+    """Print size warning if model not yet downloaded; then pull."""
+    try:
+        import ollama as _ollama
+        result = _ollama.list()
+        model_names = [m.model for m in result.models] if result.models else []
+        if not any(model in name for name in model_names):
+            print(
+                f"[sb-init] Downloading {model} (~800 MB). "
+                "This may take a few minutes on a slow connection."
+            )
+            subprocess.run(["ollama", "pull", model], check=True)
+    except ImportError:
+        # ollama SDK not installed — fall back to subprocess
+        try:
+            result = subprocess.run(
+                ["ollama", "list"], capture_output=True, text=True, timeout=10
+            )
+            if model not in result.stdout:
+                print(
+                    f"[sb-init] Downloading {model} (~800 MB). "
+                    "This may take a few minutes on a slow connection."
+                )
+                subprocess.run(["ollama", "pull", model], check=True)
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass  # Ollama not available — embeddings.py will handle at runtime
+    except Exception:
+        pass  # Ollama not available — embeddings.py will handle at runtime
+
+
 def seed_templates(brain_root: Path) -> dict:
     """Copy repo skeleton templates to brain_root/.meta/templates/.
     Idempotent — existing files are never overwritten.
@@ -131,10 +249,16 @@ def main():
     ap.add_argument("--force", action="store_true", help="Recreate missing dirs (notes preserved)")
     ap.add_argument("--reset-db", action="store_true", help="Drop and recreate SQLite schema (DESTRUCTIVE)")
     ap.add_argument("--yes", action="store_true", help="Non-interactive: skip consent prompt (CI/DevContainer use)")
+    ap.add_argument("--detect-drive", action="store_true",
+                    help="Auto-detect Google Drive path instead of using configured BRAIN_ROOT")
     args = ap.parse_args()
 
     if not prompt_consent(BRAIN_ROOT, yes=args.yes):
         sys.exit(1)
+
+    if args.detect_drive:
+        detected = assert_drive_or_exit()
+        print(f"[sb-init] Detected Google Drive at: {detected}")
 
     print("[sb-init] Validating Drive mount...")
     ok, msg = validate_drive_mount(BRAIN_ROOT)
@@ -159,6 +283,13 @@ def main():
         print("  [RESET] Schema dropped and recreated")
     else:
         print("  [OK] Schema initialized (idempotent)")
+
+    print("[sb-init] Checking Ollama...")
+    if ollama_ensure():
+        ollama_model_size_warning()
+        print("  [OK] Ollama ready")
+    else:
+        print("  [WARN] Ollama not ready — PII routing will be unavailable")
 
     print("[sb-init] Writing AI config...")
     config_path = BRAIN_ROOT / ".meta" / "config.toml"
