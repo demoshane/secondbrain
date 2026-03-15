@@ -88,6 +88,14 @@ def forget_person(slug: str, brain_root: Path, conn: sqlite3.Connection) -> dict
             exact_delete_paths,
         )
 
+    # --- 5b. DELETE FROM note_embeddings for same paths (EMBED-04) ---
+    if exact_delete_paths:
+        placeholders = ",".join("?" * len(exact_delete_paths))
+        conn.execute(
+            f"DELETE FROM note_embeddings WHERE note_path IN ({placeholders})",
+            exact_delete_paths,
+        )
+
     # --- 6. DELETE FROM relationships using exact paths ---
     if exact_delete_paths:
         placeholders = ",".join("?" * len(exact_delete_paths))
