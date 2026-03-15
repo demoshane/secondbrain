@@ -1,9 +1,9 @@
 ---
 phase: 2
 slug: storage-and-index
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-14
 ---
 
@@ -38,12 +38,12 @@ created: 2026-03-14
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 2-00-01 | 00 | 0 | CAP-01,CAP-02,CAP-03,CAP-07,SEARCH-01,SEARCH-02,GDPR-03,GDPR-05,GDPR-06 | stub | `uv run pytest tests/test_capture.py tests/test_search.py tests/test_audit.py --collect-only` | ❌ W0 | ⬜ pending |
-| 2-01-01 | 01 | 1 | CAP-01,CAP-02 | unit | `uv run pytest tests/test_capture.py -x -q` | ❌ W0 | ⬜ pending |
-| 2-02-01 | 02 | 1 | CAP-03 | unit | `uv run pytest tests/test_capture.py::test_atomic_write -x -q` | ❌ W0 | ⬜ pending |
-| 2-03-01 | 03 | 2 | SEARCH-01,SEARCH-02 | unit | `uv run pytest tests/test_search.py -x -q` | ❌ W0 | ⬜ pending |
-| 2-04-01 | 04 | 2 | GDPR-03,GDPR-05 | unit | `uv run pytest tests/test_audit.py -x -q` | ❌ W0 | ⬜ pending |
-| 2-05-01 | 05 | 3 | CAP-07,GDPR-06 | integration | `uv run pytest tests/ -x -q` | ❌ W0 | ⬜ pending |
+| 2-00-01 | 00 | 0 | CAP-01,CAP-02,CAP-03,CAP-07,SEARCH-01,SEARCH-02,GDPR-03,GDPR-05,GDPR-06 | stub | `uv run pytest tests/test_capture.py tests/test_search.py tests/test_audit.py --collect-only` | ✅ | ✅ green |
+| 2-01-01 | 01 | 1 | CAP-01,CAP-02 | unit | `uv run pytest tests/test_capture.py -x -q` | ✅ | ✅ green |
+| 2-02-01 | 02 | 1 | CAP-03 | unit | `uv run pytest tests/test_capture.py::test_atomic_write -x -q` | ✅ | ✅ green |
+| 2-03-01 | 03 | 2 | SEARCH-01,SEARCH-02 | unit | `uv run pytest tests/test_search.py -x -q` | ✅ | ✅ green |
+| 2-04-01 | 04 | 2 | GDPR-03,GDPR-05 | unit | `uv run pytest tests/test_audit.py -x -q` | ✅ | ✅ green |
+| 2-05-01 | 05 | 3 | CAP-07,GDPR-06 | integration | `uv run pytest tests/ -x -q` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -51,10 +51,10 @@ created: 2026-03-14
 
 ## Wave 0 Requirements
 
-- [ ] `tests/test_capture.py` — stubs for CAP-01, CAP-02, CAP-03
-- [ ] `tests/test_search.py` — stubs for SEARCH-01, SEARCH-02
-- [ ] `tests/test_audit.py` — stubs for GDPR-03, GDPR-05, GDPR-06
-- [ ] `tests/conftest.py` — extend with capture/search fixtures (tmp brain dir, sample notes)
+- [x] `tests/test_capture.py` — stubs for CAP-01, CAP-02, CAP-03
+- [x] `tests/test_search.py` — stubs for SEARCH-01, SEARCH-02
+- [x] `tests/test_audit.py` — stubs for GDPR-03, GDPR-05, GDPR-06
+- [x] `tests/conftest.py` — extend with capture/search fixtures (tmp brain dir, sample notes)
 
 ---
 
@@ -69,11 +69,11 @@ created: 2026-03-14
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved

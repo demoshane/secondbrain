@@ -1,9 +1,9 @@
 ---
 phase: 8
 slug: fix-update-memory-routing
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-15
 ---
 
@@ -38,9 +38,9 @@ created: 2026-03-15
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 08-00-01 | 00 | 0 | AI-05 | unit | `pytest tests/test_ai.py::test_update_memory_routing_uses_config -x` | ❌ W0 | ⬜ pending |
-| 08-01-01 | 01 | 1 | AI-05 | unit | `pytest tests/test_ai.py::test_update_memory_routing_uses_config -x` | ✅ after W0 | ⬜ pending |
-| 08-01-02 | 01 | 1 | AI-05 | unit | `pytest tests/test_ai.py::test_cap06_memory_update_uses_write_tool -x` | ✅ existing | ⬜ pending |
+| 08-00-01 | 00 | 0 | AI-05 | unit | `pytest tests/test_ai.py::test_update_memory_routing_uses_config -x` | ✅ | ✅ green |
+| 08-01-01 | 01 | 1 | AI-05 | unit | `pytest tests/test_ai.py::test_update_memory_routing_uses_config -x` | ✅ after W0 | ✅ green |
+| 08-01-02 | 01 | 1 | AI-05 | unit | `pytest tests/test_ai.py::test_cap06_memory_update_uses_write_tool -x` | ✅ existing | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -48,7 +48,7 @@ created: 2026-03-15
 
 ## Wave 0 Requirements
 
-- [ ] `tests/test_ai.py` — add `test_update_memory_routing_uses_config` asserting `get_adapter` is called with `("public", config_path)`
+- [x] `tests/test_ai.py` — add `test_update_memory_routing_uses_config` asserting `get_adapter` is called with `("public", config_path)`
 
 *Existing test `test_cap06_memory_update_uses_write_tool` covers the subprocess/Write tool assertion — no new infrastructure needed.*
 
@@ -62,11 +62,11 @@ created: 2026-03-15
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 10s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 10s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved
