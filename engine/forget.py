@@ -20,6 +20,7 @@ def forget_person(slug: str, brain_root: Path, conn: sqlite3.Connection) -> dict
     Error messages: type(e).__name__ only — no file content (GDPR-05).
     """
     import frontmatter  # deferred: available as python-frontmatter dep
+    brain_root = brain_root.resolve()  # canonicalize — symlink-safe (Phase 7 pattern)
 
     person_file = brain_root / "people" / f"{slug}.md"
     deleted_files: list[str] = []
