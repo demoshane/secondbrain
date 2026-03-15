@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 12-03-PLAN.md — absolute path fix and people column in reindex INSERT
-last_updated: "2026-03-15T12:02:47.475Z"
+stopped_at: Completed 12-04-PLAN.md — end-to-end verification, all 5 CLI fixes confirmed, Phase 12 complete
+last_updated: "2026-03-15T12:13:09.429Z"
 last_activity: "2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified"
 progress:
   total_phases: 14
-  completed_phases: 12
+  completed_phases: 13
   total_plans: 58
-  completed_plans: 57
+  completed_plans: 58
   percent: 0
 ---
 
@@ -101,6 +101,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 12-micro-code-fixes P02 | 5 | 1 tasks | 2 files |
 | Phase 12-micro-code-fixes P01 | 2 | 2 tasks | 2 files |
 | Phase 12-micro-code-fixes P03 | 5 | 1 tasks | 1 files |
+| Phase 12-micro-code-fixes P04 | 15 | 2 tasks | 0 files |
 
 ## Accumulated Context
 
@@ -223,6 +224,7 @@ Recent decisions affecting current work:
 - [Phase 12-micro-code-fixes]: config_path in ai.py main() defaults to BRAIN_ROOT/.meta/config.toml matching engine/ pattern; lazy import avoids circular import risk
 - [Phase 12-micro-code-fixes]: md_path.resolve() not .absolute() in reindex — dereferences macOS symlink; consistent with forget.py and capture.py
 - [Phase 12-micro-code-fixes]: people normalisation mirrors tags pattern in reindex.py — isinstance guard + json.dumps; no new imports needed
+- [Phase 12-micro-code-fixes]: uv tool install --editable . must be re-run after adding new [project.scripts] entries — tests verify importability but not shell executable registration
 
 ### Pending Todos
 
@@ -237,6 +239,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T12:02:47.465Z
-Stopped at: Completed 12-03-PLAN.md — absolute path fix and people column in reindex INSERT
+Last session: 2026-03-15T12:13:09.419Z
+Stopped at: Completed 12-04-PLAN.md — end-to-end verification, all 5 CLI fixes confirmed, Phase 12 complete
 Resume file: None
