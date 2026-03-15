@@ -35,7 +35,7 @@
 - [x] **Phase 15: Intelligence Layer** — Session recap, action item extraction, stale nudges, connection surfacing, proactive budget (completed 2026-03-15)
 - [x] **Phase 16: Semantic Search and Digest** — `sb-search --semantic`, RRF hybrid search, weekly digest via launchd, cross-context synthesis CLI (completed 2026-03-15)
 - [x] **Phase 17: API Layer and Setup Automation** — Flask HTTP sidecar (`engine/api.py`), Drive auto-detection, Ollama auto-install (completed 2026-03-15)
-- [ ] **Phase 18: GUI Hub** — pywebview + Flask desktop app (`sb-gui`), sidebar/viewer/panel layout, action items and intelligence panels
+- [x] **Phase 18: GUI Hub** — pywebview + Flask desktop app (`sb-gui`), sidebar/viewer/panel layout, action items and intelligence panels (completed 2026-03-15)
 - [ ] **Phase 19: MCP Server** — FastMCP stdio server (`sb-mcp-server`), full tool parity, two-step destructive confirmation, Claude Desktop config
 
 ## Phase Details
@@ -158,5 +158,5 @@ Plans:
 | 15. Intelligence Layer | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 16. Semantic Search and Digest | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 17. API Layer and Setup Automation | v2.0 | 3/3 | Complete | 2026-03-15 |
-| 18. GUI Hub | 3/4 | In Progress|  | - |
+| 18. GUI Hub | 4/4 | Complete   | 2026-03-15 | - |
 | 19. MCP Server | v2.0 | 0/TBD | Not started | - |
