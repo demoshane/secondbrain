@@ -15,16 +15,16 @@
 
 ### Intelligence
 
-- [ ] **INTL-01**: User sees a once-per-session recap offer in Claude Code when working in a known context
-- [ ] **INTL-02**: User can run `sb-recap` to get a summary of recent activity in the detected context
-- [ ] **INTL-03**: Action items are extracted from meeting notes at capture time
-- [ ] **INTL-04**: User can list open action items via `sb-actions`
-- [ ] **INTL-05**: User can mark action items complete via `sb-actions --done <id>`
-- [ ] **INTL-06**: User is nudged about notes not accessed/updated in 90 days (max 5 nudges per session)
-- [ ] **INTL-07**: Notes with `evergreen: true` frontmatter are exempt from stale nudges
-- [ ] **INTL-08**: Stale nudge rechecks at 180 days if not acted on
-- [ ] **INTL-09**: User sees a connection suggestion after capturing a note that closely matches an existing note
-- [ ] **INTL-10**: All proactive features share a single notification budget — one unsolicited offer per session
+- [x] **INTL-01**: User sees a once-per-session recap offer in Claude Code when working in a known context
+- [x] **INTL-02**: User can run `sb-recap` to get a summary of recent activity in the detected context
+- [x] **INTL-03**: Action items are extracted from meeting notes at capture time
+- [x] **INTL-04**: User can list open action items via `sb-actions`
+- [x] **INTL-05**: User can mark action items complete via `sb-actions --done <id>`
+- [x] **INTL-06**: User is nudged about notes not accessed/updated in 90 days (max 5 nudges per session)
+- [x] **INTL-07**: Notes with `evergreen: true` frontmatter are exempt from stale nudges
+- [x] **INTL-08**: Stale nudge rechecks at 180 days if not acted on
+- [x] **INTL-09**: User sees a connection suggestion after capturing a note that closely matches an existing note
+- [x] **INTL-10**: All proactive features share a single notification budget — one unsolicited offer per session
 
 ### Search
 
@@ -112,16 +112,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EMBED-02 | Phase 14 | Pending |
 | EMBED-03 | Phase 14 | Pending |
 | EMBED-04 | Phase 14 | Pending |
-| INTL-01 | Phase 15 | Pending |
-| INTL-02 | Phase 15 | Pending |
-| INTL-03 | Phase 15 | Pending |
-| INTL-04 | Phase 15 | Pending |
-| INTL-05 | Phase 15 | Pending |
-| INTL-06 | Phase 15 | Pending |
-| INTL-07 | Phase 15 | Pending |
-| INTL-08 | Phase 15 | Pending |
-| INTL-09 | Phase 15 | Pending |
-| INTL-10 | Phase 15 | Pending |
+| INTL-01 | Phase 15 | Complete |
+| INTL-02 | Phase 15 | Complete |
+| INTL-03 | Phase 15 | Complete |
+| INTL-04 | Phase 15 | Complete |
+| INTL-05 | Phase 15 | Complete |
+| INTL-06 | Phase 15 | Complete |
+| INTL-07 | Phase 15 | Complete |
+| INTL-08 | Phase 15 | Complete |
+| INTL-09 | Phase 15 | Complete |
+| INTL-10 | Phase 15 | Complete |
 | SRCH-01 | Phase 16 | Pending |
 | SRCH-02 | Phase 16 | Pending |
 | SRCH-03 | Phase 16 | Pending |

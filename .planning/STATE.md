@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Intelligence + GUI Hub
 status: executing
-stopped_at: Phase 15 context gathered
-last_updated: "2026-03-15T17:23:56.650Z"
+stopped_at: Completed 15-01-PLAN.md (Wave 0 RED scaffold)
+last_updated: "2026-03-15T17:46:06.031Z"
 last_activity: 2026-03-15 — 14-01 complete (deps + RED scaffold); 14-02 task 1 committed (DDL + config)
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 7
+  completed_plans: 5
   percent: 10
 ---
 
@@ -50,6 +50,7 @@ Progress: [█░░░░░░░░░] 10%
 - Trend: -
 
 *Updated after each plan completion*
+| Phase 15 P01 | 206s | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,7 @@ Recent decisions affecting current work:
 - [v2.0 Roadmap]: Only `content_sensitivity: pii` Markdown files are Fernet-encrypted; all other notes remain plaintext (Drive diff/sync compatibility)
 - [v2.0 Roadmap]: Proactive budget = one unsolicited offer per session; cooldown persisted in `~/.meta/intelligence_state.json`; vault gate = 20 notes minimum
 - [v2.0 Roadmap]: GUI calls `engine/api.py` only — never imports `engine/` modules directly (C1 hard dependency)
+- [Phase 15]: _router = None placeholder added to intelligence.py for mock patching; action_items DDL in both SCHEMA_SQL and separate migration function
 
 ### Pending Todos
 
@@ -79,6 +81,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T17:23:56.645Z
-Stopped at: Phase 15 context gathered
-Resume file: .planning/phases/15-intelligence-layer/15-CONTEXT.md
+Last session: 2026-03-15T17:46:06.025Z
+Stopped at: Completed 15-01-PLAN.md (Wave 0 RED scaffold)
+Resume file: None
