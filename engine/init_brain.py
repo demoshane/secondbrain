@@ -7,6 +7,32 @@ from pathlib import Path
 from engine.paths import BRAIN_ROOT, BRAIN_SUBDIRS, INDEX_ROOT
 from engine.db import get_connection, init_schema
 
+CONSENT_NOTICE = (
+    "Second Brain will store notes locally. Some notes may contain personal data.\n"
+    "Do you consent to local storage of your notes? (yes/no): "
+)
+CONSENT_PATH_RELATIVE = Path(".meta") / "consent.json"
+
+
+def check_consent(brain_root: Path) -> bool:
+    """Return True if consent sentinel file exists at .meta/consent.json."""
+    return (brain_root / CONSENT_PATH_RELATIVE).exists()
+
+
+def write_consent_sentinel(brain_root: Path) -> None:
+    """Write consent sentinel JSON to .meta/consent.json."""
+    sentinel_path = brain_root / CONSENT_PATH_RELATIVE
+    sentinel_path.parent.mkdir(parents=True, exist_ok=True)
+    sentinel_path.write_text(
+        json.dumps({"consented_at": __import__("datetime").datetime.utcnow().isoformat(), "version": "1.0"}),
+        encoding="utf-8",
+    )
+
+
+def prompt_consent(brain_root: Path, yes: bool = False) -> bool:
+    """Prompt user for consent or auto-approve with yes=True. STUB."""
+    raise NotImplementedError
+
 
 def validate_drive_mount(brain_root: Path) -> tuple[bool, str]:
     """Validate that the Drive-synced brain folder is mounted and writable.
@@ -84,6 +110,7 @@ def main():
     ap = argparse.ArgumentParser(description="Initialize the Second Brain folder structure and SQLite schema")
     ap.add_argument("--force", action="store_true", help="Recreate missing dirs (notes preserved)")
     ap.add_argument("--reset-db", action="store_true", help="Drop and recreate SQLite schema (DESTRUCTIVE)")
+    ap.add_argument("--yes", action="store_true", help="Non-interactive: skip consent prompt (CI/DevContainer use)")
     args = ap.parse_args()
 
     print("[sb-init] Validating Drive mount...")

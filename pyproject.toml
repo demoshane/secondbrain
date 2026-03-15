@@ -26,6 +26,7 @@ sb-check-links = "engine.links:main_check_links"
 sb-install = "scripts.install_native:main"
 sb-forget = "engine.forget:main"
 sb-read = "engine.read:main"
+sb-export = "engine.export:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
