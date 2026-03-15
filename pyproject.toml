@@ -32,6 +32,7 @@ sb-anonymize     = "engine.anonymize:main"
 sb-update-memory = "engine.ai:main"
 sb-recap         = "engine.intelligence:recap_main"
 sb-actions       = "engine.intelligence:actions_main"
+sb-digest        = "engine.digest:digest_main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
