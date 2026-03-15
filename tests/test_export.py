@@ -1,52 +1,64 @@
-"""GDPR-02 export stubs — Wave 0 (xfail until implemented)."""
+"""GDPR-02 export tests — Wave 1 (full implementation)."""
+import json
 import pytest
+from pathlib import Path
 
 
-@pytest.mark.xfail(strict=False, reason="Wave 0 stub — implementation pending")
-def test_export_returns_note_count(brain_root, db_conn):
+@pytest.fixture
+def export_db(db_conn):
+    """db_conn with schema + one public note + one pii note."""
+    from engine.db import init_schema
+    init_schema(db_conn)
+    db_conn.execute(
+        "INSERT INTO notes (path, type, title, body, tags, people, sensitivity) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        ("notes/public.md", "note", "Public Note", "Public body", "[]", "[]", "public"),
+    )
+    db_conn.execute(
+        "INSERT INTO notes (path, type, title, body, tags, people, sensitivity) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        ("people/alice.md", "people", "Alice", "Alice body", "[]", "[]", "pii"),
+    )
+    db_conn.commit()
+    return db_conn
+
+
+def test_export_returns_note_count(brain_root, export_db):
     from engine.export import export_brain
-    from pathlib import Path
 
     output_path = brain_root / "export.json"
-    count = export_brain(brain_root, db_conn, output_path)
+    count = export_brain(brain_root, export_db, output_path)
     assert isinstance(count, int)
+    assert count == 2
 
 
-@pytest.mark.xfail(strict=False, reason="Wave 0 stub — implementation pending")
-def test_export_json_contains_all_fields(brain_root, db_conn):
-    import json
+def test_export_json_contains_all_fields(brain_root, export_db):
     from engine.export import export_brain
-    from pathlib import Path
 
     output_path = brain_root / "export.json"
-    export_brain(brain_root, db_conn, output_path)
+    export_brain(brain_root, export_db, output_path)
     data = json.loads(output_path.read_text())
     assert len(data) > 0
     note = data[0]
     for field in ("path", "type", "title", "body", "tags", "people",
-                   "created_at", "updated_at", "content_sensitivity"):
+                  "created_at", "updated_at", "content_sensitivity"):
         assert field in note
 
 
-@pytest.mark.xfail(strict=False, reason="Wave 0 stub — implementation pending")
-def test_export_includes_pii_notes(brain_root, db_conn):
+def test_export_includes_pii_notes(brain_root, export_db):
     from engine.export import export_brain
-    import json
 
     output_path = brain_root / "export.json"
-    export_brain(brain_root, db_conn, output_path)
+    export_brain(brain_root, export_db, output_path)
     data = json.loads(output_path.read_text())
     pii_notes = [n for n in data if n.get("content_sensitivity") == "pii"]
     assert len(pii_notes) > 0
 
 
-@pytest.mark.xfail(strict=False, reason="Wave 0 stub — implementation pending")
-def test_export_audit_logged(brain_root, db_conn):
+def test_export_audit_logged(brain_root, export_db):
     from engine.export import export_brain
 
     output_path = brain_root / "export.json"
-    export_brain(brain_root, db_conn, output_path)
-    row = db_conn.execute(
+    export_brain(brain_root, export_db, output_path)
+    row = export_db.execute(
         "SELECT id FROM audit_log WHERE event_type='export' LIMIT 1"
     ).fetchone()
     assert row is not None
