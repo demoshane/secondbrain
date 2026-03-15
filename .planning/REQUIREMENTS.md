@@ -50,7 +50,7 @@
 - [x] **AI-02**: PII classifier runs locally (keyword rules + `content_sensitivity` frontmatter field) BEFORE any AI API call is made
 - [x] **AI-03**: Notes with `content_sensitivity: pii` are routed to Ollama (local model) only — never sent to cloud APIs
 - [x] **AI-04**: Notes with `content_sensitivity: private` or `public` are routed to Claude (Anthropic API)
-- [ ] **AI-05**: Per-content-type model routing is configurable in `.meta/config.toml` without code changes
+- [x] **AI-05**: Per-content-type model routing is configurable in `.meta/config.toml` without code changes
 - [x] **AI-06**: Other AI models (OpenAI, Gemini) can be added via adapter pattern in `engine/adapters/` without changing core logic
 - [x] **AI-07**: `second-brain` Claude Code subagent is installable and invokable from any Claude session
 - [x] **AI-08**: `/sb-capture` is available as a Claude Code skill (`/sb-capture`)
@@ -125,7 +125,7 @@
 | AI-02 | Phase 3 | Complete |
 | AI-03 | Phase 3 | Complete |
 | AI-04 | Phase 3 | Complete |
-| AI-05 | Phase 8 (gap closure) | Pending |
+| AI-05 | Phase 8 (gap closure) | Complete |
 | AI-06 | Phase 3 | Complete |
 | AI-07 | Phase 3 | Complete |
 | AI-08 | Phase 3 | Complete |

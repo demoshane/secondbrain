@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 07-01-PLAN.md — path-format split fix applied, all 4 phase-7 tests GREEN
-last_updated: "2026-03-14T23:55:43.162Z"
+stopped_at: Completed 08-00-PLAN.md — RED stub test_update_memory_routing_uses_config added, 5 existing tests GREEN
+last_updated: "2026-03-15T09:38:11.224Z"
 last_activity: "2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified"
 progress:
   total_phases: 9
   completed_phases: 8
-  total_plans: 45
-  completed_plans: 45
+  total_plans: 47
+  completed_plans: 46
   percent: 0
 ---
 
@@ -91,6 +91,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 06-integration-gap-closure P03 | 15 | 2 tasks | 2 files |
 | Phase 07-fix-path-format-split P00 | 2 | 2 tasks | 3 files |
 | Phase 07-fix-path-format-split P01 | 5 | 2 tasks | 1 files |
+| Phase 08-fix-update-memory-routing P00 | 3 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -191,6 +192,7 @@ Recent decisions affecting current work:
 - [Phase 07-fix-path-format-split]: Tests use tmp_path.resolve() as brain_root — canonical macOS path contract; raw tmp_path may return /var/... while resolve() gives /private/var/...
 - [Phase 07-fix-path-format-split]: Use .resolve() not .absolute() — macOS tmp_path is /var/... symlink to /private/var/...; only .resolve() gives canonical form
 - [Phase 07-fix-path-format-split]: No changes to rag.py/forget.py — root cause was exclusively capture's path storage; consumers were already correct
+- [Phase 08-fix-update-memory-routing]: Patch engine.router.get_adapter (module ref) in update_memory() tests — consistent with Phase 3/4 pattern
 
 ### Pending Todos
 
@@ -205,6 +207,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T23:53:33.293Z
-Stopped at: Completed 07-01-PLAN.md — path-format split fix applied, all 4 phase-7 tests GREEN
+Last session: 2026-03-15T09:38:11.214Z
+Stopped at: Completed 08-00-PLAN.md — RED stub test_update_memory_routing_uses_config added, 5 existing tests GREEN
 Resume file: None
