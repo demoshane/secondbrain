@@ -293,6 +293,7 @@ class TestReindexGeneratesEmbeddings:
             sys.modules.pop("engine.embeddings", None)
 
     def test_reindex_incremental_reembeds_changed(self, brain_root, db_conn):
+
         """EMBED-03: Editing a note body triggers re-embedding on next reindex."""
         import sys
         import types
@@ -329,3 +330,48 @@ class TestReindexGeneratesEmbeddings:
             assert hash_before != hash_after, "content_hash did not change after edit"
         finally:
             sys.modules.pop("engine.embeddings", None)
+
+
+# ---------------------------------------------------------------------------
+# Task 4 — forget_person() cascade-deletes note_embeddings rows (EMBED-04)
+# ---------------------------------------------------------------------------
+
+class TestForgetCascadeDeletesEmbeddings:
+    def test_forget_removes_embedding_rows(self, brain_root, db_conn):
+        """forget_person() must delete note_embeddings rows for erased paths."""
+        import struct
+        from engine.db import init_schema
+        from engine.forget import forget_person
+
+        init_schema(db_conn)
+
+        # Create a person file
+        people_dir = brain_root / "people"
+        people_dir.mkdir()
+        person_file = people_dir / "alice-smith.md"
+        person_file.write_text("---\ntype: person\ntitle: Alice Smith\n---\n")
+
+        # Insert a note_embeddings row for the person file
+        blob = struct.pack("4f", 0.1, 0.2, 0.3, 0.4)
+        db_conn.execute(
+            "INSERT INTO note_embeddings (note_path, embedding, content_hash) VALUES (?, ?, ?)",
+            (str(person_file), blob, "abc123"),
+        )
+        db_conn.commit()
+
+        # Verify row exists before forget
+        row = db_conn.execute(
+            "SELECT note_path FROM note_embeddings WHERE note_path = ?",
+            (str(person_file),),
+        ).fetchone()
+        assert row is not None, "embedding row should exist before forget"
+
+        # Run forget
+        forget_person("alice-smith", brain_root, db_conn)
+
+        # Verify row is gone after forget
+        row = db_conn.execute(
+            "SELECT note_path FROM note_embeddings WHERE note_path = ?",
+            (str(person_file),),
+        ).fetchone()
+        assert row is None, "embedding row should be deleted by forget_person()"
