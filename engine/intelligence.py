@@ -262,6 +262,8 @@ def _append_related_link(note_path: Path, matched_stem: str) -> None:
 def check_connections(note_path: Path, conn, brain_root: Path) -> None:
     """Print connection suggestions when similar notes exist. Best-effort."""
     try:
+        if not budget_available(conn):
+            return
         matches = find_similar(str(note_path.resolve()), conn)
         if not matches:
             return
@@ -271,6 +273,7 @@ def check_connections(note_path: Path, conn, brain_root: Path) -> None:
             print(f"  - {matched_path.name}  (similarity: {m['similarity']:.2f})")
             # Phase 17 revisit: skip append for pii-sensitivity notes
             _append_related_link(note_path, matched_path.stem)
+        consume_budget()
     except Exception:
         pass
 

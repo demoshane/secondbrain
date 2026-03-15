@@ -216,7 +216,8 @@ class TestConnectionSuggestion:
         note.write_text("---\ntitle: New Note\n---\nContent.")
         with patch.object(intelligence, "find_similar", return_value=[
             {"note_path": "/brain/meetings/alice.md", "similarity": 0.92}
-        ]):
+        ]), patch.object(intelligence, "budget_available", return_value=True), \
+             patch.object(intelligence, "consume_budget"):
             intelligence.check_connections(note, conn, tmp_path)
         captured = capsys.readouterr()
         assert "alice" in captured.out.lower() or "Related" in captured.out  # stub prints nothing → RED
@@ -233,6 +234,21 @@ class TestConnectionSuggestionEmpty:
             intelligence.check_connections(note, conn, tmp_path)
         captured = capsys.readouterr()
         assert captured.out == ""  # stub also prints nothing — passes in both cases
+
+
+class TestConnectionSuggestionBudgetExhausted:
+    def test_check_connections_silent_when_budget_exhausted(self, tmp_path, capsys):
+        """check_connections() must stay silent when budget_available() returns False."""
+        from engine import intelligence
+        conn = _make_db()
+        note = tmp_path / "new.md"
+        note.write_text("---\ntitle: New Note\n---\nContent.")
+        with patch.object(intelligence, "find_similar", return_value=[
+            {"note_path": "/brain/meetings/alice.md", "similarity": 0.92}
+        ]), patch.object(intelligence, "budget_available", return_value=False):
+            intelligence.check_connections(note, conn, tmp_path)
+        captured = capsys.readouterr()
+        assert captured.out == ""
 
 
 class TestRecap:
