@@ -25,8 +25,9 @@ class TestSaveNote:
     def test_put_note_saves_content(self, client, tmp_path):
         p = tmp_path / "test.md"
         p.write_text("# Hello")
+        # Absolute path starts with '/' — join without doubling the slash
         r = client.put(
-            f"/notes/{p}",
+            f"/notes{p}",
             json={"content": "# Updated"},
         )
         assert r.status_code == 200
@@ -50,7 +51,8 @@ class TestNoteMeta:
     def test_get_note_meta_returns_structure(self, client, tmp_path):
         p = tmp_path / "note.md"
         p.write_text("# Note")
-        r = client.get(f"/notes/{p}/meta")
+        # Absolute path starts with '/' — join without doubling the slash
+        r = client.get(f"/notes{p}/meta")
         assert r.status_code == 200
         data = r.get_json()
         assert "backlinks" in data
