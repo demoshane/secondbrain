@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Intelligence + GUI Hub
 status: executing
-stopped_at: "Completed 15-03: connection suggestions + recap + stale nudge wired; sb-recap + sb-actions CLI registered; 17 INTL tests GREEN"
-last_updated: "2026-03-15T17:58:12.261Z"
+stopped_at: "Completed 15-04: INTL-10 closed; check_connections budget-gated; 18 INTL tests GREEN"
+last_updated: "2026-03-15T18:21:06.416Z"
 last_activity: 2026-03-15 — 14-01 complete (deps + RED scaffold); 14-02 task 1 committed (DDL + config)
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 8
+  completed_plans: 8
   percent: 10
 ---
 
@@ -53,6 +53,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 15 P01 | 206s | 2 tasks | 3 files |
 | Phase 15 P02 | 18 | 3 tasks | 2 files |
 | Phase 15 P03 | 6 | 3 tasks | 4 files |
+| Phase 15 P04 | 8 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,7 @@ Recent decisions affecting current work:
 - [Phase 15]: Module-level imports for get_connection in intelligence.py so tests can patch engine.intelligence.get_connection
 - [Phase 15]: intelligence.py was fully implemented in 15-02 session; Task 1 was a no-op verification pass
 - [Phase 15]: search.py conn.close() ordering bug fixed — stale nudge now fires with open conn before final close
+- [Phase 15]: INTL-10: check_connections() gated on budget_available() and consumes budget after firing — single-offer-per-day contract fully enforced across all proactive functions
 
 ### Pending Todos
 
@@ -87,6 +89,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T17:58:12.257Z
-Stopped at: Completed 15-03: connection suggestions + recap + stale nudge wired; sb-recap + sb-actions CLI registered; 17 INTL tests GREEN
+Last session: 2026-03-15T18:21:06.409Z
+Stopped at: Completed 15-04: INTL-10 closed; check_connections budget-gated; 18 INTL tests GREEN
 Resume file: None
