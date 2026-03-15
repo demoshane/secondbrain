@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Intelligence + GUI Hub
 status: executing
-stopped_at: Completed 16-03-PLAN.md
-last_updated: "2026-03-15T19:35:14.730Z"
+stopped_at: Completed 16-04-PLAN.md
+last_updated: "2026-03-15T19:40:57.188Z"
 last_activity: 2026-03-15 — 14-01 complete (deps + RED scaffold); 14-02 task 1 committed (DDL + config)
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 12
-  completed_plans: 11
+  completed_plans: 12
   percent: 10
 ---
 
@@ -57,6 +57,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 16 P01 | 4 | 2 tasks | 6 files |
 | Phase 16 P02 | 8 | 2 tasks | 3 files |
 | Phase 16 P03 | 5 | 2 tasks | 2 files |
+| Phase 16 P04 | 196 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,9 @@ Recent decisions affecting current work:
 - [Phase 16]: conftest seeded_db seeds 100 note_embeddings rows with stub BLOBs so TestSemanticSearch can assert results > 0 without downloading models
 - [Phase 16]: recap_entity returns string (not None) to satisfy test assertion; tagged people/tags query is authoritative source to prevent FTS false positives
 - [Phase 16]: seeded_db fixture extended with alice PII notes so entity recap tests have data without real vault files
+- [Phase 16]: conn=None guard added to generate_digest() so tests with None conn skip DB queries gracefully
+- [Phase 16]: TestDigestPIIRouting fixed: monkeypatch engine.intelligence._router and seed in-memory DB with PII note
+- [Phase 16]: write_digest_plist() wrapped in non-fatal try/except in install_native main() — binary may not be installed yet
 
 ### Pending Todos
 
@@ -99,6 +103,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T19:35:09.708Z
-Stopped at: Completed 16-03-PLAN.md
+Last session: 2026-03-15T19:40:57.181Z
+Stopped at: Completed 16-04-PLAN.md
 Resume file: None

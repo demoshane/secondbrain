@@ -33,7 +33,7 @@
 
 - [x] **Phase 14: Embedding Infrastructure** — sqlite-vec KNN table, sentence-transformers local embeddings, content-hash staleness detection (completed 2026-03-15)
 - [x] **Phase 15: Intelligence Layer** — Session recap, action item extraction, stale nudges, connection surfacing, proactive budget (completed 2026-03-15)
-- [ ] **Phase 16: Semantic Search and Digest** — `sb-search --semantic`, RRF hybrid search, weekly digest via launchd, cross-context synthesis CLI
+- [x] **Phase 16: Semantic Search and Digest** — `sb-search --semantic`, RRF hybrid search, weekly digest via launchd, cross-context synthesis CLI (completed 2026-03-15)
 - [ ] **Phase 17: API Layer and Setup Automation** — FastAPI HTTP facade (`engine/api.py`), Drive auto-detection, Ollama auto-install
 - [ ] **Phase 18: GUI Hub** — pywebview + Flask desktop app (`sb-gui`), sidebar/viewer/panel layout, action items and intelligence panels
 - [ ] **Phase 19: MCP Server** — FastMCP stdio server (`sb-mcp-server`), full tool parity, two-step destructive confirmation, Claude Desktop config
@@ -145,7 +145,7 @@ Plans:
 | 13. Nyquist Completion | v1.5 | 2/2 | Complete | 2026-03-15 |
 | 14. Embedding Infrastructure | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 15. Intelligence Layer | v2.0 | 4/4 | Complete | 2026-03-15 |
-| 16. Semantic Search and Digest | 3/4 | In Progress|  | - |
+| 16. Semantic Search and Digest | 4/4 | Complete   | 2026-03-15 | - |
 | 17. API Layer and Setup Automation | v2.0 | 0/TBD | Not started | - |
 | 18. GUI Hub | v2.0 | 0/TBD | Not started | - |
 | 19. MCP Server | v2.0 | 0/TBD | Not started | - |
