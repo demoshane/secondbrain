@@ -10,6 +10,7 @@ dependencies = [
     "flask>=3.0",
     "waitress>=3.0",
     "flask-cors>=4.0",
+    "pywebview>=5.0",
 ]
 
 [project.optional-dependencies]
@@ -37,6 +38,7 @@ sb-recap         = "engine.intelligence:recap_main"
 sb-actions       = "engine.intelligence:actions_main"
 sb-digest        = "engine.digest:digest_main"
 sb-api           = "engine.api:main"
+sb-gui           = "engine.gui:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
