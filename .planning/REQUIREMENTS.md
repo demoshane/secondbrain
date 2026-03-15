@@ -28,17 +28,17 @@
 
 ### Search
 
-- [ ] **SRCH-01**: User can run `sb-search --semantic` for vector-enhanced search
-- [ ] **SRCH-02**: Hybrid search merges BM25 and vector results via Reciprocal Rank Fusion
-- [ ] **SRCH-03**: User can run `sb-recap <name>` for cross-context synthesis across all notes about a person or project
-- [ ] **SRCH-04**: Cross-context synthesis routes PII notes through Ollama only
+- [x] **SRCH-01**: User can run `sb-search --semantic` for vector-enhanced search
+- [x] **SRCH-02**: Hybrid search merges BM25 and vector results via Reciprocal Rank Fusion
+- [x] **SRCH-03**: User can run `sb-recap <name>` for cross-context synthesis across all notes about a person or project
+- [x] **SRCH-04**: Cross-context synthesis routes PII notes through Ollama only
 
 ### Digest
 
-- [ ] **DIAG-01**: Weekly digest is generated automatically and saved to `.meta/digests/`
-- [ ] **DIAG-02**: Digest includes: notes captured this week, key themes, open actions, stale items
-- [ ] **DIAG-03**: User can read the latest digest via `sb-read --digest latest`
-- [ ] **DIAG-04**: Digest generation routes PII note summaries through Ollama
+- [x] **DIAG-01**: Weekly digest is generated automatically and saved to `.meta/digests/`
+- [x] **DIAG-02**: Digest includes: notes captured this week, key themes, open actions, stale items
+- [x] **DIAG-03**: User can read the latest digest via `sb-read --digest latest`
+- [x] **DIAG-04**: Digest generation routes PII note summaries through Ollama
 
 ### Setup Automation
 
@@ -122,14 +122,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INTL-08 | Phase 15 | Complete |
 | INTL-09 | Phase 15 | Complete |
 | INTL-10 | Phase 15 | Complete |
-| SRCH-01 | Phase 16 | Pending |
-| SRCH-02 | Phase 16 | Pending |
-| SRCH-03 | Phase 16 | Pending |
-| SRCH-04 | Phase 16 | Pending |
-| DIAG-01 | Phase 16 | Pending |
-| DIAG-02 | Phase 16 | Pending |
-| DIAG-03 | Phase 16 | Pending |
-| DIAG-04 | Phase 16 | Pending |
+| SRCH-01 | Phase 16 | Complete |
+| SRCH-02 | Phase 16 | Complete |
+| SRCH-03 | Phase 16 | Complete |
+| SRCH-04 | Phase 16 | Complete |
+| DIAG-01 | Phase 16 | Complete |
+| DIAG-02 | Phase 16 | Complete |
+| DIAG-03 | Phase 16 | Complete |
+| DIAG-04 | Phase 16 | Complete |
 | SETUP-01 | Phase 17 | Pending |
 | SETUP-02 | Phase 17 | Pending |
 | SETUP-03 | Phase 17 | Pending |
