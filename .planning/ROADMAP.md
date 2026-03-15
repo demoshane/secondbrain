@@ -33,7 +33,7 @@
 
 - [x] **Phase 14: Embedding Infrastructure** — sqlite-vec KNN table, sentence-transformers local embeddings, content-hash staleness detection (completed 2026-03-15)
 - [x] **Phase 15: Intelligence Layer** — Session recap, action item extraction, stale nudges, connection surfacing, proactive budget (completed 2026-03-15)
-- [ ] **Phase 16: Semantic Search and Digest** — `sb-search --semantic`, RRF hybrid search, weekly digest via APScheduler, cross-context synthesis CLI
+- [ ] **Phase 16: Semantic Search and Digest** — `sb-search --semantic`, RRF hybrid search, weekly digest via launchd, cross-context synthesis CLI
 - [ ] **Phase 17: API Layer and Setup Automation** — FastAPI HTTP facade (`engine/api.py`), Drive auto-detection, Ollama auto-install
 - [ ] **Phase 18: GUI Hub** — pywebview + Flask desktop app (`sb-gui`), sidebar/viewer/panel layout, action items and intelligence panels
 - [ ] **Phase 19: MCP Server** — FastMCP stdio server (`sb-mcp-server`), full tool parity, two-step destructive confirmation, Claude Desktop config
@@ -83,7 +83,13 @@ Plans:
   2. Hybrid search results combine BM25 keyword ranking and vector similarity via Reciprocal Rank Fusion — running `sb-search` (no flag) uses the merged ranking
   3. Running `sb-recap <name>` returns a cross-context synthesis of all notes about a person or project; PII notes are summarized via Ollama, non-PII via Claude
   4. A weekly digest file is written automatically to `.meta/digests/` each week and is readable via `sb-read --digest latest`; the digest includes captured notes, key themes, open actions, and stale items; PII note summaries in the digest route through Ollama
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 16-01-PLAN.md — Wave 0 RED scaffold: test stubs for all 14 behaviors; engine/digest.py stub; sb-digest entry point
+- [ ] 16-02-PLAN.md — search_semantic(), _rrf_merge(), search_hybrid(); --semantic/--keyword flags in search.py (SRCH-01/02)
+- [ ] 16-03-PLAN.md — recap_entity() + extend recap_main() for entity names; PII routing (SRCH-03/04)
+- [ ] 16-04-PLAN.md — engine/digest.py full impl; sb-read --digest flag; launchd digest plist (DIAG-01/02/03/04)
 
 ### Phase 17: API Layer and Setup Automation
 **Goal**: A stable local HTTP API exists for the GUI to call, and `sb-init` completes a working setup without any manual Drive or Ollama configuration steps
@@ -138,8 +144,8 @@ Plans:
 | 12. Micro-Code Fixes | v1.5 | 5/5 | Complete | 2026-03-15 |
 | 13. Nyquist Completion | v1.5 | 2/2 | Complete | 2026-03-15 |
 | 14. Embedding Infrastructure | v2.0 | 4/4 | Complete | 2026-03-15 |
-| 15. Intelligence Layer | 4/4 | Complete    | 2026-03-15 | - |
-| 16. Semantic Search and Digest | v2.0 | 0/TBD | Not started | - |
+| 15. Intelligence Layer | v2.0 | 4/4 | Complete | 2026-03-15 |
+| 16. Semantic Search and Digest | 1/4 | In Progress|  | - |
 | 17. API Layer and Setup Automation | v2.0 | 0/TBD | Not started | - |
 | 18. GUI Hub | v2.0 | 0/TBD | Not started | - |
 | 19. MCP Server | v2.0 | 0/TBD | Not started | - |
