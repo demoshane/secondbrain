@@ -42,10 +42,10 @@
 
 ### Setup Automation
 
-- [ ] **SETUP-01**: `sb-init` auto-detects Google Drive path on macOS and Windows
-- [ ] **SETUP-02**: `sb-init` exits with a clear error if Drive is not found — no silent fallback to wrong path
-- [ ] **SETUP-03**: `sb-init` auto-installs Ollama if not present
-- [ ] **SETUP-04**: `sb-init` warns user if embedding model download will take significant time (~800MB first install)
+- [x] **SETUP-01**: `sb-init` auto-detects Google Drive path on macOS and Windows
+- [x] **SETUP-02**: `sb-init` exits with a clear error if Drive is not found — no silent fallback to wrong path
+- [x] **SETUP-03**: `sb-init` auto-installs Ollama if not present
+- [x] **SETUP-04**: `sb-init` warns user if embedding model download will take significant time (~800MB first install)
 
 ### GUI Hub
 
@@ -130,10 +130,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DIAG-02 | Phase 16 | Complete |
 | DIAG-03 | Phase 16 | Complete |
 | DIAG-04 | Phase 16 | Complete |
-| SETUP-01 | Phase 17 | Pending |
-| SETUP-02 | Phase 17 | Pending |
-| SETUP-03 | Phase 17 | Pending |
-| SETUP-04 | Phase 17 | Pending |
+| SETUP-01 | Phase 17 | Complete |
+| SETUP-02 | Phase 17 | Complete |
+| SETUP-03 | Phase 17 | Complete |
+| SETUP-04 | Phase 17 | Complete |
 | GUI-01 | Phase 18 | Pending |
 | GUI-02 | Phase 18 | Pending |
 | GUI-03 | Phase 18 | Pending |

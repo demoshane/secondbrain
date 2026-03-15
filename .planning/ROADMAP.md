@@ -34,7 +34,7 @@
 - [x] **Phase 14: Embedding Infrastructure** — sqlite-vec KNN table, sentence-transformers local embeddings, content-hash staleness detection (completed 2026-03-15)
 - [x] **Phase 15: Intelligence Layer** — Session recap, action item extraction, stale nudges, connection surfacing, proactive budget (completed 2026-03-15)
 - [x] **Phase 16: Semantic Search and Digest** — `sb-search --semantic`, RRF hybrid search, weekly digest via launchd, cross-context synthesis CLI (completed 2026-03-15)
-- [ ] **Phase 17: API Layer and Setup Automation** — FastAPI HTTP facade (`engine/api.py`), Drive auto-detection, Ollama auto-install
+- [ ] **Phase 17: API Layer and Setup Automation** — Flask HTTP sidecar (`engine/api.py`), Drive auto-detection, Ollama auto-install
 - [ ] **Phase 18: GUI Hub** — pywebview + Flask desktop app (`sb-gui`), sidebar/viewer/panel layout, action items and intelligence panels
 - [ ] **Phase 19: MCP Server** — FastMCP stdio server (`sb-mcp-server`), full tool parity, two-step destructive confirmation, Claude Desktop config
 
@@ -100,7 +100,12 @@ Plans:
   2. Running `sb-init` on a machine without Ollama auto-installs it; if the embedding model download will take significant time (~800 MB), the user sees a warning before it begins
   3. `engine/api.py` is running on `127.0.0.1:37491` and all engine functions are callable via HTTP — the GUI can retrieve a note list, search, read a note, and get action items without importing any `engine/` module
   4. The API health endpoint responds to `GET /health` so the GUI can detect when the sidecar is ready
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 17-00-PLAN.md — Wave 0 RED scaffold: tests/test_api.py + extend tests/test_init_brain.py; add Flask/Waitress/flask-cors deps
+- [ ] 17-01-PLAN.md — Implement engine/api.py: /health, /notes, /search, /notes/<path>, /actions; sb-api entry point (Wave 2)
+- [ ] 17-02-PLAN.md — Extend engine/init_brain.py: Drive detection, Ollama auto-install, model size warning (Wave 2)
 
 ### Phase 18: GUI Hub
 **Goal**: Users can browse, read, and create notes through a cross-platform desktop app that complements — but does not replace — the CLI
@@ -145,7 +150,7 @@ Plans:
 | 13. Nyquist Completion | v1.5 | 2/2 | Complete | 2026-03-15 |
 | 14. Embedding Infrastructure | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 15. Intelligence Layer | v2.0 | 4/4 | Complete | 2026-03-15 |
-| 16. Semantic Search and Digest | 4/4 | Complete    | 2026-03-15 | - |
-| 17. API Layer and Setup Automation | v2.0 | 0/TBD | Not started | - |
+| 16. Semantic Search and Digest | v2.0 | 4/4 | Complete | 2026-03-15 |
+| 17. API Layer and Setup Automation | 1/3 | In Progress|  | - |
 | 18. GUI Hub | v2.0 | 0/TBD | Not started | - |
 | 19. MCP Server | v2.0 | 0/TBD | Not started | - |

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Intelligence + GUI Hub
 status: executing
-stopped_at: Completed 16-04-PLAN.md
-last_updated: "2026-03-15T19:44:07.609Z"
+stopped_at: Completed 17-00-PLAN.md
+last_updated: "2026-03-15T20:00:45.232Z"
 last_activity: 2026-03-15 — 14-01 complete (deps + RED scaffold); 14-02 task 1 committed (DDL + config)
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 12
-  completed_plans: 12
+  total_plans: 15
+  completed_plans: 13
   percent: 10
 ---
 
@@ -58,6 +58,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 16 P02 | 8 | 2 tasks | 3 files |
 | Phase 16 P03 | 5 | 2 tasks | 2 files |
 | Phase 16 P04 | 196 | 2 tasks | 4 files |
+| Phase 17 P00 | 85 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,8 @@ Recent decisions affecting current work:
 - [Phase 16]: conn=None guard added to generate_digest() so tests with None conn skip DB queries gracefully
 - [Phase 16]: TestDigestPIIRouting fixed: monkeypatch engine.intelligence._router and seed in-memory DB with PII note
 - [Phase 16]: write_digest_plist() wrapped in non-fatal try/except in install_native main() — binary may not be installed yet
+- [Phase 17]: Import new symbols at module level — collection-level ImportError is the clearest RED signal (matches Phase 16 pattern)
+- [Phase 17]: sb-api entry point added to pyproject.toml alongside other sb-* CLI commands
 
 ### Pending Todos
 
@@ -103,6 +106,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T19:40:57.181Z
-Stopped at: Completed 16-04-PLAN.md
+Last session: 2026-03-15T20:00:45.226Z
+Stopped at: Completed 17-00-PLAN.md
 Resume file: None
