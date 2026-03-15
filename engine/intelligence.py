@@ -118,6 +118,15 @@ def extract_action_items(note_path: Path, body: str, sensitivity: str, conn) -> 
         pass  # Best-effort — never blocks capture
 
 
+def list_actions(conn, done: bool = False) -> list[dict]:
+    """Return action items as a list of dicts. done=False returns open items only."""
+    rows = conn.execute(
+        "SELECT id, text, note_path, created_at FROM action_items WHERE done=? ORDER BY created_at DESC",
+        (1 if done else 0,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
 def actions_main(argv=None) -> None:
     """Entry point for sb-actions CLI."""
     import argparse
