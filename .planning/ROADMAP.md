@@ -32,7 +32,7 @@
 **Milestone Goal:** Elevate the brain from a capture/search tool to an active knowledge partner with proactive intelligence and a cross-platform desktop GUI.
 
 - [x] **Phase 14: Embedding Infrastructure** — sqlite-vec KNN table, sentence-transformers local embeddings, content-hash staleness detection (completed 2026-03-15)
-- [ ] **Phase 15: Intelligence Layer** — Session recap, action item extraction, stale nudges, connection surfacing, proactive budget
+- [x] **Phase 15: Intelligence Layer** — Session recap, action item extraction, stale nudges, connection surfacing, proactive budget (completed 2026-03-15)
 - [ ] **Phase 16: Semantic Search and Digest** — `sb-search --semantic`, RRF hybrid search, weekly digest via APScheduler, cross-context synthesis CLI
 - [ ] **Phase 17: API Layer and Setup Automation** — FastAPI HTTP facade (`engine/api.py`), Drive auto-detection, Ollama auto-install
 - [ ] **Phase 18: GUI Hub** — pywebview + Flask desktop app (`sb-gui`), sidebar/viewer/panel layout, action items and intelligence panels
@@ -138,7 +138,7 @@ Plans:
 | 12. Micro-Code Fixes | v1.5 | 5/5 | Complete | 2026-03-15 |
 | 13. Nyquist Completion | v1.5 | 2/2 | Complete | 2026-03-15 |
 | 14. Embedding Infrastructure | v2.0 | 4/4 | Complete | 2026-03-15 |
-| 15. Intelligence Layer | 2/3 | In Progress|  | - |
+| 15. Intelligence Layer | 3/3 | Complete   | 2026-03-15 | - |
 | 16. Semantic Search and Digest | v2.0 | 0/TBD | Not started | - |
 | 17. API Layer and Setup Automation | v2.0 | 0/TBD | Not started | - |
 | 18. GUI Hub | v2.0 | 0/TBD | Not started | - |
