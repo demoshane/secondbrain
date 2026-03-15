@@ -1,4 +1,4 @@
-"""FTS5 BM25 full-text search with audit log."""
+"""FTS5 BM25 full-text search with audit log, plus semantic and hybrid RRF modes."""
 import datetime
 import sqlite3
 
@@ -77,7 +77,134 @@ def search_notes(
     ]
 
 
-def main() -> None:
+def _rrf_merge(
+    bm25_results: list[dict],
+    vec_results: list[dict],
+    k: int = 60,
+    limit: int = 20,
+) -> list[dict]:
+    """Merge two ranked lists via Reciprocal Rank Fusion.
+
+    Works on rank positions (enumerate index), NOT raw scores.
+    Higher RRF score = better merged rank.
+    """
+    scores: dict[str, float] = {}
+    all_items: dict[str, dict] = {}
+    for rank, item in enumerate(bm25_results):
+        p = item["path"]
+        scores[p] = scores.get(p, 0.0) + 1.0 / (k + rank + 1)
+        all_items[p] = item
+    for rank, item in enumerate(vec_results):
+        p = item["path"]
+        scores[p] = scores.get(p, 0.0) + 1.0 / (k + rank + 1)
+        all_items[p] = item
+    ranked = sorted(scores.keys(), key=lambda p: scores[p], reverse=True)
+    return [all_items[p] for p in ranked[:limit]]
+
+
+def search_semantic(
+    conn: sqlite3.Connection,
+    query: str,
+    limit: int = 20,
+) -> list[dict]:
+    """Semantic vector search using sqlite-vec KNN.
+
+    Embeds the query via embed_texts, then runs a cosine-distance KNN query
+    against note_embeddings. Returns list[dict] with keys: path, title, type,
+    created_at, score (1.0 - cosine_distance, higher = better match).
+
+    Fallback behaviour:
+    - If sqlite-vec fails to load: returns [].
+    - If note_embeddings table is empty: prints a notification and returns [].
+    - If >50 notes lack embeddings: prints a warning and searches what's indexed.
+    """
+    try:
+        import sqlite_vec
+        conn.enable_load_extension(True)
+        sqlite_vec.load(conn)
+    except Exception:
+        return []
+
+    count = conn.execute("SELECT COUNT(*) FROM note_embeddings").fetchone()[0]
+    if count == 0:
+        print("Semantic unavailable. Run sb-reindex to enable.")
+        return []
+
+    missing = conn.execute(
+        "SELECT COUNT(*) FROM notes n "
+        "LEFT JOIN note_embeddings ne ON ne.note_path = n.path "
+        "WHERE ne.note_path IS NULL"
+    ).fetchone()[0]
+    if missing > 50:
+        print(
+            f"{missing} notes missing embeddings. "
+            "Run sb-reindex to enable full semantic search."
+        )
+
+    from engine.embeddings import embed_texts
+    from engine.config_loader import load_config
+    from engine.paths import CONFIG_PATH
+
+    cfg = load_config(CONFIG_PATH)
+    provider = cfg.get("embeddings", {}).get("provider", "ollama")
+    query_blob = embed_texts([query], provider=provider)[0]
+
+    rows = conn.execute(
+        """
+        SELECT
+            ne.note_path AS path,
+            n.title,
+            n.type,
+            n.created_at,
+            n.sensitivity,
+            vec_distance_cosine(ne.embedding, ?) AS dist
+        FROM note_embeddings ne
+        JOIN notes n ON ne.note_path = n.path
+        ORDER BY dist
+        LIMIT ?
+        """,
+        (query_blob, limit),
+    ).fetchall()
+
+    return [
+        {
+            "path": row[0],
+            "title": row[1],
+            "type": row[2],
+            "created_at": row[3],
+            "score": 1.0 - row[5],
+        }
+        for row in rows
+    ]
+
+
+def search_hybrid(
+    conn: sqlite3.Connection,
+    query: str,
+    limit: int = 20,
+) -> list[dict]:
+    """Hybrid search: merges BM25 and vector results via Reciprocal Rank Fusion.
+
+    Falls back to pure FTS5 results when:
+    - sqlite-vec fails to load.
+    - note_embeddings table is empty (prints a notification).
+    - search_semantic raises an unexpected exception.
+    """
+    bm25 = search_notes(conn, query, limit=limit * 2)
+
+    try:
+        vec_results = search_semantic(conn, query, limit=limit * 2)
+    except Exception:
+        return bm25[:limit]
+
+    if not vec_results:
+        # search_semantic already printed a notification if relevant
+        return bm25[:limit]
+
+    return _rrf_merge(bm25, vec_results, k=60, limit=limit)
+
+
+def main(argv: list[str] | None = None) -> None:
     """CLI entry point for sb-search."""
     import argparse
     from engine.db import get_connection, init_schema
@@ -86,11 +213,20 @@ def main() -> None:
     parser.add_argument("query")
     parser.add_argument("--type", dest="note_type", default=None)
     parser.add_argument("--limit", type=int, default=20)
-    args = parser.parse_args()
+    mode_group = parser.add_mutually_exclusive_group()
+    mode_group.add_argument("--semantic", action="store_true", help="Pure vector search")
+    mode_group.add_argument("--keyword", action="store_true", help="Pure BM25 keyword search")
+    args = parser.parse_args(argv)
 
     conn = get_connection()
     init_schema(conn)
-    results = search_notes(conn, args.query, note_type=args.note_type, limit=args.limit)
+
+    if args.semantic:
+        results = search_semantic(conn, args.query, limit=args.limit)
+    elif args.keyword:
+        results = search_notes(conn, args.query, note_type=args.note_type, limit=args.limit)
+    else:
+        results = search_hybrid(conn, args.query, limit=args.limit)
 
     if not results:
         print("No results found.")

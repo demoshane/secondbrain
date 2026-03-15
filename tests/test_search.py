@@ -79,11 +79,12 @@ class TestHybridSearch:
 class TestKeywordFlag:
     def test_keyword_bypasses_vector(self, seeded_db):
         import engine.search as s
-        # --keyword flag doesn't exist yet — fails RED
         assert hasattr(s, "main"), "main not implemented"
-        # search_semantic doesn't exist, so --keyword path through main will fail
         assert hasattr(s, "search_semantic"), "search_semantic not implemented (keyword bypass requires it)"
-        s.main(["topic_0", "--keyword"])
+        # Patch get_connection and init_schema so main() uses the seeded in-memory DB
+        with patch("engine.db.get_connection", return_value=seeded_db), \
+             patch("engine.db.init_schema"):
+            s.main(["topic_0", "--keyword"])
 
 
 class TestHybridFallback:

@@ -69,7 +69,12 @@ def db_conn() -> sqlite3.Connection:
 
 @pytest.fixture
 def seeded_db(db_conn):
-    """In-memory DB with schema + 1000 synthetic notes for perf tests."""
+    """In-memory DB with schema + 1000 synthetic notes for perf tests.
+
+    Also populates note_embeddings for the first 100 notes using the stub
+    embed_texts (constant 384-float BLOBs) so that semantic search tests can
+    find results without downloading any model.
+    """
     from engine.db import init_schema
     init_schema(db_conn)
     # migrate people column
@@ -80,6 +85,16 @@ def seeded_db(db_conn):
         db_conn.execute(
             "INSERT INTO notes (path, type, title, body, tags, people) VALUES (?, ?, ?, ?, ?, ?)",
             (f"notes/note_{i:04d}.md", "note", f"Note {i}", f"Content about topic_{i % 50}", "[]", "[]"),
+        )
+    db_conn.commit()
+
+    # Seed embeddings for the first 100 notes so semantic/hybrid tests work
+    blob = struct.pack("384f", *[0.1] * 384)
+    for i in range(100):
+        db_conn.execute(
+            "INSERT OR IGNORE INTO note_embeddings (note_path, embedding, content_hash, stale) "
+            "VALUES (?, ?, ?, 0)",
+            (f"notes/note_{i:04d}.md", blob, f"hash_{i}"),
         )
     db_conn.commit()
     return db_conn
