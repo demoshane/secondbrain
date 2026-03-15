@@ -151,6 +151,6 @@ Plans:
 | 14. Embedding Infrastructure | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 15. Intelligence Layer | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 16. Semantic Search and Digest | v2.0 | 4/4 | Complete | 2026-03-15 |
-| 17. API Layer and Setup Automation | 1/3 | In Progress|  | - |
+| 17. API Layer and Setup Automation | 2/3 | In Progress|  | - |
 | 18. GUI Hub | v2.0 | 0/TBD | Not started | - |
 | 19. MCP Server | v2.0 | 0/TBD | Not started | - |

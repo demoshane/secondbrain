@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Intelligence + GUI Hub
 status: executing
-stopped_at: Completed 17-00-PLAN.md
-last_updated: "2026-03-15T20:00:45.232Z"
+stopped_at: Completed 17-01-PLAN.md
+last_updated: "2026-03-15T20:05:29.117Z"
 last_activity: 2026-03-15 — 14-01 complete (deps + RED scaffold); 14-02 task 1 committed (DDL + config)
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 15
-  completed_plans: 13
+  completed_plans: 14
   percent: 10
 ---
 
@@ -59,6 +59,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 16 P03 | 5 | 2 tasks | 2 files |
 | Phase 16 P04 | 196 | 2 tasks | 4 files |
 | Phase 17 P00 | 85 | 2 tasks | 3 files |
+| Phase 17 P01 | 240 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,8 @@ Recent decisions affecting current work:
 - [Phase 16]: write_digest_plist() wrapped in non-fatal try/except in install_native main() — binary may not be installed yet
 - [Phase 17]: Import new symbols at module level — collection-level ImportError is the clearest RED signal (matches Phase 16 pattern)
 - [Phase 17]: sb-api entry point added to pyproject.toml alongside other sb-* CLI commands
+- [Phase 17]: list_actions(conn, done) added to intelligence.py — was missing, referenced in plan but not yet implemented
+- [Phase 17]: sqlite3.Row row_factory set per-request since get_connection() returns plain connection without row_factory
 
 ### Pending Todos
 
@@ -106,6 +109,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T20:00:45.226Z
-Stopped at: Completed 17-00-PLAN.md
+Last session: 2026-03-15T20:05:29.110Z
+Stopped at: Completed 17-01-PLAN.md
 Resume file: None
