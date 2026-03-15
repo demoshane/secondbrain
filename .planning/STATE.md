@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Intelligence + GUI Hub
 status: executing
-stopped_at: Completed 17-01-PLAN.md
-last_updated: "2026-03-15T20:05:29.117Z"
+stopped_at: Completed 17-02-PLAN.md
+last_updated: "2026-03-15T20:09:21.901Z"
 last_activity: 2026-03-15 — 14-01 complete (deps + RED scaffold); 14-02 task 1 committed (DDL + config)
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 15
-  completed_plans: 14
+  completed_plans: 15
   percent: 10
 ---
 
@@ -60,6 +60,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 16 P04 | 196 | 2 tasks | 4 files |
 | Phase 17 P00 | 85 | 2 tasks | 3 files |
 | Phase 17 P01 | 240 | 1 tasks | 2 files |
+| Phase 17 P02 | 8 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,9 @@ Recent decisions affecting current work:
 - [Phase 17]: sb-api entry point added to pyproject.toml alongside other sb-* CLI commands
 - [Phase 17]: list_actions(conn, done) added to intelligence.py — was missing, referenced in plan but not yet implemented
 - [Phase 17]: sqlite3.Row row_factory set per-request since get_connection() returns plain connection without row_factory
+- [Phase 17]: assert_drive_or_exit takes base_path kwarg (not home) to match test scaffold signature
+- [Phase 17]: ollama_model_size_warning uses ollama Python SDK ollama.list() — not subprocess — to match test scaffold
+- [Phase 17]: Test scaffold drives implementation contract — when RED tests and plan spec differ, tests win
 
 ### Pending Todos
 
@@ -109,6 +113,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T20:05:29.110Z
-Stopped at: Completed 17-01-PLAN.md
+Last session: 2026-03-15T20:09:21.894Z
+Stopped at: Completed 17-02-PLAN.md
 Resume file: None
