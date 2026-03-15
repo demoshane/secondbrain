@@ -117,7 +117,13 @@ Plans:
   3. User can create a new note of any type (meeting, project, person, idea, etc.) from the GUI and the note is saved atomically to disk and indexed
   4. The right panel shows backlinks, related notes, and metadata for the currently open note; user can view the action items panel and mark items done; intelligence panel shows recent recap and stale nudges
   5. User can browse and move binary files between subfolders in the GUI; user can open any note in the system default editor as an alternative to the GUI viewer
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 18-00-PLAN.md — Wave 0 RED scaffold: pywebview dep, engine/gui.py stub, tests/test_api_extensions.py stubs (GUI-01)
+- [ ] 18-01-PLAN.md — API extensions: PUT /notes, POST /notes, GET /notes/meta, GET /files, POST /files/move, POST /actions/done, GET /intelligence (GUI-04–10)
+- [ ] 18-02-PLAN.md — engine/gui.py implementation + full HTML/JS three-panel frontend + EasyMDE vendored (GUI-01–03, GUI-11)
+- [ ] 18-03-PLAN.md — Human verification checkpoint: all 11 GUI requirements confirmed in live window (GUI-01–11)
 
 ### Phase 19: MCP Server
 **Goal**: Users can use brain commands from Claude Desktop and Claude.ai via MCP tools with the same capabilities as the CLI
@@ -151,6 +157,6 @@ Plans:
 | 14. Embedding Infrastructure | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 15. Intelligence Layer | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 16. Semantic Search and Digest | v2.0 | 4/4 | Complete | 2026-03-15 |
-| 17. API Layer and Setup Automation | 3/3 | Complete    | 2026-03-15 | - |
-| 18. GUI Hub | v2.0 | 0/TBD | Not started | - |
+| 17. API Layer and Setup Automation | v2.0 | 3/3 | Complete | 2026-03-15 |
+| 18. GUI Hub | 1/4 | In Progress|  | - |
 | 19. MCP Server | v2.0 | 0/TBD | Not started | - |

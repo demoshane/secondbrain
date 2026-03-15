@@ -49,7 +49,7 @@
 
 ### GUI Hub
 
-- [ ] **GUI-01**: User can launch brain GUI via `sb-gui` on macOS and Windows
+- [x] **GUI-01**: User can launch brain GUI via `sb-gui` on macOS and Windows
 - [ ] **GUI-02**: GUI displays notes browsable by folder/type in a sidebar
 - [ ] **GUI-03**: User can search notes from the GUI (keyword + semantic)
 - [ ] **GUI-04**: User can edit notes inline with WYSIWYG Markdown editing — changes saved atomically
@@ -134,7 +134,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SETUP-02 | Phase 17 | Complete |
 | SETUP-03 | Phase 17 | Complete |
 | SETUP-04 | Phase 17 | Complete |
-| GUI-01 | Phase 18 | Pending |
+| GUI-01 | Phase 18 | Complete |
 | GUI-02 | Phase 18 | Pending |
 | GUI-03 | Phase 18 | Pending |
 | GUI-04 | Phase 18 | Pending |
