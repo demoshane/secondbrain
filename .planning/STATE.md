@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Intelligence + GUI Hub
 status: completed
-stopped_at: Completed 19-02-PLAN.md — 10 MCP tools implemented, 14 tests GREEN
-last_updated: "2026-03-15T21:41:00.814Z"
+stopped_at: Completed 19-03-PLAN.md — Phase 19 MCP server functionally complete
+last_updated: "2026-03-15T21:41:53.199Z"
 last_activity: 2026-03-15 — 18-03 complete (human verification sign-off; all 11 GUI requirements approved)
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 23
-  completed_plans: 21
+  completed_plans: 22
   percent: 100
 ---
 
@@ -67,6 +67,7 @@ Progress: [██████████] 100%
 | Phase 18-gui-hub P03 | 5 | 2 tasks | 0 files |
 | Phase 19-mcp-server P01 | 362 | 3 tasks | 5 files |
 | Phase 19-mcp-server P02 | 25 | 2 tasks | 2 files |
+| Phase 19-mcp-server P03 | 480 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -120,6 +121,8 @@ Recent decisions affecting current work:
 - [Phase 19-mcp-server]: sb_recap self-import trick (import engine.mcp_server as _self) so tenacity retry closure sees monkeypatched get_connection
 - [Phase 19-mcp-server]: sb_edit must load frontmatter.load() and call write_note_atomic(p, post, conn) — cannot pass raw body string
 - [Phase 19-mcp-server]: sb_capture idempotency via notes WHERE title=? lookup — capture_note() returns Path not status dict
+- [Phase 19-mcp-server]: Two-step token uses 60s TTL stored in module-level dict under threading.Lock; no persistence needed (in-process only)
+- [Phase 19-mcp-server]: write_mcp_config accepts _cfg_path override param for test isolation — avoids monkeypatching platform.system()
 
 ### Pending Todos
 
@@ -133,6 +136,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T21:41:00.807Z
-Stopped at: Completed 19-02-PLAN.md — 10 MCP tools implemented, 14 tests GREEN
+Last session: 2026-03-15T21:41:53.192Z
+Stopped at: Completed 19-03-PLAN.md — Phase 19 MCP server functionally complete
 Resume file: None
