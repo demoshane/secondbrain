@@ -66,3 +66,18 @@ def test_update_memory_routing_uses_config(tmp_config_toml):
                 mock_run.return_value = MagicMock(returncode=0, stdout="done")
                 update_memory("people", "Alice is CTO", tmp_config_toml)
         mock_get_adapter.assert_called_once_with("public", tmp_config_toml)
+
+
+def test_sb_update_memory_entry_point_registered():
+    import importlib.metadata
+    eps = {ep.name: ep for ep in importlib.metadata.entry_points(group="console_scripts")}
+    assert "sb-update-memory" in eps, "sb-update-memory missing from [project.scripts] in pyproject.toml"
+
+
+def test_update_memory_main_argparse():
+    import subprocess, sys
+    result = subprocess.run(
+        [sys.executable, "-m", "engine.ai", "--help"],
+        capture_output=True, text=True
+    )
+    assert result.returncode == 0, f"engine.ai --help failed:\n{result.stderr}"

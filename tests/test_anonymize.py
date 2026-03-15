@@ -120,3 +120,9 @@ def test_anonymize_noop_no_token_match(seeded_db, brain_root):
 
     result = anonymize_note(note_path, ["NonExistentToken"], seeded_db)
     assert result.get("redacted_count", 0) == 0
+
+
+def test_sb_anonymize_entry_point_registered():
+    import importlib.metadata
+    eps = {ep.name: ep for ep in importlib.metadata.entry_points(group="console_scripts")}
+    assert "sb-anonymize" in eps, "sb-anonymize missing from [project.scripts] in pyproject.toml"
