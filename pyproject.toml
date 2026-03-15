@@ -27,6 +27,8 @@ sb-install = "scripts.install_native:main"
 sb-forget = "engine.forget:main"
 sb-read = "engine.read:main"
 sb-export = "engine.export:main"
+sb-anonymize     = "engine.anonymize:main"
+sb-update-memory = "engine.ai:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
