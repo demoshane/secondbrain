@@ -1,8 +1,7 @@
-"""GDPR-06 consent stubs — Wave 0 (xfail until implemented)."""
+"""GDPR-06 consent tests."""
 import pytest
 
 
-@pytest.mark.xfail(strict=False, reason="Wave 0 stub — implementation pending")
 def test_consent_skips_when_sentinel_exists(brain_root):
     from engine.init_brain import prompt_consent, write_consent_sentinel
 
@@ -11,7 +10,6 @@ def test_consent_skips_when_sentinel_exists(brain_root):
     assert result is True
 
 
-@pytest.mark.xfail(strict=False, reason="Wave 0 stub — implementation pending")
 def test_consent_yes_flag_writes_sentinel(brain_root):
     from engine.init_brain import prompt_consent, check_consent
 
@@ -20,7 +18,6 @@ def test_consent_yes_flag_writes_sentinel(brain_root):
     assert check_consent(brain_root) is True
 
 
-@pytest.mark.xfail(strict=False, reason="Wave 0 stub — implementation pending")
 def test_consent_interactive_yes(brain_root, monkeypatch):
     from engine.init_brain import prompt_consent, check_consent
 
@@ -30,7 +27,6 @@ def test_consent_interactive_yes(brain_root, monkeypatch):
     assert check_consent(brain_root) is True
 
 
-@pytest.mark.xfail(strict=False, reason="Wave 0 stub — implementation pending")
 def test_consent_interactive_no(brain_root, monkeypatch):
     from engine.init_brain import prompt_consent
 
@@ -39,7 +35,6 @@ def test_consent_interactive_no(brain_root, monkeypatch):
     assert result is False
 
 
-@pytest.mark.xfail(strict=False, reason="Wave 0 stub — implementation pending")
 def test_consent_eoferror_returns_false(brain_root, monkeypatch):
     from engine.init_brain import prompt_consent
 

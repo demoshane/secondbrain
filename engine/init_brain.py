@@ -30,8 +30,28 @@ def write_consent_sentinel(brain_root: Path) -> None:
 
 
 def prompt_consent(brain_root: Path, yes: bool = False) -> bool:
-    """Prompt user for consent or auto-approve with yes=True. STUB."""
-    raise NotImplementedError
+    """Prompt user for consent or auto-approve with yes=True.
+
+    - If consent sentinel already exists: return True immediately (idempotent).
+    - If yes=True: write sentinel and return True without prompting.
+    - Otherwise: display CONSENT_NOTICE, read input, return True on 'yes',
+      False on anything else or on EOFError/KeyboardInterrupt.
+    """
+    if check_consent(brain_root):
+        return True
+    if yes:
+        write_consent_sentinel(brain_root)
+        return True
+    try:
+        answer = input(CONSENT_NOTICE)
+    except (EOFError, KeyboardInterrupt):
+        print("\nConsent required. Aborting.")
+        return False
+    if answer.strip().lower() == "yes":
+        write_consent_sentinel(brain_root)
+        return True
+    print("Consent required. Aborting.")
+    return False
 
 
 def validate_drive_mount(brain_root: Path) -> tuple[bool, str]:
@@ -112,6 +132,9 @@ def main():
     ap.add_argument("--reset-db", action="store_true", help="Drop and recreate SQLite schema (DESTRUCTIVE)")
     ap.add_argument("--yes", action="store_true", help="Non-interactive: skip consent prompt (CI/DevContainer use)")
     args = ap.parse_args()
+
+    if not prompt_consent(BRAIN_ROOT, yes=args.yes):
+        sys.exit(1)
 
     print("[sb-init] Validating Drive mount...")
     ok, msg = validate_drive_mount(BRAIN_ROOT)
