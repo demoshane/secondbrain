@@ -1,9 +1,9 @@
 ---
 phase: 11
 slug: gdpr-scope-expansion
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-15
 ---
 
@@ -38,23 +38,23 @@ created: 2026-03-15
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 11-00-01 | 00 | 0 | GDPR-02 | unit stub | `pytest tests/test_export.py -q` | ❌ W0 | ⬜ pending |
-| 11-00-02 | 00 | 0 | GDPR-03 | unit stub | `pytest tests/test_anonymize.py -q` | ❌ W0 | ⬜ pending |
-| 11-00-03 | 00 | 0 | GDPR-06 | unit stub | `pytest tests/test_consent.py -q` | ❌ W0 | ⬜ pending |
-| 11-01-01 | 01 | 1 | GDPR-02 | unit | `pytest tests/test_export.py::test_export_returns_note_count -x` | ✅ W0 | ⬜ pending |
-| 11-01-02 | 01 | 1 | GDPR-02 | unit | `pytest tests/test_export.py::test_export_json_contains_all_fields -x` | ✅ W0 | ⬜ pending |
-| 11-01-03 | 01 | 1 | GDPR-02 | unit | `pytest tests/test_export.py::test_export_includes_pii_notes -x` | ✅ W0 | ⬜ pending |
-| 11-01-04 | 01 | 1 | GDPR-02 | unit | `pytest tests/test_export.py::test_export_audit_logged -x` | ✅ W0 | ⬜ pending |
-| 11-02-01 | 02 | 1 | GDPR-03 | unit | `pytest tests/test_anonymize.py::test_anonymize_replaces_token_in_body -x` | ✅ W0 | ⬜ pending |
-| 11-02-02 | 02 | 1 | GDPR-03 | unit | `pytest tests/test_anonymize.py::test_anonymize_case_insensitive -x` | ✅ W0 | ⬜ pending |
-| 11-02-03 | 02 | 1 | GDPR-03 | unit | `pytest tests/test_anonymize.py::test_anonymize_updates_db_row -x` | ✅ W0 | ⬜ pending |
-| 11-02-04 | 02 | 1 | GDPR-03 | unit | `pytest tests/test_anonymize.py::test_anonymize_downgrades_sensitivity -x` | ✅ W0 | ⬜ pending |
-| 11-02-05 | 02 | 1 | GDPR-03 | unit | `pytest tests/test_anonymize.py::test_anonymize_audit_logged -x` | ✅ W0 | ⬜ pending |
-| 11-03-01 | 03 | 1 | GDPR-06 | unit | `pytest tests/test_consent.py::test_consent_skips_when_sentinel_exists -x` | ✅ W0 | ⬜ pending |
-| 11-03-02 | 03 | 1 | GDPR-06 | unit | `pytest tests/test_consent.py::test_consent_yes_flag_writes_sentinel -x` | ✅ W0 | ⬜ pending |
-| 11-03-03 | 03 | 1 | GDPR-06 | unit | `pytest tests/test_consent.py::test_consent_interactive_yes -x` | ✅ W0 | ⬜ pending |
-| 11-03-04 | 03 | 1 | GDPR-06 | unit | `pytest tests/test_consent.py::test_consent_interactive_no -x` | ✅ W0 | ⬜ pending |
-| 11-03-05 | 03 | 1 | GDPR-06 | manual | n/a — TTY prompt | n/a | ⬜ pending |
+| 11-00-01 | 00 | 0 | GDPR-02 | unit stub | `pytest tests/test_export.py -q` | ❌ W0 | ✅ green |
+| 11-00-02 | 00 | 0 | GDPR-03 | unit stub | `pytest tests/test_anonymize.py -q` | ❌ W0 | ✅ green |
+| 11-00-03 | 00 | 0 | GDPR-06 | unit stub | `pytest tests/test_consent.py -q` | ❌ W0 | ✅ green |
+| 11-01-01 | 01 | 1 | GDPR-02 | unit | `pytest tests/test_export.py::test_export_returns_note_count -x` | ✅ W0 | ✅ green |
+| 11-01-02 | 01 | 1 | GDPR-02 | unit | `pytest tests/test_export.py::test_export_json_contains_all_fields -x` | ✅ W0 | ✅ green |
+| 11-01-03 | 01 | 1 | GDPR-02 | unit | `pytest tests/test_export.py::test_export_includes_pii_notes -x` | ✅ W0 | ✅ green |
+| 11-01-04 | 01 | 1 | GDPR-02 | unit | `pytest tests/test_export.py::test_export_audit_logged -x` | ✅ W0 | ✅ green |
+| 11-02-01 | 02 | 1 | GDPR-03 | unit | `pytest tests/test_anonymize.py::test_anonymize_replaces_token_in_body -x` | ✅ W0 | ✅ green |
+| 11-02-02 | 02 | 1 | GDPR-03 | unit | `pytest tests/test_anonymize.py::test_anonymize_case_insensitive -x` | ✅ W0 | ✅ green |
+| 11-02-03 | 02 | 1 | GDPR-03 | unit | `pytest tests/test_anonymize.py::test_anonymize_updates_db_row -x` | ✅ W0 | ✅ green |
+| 11-02-04 | 02 | 1 | GDPR-03 | unit | `pytest tests/test_anonymize.py::test_anonymize_downgrades_sensitivity -x` | ✅ W0 | ✅ green |
+| 11-02-05 | 02 | 1 | GDPR-03 | unit | `pytest tests/test_anonymize.py::test_anonymize_audit_logged -x` | ✅ W0 | ✅ green |
+| 11-03-01 | 03 | 1 | GDPR-06 | unit | `pytest tests/test_consent.py::test_consent_skips_when_sentinel_exists -x` | ✅ W0 | ✅ green |
+| 11-03-02 | 03 | 1 | GDPR-06 | unit | `pytest tests/test_consent.py::test_consent_yes_flag_writes_sentinel -x` | ✅ W0 | ✅ green |
+| 11-03-03 | 03 | 1 | GDPR-06 | unit | `pytest tests/test_consent.py::test_consent_interactive_yes -x` | ✅ W0 | ✅ green |
+| 11-03-04 | 03 | 1 | GDPR-06 | unit | `pytest tests/test_consent.py::test_consent_interactive_no -x` | ✅ W0 | ✅ green |
+| 11-03-05 | 03 | 1 | GDPR-06 | manual | n/a — TTY prompt | n/a | manual-only |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -62,13 +62,13 @@ created: 2026-03-15
 
 ## Wave 0 Requirements
 
-- [ ] `tests/test_export.py` — stubs for GDPR-02 expanded (4 tests)
-- [ ] `tests/test_anonymize.py` — stubs for GDPR-03 expanded (6 tests)
-- [ ] `tests/test_consent.py` — stubs for GDPR-06 expanded (5 tests)
-- [ ] `engine/export.py` — `export_brain()` and `main()` stubs
-- [ ] `engine/anonymize.py` — `anonymize_note()` and `main()` stubs
-- [ ] `engine/init_brain.py` — add `prompt_consent()`, `check_consent()`, `write_consent_sentinel()`, `--yes` flag
-- [ ] `pyproject.toml` — add `sb-export = "engine.export:main"` to `[project.scripts]`
+- [x] `tests/test_export.py` — stubs for GDPR-02 expanded (4 tests)
+- [x] `tests/test_anonymize.py` — stubs for GDPR-03 expanded (6 tests)
+- [x] `tests/test_consent.py` — stubs for GDPR-06 expanded (5 tests)
+- [x] `engine/export.py` — `export_brain()` and `main()` stubs
+- [x] `engine/anonymize.py` — `anonymize_note()` and `main()` stubs
+- [x] `engine/init_brain.py` — add `prompt_consent()`, `check_consent()`, `write_consent_sentinel()`, `--yes` flag
+- [x] `pyproject.toml` — add `sb-export = "engine.export:main"` to `[project.scripts]`
 
 ---
 
@@ -82,11 +82,11 @@ created: 2026-03-15
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 10s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 10s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved (automated: 16/17 green; 11-03-05 manual-only — TTY behavior inherently untestable without real terminal)
