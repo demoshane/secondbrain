@@ -4,7 +4,7 @@ milestone: v1.5
 milestone_name: milestone
 status: verifying
 stopped_at: Completed 12-04-PLAN.md — end-to-end verification, all 5 CLI fixes confirmed, Phase 12 complete
-last_updated: "2026-03-15T12:13:09.429Z"
+last_updated: "2026-03-15T12:17:53.836Z"
 last_activity: "2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified"
 progress:
   total_phases: 14
