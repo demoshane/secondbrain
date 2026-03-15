@@ -67,7 +67,12 @@ Plans:
   3. Running any `sb-*` command surfaces at most one unsolicited notification per session (stale nudge, connection suggestion, or recap offer — never more than one combined)
   4. Notes last accessed more than 90 days ago appear in stale nudges (max 5 per session); notes with `evergreen: true` frontmatter never appear
   5. After a new capture, if a closely matching existing note is found (cosine similarity > 0.8), the user sees one connection suggestion before the prompt returns
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 15-01-PLAN.md — Wave 0 RED scaffold: test stubs (INTL-01–10), intelligence.py stubs, action_items DDL in db.py
+- [ ] 15-02-PLAN.md — Implement budget gate, action item extraction + CLI, stale nudge (INTL-03/04/05/06/07/08/10)
+- [ ] 15-03-PLAN.md — Implement recap + connection suggestions; wire capture.py/search.py hooks + entry points (INTL-01/02/09)
 
 ### Phase 16: Semantic Search and Digest
 **Goal**: Users can find notes by meaning (not just keywords) and receive a weekly digest of brain activity, themes, and open actions
@@ -132,8 +137,8 @@ Plans:
 | 11. GDPR Scope Expansion | v1.5 | 4/4 | Complete | 2026-03-15 |
 | 12. Micro-Code Fixes | v1.5 | 5/5 | Complete | 2026-03-15 |
 | 13. Nyquist Completion | v1.5 | 2/2 | Complete | 2026-03-15 |
-| 14. Embedding Infrastructure | 3/4 | Complete    | 2026-03-15 | - |
-| 15. Intelligence Layer | v2.0 | 0/TBD | Not started | - |
+| 14. Embedding Infrastructure | v2.0 | 4/4 | Complete | 2026-03-15 |
+| 15. Intelligence Layer | v2.0 | 0/3 | Not started | - |
 | 16. Semantic Search and Digest | v2.0 | 0/TBD | Not started | - |
 | 17. API Layer and Setup Automation | v2.0 | 0/TBD | Not started | - |
 | 18. GUI Hub | v2.0 | 0/TBD | Not started | - |
