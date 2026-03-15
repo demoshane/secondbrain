@@ -73,11 +73,34 @@ def read_note(path: Path, conn: sqlite3.Connection) -> int:
     return 0
 
 
-def main() -> None:
+def _resolve_digest(digests_dir: Path, selector: str) -> "Path | None":
+    """Resolve a digest selector ('latest' or 'YYYY-WNN') to a Path, or None if not found."""
+    files = sorted(digests_dir.glob("*.md"))
+    if not files:
+        return None
+    if selector == "latest":
+        return files[-1]
+    target = digests_dir / f"{selector}.md"
+    return target if target.exists() else None
+
+
+def main(argv=None) -> None:
     """CLI entry point for sb-read."""
     parser = argparse.ArgumentParser(description="Display a note from the second brain.")
-    parser.add_argument("path", type=Path, help="Path to the note file.")
-    args = parser.parse_args()
+    parser.add_argument("path", type=Path, nargs="?", help="Path to the note file.")
+    parser.add_argument("--digest", metavar="SELECTOR", help="Read digest: 'latest' or 'YYYY-WNN'")
+    args = parser.parse_args(argv)
+
+    if args.digest:
+        from engine.paths import BRAIN_ROOT
+        digests_dir = BRAIN_ROOT / ".meta" / "digests"
+        digest_path = _resolve_digest(digests_dir, args.digest)
+        if digest_path is None:
+            print("No digests found.")
+            sys.exit(0)
+        # Read digest file directly — not PII-gated (type: digest, not content_sensitivity: pii)
+        print(digest_path.read_text(encoding="utf-8"))
+        sys.exit(0)
 
     from engine.db import get_connection, init_schema
 

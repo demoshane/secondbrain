@@ -79,6 +79,36 @@ def write_plist(sb_watch_bin: Path, repo_root: Path, plist_path: Path = None) ->
     return target
 
 
+def write_digest_plist(plist_dir: Path, log_dir: Path) -> Path:
+    """Generate and write the launchd plist for sb-digest (Monday 08:00 weekly trigger).
+
+    Creates com.secondbrain.digest.plist in plist_dir using plistlib.dump.
+    Returns the path to the written plist file.
+    Raises FileNotFoundError if sb-digest binary not found in PATH.
+    """
+    sb_digest_bin = shutil.which("sb-digest")
+    if not sb_digest_bin:
+        raise FileNotFoundError("sb-digest not found in PATH — run 'uv tool install .' first")
+    label = "com.secondbrain.digest"
+    env = {
+        "PATH": f"{Path.home()}/.local/bin:/usr/local/bin:/usr/bin:/bin",
+        "HOME": str(Path.home()),
+    }
+    plist = {
+        "Label": label,
+        "ProgramArguments": [sb_digest_bin],
+        "WorkingDirectory": str(Path.home() / "SecondBrain"),
+        "EnvironmentVariables": env,
+        "StartCalendarInterval": {"Weekday": 1, "Hour": 8, "Minute": 0},
+        "StandardOutPath": str(log_dir / "second-brain-digest.log"),
+        "StandardErrorPath": str(log_dir / "second-brain-digest-error.log"),
+    }
+    out_path = plist_dir / f"{label}.plist"
+    with open(out_path, "wb") as f:
+        plistlib.dump(plist, f)
+    return out_path
+
+
 def load_launchd_agent(plist_path: Path) -> None:
     """Load (or reload) the launchd agent idempotently.
 
@@ -143,6 +173,13 @@ def main() -> None:
         sb_watch_bin = find_uv().parent / "sb-watch"
         plist_path = write_plist(sb_watch_bin, REPO_ROOT)
         load_launchd_agent(plist_path)
+        log_dir = Path.home() / "Library" / "Logs"
+        plist_dir = Path.home() / "Library" / "LaunchAgents"
+        try:
+            write_digest_plist(plist_dir, log_dir)
+            print("Digest launchd plist written.")
+        except FileNotFoundError as e:
+            print(f"Warning: {e} — skipping digest plist install.")
 
     if args.hooks:
         for repo in args.hooks:
