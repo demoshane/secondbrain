@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Intelligence + GUI Hub
 status: completed
-stopped_at: Completed 19-03-PLAN.md — Phase 19 MCP server functionally complete
-last_updated: "2026-03-15T21:41:53.199Z"
+stopped_at: Completed 19-04-PLAN.md — Phase 19 MCP server human verification complete
+last_updated: "2026-03-15T21:54:32.353Z"
 last_activity: 2026-03-15 — 18-03 complete (human verification sign-off; all 11 GUI requirements approved)
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 23
-  completed_plans: 22
+  completed_plans: 23
   percent: 100
 ---
 
@@ -68,6 +68,7 @@ Progress: [██████████] 100%
 | Phase 19-mcp-server P01 | 362 | 3 tasks | 5 files |
 | Phase 19-mcp-server P02 | 25 | 2 tasks | 2 files |
 | Phase 19-mcp-server P03 | 480 | 2 tasks | 3 files |
+| Phase 19-mcp-server P04 | 10 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -123,6 +124,7 @@ Recent decisions affecting current work:
 - [Phase 19-mcp-server]: sb_capture idempotency via notes WHERE title=? lookup — capture_note() returns Path not status dict
 - [Phase 19-mcp-server]: Two-step token uses 60s TTL stored in module-level dict under threading.Lock; no persistence needed (in-process only)
 - [Phase 19-mcp-server]: write_mcp_config accepts _cfg_path override param for test isolation — avoids monkeypatching platform.system()
+- [Phase 19-mcp-server]: write_mcp_config() venv fallback: shutil.which fails under uv run — resolved by Path(sys.executable).parent / 'sb-mcp-server'
 
 ### Pending Todos
 
@@ -136,6 +138,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T21:41:53.192Z
-Stopped at: Completed 19-03-PLAN.md — Phase 19 MCP server functionally complete
+Last session: 2026-03-15T21:54:32.345Z
+Stopped at: Completed 19-04-PLAN.md — Phase 19 MCP server human verification complete
 Resume file: None
