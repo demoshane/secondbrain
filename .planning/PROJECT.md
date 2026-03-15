@@ -156,10 +156,17 @@ Model routing configurable per content-type in `.meta/config.toml`.
 - [ ] Ollama auto-installed during `sb-init` — currently requires manual setup
 - [ ] Semantic / vector search — BM25-only; add embedding-based retrieval
 - [ ] Encryption at rest — brain content and SQLite index unencrypted on disk
+- [ ] Proactive session recap — brain detects context at session start, offers once-per-session recap of recent relevant activity
+- [ ] Action item extraction — extract and track commitments/tasks from meeting and project notes
+- [ ] Weekly digest — summary of captured notes, key themes, open actions, stale items
+- [ ] Stale note nudges — first nudge at 3 months, recheck at 6 months of no access/update
+- [ ] Cross-context synthesis — on-demand "catch me up on [person/project]" summary across all related notes
+- [ ] Connection surfacing — proactive notification when a new note relates to older notes
+- [ ] GUI hub — cross-platform desktop app (Mac + Windows) as central interface for the brain
 
 ### Out of Scope
 
-- GUI — CLI first; GUI is a future milestone beyond v2.0
+- Obsidian sync — adds third-party dependency without clear benefit over native CLI
 - Calendar sync (Google Calendar / Outlook) — adds OAuth complexity
 - Mobile access — desktop-only
 - Team / shared brain — single-user only
@@ -222,4 +229,17 @@ Model routing configurable per content-type in `.meta/config.toml`.
 
 ---
 
-*Last updated: 2026-03-15 after v1.5 milestone*
+## Current Milestone: v2.0 Intelligence + GUI Hub
+
+**Goal:** Elevate the brain from a capture/search tool to an active knowledge partner with proactive intelligence and a cross-platform desktop GUI.
+
+**Target features:**
+- GUI hub (Mac + Windows)
+- Intelligence layer (session recap, action items, weekly digest, stale nudges, connection surfacing, cross-context synthesis)
+- Setup automation (Drive + Ollama in `sb-init`)
+- Semantic search + encryption at rest
+- Claude.ai web integration
+
+---
+
+*Last updated: 2026-03-15 after v2.0 milestone start*

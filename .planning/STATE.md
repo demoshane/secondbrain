@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.5
-milestone_name: milestone
-status: verifying
-stopped_at: "Completed 13-01-PLAN.md — all phases nyquist_compliant: true, v1.5 milestone Nyquist gap fully closed"
-last_updated: "2026-03-15T13:58:09.779Z"
-last_activity: "2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified"
+milestone: v2.0
+milestone_name: Intelligence + GUI Hub
+status: defining_requirements
+stopped_at: ""
+last_updated: "2026-03-15"
+last_activity: "2026-03-15 — Milestone v2.0 started"
 progress:
-  total_phases: 14
-  completed_phases: 14
-  total_plans: 60
-  completed_plans: 60
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
   percent: 0
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-14)
 
 ## Current Position
 
-Phase: 04.1 complete — next: Phase 5 (GDPR and Maintenance)
-Plan: 3/3 complete in phase 04.1
-Status: Phase 04.1 verified and complete
-Last activity: 2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-15 — Milestone v2.0 started
 
 Progress: [░░░░░░░░░░] 0%
 
