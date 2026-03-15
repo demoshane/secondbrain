@@ -53,3 +53,16 @@ def test_cap06_memory_update_uses_write_tool(tmp_config_toml):
     assert "--allowedTools" in call_args
     allowed = call_args[call_args.index("--allowedTools") + 1]
     assert "Write" in allowed
+
+
+def test_update_memory_routing_uses_config(tmp_config_toml):
+    """AI-05: config_path is active — routing config affects adapter selected by update_memory()."""
+    from engine.ai import update_memory
+    with patch("engine.router.get_adapter") as mock_get_adapter:
+        mock_adapter = MagicMock()
+        mock_get_adapter.return_value = mock_adapter
+        with patch("shutil.which", return_value="/usr/local/bin/claude"):
+            with patch("subprocess.run") as mock_run:
+                mock_run.return_value = MagicMock(returncode=0, stdout="done")
+                update_memory("people", "Alice is CTO", tmp_config_toml)
+        mock_get_adapter.assert_called_once_with("public", tmp_config_toml)
