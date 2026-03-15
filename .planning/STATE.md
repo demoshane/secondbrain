@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 08-00-PLAN.md — RED stub test_update_memory_routing_uses_config added, 5 existing tests GREEN
-last_updated: "2026-03-15T09:38:11.224Z"
+stopped_at: Completed 08-01-PLAN.md — update_memory() routes through ModelRouter, AI-05 closed, full suite GREEN
+last_updated: "2026-03-15T09:40:58.889Z"
 last_activity: "2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified"
 progress:
   total_phases: 9
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 47
-  completed_plans: 46
+  completed_plans: 47
   percent: 0
 ---
 
@@ -92,6 +92,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 07-fix-path-format-split P00 | 2 | 2 tasks | 3 files |
 | Phase 07-fix-path-format-split P01 | 5 | 2 tasks | 1 files |
 | Phase 08-fix-update-memory-routing P00 | 3 | 1 tasks | 1 files |
+| Phase 08-fix-update-memory-routing P01 | 5 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -193,6 +194,8 @@ Recent decisions affecting current work:
 - [Phase 07-fix-path-format-split]: Use .resolve() not .absolute() — macOS tmp_path is /var/... symlink to /private/var/...; only .resolve() gives canonical form
 - [Phase 07-fix-path-format-split]: No changes to rag.py/forget.py — root cause was exclusively capture's path storage; consumers were already correct
 - [Phase 08-fix-update-memory-routing]: Patch engine.router.get_adapter (module ref) in update_memory() tests — consistent with Phase 3/4 pattern
+- [Phase 08-fix-update-memory-routing]: update_memory() hardcodes sensitivity='public' internally — call site in capture.py already guards PII before calling this function
+- [Phase 08-fix-update-memory-routing]: ClaudeAdapter import removed from engine/ai.py — all adapter calls now go through _router.get_adapter module ref
 
 ### Pending Todos
 
@@ -207,6 +210,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T09:38:11.214Z
-Stopped at: Completed 08-00-PLAN.md — RED stub test_update_memory_routing_uses_config added, 5 existing tests GREEN
+Last session: 2026-03-15T09:40:58.879Z
+Stopped at: Completed 08-01-PLAN.md — update_memory() routes through ModelRouter, AI-05 closed, full suite GREEN
 Resume file: None
