@@ -23,6 +23,12 @@ RECAP_SYSTEM_PROMPT = (
     "Be concise. Output plain text, no bullet points."
 )
 
+RECAP_ENTITY_SYSTEM_PROMPT = (
+    "You are a knowledge assistant. Synthesise the following notes about a person or project "
+    "into: (1) a 2-3 sentence narrative summary, and (2) a bullet list of open action items. "
+    "Be concise. Format: narrative paragraph, then '## Open Actions' heading, then bullets."
+)
+
 
 class _RouterShim:
     """Thin wrapper so tests can patch `engine.intelligence._router`."""
@@ -279,6 +285,120 @@ def check_connections(note_path: Path, conn, brain_root: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Entity recap (SRCH-03/04)
+# ---------------------------------------------------------------------------
+
+def recap_entity(name: str, conn) -> str | None:
+    """Fetch notes about `name` (person or project), synthesise via PII-aware routing.
+
+    Returns the printed summary string, or None if no notes found.
+    Prints to stdout directly (same as recap_main pattern).
+    """
+    from engine.paths import CONFIG_PATH
+
+    # 1. Fetch via search_hybrid (FTS + semantic merged)
+    try:
+        from engine.search import search_hybrid
+        hybrid_results = search_hybrid(conn, name, limit=20)
+    except Exception:
+        hybrid_results = []
+
+    # 2. Also fetch by explicit people/tags match
+    try:
+        tagged = conn.execute(
+            "SELECT path, title, body, sensitivity FROM notes "
+            "WHERE people LIKE ? OR tags LIKE ? ORDER BY updated_at DESC LIMIT 20",
+            (f"%{name}%", f"%{name}%"),
+        ).fetchall()
+    except Exception:
+        tagged = []
+
+    # 3. Merge: tagged rows are authoritative (people/tags match).
+    # hybrid_results are supplementary — only include if entity name appears in
+    # their title (avoids false positives from stub/semantic fallback returning
+    # unrelated notes when the entity name doesn't match anything).
+    name_lower = name.lower()
+    seen_paths: set[str] = set()
+    merged_paths: list[str] = []
+
+    # Authoritative: explicit people/tags match
+    for row in tagged:
+        p = row[0]
+        if p and p not in seen_paths:
+            seen_paths.add(p)
+            merged_paths.append(p)
+
+    # Supplementary: hybrid results where title/path suggests relevance
+    for r in hybrid_results:
+        p = r.get("path", "")
+        title = (r.get("title") or "").lower()
+        if p and p not in seen_paths and name_lower in title:
+            seen_paths.add(p)
+            merged_paths.append(p)
+
+    merged_paths = merged_paths[:20]
+
+    # 4. Empty state
+    if not merged_paths:
+        msg = f"No notes found about '{name}'. Capture a meeting or note to build context."
+        print(msg)
+        return None
+
+    # 5. Load full note bodies from DB
+    placeholders = ",".join("?" * len(merged_paths))
+    rows = conn.execute(
+        f"SELECT path, title, body, sensitivity FROM notes WHERE path IN ({placeholders})",
+        merged_paths,
+    ).fetchall()
+
+    # If DB had tagged rows not returned by query (path mismatch), add them too
+    existing_paths = {r[0] for r in rows}
+    extra_rows = [r for r in tagged if r[0] in seen_paths and r[0] not in existing_paths]
+    rows = list(rows) + extra_rows
+
+    if not rows:
+        msg = f"No notes found about '{name}'. Capture a meeting or note to build context."
+        print(msg)
+        return None
+
+    # 6. Split by sensitivity and truncate bodies to 500 chars
+    pii_rows = [(r[1], r[2][:500]) for r in rows if r[3] == "pii"]
+    public_rows = [(r[1], r[2][:500]) for r in rows if r[3] != "pii"]
+
+    output_parts: list[str] = [f"# Recap: {name}\n"]
+
+    # 7. PII synthesis via Ollama adapter
+    if pii_rows:
+        pii_text = "\n\n".join(f"Title: {title}\n{body}" for title, body in pii_rows)
+        try:
+            adapter = _router.get_adapter("pii", CONFIG_PATH)
+            pii_summary = adapter.generate(
+                user_content=f"Person/Project: {name}\n\nNotes:\n{pii_text}",
+                system_prompt=RECAP_ENTITY_SYSTEM_PROMPT,
+            )
+        except Exception:
+            pii_summary = "[Summary unavailable]"
+        output_parts.append(pii_summary)
+
+    # 8. Public synthesis via Claude adapter
+    if public_rows:
+        public_text = "\n\n".join(f"Title: {title}\n{body}" for title, body in public_rows)
+        try:
+            adapter = _router.get_adapter("public", CONFIG_PATH)
+            public_summary = adapter.generate(
+                user_content=f"Person/Project: {name}\n\nNotes:\n{public_text}",
+                system_prompt=RECAP_ENTITY_SYSTEM_PROMPT,
+            )
+        except Exception:
+            public_summary = "[Summary unavailable]"
+        output_parts.append(public_summary)
+
+    result = "\n\n".join(output_parts)
+    print(result)
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Session recap (INTL-02)
 # ---------------------------------------------------------------------------
 
@@ -286,17 +406,25 @@ def recap_main(argv=None) -> None:
     """Entry point for sb-recap CLI."""
     import argparse
 
-    parser = argparse.ArgumentParser(prog="sb-recap", description="Summarise recent activity")
-    parser.add_argument("context", nargs="?", help="Context name (default: auto-detect from git)")
+    parser = argparse.ArgumentParser(prog="sb-recap", description="Summarise recent activity or recap a person/project")
+    parser.add_argument("context", nargs="?", help="Entity name (person/project) or leave blank for session recap")
     args = parser.parse_args(argv)
-
-    context_name = args.context or detect_git_context()
-    if not context_name:
-        print("No context detected — try sb-recap <name>")
-        return
 
     conn = get_connection()
     init_schema(conn)
+
+    if args.context:
+        # Explicit argument → treat as entity recap (person or project)
+        recap_entity(args.context, conn)
+        conn.close()
+        return
+
+    # No argument → original session recap (auto-detect git context)
+    context_name = detect_git_context()
+    if not context_name:
+        conn.close()
+        print("No context detected — try sb-recap <name>")
+        return
 
     rows = conn.execute(
         """

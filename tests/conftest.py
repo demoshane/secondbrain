@@ -97,6 +97,22 @@ def seeded_db(db_conn):
             (f"notes/note_{i:04d}.md", blob, f"hash_{i}"),
         )
     db_conn.commit()
+
+    # Seed alice PII notes so TestRecapEntity* tests can find results
+    for i in range(3):
+        db_conn.execute(
+            "INSERT INTO notes (path, type, title, body, tags, people, sensitivity) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                f"notes/alice_meeting_{i:04d}.md",
+                "meeting",
+                f"Meeting with Alice {i}",
+                f"Discussed project status with alice. Action: follow up on item {i}.",
+                "[]",
+                '["alice"]',
+                "pii",
+            ),
+        )
+    db_conn.commit()
     return db_conn
 
 
