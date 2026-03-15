@@ -121,8 +121,8 @@ def ask_followup_questions(
 def update_memory(note_type: str, summary: str, config_path: Path) -> None:
     """Update Claude memory with new context from a captured note (CAP-06).
 
-    Always uses ClaudeAdapter regardless of sensitivity — summary is safe
-    (no PII, just type + controlled summary).
+    Routes through ModelRouter with sensitivity='public' — config drives
+    adapter selection (AI-05). Summary must not contain PII.
 
     Error handling: logs exception type only (GDPR-05 — no content in logs).
 
