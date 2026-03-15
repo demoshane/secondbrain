@@ -1,8 +1,53 @@
 import sqlite3
+import struct
 import subprocess
+import sys
+import types
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 import pytest
+
+
+# ---------------------------------------------------------------------------
+# Embedding stub — prevents sentence-transformers download in all tests
+# ---------------------------------------------------------------------------
+
+def _fake_embed_texts(texts, provider="sentence-transformers", batch_size=32):
+    """Return deterministic 384-float BLOBs without any model download."""
+    blob = struct.pack("384f", *[0.1] * 384)
+    return [blob for _ in texts]
+
+
+@pytest.fixture(autouse=True)
+def stub_engine_embeddings(request):
+    """Inject a lightweight engine.embeddings stub so no model is downloaded.
+
+    Skipped for tests that need the real engine.embeddings module:
+    - TestEmbedTexts and TestSerialize test the real dispatch logic and patch
+      internals (_get_model, _serialize) — they must use the real module.
+    - TestReindexGeneratesEmbeddings injects its own stub per-test and cleans
+      up in a finally block, so we leave it alone too.
+
+    For all other tests (test_reindex.py, etc.) we inject the stub so no
+    sentence-transformers download is attempted.
+    """
+    # Classes/modules that need the real engine.embeddings — do not stub
+    skip_classes = {"TestEmbedTexts", "TestSerialize", "TestReindexGeneratesEmbeddings"}
+    cls = request.node.cls
+    if cls is not None and cls.__name__ in skip_classes:
+        yield
+        return
+
+    already_present = "engine.embeddings" in sys.modules
+    if not already_present:
+        fake_mod = types.ModuleType("engine.embeddings")
+        fake_mod.embed_texts = _fake_embed_texts
+        sys.modules["engine.embeddings"] = fake_mod
+    yield
+    # Only remove the stub we injected; leave test-injected mocks for the
+    # test's own finally block to clean up.
+    if not already_present:
+        sys.modules.pop("engine.embeddings", None)
 
 
 @pytest.fixture
