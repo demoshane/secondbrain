@@ -1,7 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><title>Second Brain</title>
-<link rel="stylesheet" href="/ui/style.css"></head>
-<body><div id="app"><p>Loading Second Brain...</p></div>
-<script type="module" src="/ui/app.js"></script>
-</body></html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Second Brain</title>
+  <link rel="stylesheet" href="/ui/style.css">
+  <link rel="stylesheet" href="/ui/vendor/easymde.min.css">
+</head>
+<body>
+  <header id="topbar">
+    <input id="search-input" type="text" placeholder="Search notes (keyword or semantic)..." autocomplete="off">
+    <select id="search-mode">
+      <option value="keyword">Keyword</option>
+      <option value="semantic">Semantic</option>
+    </select>
+    <button id="new-note-btn">+ New Note</button>
+  </header>
+  <div id="layout">
+    <aside id="sidebar">
+      <div id="sidebar-loading">Loading...</div>
+      <ul id="note-list"></ul>
+    </aside>
+    <main id="center">
+      <div id="viewer-toolbar">
+        <button id="edit-btn">Edit</button>
+        <button id="open-editor-btn">Open in Editor</button>
+        <button id="save-btn" style="display:none">Save (Ctrl+S)</button>
+      </div>
+      <div id="viewer"></div>
+      <textarea id="editor-area" style="display:none"></textarea>
+    </main>
+    <aside id="right-panel">
+      <section id="meta-panel">
+        <h3>Backlinks</h3>
+        <ul id="backlinks-list"></ul>
+        <h3>Related</h3>
+        <ul id="related-list"></ul>
+      </section>
+      <section id="actions-panel">
+        <h3>Action Items</h3>
+        <ul id="actions-list"></ul>
+      </section>
+      <section id="intelligence-panel">
+        <h3>Intelligence</h3>
+        <div id="recap-content"></div>
+        <ul id="nudges-list"></ul>
+      </section>
+    </aside>
+  </div>
+  <div id="new-note-modal" style="display:none">
+    <div id="modal-content">
+      <h2>New Note</h2>
+      <label>Title: <input id="modal-title" type="text"></label>
+      <label>Type:
+        <select id="modal-type">
+          <option>idea</option><option>meeting</option><option>person</option>
+          <option>project</option><option>work</option>
+        </select>
+      </label>
+      <label>Body:<br><textarea id="modal-body" rows="6"></textarea></label>
+      <button id="modal-save">Create</button>
+      <button id="modal-cancel">Cancel</button>
+    </div>
+  </div>
+  <script src="/ui/vendor/easymde.min.js"></script>
+  <script type="module" src="/ui/app.js"></script>
+</body>
+</html>
