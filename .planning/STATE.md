@@ -4,7 +4,7 @@ milestone: v1.5
 milestone_name: milestone
 status: verifying
 stopped_at: Completed 10-00-PLAN.md — docstring fix and forget_person .resolve() symlink-safe canonicalization
-last_updated: "2026-03-15T10:43:38.559Z"
+last_updated: "2026-03-15T10:45:11.900Z"
 last_activity: "2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified"
 progress:
   total_phases: 12
