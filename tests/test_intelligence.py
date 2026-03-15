@@ -136,14 +136,16 @@ class TestActionsDone:
 
 
 class TestStaleNudge:
-    def test_get_stale_notes_returns_old_notes(self):
+    def test_get_stale_notes_returns_old_notes(self, tmp_path):
         """get_stale_notes() returns notes with updated_at older than 90 days."""
         from engine.intelligence import get_stale_notes
         conn = _make_db()
         old_date = (datetime.date.today() - datetime.timedelta(days=91)).isoformat() + "T00:00:00Z"
+        note = tmp_path / "old.md"
+        note.write_text("---\ntitle: Old Note\n---\nContent.")
         conn.execute(
             "INSERT INTO notes (path, type, title, body, tags, people, sensitivity, updated_at) VALUES (?,?,?,?,?,?,?,?)",
-            ("/n/old.md", "note", "Old Note", "", "[]", "[]", "public", old_date),
+            (str(note.resolve()), "note", "Old Note", "", "[]", "[]", "public", old_date),
         )
         conn.commit()
         results = get_stale_notes(conn, days=90, limit=5)
