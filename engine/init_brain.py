@@ -257,6 +257,11 @@ def write_mcp_config(sb_mcp_bin: str | None = None, _cfg_path=None) -> None:
     if sb_mcp_bin is None:
         sb_mcp_bin = shutil.which("sb-mcp-server")
     if sb_mcp_bin is None:
+        # Fall back to venv-relative path (common when running via `uv run`)
+        venv_candidate = Path(sys.executable).parent / "sb-mcp-server"
+        if venv_candidate.exists():
+            sb_mcp_bin = str(venv_candidate)
+    if sb_mcp_bin is None:
         print(
             "  [MCP] sb-mcp-server not found in PATH — skipping Claude Desktop config.",
             file=sys.stderr,
