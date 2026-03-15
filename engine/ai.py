@@ -5,7 +5,6 @@ import subprocess
 from pathlib import Path
 
 import engine.router as _router
-from engine.adapters.claude_adapter import ClaudeAdapter
 
 
 # AI-10: system prompts are STATIC — never include user-controlled content.
@@ -130,7 +129,7 @@ def update_memory(note_type: str, summary: str, config_path: Path) -> None:
     Args:
         note_type: Type of note captured.
         summary: Brief summary — must not contain PII.
-        config_path: Path to config.toml (unused for memory, ClaudeAdapter is always used).
+        config_path: Path to config.toml — passed to ModelRouter for public-sensitivity routing (AI-05).
     """
     try:
         system_prompt = (
@@ -139,7 +138,7 @@ def update_memory(note_type: str, summary: str, config_path: Path) -> None:
         )
         user_content = f"Note type: {note_type}. Summary: {summary}"
 
-        adapter = ClaudeAdapter()
+        adapter = _router.get_adapter("public", config_path)  # AI-05: config drives adapter
 
         if not shutil.which("claude"):
             raise RuntimeError("claude CLI not found")
