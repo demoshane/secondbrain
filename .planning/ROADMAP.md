@@ -169,10 +169,40 @@ Plans:
 - [ ] 08-00-PLAN.md — Wave 0: add test confirming routing config affects memory update adapter selection
 - [ ] 08-01-PLAN.md — Wave 1: wire config_path through get_adapter() in update_memory() or remove dead parameter
 
+### Phase 9: Nyquist Sign-off
+**Goal**: All 9 phases reach `nyquist_compliant: true` — VALIDATION.md sign-off checklist completed and verified for every phase
+**Depends on**: Phase 8
+**Requirements**: (tech debt — no new requirements)
+**Tech Debt**: Closes Nyquist compliance gap from v1.5 audit
+
+Plans:
+- [ ] 09-00-PLAN.md — Run /gsd:validate-phase for all 9 phases; update each VALIDATION.md to nyquist_compliant: true
+
+### Phase 10: Quick Code Fixes
+**Goal**: Stale docstring in engine/ai.py removed; forget.py uses .resolve() for consistent path handling
+**Depends on**: Phase 8
+**Requirements**: (tech debt — no new requirements)
+**Tech Debt**: Closes stale docstring and forget.py latent path risk from v1.5 audit
+
+Plans:
+- [ ] 10-00-PLAN.md — Fix engine/ai.py:126 docstring; add .resolve() to brain_root in forget.py forget_person()
+
+### Phase 11: GDPR Scope Expansion
+**Goal**: Implement the three GDPR capabilities that v1.5 scoped narrower than standard: sb-export CLI (data portability), runtime anonymize() function, and first-run consent prompt
+**Depends on**: Phase 10
+**Requirements**: GDPR-02, GDPR-03, GDPR-06
+**Tech Debt**: Closes GDPR definition ambiguity from v1.5 audit
+
+Plans:
+- [ ] 11-00-PLAN.md — Wave 0: test stubs for sb-export, anonymize(), and consent prompt
+- [ ] 11-01-PLAN.md — Wave 1a: implement engine/export.py (sb-export CLI — data portability)
+- [ ] 11-02-PLAN.md — Wave 1b: implement anonymize() in engine/read.py or engine/gdpr.py [parallel with 11-01]
+- [ ] 11-03-PLAN.md — Wave 1c: first-run consent prompt in bootstrap.py or sb-init [parallel with 11-01, 11-02]
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -185,3 +215,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 6. Integration Gap Closure | 2/4 | In Progress|  |
 | 7. Fix Path Format Split | 0/2 | Pending |  |
 | 8. Fix update_memory() Routing Bypass | 0/2 | Pending |  |
+| 9. Nyquist Sign-off | 1/1 | Complete   | 2026-03-15 |
+| 10. Quick Code Fixes | 0/1 | Pending |  |
+| 11. GDPR Scope Expansion | 0/4 | Pending |  |

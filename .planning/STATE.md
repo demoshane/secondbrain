@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 08-01-PLAN.md — update_memory() routes through ModelRouter, AI-05 closed, full suite GREEN
-last_updated: "2026-03-15T09:43:02.921Z"
+stopped_at: "Completed 09-00-PLAN.md — Nyquist sign-off complete, all 10 VALIDATION.md files nyquist_compliant: true"
+last_updated: "2026-03-15T10:24:11.094Z"
 last_activity: "2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified"
 progress:
-  total_phases: 9
-  completed_phases: 9
-  total_plans: 47
-  completed_plans: 47
+  total_phases: 12
+  completed_phases: 10
+  total_plans: 48
+  completed_plans: 48
   percent: 0
 ---
 
@@ -93,6 +93,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 07-fix-path-format-split P01 | 5 | 2 tasks | 1 files |
 | Phase 08-fix-update-memory-routing P00 | 3 | 1 tasks | 1 files |
 | Phase 08-fix-update-memory-routing P01 | 5 | 2 tasks | 1 files |
+| Phase 09-nyquist-sign-off P00 | 5 | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -196,6 +197,7 @@ Recent decisions affecting current work:
 - [Phase 08-fix-update-memory-routing]: Patch engine.router.get_adapter (module ref) in update_memory() tests — consistent with Phase 3/4 pattern
 - [Phase 08-fix-update-memory-routing]: update_memory() hardcodes sensitivity='public' internally — call site in capture.py already guards PII before calling this function
 - [Phase 08-fix-update-memory-routing]: ClaudeAdapter import removed from engine/ai.py — all adapter calls now go through _router.get_adapter module ref
+- [Phase 09-nyquist-sign-off]: Phases with human_needed rows (01, 03, 04, 04.1) carry live-env caveat in Approval — manual-only annotation not blocking nyquist sign-off
 
 ### Pending Todos
 
@@ -210,6 +212,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T09:40:58.879Z
-Stopped at: Completed 08-01-PLAN.md — update_memory() routes through ModelRouter, AI-05 closed, full suite GREEN
+Last session: 2026-03-15T10:24:11.086Z
+Stopped at: Completed 09-00-PLAN.md — Nyquist sign-off complete, all 10 VALIDATION.md files nyquist_compliant: true
 Resume file: None
