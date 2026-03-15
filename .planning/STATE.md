@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Intelligence + GUI Hub
 status: executing
-stopped_at: Completed 16-01-PLAN.md
-last_updated: "2026-03-15T19:21:53.803Z"
+stopped_at: Completed 16-02-PLAN.md
+last_updated: "2026-03-15T19:27:41.981Z"
 last_activity: 2026-03-15 — 14-01 complete (deps + RED scaffold); 14-02 task 1 committed (DDL + config)
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 12
-  completed_plans: 9
+  completed_plans: 10
   percent: 10
 ---
 
@@ -55,6 +55,7 @@ Progress: [█░░░░░░░░░] 10%
 | Phase 15 P03 | 6 | 3 tasks | 4 files |
 | Phase 15 P04 | 8 | 2 tasks | 2 files |
 | Phase 16 P01 | 4 | 2 tasks | 6 files |
+| Phase 16 P02 | 8 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,9 @@ Recent decisions affecting current work:
 - [Phase 15]: INTL-10: check_connections() gated on budget_available() and consumes budget after firing — single-offer-per-day contract fully enforced across all proactive functions
 - [Phase 16]: Wave 0 pattern: import non-existent symbol directly — ImportError/AttributeError is the RED signal for scaffold tests
 - [Phase 16]: TestDigestFlag uses pytest.raises(SystemExit) — engine.read.main() takes no args yet; Plan 04 must update both flag and tests
+- [Phase 16]: search_semantic returns [] when note_embeddings empty; search_hybrid falls back silently to FTS5 in that case
+- [Phase 16]: main() accepts argv parameter for test injection — avoids sys.argv patching in unit tests
+- [Phase 16]: conftest seeded_db seeds 100 note_embeddings rows with stub BLOBs so TestSemanticSearch can assert results > 0 without downloading models
 
 ### Pending Todos
 
@@ -92,6 +96,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T19:21:53.796Z
-Stopped at: Completed 16-01-PLAN.md
+Last session: 2026-03-15T19:27:41.976Z
+Stopped at: Completed 16-02-PLAN.md
 Resume file: None
