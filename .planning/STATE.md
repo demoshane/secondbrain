@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Intelligence + GUI Hub
-status: planning
-stopped_at: Phase 14 context gathered
-last_updated: "2026-03-15T15:33:06.868Z"
-last_activity: 2026-03-15 — v2.0 roadmap created; 6 phases defined (14–19), 47/47 requirements mapped
+status: executing
+stopped_at: Phase 14 plan 14-01 complete; 14-02 partially complete (DDL + config committed, engine/embeddings.py not yet created)
+last_updated: "2026-03-15T16:00:00.000Z"
+last_activity: 2026-03-15 — Phase 14 Wave 1 executing; 14-01 complete, 14-02 task 1 committed
 progress:
   total_phases: 6
   completed_phases: 0
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-15)
 ## Current Position
 
 Phase: 14 of 19 (Embedding Infrastructure)
-Plan: —
-Status: Ready to plan
-Last activity: 2026-03-15 — v2.0 roadmap created; 6 phases defined (14–19), 47/47 requirements mapped
+Plan: 14-02 (in progress)
+Status: Executing Wave 1
+Last activity: 2026-03-15 — 14-01 complete (deps + RED scaffold); 14-02 task 1 committed (DDL + config)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 10%
 
 ## Performance Metrics
 
@@ -59,6 +59,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
 - [v2.0 Roadmap]: pywebview 5.4 chosen over Tauri — PyTauri pre-1.0 (v0.8, Feb 2026); revisit when PyTauri hits 1.0
+- [Phase 14]: Ollama is default embedding provider — fastembed/onnxruntime dropped Intel Mac x86_64 support; fastembed deferred until Apple Silicon migration
+- [Phase 14]: Python pinned to 3.13 via .python-version — PyTorch/onnxruntime have no Python 3.14 wheels; revisit on M-chip
 - [v2.0 Roadmap]: sentence-transformers + all-MiniLM-L6-v2 is primary embedding path; Ollama embeddings are optional GPU-enhanced fallback
 - [v2.0 Roadmap]: Argon2id is the preferred KDF over PBKDF2 — decision to confirm at Phase 14 planning
 - [v2.0 Roadmap]: Only `content_sensitivity: pii` Markdown files are Fernet-encrypted; all other notes remain plaintext (Drive diff/sync compatibility)
