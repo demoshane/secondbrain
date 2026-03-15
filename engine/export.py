@@ -67,7 +67,7 @@ def main() -> None:
     args = parser.parse_args()
 
     from engine.paths import BRAIN_ROOT
-    from engine.db import get_connection
+    from engine.db import get_connection, init_schema
 
     brain_root = args.brain_root if args.brain_root is not None else BRAIN_ROOT
 
@@ -78,6 +78,7 @@ def main() -> None:
         output_path = args.output
 
     conn = get_connection()
+    init_schema(conn)
     try:
         count = export_brain(brain_root, conn, output_path)
     finally:

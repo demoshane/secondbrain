@@ -38,7 +38,7 @@ def reindex_brain(brain_root: Path, conn=None) -> dict:
             post = frontmatter.load(str(md_path))
             meta = post.metadata
 
-            note_path = str(md_path)
+            note_path = str(md_path.resolve())
 
             tags = meta.get("tags", [])
             if isinstance(tags, list):
@@ -46,19 +46,26 @@ def reindex_brain(brain_root: Path, conn=None) -> dict:
             else:
                 tags_json = json.dumps([str(tags)])
 
+            people = meta.get("people", [])
+            if isinstance(people, list):
+                people_json = json.dumps(people)
+            else:
+                people_json = json.dumps([str(people)])
+
             now = datetime.datetime.utcnow().isoformat()
 
             conn.execute(
                 """
-                INSERT INTO notes (path, type, title, body, tags, created_at, updated_at, sensitivity)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO notes (path, type, title, body, tags, created_at, updated_at, sensitivity, people)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(path) DO UPDATE SET
                     type=excluded.type,
                     title=excluded.title,
                     body=excluded.body,
                     tags=excluded.tags,
                     updated_at=excluded.updated_at,
-                    sensitivity=excluded.sensitivity
+                    sensitivity=excluded.sensitivity,
+                    people=excluded.people
                 """,
                 (
                     note_path,
@@ -69,6 +76,7 @@ def reindex_brain(brain_root: Path, conn=None) -> dict:
                     meta.get("created_at", now),
                     now,
                     meta.get("content_sensitivity", "public"),
+                    people_json,
                 ),
             )
             indexed += 1
