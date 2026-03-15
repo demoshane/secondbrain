@@ -1,0 +1,166 @@
+# Requirements: Second Brain
+
+**Defined:** 2026-03-15
+**Core Value:** Zero-friction capture that surfaces the right context at the right moment
+**Milestone:** v2.0 — Intelligence + GUI Hub
+
+## v2.0 Requirements
+
+### Embeddings Infrastructure
+
+- [ ] **EMBED-01**: User can reindex brain with vector embeddings via `sb-reindex`
+- [ ] **EMBED-02**: Embeddings are generated locally using `all-MiniLM-L6-v2` — no cloud call
+- [ ] **EMBED-03**: Stale embeddings are detected via content-hash and re-embedded on next reindex
+- [ ] **EMBED-04**: `sb-forget` cascades to remove embeddings for deleted notes
+
+### Intelligence
+
+- [ ] **INTL-01**: User sees a once-per-session recap offer in Claude Code when working in a known context
+- [ ] **INTL-02**: User can run `sb-recap` to get a summary of recent activity in the detected context
+- [ ] **INTL-03**: Action items are extracted from meeting notes at capture time
+- [ ] **INTL-04**: User can list open action items via `sb-actions`
+- [ ] **INTL-05**: User can mark action items complete via `sb-actions --done <id>`
+- [ ] **INTL-06**: User is nudged about notes not accessed/updated in 90 days (max 5 nudges per session)
+- [ ] **INTL-07**: Notes with `evergreen: true` frontmatter are exempt from stale nudges
+- [ ] **INTL-08**: Stale nudge rechecks at 180 days if not acted on
+- [ ] **INTL-09**: User sees a connection suggestion after capturing a note that closely matches an existing note
+- [ ] **INTL-10**: All proactive features share a single notification budget — one unsolicited offer per session
+
+### Search
+
+- [ ] **SRCH-01**: User can run `sb-search --semantic` for vector-enhanced search
+- [ ] **SRCH-02**: Hybrid search merges BM25 and vector results via Reciprocal Rank Fusion
+- [ ] **SRCH-03**: User can run `sb-recap <name>` for cross-context synthesis across all notes about a person or project
+- [ ] **SRCH-04**: Cross-context synthesis routes PII notes through Ollama only
+
+### Digest
+
+- [ ] **DIAG-01**: Weekly digest is generated automatically and saved to `.meta/digests/`
+- [ ] **DIAG-02**: Digest includes: notes captured this week, key themes, open actions, stale items
+- [ ] **DIAG-03**: User can read the latest digest via `sb-read --digest latest`
+- [ ] **DIAG-04**: Digest generation routes PII note summaries through Ollama
+
+### Setup Automation
+
+- [ ] **SETUP-01**: `sb-init` auto-detects Google Drive path on macOS and Windows
+- [ ] **SETUP-02**: `sb-init` exits with a clear error if Drive is not found — no silent fallback to wrong path
+- [ ] **SETUP-03**: `sb-init` auto-installs Ollama if not present
+- [ ] **SETUP-04**: `sb-init` warns user if embedding model download will take significant time (~800MB first install)
+
+### GUI Hub
+
+- [ ] **GUI-01**: User can launch brain GUI via `sb-gui` on macOS and Windows
+- [ ] **GUI-02**: GUI displays notes browsable by folder/type in a sidebar
+- [ ] **GUI-03**: User can search notes from the GUI (keyword + semantic)
+- [ ] **GUI-04**: User can edit notes inline with WYSIWYG Markdown editing — changes saved atomically
+- [ ] **GUI-05**: GUI shows backlinks and related notes for the currently open note
+- [ ] **GUI-06**: User can create new notes of any type (meeting, project, person, idea, etc.) from the GUI
+- [ ] **GUI-07**: User can browse binary files organized by mirrored subfolder structure (`files/meetings/`, `files/projects/`, etc.)
+- [ ] **GUI-08**: User can move/recategorize files between subfolders in the GUI
+- [ ] **GUI-09**: GUI shows action items panel — user can view and mark items done
+- [ ] **GUI-10**: GUI shows intelligence panel (recent recap, stale nudges)
+- [ ] **GUI-11**: GUI opens note in system default editor as an alternative to inline editing
+
+### MCP Server
+
+- [ ] **MCP-01**: User can connect brain to Claude Desktop and Claude.ai via `sb-mcp-server`
+- [ ] **MCP-02**: `sb-init` auto-writes Claude Desktop MCP config
+- [ ] **MCP-03**: MCP exposes full feature parity with GUI — search, capture (any type), read, edit, create, forget, recap, digest, connections, action items, file listing
+- [ ] **MCP-04**: Destructive tools (`sb-forget`, `sb-anonymize`) require two-step confirmation with a 60-second token
+- [ ] **MCP-05**: PII routing is inherited from existing ModelRouter — no new bypass
+- [ ] **MCP-06**: MCP server returns structured errors with error codes — never silently fails or returns partial data
+- [ ] **MCP-07**: All tool inputs are validated before execution — type, path, size limits enforced
+- [ ] **MCP-08**: Transient failures (DB locked, Ollama timeout) are retried with exponential backoff before returning an error
+- [ ] **MCP-09**: Write tools are idempotent — calling `sb-capture` twice with the same content does not create duplicates
+- [ ] **MCP-10**: MCP server logs all tool calls to the existing audit log
+
+## v3.0 Requirements
+
+### Encryption at Rest
+
+- **ENCR-01**: SQLite `brain.db` encrypted with SQLCipher AES-256; passphrase in OS keychain
+- **ENCR-02**: Markdown files with `content_sensitivity: pii` encrypted with Fernet at file level
+- **ENCR-03**: Migration from unencrypted v2.0 `brain.db` with rollback path
+
+### Future Intelligence
+
+- **FUTL-01**: Calendar integration for session recap (Google Calendar / Outlook)
+- **FUTL-02**: Push notifications to macOS notification center
+- **FUTL-03**: Auto-push digest to email/Slack
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Obsidian sync | Third-party dependency; no clear benefit over native CLI |
+| GUI as primary CRUD replacing CLI | Duplicates engine; kills zero-friction value for developer persona |
+| Real-time connection surfacing on every keystroke | Noise; surface at capture completion only |
+| Auto Drive conflict resolution | Auto-merge risks data loss; append-only writes are the correct pattern |
+| Calendar sync | OAuth complexity; separate integration project |
+| Mobile access | Desktop-only |
+| Team / shared brain | Single-user only |
+| Cloud-hosted brain | Local-first is a hard constraint |
+| Public sharing | Brain content is private by design |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| EMBED-01 | — | Pending |
+| EMBED-02 | — | Pending |
+| EMBED-03 | — | Pending |
+| EMBED-04 | — | Pending |
+| INTL-01 | — | Pending |
+| INTL-02 | — | Pending |
+| INTL-03 | — | Pending |
+| INTL-04 | — | Pending |
+| INTL-05 | — | Pending |
+| INTL-06 | — | Pending |
+| INTL-07 | — | Pending |
+| INTL-08 | — | Pending |
+| INTL-09 | — | Pending |
+| INTL-10 | — | Pending |
+| SRCH-01 | — | Pending |
+| SRCH-02 | — | Pending |
+| SRCH-03 | — | Pending |
+| SRCH-04 | — | Pending |
+| DIAG-01 | — | Pending |
+| DIAG-02 | — | Pending |
+| DIAG-03 | — | Pending |
+| DIAG-04 | — | Pending |
+| SETUP-01 | — | Pending |
+| SETUP-02 | — | Pending |
+| SETUP-03 | — | Pending |
+| SETUP-04 | — | Pending |
+| GUI-01 | — | Pending |
+| GUI-02 | — | Pending |
+| GUI-03 | — | Pending |
+| GUI-04 | — | Pending |
+| GUI-05 | — | Pending |
+| GUI-06 | — | Pending |
+| GUI-07 | — | Pending |
+| GUI-08 | — | Pending |
+| GUI-09 | — | Pending |
+| GUI-10 | — | Pending |
+| GUI-11 | — | Pending |
+| MCP-01 | — | Pending |
+| MCP-02 | — | Pending |
+| MCP-03 | — | Pending |
+| MCP-04 | — | Pending |
+| MCP-05 | — | Pending |
+| MCP-06 | — | Pending |
+| MCP-07 | — | Pending |
+| MCP-08 | — | Pending |
+| MCP-09 | — | Pending |
+| MCP-10 | — | Pending |
+
+**Coverage:**
+- v2.0 requirements: 47 total
+- Mapped to phases: 0
+- Unmapped: 47 ⚠️
+
+---
+*Requirements defined: 2026-03-15*
+*Last updated: 2026-03-15 after initial definition*
