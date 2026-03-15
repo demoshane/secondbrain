@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 12-02-PLAN.md — init_schema call added in export.py main()
-last_updated: "2026-03-15T12:01:28.355Z"
+stopped_at: Completed 12-01-PLAN.md — sb-anonymize and sb-update-memory CLI entry points registered, ai.py main() added
+last_updated: "2026-03-15T12:02:01.297Z"
 last_activity: "2026-03-14 — Phase 04.1 complete: native macOS UX, global CLI, launchd autostart, git hook installer verified"
 progress:
   total_phases: 14
   completed_phases: 12
   total_plans: 58
-  completed_plans: 55
+  completed_plans: 56
   percent: 0
 ---
 
@@ -99,6 +99,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 11-gdpr-scope-expansion P03 | 15 | 2 tasks | 2 files |
 | Phase 12-micro-code-fixes P00 | 15 | 2 tasks | 4 files |
 | Phase 12-micro-code-fixes P02 | 5 | 1 tasks | 2 files |
+| Phase 12-micro-code-fixes P01 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -217,6 +218,8 @@ Recent decisions affecting current work:
 - [Phase 12-micro-code-fixes]: test_reindex_stores_absolute_paths was already present — not duplicated; only test_reindex_preserves_people_column added in plan 12-00
 - [Phase 12-micro-code-fixes]: Wave 0 test_export_initialises_schema_on_fresh_db passes by design — confirms OperationalError exists (bug present), fix goes in main() not export_brain()
 - [Phase 12-micro-code-fixes]: init_schema called in main() not export_brain() — library function receives a ready conn; callers own schema lifecycle
+- [Phase 12-micro-code-fixes]: sb-anonymize entry point wired to engine.anonymize:main (already existed — no new code needed)
+- [Phase 12-micro-code-fixes]: config_path in ai.py main() defaults to BRAIN_ROOT/.meta/config.toml matching engine/ pattern; lazy import avoids circular import risk
 
 ### Pending Todos
 
@@ -231,6 +234,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T12:01:28.338Z
-Stopped at: Completed 12-02-PLAN.md — init_schema call added in export.py main()
+Last session: 2026-03-15T12:02:01.283Z
+Stopped at: Completed 12-01-PLAN.md — sb-anonymize and sb-update-memory CLI entry points registered, ai.py main() added
 Resume file: None
