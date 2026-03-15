@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Intelligence + GUI Hub
 status: executing
-stopped_at: Phase 14 context gathered
-last_updated: "2026-03-15T16:51:12.325Z"
+stopped_at: Phase 15 context gathered
+last_updated: "2026-03-15T17:23:56.650Z"
 last_activity: 2026-03-15 — 14-01 complete (deps + RED scaffold); 14-02 task 1 committed (DDL + config)
 progress:
   total_phases: 6
@@ -79,6 +79,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-15T15:33:06.862Z
-Stopped at: Phase 14 context gathered
-Resume file: .planning/phases/14-embedding-infrastructure/14-CONTEXT.md
+Last session: 2026-03-15T17:23:56.645Z
+Stopped at: Phase 15 context gathered
+Resume file: .planning/phases/15-intelligence-layer/15-CONTEXT.md
