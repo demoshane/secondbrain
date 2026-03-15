@@ -152,3 +152,29 @@ def update_memory(note_type: str, summary: str, config_path: Path) -> None:
         )
     except Exception as e:
         print(f"Memory update skipped: {type(e).__name__}")
+
+
+def main() -> None:
+    import argparse
+    from engine.paths import BRAIN_ROOT
+
+    parser = argparse.ArgumentParser(
+        prog="sb-update-memory",
+        description="Update Claude memory file with a note summary.",
+    )
+    parser.add_argument("--note-type", dest="note_type", required=True,
+                        help="Content type of the captured note (e.g. coding, people, meeting)")
+    parser.add_argument("--summary", required=True,
+                        help="Summary text to record in memory")
+    parser.add_argument("--config-path", dest="config_path", default=None,
+                        help="Path to config.toml (default: BRAIN_ROOT/.meta/config.toml)")
+    args = parser.parse_args()
+
+    config_path: Path = (
+        Path(args.config_path) if args.config_path else BRAIN_ROOT / ".meta" / "config.toml"
+    )
+    update_memory(args.note_type, args.summary, config_path)
+
+
+if __name__ == "__main__":
+    main()
