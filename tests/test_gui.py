@@ -109,10 +109,34 @@ def test_sse_live_refresh(page, live_server_url, gui_brain, seed_note_fn):
     assert page.locator("#note-list li[data-path]").count() > initial_count
 
 
-@pytest.mark.xfail(reason="Wave 3: not yet implemented")
 def test_delete_flow(page, live_server_url, gui_brain, seed_note_fn):
     """SC-6: delete shows modal; confirm removes; cancel keeps."""
-    pytest.skip("Wave 3")
+    seed_note_fn(gui_brain, "Note To Delete", "delete me")
+
+    page.goto("/ui")
+    page.wait_for_selector("#sidebar-loading", state="hidden", timeout=5000)
+
+    # Open the note
+    page.locator("#note-list li[data-path]", has_text="Note To Delete").first.click()
+    page.locator("#viewer").wait_for(state="visible", timeout=3000)
+
+    # --- Cancel path ---
+    page.locator("#delete-btn").click()
+    page.locator("#delete-note-modal").wait_for(state="visible", timeout=2000)
+    page.locator("#delete-modal-cancel").click()
+    page.locator("#delete-note-modal").wait_for(state="hidden", timeout=2000)
+    # Note still in sidebar after cancel
+    assert page.locator("#note-list li[data-path]", has_text="Note To Delete").count() >= 1
+
+    # --- Confirm path ---
+    page.locator("#delete-btn").click()
+    page.locator("#delete-note-modal").wait_for(state="visible", timeout=2000)
+    page.locator("#delete-modal-confirm").click()
+    # Modal closes and note disappears from sidebar
+    page.locator("#delete-note-modal").wait_for(state="hidden", timeout=3000)
+    page.locator("#note-list li[data-path]", has_text="Note To Delete").wait_for(
+        state="detached", timeout=3000
+    )
 
 
 @pytest.mark.xfail(reason="Wave 4: not yet implemented")
