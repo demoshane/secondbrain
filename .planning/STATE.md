@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 23-04-PLAN.md
-last_updated: "2026-03-16T20:08:46.675Z"
+stopped_at: Completed 24-01-PLAN.md
+last_updated: "2026-03-16T20:36:00.801Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
-  total_phases: 8
+  total_phases: 9
   completed_phases: 4
-  total_plans: 17
-  completed_plans: 17
+  total_plans: 21
+  completed_plans: 18
   percent: 99
 ---
 
@@ -60,6 +60,7 @@ Progress: [██████████] 99%
 | Phase 23 P02 | 5 | 2 tasks | 2 files |
 | Phase 23 P03 | 8 | 2 tasks | 3 files |
 | Phase 23 P04 | 25 | 2 tasks | 3 files |
+| Phase 24-playwright-gui-test-suite P01 | 15 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,9 @@ Recent decisions affecting current work:
 - [Phase 23]: [23-04] Collapse state stored server-side in .sb-gui-prefs.json — localStorage unreliable in pywebview WKWebView
 - [Phase 23]: [23-04] POST /notes immediately INSERTs into SQLite; watcher remains as secondary sync
 - [Phase 23]: [23-04] Tag autocomplete uses HTML5 datalist — zero deps, native WKWebView support
+- [Phase 24-01]: window.API_BASE injected by /ui route using request.host_url.rstrip('/'); app.js uses || fallback so production pywebview is unchanged
+- [Phase 24-01]: engine._db does not exist; DB_PATH lives in engine.paths — patch both engine.db.DB_PATH and engine.paths.DB_PATH for session-scoped GUI test isolation
+- [Phase 24-01]: Flask GUI test server started via daemon thread (not pytest-flask live_server) to avoid playwright teardown hang
 
 ### Roadmap Evolution
 
@@ -123,8 +127,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-16T19:10:50.838Z
-Stopped at: Completed 23-04-PLAN.md
+Last session: 2026-03-16T20:36:00.794Z
+Stopped at: Completed 24-01-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
