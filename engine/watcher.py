@@ -2,6 +2,7 @@
 
 Run as: sb-watch (separate daemon process, not part of sb-capture)
 """
+import os
 import threading
 import time
 from pathlib import Path
@@ -76,6 +77,68 @@ class FilesDropHandler(FileSystemEventHandler):
                 )
                 self._batch_timer = retry_timer
             retry_timer.start()
+
+
+DEBOUNCE_MS = 0.3  # seconds (named for clarity; value is in seconds)
+
+
+class NoteChangeHandler(FileSystemEventHandler):
+    """Watch brain directory for .md note changes; debounce and broadcast events.
+
+    Ignores non-.md files and any path containing a 'files/' path segment.
+    Debounces rapid modifications: per-path 300ms timer is reset on each event,
+    so only the last event in a burst triggers _broadcast.
+
+    Args:
+        broadcast_fn: Callable[dict] -> None — called with {"type": event_type, "path": rel_path}.
+    """
+
+    def __init__(self, broadcast_fn):
+        self._broadcast = broadcast_fn
+        self._timers: dict[str, threading.Timer] = {}
+        self._lock = threading.Lock()
+
+    def _is_note(self, path: str) -> bool:
+        """Return True only if path ends with .md and has no 'files' segment."""
+        p = Path(path)
+        if not path.endswith(".md"):
+            return False
+        if "files" in p.parts:
+            return False
+        return True
+
+    def _schedule(self, event_type: str, src_path: str) -> None:
+        if not self._is_note(src_path):
+            return
+        with self._lock:
+            existing = self._timers.get(src_path)
+            if existing is not None:
+                existing.cancel()
+            timer = threading.Timer(DEBOUNCE_MS, self._fire, args=(event_type, src_path))
+            self._timers[src_path] = timer
+        timer.start()
+
+    def _fire(self, event_type: str, src_path: str) -> None:
+        with self._lock:
+            self._timers.pop(src_path, None)
+        brain_root = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
+        try:
+            rel = Path(src_path).relative_to(brain_root)
+        except ValueError:
+            rel = Path(src_path)
+        self._broadcast({"type": event_type, "path": str(rel)})
+
+    def on_created(self, event) -> None:
+        if not event.is_directory:
+            self._schedule("created", event.src_path)
+
+    def on_modified(self, event) -> None:
+        if not event.is_directory:
+            self._schedule("modified", event.src_path)
+
+    def on_deleted(self, event) -> None:
+        if not event.is_directory:
+            self._schedule("deleted", event.src_path)
 
 
 def start_watcher(watch_dir: Path, on_new_file) -> Observer:
