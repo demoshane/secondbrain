@@ -3,6 +3,7 @@ const API = 'http://127.0.0.1:37491';
 let currentPath = null;
 let easyMDE = null;
 let brainPath = null;
+let isDirty = false;
 
 // --- Sidebar ---
 async function loadNotes() {
@@ -66,6 +67,7 @@ async function openNote(path) {
 function renderMarkdown(md) {
     // EasyMDE bundles marked — use it directly
     const viewer = document.getElementById('viewer');
+    if (md == null) { viewer.innerHTML = '<em>Note body missing — restart the server and reload.</em>'; viewer.style.display = ''; return; }
     if (typeof marked !== 'undefined') {
         viewer.innerHTML = marked.parse(md);
     } else {
@@ -96,6 +98,8 @@ async function enterEditMode() {
         spellChecker: false,
         toolbar: ['bold','italic','heading','|','preview','side-by-side','|','guide'],
     });
+    isDirty = false;
+    easyMDE.codemirror.on('change', () => { isDirty = true; });
     document.getElementById('save-btn').style.display = '';
     document.getElementById('edit-btn').style.display = 'none';
     // Ctrl+S / Cmd+S to save
@@ -123,6 +127,7 @@ async function saveNote() {
         body: JSON.stringify({ content: md }),
     });
     if (res.ok) {
+        isDirty = false;
         exitEditMode();
         await loadNotes();
         document.querySelectorAll('#note-list li[data-path]').forEach(el => {
@@ -229,7 +234,89 @@ window.addEventListener('pywebviewready', () => {
 // Hide open-in-editor button until pywebviewready fires
 document.getElementById('open-editor-btn').style.display = 'none';
 
+// --- SSE live refresh ---
+function updateStatusDot(connected) {
+    const dot = document.getElementById('sse-status');
+    if (!dot) return;
+    dot.classList.toggle('sse-connected', connected);
+    dot.classList.toggle('sse-disconnected', !connected);
+}
+
+function showConflictBanner(path) {
+    const viewer = document.getElementById('viewer');
+    const banner = document.createElement('div');
+    banner.id = 'conflict-banner';
+    banner.style.cssText = 'background:#fff3cd;border:1px solid #ffc107;padding:8px 12px;margin-bottom:8px;border-radius:4px;';
+    banner.innerHTML = 'Note was updated externally. '
+        + '<button id="conflict-keep">Keep my edits</button> '
+        + '<button id="conflict-load">Load new version</button>';
+    // Remove existing banner if any
+    const existing = document.getElementById('conflict-banner');
+    if (existing) existing.remove();
+    viewer.parentNode.insertBefore(banner, viewer);
+    document.getElementById('conflict-keep').onclick = () => banner.remove();
+    document.getElementById('conflict-load').onclick = () => {
+        banner.remove();
+        isDirty = false;
+        exitEditMode();
+        openNote(path);
+    };
+}
+
+function handleNoteEvent({ type, path }) {
+    // Always refresh sidebar silently
+    loadNotes();
+
+    if (!currentPath) return;
+
+    // Match: currentPath is absolute, path is relative — use endsWith
+    const matchesCurrent = currentPath.endsWith('/' + path) || currentPath === path;
+    if (!matchesCurrent) return;
+
+    if (type === 'deleted') {
+        currentPath = null;
+        document.getElementById('viewer').innerHTML = '<em>Note was deleted.</em>';
+        exitEditMode();
+        return;
+    }
+
+    if (type === 'modified' || type === 'created') {
+        if (isDirty) {
+            showConflictBanner(currentPath);
+        } else {
+            openNote(currentPath);
+        }
+    }
+}
+
+let _sseWasConnected = false;
+
+function connectSSE() {
+    const evtSource = new EventSource(`${API}/events`);
+
+    evtSource.onopen = () => {
+        const wasDisconnected = !_sseWasConnected;
+        _sseWasConnected = true;
+        updateStatusDot(true);
+        if (wasDisconnected) loadNotes();  // catch missed events on reconnect
+    };
+
+    evtSource.addEventListener('note', (e) => {
+        try {
+            const event = JSON.parse(e.data);
+            handleNoteEvent(event);
+        } catch (_) {}
+    });
+
+    evtSource.onerror = () => {
+        _sseWasConnected = false;
+        updateStatusDot(false);
+        // EventSource auto-reconnects; onopen will fire again
+    };
+}
+
 // --- Init ---
 loadNotes();
 loadActions();
 loadIntelligence();
+connectSSE();

@@ -15,6 +15,7 @@
       <option value="semantic">Semantic</option>
     </select>
     <button id="new-note-btn">+ New Note</button>
+    <span id="sse-status" class="sse-dot sse-disconnected" title="Live refresh"></span>
   </header>
   <div id="layout">
     <aside id="sidebar">
@@ -64,6 +65,7 @@
       <button id="modal-cancel">Cancel</button>
     </div>
   </div>
+  <script src="/ui/vendor/marked.min.js"></script>
   <script src="/ui/vendor/easymde.min.js"></script>
   <script type="module" src="/ui/app.js"></script>
 </body>
