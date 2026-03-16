@@ -170,3 +170,110 @@ def mock_subprocess_claude():
         stderr="",
     )
     return patch("subprocess.run", return_value=mock_result)
+
+
+# ---------------------------------------------------------------------------
+# Phase 24: Playwright GUI test fixtures
+# ---------------------------------------------------------------------------
+import os
+import socket
+import threading
+import time
+import json
+import datetime
+
+
+@pytest.fixture(scope="session", autouse=False)
+def gui_brain(tmp_path_factory):
+    """Session-scoped temp brain dir. Sets BRAIN_PATH + DB_PATH before Flask starts.
+
+    Must be listed as dependency of live_server_url to guarantee ordering.
+    autouse=False — only activates when live_server_url or test_gui.py requests it.
+    """
+    from pathlib import Path as _Path
+    import engine.db as _db
+    import engine.paths as _paths
+    brain = tmp_path_factory.mktemp("gui_brain")
+    for d in ["ideas", "meetings", "projects", "people", "work", "files"]:
+        (brain / d).mkdir(parents=True, exist_ok=True)
+    # Set BRAIN_PATH so Flask route handlers resolve correct brain dir
+    os.environ["BRAIN_PATH"] = str(brain)
+    # Patch DB_PATH on both engine.paths and engine.db so get_connection() uses tmp db
+    tmp_db = _Path(str(brain / "index.db"))
+    _paths.DB_PATH = tmp_db
+    _db.DB_PATH = tmp_db
+    # Init schema so the DB is ready before Flask starts
+    from engine.db import init_schema, get_connection
+    conn = get_connection()
+    init_schema(conn)
+    conn.close()
+    return brain
+
+
+@pytest.fixture(scope="session")
+def live_server_url(gui_brain):
+    """Start Flask in a daemon thread; return base URL like http://127.0.0.1:PORT.
+
+    Uses threading.Thread(daemon=True) — NOT pytest-flask live_server which has a
+    documented teardown hang with playwright-pytest (github.com/microsoft/playwright-pytest/issues/187).
+    gui_brain is listed as dependency to guarantee BRAIN_PATH is set before app.run().
+    """
+    from engine.api import app as flask_app
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+
+    t = threading.Thread(
+        target=lambda: flask_app.run(
+            host="127.0.0.1", port=port, use_reloader=False, threaded=True
+        ),
+        daemon=True,
+    )
+    t.start()
+    # Wait for server to accept connections
+    for _ in range(20):
+        try:
+            import urllib.request
+            urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=1)
+            break
+        except Exception:
+            time.sleep(0.1)
+    return f"http://127.0.0.1:{port}"
+
+
+@pytest.fixture(scope="session")
+def base_url(live_server_url):
+    """Override pytest-playwright base_url fixture to point at test server."""
+    return live_server_url
+
+
+@pytest.fixture(scope="session")
+def seed_note_fn(gui_brain):
+    """Return a callable seed_note(brain, title, body, tags=None) -> str path.
+
+    Writes .md file to brain/ideas/ and inserts into SQLite.
+    Returns absolute path string.
+    """
+    from engine.db import get_connection
+
+    def seed_note(brain, title: str, body: str, tags=None):
+        tags = tags or []
+        slug = title.lower().replace(" ", "-").replace("/", "-")
+        note_file = brain / "ideas" / f"{slug}.md"
+        now = datetime.datetime.utcnow().isoformat()
+        note_file.write_text(
+            f"---\ntitle: {title}\ntags: {json.dumps(tags)}\ntype: idea\n---\n\n{body}\n",
+            encoding="utf-8",
+        )
+        conn = get_connection()
+        conn.execute(
+            "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+            " VALUES (?,?,?,?,?,?,?)",
+            (str(note_file), title, "idea", body, json.dumps(tags), now, now),
+        )
+        conn.commit()
+        conn.close()
+        return str(note_file)
+
+    return seed_note
