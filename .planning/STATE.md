@@ -78,7 +78,8 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+- Fix sb-recap returning nothing despite existing entries (general)
+- Fix sb_edit wiping YAML frontmatter (general)
 
 ### Blockers/Concerns
 
