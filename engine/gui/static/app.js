@@ -4,6 +4,9 @@ let currentPath = null;
 let easyMDE = null;
 let brainPath = null;
 let isDirty = false;
+let activeTagFilter = null;
+let _suppressNextTagRefresh = false;
+let _allNotes = []; // module-level cache of all notes from last loadNotes()
 
 // --- Sidebar collapse state ---
 function getCollapseState() {
@@ -33,13 +36,19 @@ function folderName(notePath) {
 async function loadNotes() {
     const res = await fetch(`${API}/notes`);
     const { notes } = await res.json();
+    _allNotes = notes;
     // Derive brain_path from the first note path (strip deepest components)
     if (notes.length && !brainPath) {
         const parts = notes[0].path.split('/');
         // Heuristic: brain root is 2 levels up from note path
         brainPath = parts.slice(0, -2).join('/') || '/';
     }
-    renderHierarchySidebar(notes);
+    // If tag filter is active, re-apply it after reload; don't blow away the filter view
+    if (activeTagFilter) {
+        runTagFilter(activeTagFilter);
+    } else {
+        renderHierarchySidebar(notes);
+    }
 }
 
 // Flat list used by search results and tag-filter mode
@@ -188,6 +197,125 @@ function renderHierarchySidebar(notes) {
     document.getElementById('sidebar-loading').style.display = 'none';
 }
 
+// --- Tag chips ---
+
+function renderTagChips(tags, notePath) {
+    const container = document.getElementById('tag-chips');
+    if (!container) return;
+    container.innerHTML = '';
+    const tagsCopy = [...tags];
+
+    tagsCopy.forEach((tag, idx) => {
+        const chip = document.createElement('span');
+        chip.className = 'tag-chip';
+        chip.textContent = '#' + tag;
+        chip.addEventListener('click', () => activateTagFilter(tag));
+        chip.addEventListener('dblclick', (e) => {
+            e.stopPropagation();
+            makeChipEditable(chip, idx, tagsCopy, notePath);
+        });
+        container.appendChild(chip);
+    });
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'tag-add-btn';
+    addBtn.textContent = '+ Add tag';
+    addBtn.addEventListener('click', () => addNewTag(tagsCopy, notePath));
+    container.appendChild(addBtn);
+}
+
+function makeChipEditable(chipEl, tagIndex, allTags, notePath) {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'tag-chip-input';
+    input.value = allTags[tagIndex];
+    chipEl.replaceWith(input);
+    input.focus();
+    input.select();
+
+    let committed = false;
+    function commit() {
+        if (committed) return;
+        committed = true;
+        const newVal = input.value.trim();
+        if (newVal && newVal !== allTags[tagIndex]) {
+            allTags[tagIndex] = newVal;
+            saveTags([...allTags], notePath);
+        } else {
+            renderTagChips(allTags, notePath);
+        }
+    }
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        if (e.key === 'Escape') { committed = true; renderTagChips(allTags, notePath); }
+    });
+    input.addEventListener('blur', commit);
+}
+
+function addNewTag(allTags, notePath) {
+    const container = document.getElementById('tag-chips');
+    if (!container) return;
+    // Remove the add button temporarily
+    const addBtn = container.querySelector('.tag-add-btn');
+    if (addBtn) addBtn.remove();
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'tag-chip-input';
+    input.placeholder = 'new tag';
+    container.appendChild(input);
+    input.focus();
+
+    let committed = false;
+    function commit() {
+        if (committed) return;
+        committed = true;
+        const newVal = input.value.trim();
+        if (newVal) {
+            const updatedTags = [...allTags, newVal];
+            saveTags(updatedTags, notePath);
+        } else {
+            renderTagChips(allTags, notePath);
+        }
+    }
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        if (e.key === 'Escape') { committed = true; renderTagChips(allTags, notePath); }
+    });
+    input.addEventListener('blur', commit);
+}
+
+async function saveTags(tags, notePath) {
+    _suppressNextTagRefresh = true;
+    // Optimistic update: update cache and re-render chips immediately
+    const cachedNote = _allNotes.find(n => n.path === notePath);
+    if (cachedNote) cachedNote.tags = tags;
+    renderTagChips(tags, notePath);
+
+    const res = await fetch(`${API}/notes/${encodeURIComponent(notePath)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags }),
+    });
+
+    if (!res.ok) {
+        // Failure: flash error, revert
+        _suppressNextTagRefresh = false;
+        const container = document.getElementById('tag-chips');
+        if (container) {
+            container.classList.add('tag-save-error');
+            setTimeout(() => container.classList.remove('tag-save-error'), 1500);
+        }
+        // Revert cache
+        if (cachedNote) {
+            // Re-fetch from server on failure; use original tags if available
+            cachedNote.tags = tags; // best-effort: leave as-is, server has truth
+        }
+    }
+}
+
 // --- Note viewer ---
 async function openNote(path) {
     currentPath = path;
@@ -200,6 +328,9 @@ async function openNote(path) {
     if (!res.ok) { document.getElementById('viewer').innerHTML = '<em>Error loading note.</em>'; return; }
     const { body } = await res.json();
     renderMarkdown(body);
+    // Render tag chips using cached notes (GET /notes/<path> doesn't return tags)
+    const cachedNote = _allNotes.find(n => n.path === path);
+    renderTagChips(cachedNote ? (cachedNote.tags || []) : [], path);
     loadMeta(path);
     loadActions();
     loadIntelligence();
@@ -439,6 +570,9 @@ function handleNoteEvent({ type, path }) {
             // isDirty but editor already closed (defensive: treat as conflict)
             showConflictBanner(currentPath);
         } else {
+            // Tag save triggers a modified event; suppress one re-render to avoid
+            // destroying an in-progress chip edit
+            if (_suppressNextTagRefresh) { _suppressNextTagRefresh = false; return; }
             openNote(currentPath);
         }
     }
