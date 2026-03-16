@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 23-03-PLAN.md
-last_updated: "2026-03-16T18:46:14.070Z"
+stopped_at: Completed 23-04-PLAN.md
+last_updated: "2026-03-16T19:10:56.282Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 8
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 17
-  completed_plans: 16
+  completed_plans: 17
   percent: 99
 ---
 
@@ -59,6 +59,7 @@ Progress: [██████████] 99%
 | Phase 23 P01 | 6 | 2 tasks | 2 files |
 | Phase 23 P02 | 5 | 2 tasks | 2 files |
 | Phase 23 P03 | 8 | 2 tasks | 3 files |
+| Phase 23 P04 | 25 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,9 @@ Recent decisions affecting current work:
 - [Phase 23]: GET /notes/<path> no tags; use _allNotes cache for chip display
 - [Phase 23]: Single-click chip = filter; double-click = inline edit to prevent accidental filter trigger
 - [Phase 23]: _suppressNextTagRefresh skips one SSE event after tag save to protect in-progress chip edit
+- [Phase 23]: [23-04] Collapse state stored server-side in .sb-gui-prefs.json — localStorage unreliable in pywebview WKWebView
+- [Phase 23]: [23-04] POST /notes immediately INSERTs into SQLite; watcher remains as secondary sync
+- [Phase 23]: [23-04] Tag autocomplete uses HTML5 datalist — zero deps, native WKWebView support
 
 ### Roadmap Evolution
 
@@ -119,6 +123,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-16T18:46:09.720Z
-Stopped at: Completed 23-03-PLAN.md
+Last session: 2026-03-16T19:10:50.838Z
+Stopped at: Completed 23-04-PLAN.md
 Resume file: None

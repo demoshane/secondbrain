@@ -45,7 +45,7 @@
 - [x] **Phase 20: Frontend Bug Fixes** — Fix scroll, markdown rendering, backlinks, and title sync (pure JS/CSS) (completed 2026-03-16)
 - [x] **Phase 21: Live Refresh SSE** — Server-sent events backbone so all writes reflect instantly in the GUI (completed 2026-03-16)
 - [x] **Phase 22: Note Deletion + Security Hardening** — Delete from GUI with cascade; path traversal guard on all note endpoints (completed 2026-03-16)
-- [ ] **Phase 23: Navigation Polish** — Collapsible sidebar sections, tag editing, tag filtering
+- [x] **Phase 23: Navigation Polish** — Collapsible sidebar sections, tag editing, tag filtering (completed 2026-03-16)
 - [ ] **Phase 24: File Capture + Batch Capture** — File upload from GUI; batch capture of unindexed items; watcher dedup guard
 - [ ] **Phase 25: Intelligence Features** — On-demand recap button, brain health dashboard, health score CLI
 - [ ] **Phase 26: Search Quality Tuning** — BM25 column weight tuning, recency boost, AI recap quality improvements
@@ -112,7 +112,7 @@ Plans:
 ### Phase 23: Navigation Polish
 **Goal**: Users can navigate notes by type/folder, edit tags inline, and filter notes by tag
 **Requirements**: GNAV-01, GNAV-02, GNAV-03
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [ ] 23-01-PLAN.md — Test scaffold + backend API extensions (tags save, tag search filter, tags parse)
@@ -178,7 +178,7 @@ Plans:
 | 20. Frontend Bug Fixes | v3.0 | 3/3 | Complete | 2026-03-16 |
 | 21. Live Refresh SSE | v3.0 | Complete    | 2026-03-16 | 2026-03-16 |
 | 22. Note Deletion + Security Hardening | 4/4 | Complete    | 2026-03-16 | - |
-| 23. Navigation Polish | 3/4 | In Progress|  | - |
+| 23. Navigation Polish | 4/4 | Complete   | 2026-03-16 | - |
 | 24. File Capture + Batch Capture | v3.0 | 0/? | Not started | - |
 | 25. Intelligence Features | v3.0 | 0/? | Not started | - |
 | 26. Search Quality Tuning | v3.0 | 0/? | Not started | - |
