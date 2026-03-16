@@ -178,7 +178,7 @@ Plans:
 | 20. Frontend Bug Fixes | v3.0 | 3/3 | Complete | 2026-03-16 |
 | 21. Live Refresh SSE | v3.0 | Complete    | 2026-03-16 | 2026-03-16 |
 | 22. Note Deletion + Security Hardening | 4/4 | Complete    | 2026-03-16 | - |
-| 23. Navigation Polish | 4/4 | Complete   | 2026-03-16 | - |
+| 23. Navigation Polish | 4/4 | Complete    | 2026-03-16 | - |
 | 24. File Capture + Batch Capture | v3.0 | 0/? | Not started | - |
 | 25. Intelligence Features | v3.0 | 0/? | Not started | - |
 | 26. Search Quality Tuning | v3.0 | 0/? | Not started | - |

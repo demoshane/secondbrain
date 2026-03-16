@@ -4,7 +4,7 @@ milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
 stopped_at: Completed 23-04-PLAN.md
-last_updated: "2026-03-16T19:10:56.282Z"
+last_updated: "2026-03-16T20:08:46.675Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 8
@@ -126,3 +126,6 @@ Recent decisions affecting current work:
 Last session: 2026-03-16T19:10:50.838Z
 Stopped at: Completed 23-04-PLAN.md
 Resume file: None
+
+## TODOs (for Phase 27)
+- **Tag management UI**: Global tab/panel listing all tags with usage counts; rename tag across all notes; delete tag globally. (Per-note chip editing already shipped in Phase 23.)
