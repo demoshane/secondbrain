@@ -139,16 +139,64 @@ def test_delete_flow(page, live_server_url, gui_brain, seed_note_fn):
     )
 
 
-@pytest.mark.xfail(reason="Wave 4: not yet implemented")
 def test_tag_editing(page, live_server_url, gui_brain, seed_note_fn):
     """SC-7: double-click tag chip, type new tag, Enter saves to DOM + API."""
-    pytest.skip("Wave 4")
+    seed_note_fn(gui_brain, "Tag Edit Note", "body", tags=["oldtag"])
+    page.goto("/ui")
+    page.wait_for_selector("#sidebar-loading", state="hidden", timeout=5000)
+
+    # Open the note
+    page.locator("#note-list li[data-path]", has_text="Tag Edit Note").first.click()
+    page.locator("#viewer").wait_for(state="visible", timeout=3000)
+    # Wait for tag chips to render
+    page.locator("#tag-chips .tag-chip", has_text="oldtag").first.wait_for(timeout=3000)
+
+    # Double-click to enter edit mode
+    page.locator("#tag-chips .tag-chip", has_text="oldtag").first.dblclick()
+    chip_input = page.locator(".tag-chip-input")
+    chip_input.wait_for(state="visible", timeout=2000)
+
+    # Clear and type new tag, then press Enter to save
+    chip_input.fill("newtag")
+    chip_input.press("Enter")
+
+    # New tag chip appears in DOM
+    page.locator("#tag-chips .tag-chip", has_text="newtag").first.wait_for(timeout=3000)
+    # Old tag chip gone
+    assert page.locator("#tag-chips .tag-chip", has_text="oldtag").count() == 0
 
 
-@pytest.mark.xfail(reason="Wave 4: not yet implemented")
 def test_tag_filtering(page, live_server_url, gui_brain, seed_note_fn):
     """SC-8: click tag chip filters sidebar; clear restores all notes."""
-    pytest.skip("Wave 4")
+    seed_note_fn(gui_brain, "Filtered Note", "body", tags=["filtertest"])
+    seed_note_fn(gui_brain, "Unfiltered Note", "body", tags=[])
+    page.goto("/ui")
+    page.wait_for_selector("#sidebar-loading", state="hidden", timeout=5000)
+
+    # Open the tagged note — use data-path suffix to avoid substring match with "Unfiltered Note"
+    page.locator("#note-list li[data-path$='/ideas/filtered-note.md']").first.click()
+    page.locator("#viewer").wait_for(state="visible", timeout=3000)
+    page.locator("#tag-chips .tag-chip", has_text="filtertest").first.wait_for(timeout=3000)
+
+    # Single-click to activate filter
+    page.locator("#tag-chips .tag-chip", has_text="filtertest").first.click()
+    page.locator("#filter-banner").wait_for(state="visible", timeout=2000)
+
+    # Only notes with filtertest tag should appear
+    visible_notes = page.locator("#note-list li[data-path]")
+    # Give sidebar time to re-render with filter applied
+    page.wait_for_timeout(500)
+    count_filtered = visible_notes.count()
+    assert count_filtered >= 1
+    # Unfiltered Note must not be visible
+    assert page.locator("#note-list li[data-path]", has_text="Unfiltered Note").count() == 0
+
+    # Clear filter — all notes restored
+    page.locator("#filter-clear").click()
+    page.locator("#filter-banner").wait_for(state="hidden", timeout=2000)
+    page.wait_for_timeout(500)
+    count_restored = page.locator("#note-list li[data-path]").count()
+    assert count_restored > count_filtered
 
 
 @pytest.mark.xfail(reason="Wave 4: not yet implemented")
