@@ -49,3 +49,70 @@ body { margin: 0; font-family: system-ui, -apple-system, sans-serif; font-size: 
 #delete-modal-confirm { background: #e74c3c; color: #fff; border: none; border-radius: 4px; padding: 8px 16px; cursor: pointer; font-size: 13px; }
 #delete-modal-confirm:hover { background: #c0392b; }
 #delete-modal-cancel { background: #e0e0e0; border: none; border-radius: 4px; padding: 8px 16px; cursor: pointer; font-size: 13px; }
+
+/* --- Hierarchy sidebar: folder/type headers and collapse toggles --- */
+
+.folder-section { list-style: none; padding: 0; }
+.folder-section > .folder-notes,
+.folder-section > .folder-types { list-style: none; margin: 0; padding: 0; }
+
+.folder-header {
+    padding: 7px 14px 5px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #555;
+    text-transform: none;
+    letter-spacing: 0.3px;
+    background: #f5f7fa;
+    border-bottom: 1px solid #e8e8e8;
+    border-left: 3px solid #2c6fcf;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.folder-header:hover { background: #eaf0fb; }
+
+.type-section { list-style: none; padding: 0; }
+.type-section > .type-notes { list-style: none; margin: 0; padding: 0; }
+
+.type-header {
+    padding: 5px 14px 4px 24px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #777;
+    background: #fafafa;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.type-header:hover { background: #f0f4ff; color: #555; }
+
+.collapse-toggle {
+    display: inline-block;
+    font-size: 9px;
+    line-height: 1;
+    color: #888;
+    flex-shrink: 0;
+}
+
+/* Hide content of collapsed sections */
+.folder-section.collapsed > ul,
+.type-section.collapsed > ul { display: none; }
+
+.section-count {
+    color: #aaa;
+    font-size: 0.8em;
+    margin-left: 2px;
+    font-weight: 400;
+}
+
+/* Recent section — slightly distinct left accent */
+.folder-section.recent-section > .folder-header {
+    border-left-color: #27ae60;
+    color: #444;
+}
