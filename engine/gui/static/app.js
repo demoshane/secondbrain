@@ -218,21 +218,38 @@ function _getAllUniqueTags() {
 }
 
 function _attachTagDatalist(inputEl) {
-    // Reuse or create a shared datalist element
-    let dl = document.getElementById('sb-tag-datalist');
-    if (!dl) {
-        dl = document.createElement('datalist');
-        dl.id = 'sb-tag-datalist';
-        document.body.appendChild(dl);
+    // Custom dropdown to avoid browser history contaminating suggestions
+    const dropdown = document.createElement('div');
+    dropdown.className = 'tag-autocomplete-dropdown';
+    dropdown.style.display = 'none';
+
+    function showSuggestions() {
+        const q = inputEl.value.trim().toLowerCase();
+        const matches = _getAllUniqueTags().filter(t => t.toLowerCase().includes(q));
+        dropdown.innerHTML = '';
+        if (!matches.length) { dropdown.style.display = 'none'; return; }
+        matches.forEach(tag => {
+            const item = document.createElement('div');
+            item.className = 'tag-autocomplete-item';
+            item.textContent = tag;
+            item.addEventListener('mousedown', (e) => {
+                e.preventDefault(); // prevent blur before click
+                inputEl.value = tag;
+                dropdown.style.display = 'none';
+                inputEl.dispatchEvent(new Event('tagselected'));
+            });
+            dropdown.appendChild(item);
+        });
+        dropdown.style.display = 'block';
     }
-    // Populate with current unique tags
-    dl.innerHTML = '';
-    for (const tag of _getAllUniqueTags()) {
-        const opt = document.createElement('option');
-        opt.value = tag;
-        dl.appendChild(opt);
-    }
-    inputEl.setAttribute('list', 'sb-tag-datalist');
+
+    inputEl.setAttribute('autocomplete', 'off');
+    inputEl.addEventListener('input', showSuggestions);
+    inputEl.addEventListener('focus', showSuggestions);
+    inputEl.addEventListener('blur', () => { dropdown.style.display = 'none'; });
+
+    // Insert dropdown right after the input
+    inputEl.insertAdjacentElement('afterend', dropdown);
 }
 
 // --- Tag chips ---
