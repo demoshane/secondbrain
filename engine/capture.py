@@ -241,6 +241,11 @@ def capture_note(
     subdir = TYPE_TO_DIR.get(note_type, note_type)
     target = brain_root / subdir / f"{slug}.md"
     target.parent.mkdir(parents=True, exist_ok=True)
+    # Resolve slug collisions: if path exists on disk or in DB, append -2, -3, …
+    counter = 2
+    while target.exists() or conn.execute("SELECT 1 FROM notes WHERE path=?", (str(target.resolve()),)).fetchone():
+        target = brain_root / subdir / f"{slug}-{counter}.md"
+        counter += 1
 
     post = build_post(note_type, title, body, tags, people, content_sensitivity)
     write_note_atomic(target, post, conn)

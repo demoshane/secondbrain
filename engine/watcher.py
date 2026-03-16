@@ -159,6 +159,12 @@ class NoteChangeHandler(FileSystemEventHandler):
         if not event.is_directory:
             self._schedule("deleted", event.src_path)
 
+    def on_moved(self, event) -> None:
+        # os.replace() (used by write_note_atomic) generates a FileMovedEvent on macOS.
+        # Treat the destination as a new/modified note so the GUI sidebar refreshes.
+        if not event.is_directory:
+            self._schedule("created", event.dest_path)
+
 
 def start_watcher(watch_dir: Path, on_new_file) -> Observer:
     """Start a watchdog Observer for watch_dir. Returns the Observer (caller must call .stop())."""
@@ -208,6 +214,16 @@ def main() -> None:
         try:
             note_path = capture_note("note", title, f"File: {path}", tags, [], sensitivity, BRAIN_ROOT, conn)
             print(f"[sb-watch] Captured: {path.name} -> {note_path.name}")
+            # Notify GUI to refresh sidebar — cross-process FSEvents are unreliable
+            try:
+                import urllib.request
+                urllib.request.urlopen(
+                    "http://127.0.0.1:37491/notes/refresh",
+                    data=b"",
+                    timeout=1,
+                )
+            except Exception:
+                pass  # GUI not running — no-op
         except Exception as e:
             print(f"[sb-watch] Failed to capture {path.name}: {type(e).__name__}: {e}")
         finally:

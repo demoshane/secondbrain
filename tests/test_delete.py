@@ -228,3 +228,59 @@ def test_save_note_path_traversal_403(client):
     """PUT /notes/..%2F..%2Fetc%2Fpasswd returns 403."""
     response = client.put("/notes/..%2F..%2Fetc%2Fpasswd", json={"content": "evil"})
     assert response.status_code == 403, f"Expected 403 for path traversal, got {response.status_code}"
+
+
+def test_delete_note_removes_source_file(initialized_db, tmp_path, monkeypatch):
+    """delete_note() also removes the source file when note body contains 'File: <path>'."""
+    # Set up brain_root/files/ with a source file
+    files_dir = tmp_path / "files"
+    files_dir.mkdir()
+    source_file = files_dir / "photo.png"
+    source_file.write_bytes(b"\x89PNG")
+
+    # Create the note whose body references the source file
+    note = tmp_path / "note" / "2026-01-01-photo.md"
+    note.parent.mkdir()
+    note.write_text(
+        f"---\ntitle: Photo\ntype: note\n---\n\nFile: {source_file}\n",
+        encoding="utf-8",
+    )
+    path_str = str(note.resolve())
+    initialized_db.execute(
+        "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+        " VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))",
+        (path_str, "Photo", "note", f"File: {source_file}"),
+    )
+    initialized_db.commit()
+
+    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+    delete_note(note, initialized_db, tmp_path)
+
+    assert not note.exists(), "Note .md file should be deleted"
+    assert not source_file.exists(), "Source file in files/ should also be deleted"
+
+
+def test_delete_note_ignores_source_file_outside_files_dir(initialized_db, tmp_path, monkeypatch):
+    """delete_note() does NOT delete files referenced outside brain_root/files/ (security guard)."""
+    outside_file = tmp_path / "important.txt"
+    outside_file.write_text("keep me")
+
+    note = tmp_path / "note" / "2026-01-01-ref.md"
+    note.parent.mkdir()
+    note.write_text(
+        f"---\ntitle: Ref\ntype: note\n---\n\nFile: {outside_file}\n",
+        encoding="utf-8",
+    )
+    path_str = str(note.resolve())
+    initialized_db.execute(
+        "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+        " VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))",
+        (path_str, "Ref", "note", f"File: {outside_file}"),
+    )
+    initialized_db.commit()
+
+    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+    delete_note(note, initialized_db, tmp_path)
+
+    assert not note.exists(), "Note .md file should be deleted"
+    assert outside_file.exists(), "File outside files/ must NOT be deleted"

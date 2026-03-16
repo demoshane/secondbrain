@@ -10,7 +10,8 @@ def delete_note(abs_path: Path, conn, brain_root: Path) -> dict:
 
     Cascade order:
     1. suppress_next_delete(path_str)  — BEFORE unlink (watcher suppression)
-    2. abs_path.unlink(missing_ok=True)
+    2. If note body has "File: <path>" under brain_root/files/, delete source file too
+    3. abs_path.unlink(missing_ok=True)
     3. DELETE FROM notes WHERE path=?         (notes_ad trigger handles FTS5 automatically)
     4. DELETE FROM note_embeddings WHERE note_path=?
     5. DELETE FROM relationships WHERE source_path=? OR target_path=?
@@ -29,7 +30,19 @@ def delete_note(abs_path: Path, conn, brain_root: Path) -> dict:
     # 1. Suppress watcher false-positive BEFORE unlink
     suppress_next_delete(path_str)
 
-    # 2. Remove file from disk
+    # 2a. If note body contains "File: <path>", delete the source file too
+    try:
+        for line in abs_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            if line.startswith("File: "):
+                source_file = Path(line[6:].strip())
+                if source_file.is_file() and source_file.is_relative_to(brain_root / "files"):
+                    suppress_next_delete(str(source_file.resolve()))
+                    source_file.unlink(missing_ok=True)
+                break
+    except OSError:
+        pass
+
+    # 2b. Remove the note .md file from disk
     abs_path.unlink(missing_ok=True)
 
     # 3. Delete notes row (notes_ad AFTER DELETE trigger handles FTS5 automatically)

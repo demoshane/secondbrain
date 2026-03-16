@@ -124,6 +124,18 @@ def health():
     return jsonify({"status": "ok", "port": 37491})
 
 
+@app.post("/notes/refresh")
+def notes_refresh():
+    """Notify all SSE subscribers to reload the notes list.
+
+    Called by sb-watch after capturing a new file, since cross-process
+    filesystem events (FSEvents coalescing) are not reliable for triggering
+    the watchdog observer in the GUI process.
+    """
+    _broadcast({"type": "created", "path": ""})
+    return jsonify({"ok": True})
+
+
 @app.get("/notes")
 def list_notes():
     conn = get_connection()
