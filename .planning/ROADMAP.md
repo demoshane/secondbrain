@@ -112,6 +112,14 @@ Plans:
 ### Phase 23: Navigation Polish
 **Goal**: Users can navigate notes by type/folder, edit tags inline, and filter notes by tag
 **Requirements**: GNAV-01, GNAV-02, GNAV-03
+**Plans:** 4 plans
+
+Plans:
+- [ ] 23-01-PLAN.md — Test scaffold + backend API extensions (tags save, tag search filter, tags parse)
+- [ ] 23-02-PLAN.md — Sidebar hierarchy: folder > type grouping with collapse/expand (localStorage)
+- [ ] 23-03-PLAN.md — Tag chips in viewer: display, inline edit, tag filter + banner
+- [ ] 23-04-PLAN.md — Full suite sign-off + human verify
+
 **Success criteria**:
 1. The sidebar shows notes grouped by type/folder with a collapse/expand toggle per section
 2. User can click a tag chip in the viewer and edit it inline; the change saves to both frontmatter and the database without a full reindex
@@ -169,7 +177,7 @@ Plans:
 | 19. MCP Server | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 20. Frontend Bug Fixes | v3.0 | 3/3 | Complete | 2026-03-16 |
 | 21. Live Refresh SSE | v3.0 | Complete    | 2026-03-16 | 2026-03-16 |
-| 22. Note Deletion + Security Hardening | 4/4 | Complete   | 2026-03-16 | - |
+| 22. Note Deletion + Security Hardening | 4/4 | Complete    | 2026-03-16 | - |
 | 23. Navigation Polish | v3.0 | 0/? | Not started | - |
 | 24. File Capture + Batch Capture | v3.0 | 0/? | Not started | - |
 | 25. Intelligence Features | v3.0 | 0/? | Not started | - |
