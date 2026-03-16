@@ -1,600 +1,516 @@
 # Architecture Research
 
-**Domain:** Local-first AI personal knowledge management — v2.0 Intelligence + GUI Hub
-**Researched:** 2026-03-15
-**Confidence:** HIGH (existing system from PROJECT.md), MEDIUM (new integration patterns)
+**Domain:** Local-first desktop knowledge app — v3.0 GUI Overhaul and Engine Polish
+**Researched:** 2026-03-16
+**Confidence:** HIGH (based on direct code inspection of existing system)
 
 ---
 
 ## System Overview
 
-### Current v1.5 Architecture (baseline)
+### Existing v2.0 Architecture (unchanged baseline)
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                  CLI Entry Points (uv tool install)               │
-│  sb-capture  sb-search  sb-read  sb-forget  sb-export  sb-watch   │
-│  sb-anonymize  sb-reindex  sb-check-links  sb-update-memory       │
-├──────────────────────────────────────────────────────────────────┤
-│                       engine/ package                             │
-│  capture · search · read · forget · export · anonymize            │
-│  reindex · links · watcher · rag · router · classifier            │
-│  ai · templates · db · config_loader · paths · ratelimit          │
-│  ┌─────────────────────┐   ┌─────────────────────────────────┐   │
-│  │  adapters/           │   │  hooks/                         │   │
-│  │  claude_adapter.py   │   │  git commit hook installer      │   │
-│  │  ollama_adapter.py   │   └─────────────────────────────────┘   │
-│  │  base.py             │                                         │
-│  └─────────────────────┘                                         │
-├──────────────────────────────────────────────────────────────────┤
-│                        Storage Layer                              │
-│  ┌──────────────────────┐   ┌─────────────────────────────────┐  │
-│  │  ~/SecondBrain/       │   │  ~/SecondBrain/.meta/brain.db   │  │
-│  │  Markdown + YAML      │   │  SQLite FTS5 + audit_log        │  │
-│  │  Google Drive synced  │   │  NOT Drive-synced, rebuildable  │  │
-│  └──────────────────────┘   └─────────────────────────────────┘  │
-├──────────────────────────────────────────────────────────────────┤
-│                     System Integration                            │
-│  ┌───────────────────┐   ┌────────────────────────────────────┐  │
-│  │  launchd daemon   │   │  .claude/commands/ (10 slash cmds) │  │
-│  │  sb-watch         │   │  Claude Code MCP subagent          │  │
-│  └───────────────────┘   └────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                      pywebview OS window                         │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  engine/gui/static/  (HTML + vanilla JS, served by Flask) │  │
+│  │  index.html  app.js  style.css  vendor/easymde.*          │  │
+│  │                                                           │  │
+│  │  All calls → fetch('http://127.0.0.1:37491/...')          │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ HTTP (loopback only)
+┌──────────────────────────▼──────────────────────────────────────┐
+│                  engine/api.py  (Flask + waitress)               │
+│  /health  /notes  /search  /actions  /intelligence  /files      │
+│  /ui  /ui/<filename>  — static file server for GUI assets        │
+│                                                                  │
+│  Imports only: engine/db  engine/search  engine/intelligence     │
+└──────┬───────────────┬──────────────────┬───────────────────────┘
+       │               │                  │
+┌──────▼──────┐  ┌─────▼──────┐  ┌───────▼───────────────────────┐
+│ engine/db   │  │engine/      │  │ engine/intelligence.py         │
+│ get_conn    │  │search.py    │  │ engine/health.py               │
+│ init_schema │  │search_notes │  │ engine/capture.py              │
+│             │  │search_hybrid│  │ engine/embeddings.py           │
+└──────┬──────┘  └─────────────┘  └───────────────────────────────┘
+       │
+┌──────▼────────────────────────────────────────────────────────┐
+│            ~/SecondBrain/.meta/brain.db  (SQLite)             │
+│  notes  notes_fts(FTS5)  note_embeddings(sqlite-vec)          │
+│  relationships  action_items  audit_log                        │
+└───────────────────────────────────────────────────────────────┘
+       │
+┌──────▼──────────────────────────────────────────────────────┐
+│                ~/SecondBrain/  (filesystem)                   │
+│  meetings/  people/  coding/  strategy/  projects/           │
+│  personal/  ideas/  files/  .meta/                           │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-### Target v2.0 Architecture
+### Key constraint
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                  Access Layer  (v2.0 adds GUI + MCP server)           │
-│                                                                       │
-│  ┌─────────────────┐  ┌──────────────────────┐  ┌─────────────────┐  │
-│  │  CLI (existing) │  │  GUI Hub (new)        │  │  MCP Server     │  │
-│  │  sb-* commands  │  │  Tauri + React        │  │  (new)          │  │
-│  │  direct imports │  │  HTTP → localhost API │  │  FastMCP stdio  │  │
-│  └────────┬────────┘  └──────────┬───────────┘  └────────┬────────┘  │
-│           │                      │                        │           │
-├───────────┴──────────────────────┴────────────────────────┴───────────┤
-│               engine/ package  (existing + new modules)               │
-│                                                                       │
-│  Existing (unchanged):          New (v2.0):                           │
-│  capture  search  read          api.py  (FastAPI HTTP server)         │
-│  forget   export  rag           mcp_server.py  (FastMCP)              │
-│  anonymize  reindex  links      embed.py  (sentence-transformers)     │
-│  router   classifier  ai        crypto.py  (SQLCipher + pyrage)       │
-│  adapters/  hooks/              intelligence/  (recap · digest ·      │
-│                                   actions · nudge · connections)      │
-├──────────────────────────────────────────────────────────────────────┤
-│                         Storage Layer                                 │
-│                                                                       │
-│  ┌─────────────────────────┐  ┌──────────────────────────────────┐   │
-│  │  ~/SecondBrain/          │  │  ~/SecondBrain/.meta/brain.db    │   │
-│  │  Markdown + YAML         │  │  SQLite FTS5  (existing)         │   │
-│  │  Drive-synced            │  │  + sqlite-vec embeddings  (new)  │   │
-│  │  + pyrage encryption     │  │  + actions table  (new)          │   │
-│  │    (optional, new)       │  │  + SQLCipher AES-256  (new)      │   │
-│  └─────────────────────────┘  └──────────────────────────────────┘   │
-│  ┌─────────────────────────┐                                          │
-│  │  ~/.cache/sb-embed/      │                                          │
-│  │  sentence-transformer    │                                          │
-│  │  model (~90MB, new)      │                                          │
-│  └─────────────────────────┘                                          │
-└──────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## New vs Existing Components
-
-| Component | Status | Location | Connects To |
-|-----------|--------|----------|-------------|
-| CLI entry points (sb-*) | Existing — no change | pyproject.toml scripts | engine/* direct import |
-| SQLite FTS5 + audit_log | Existing — extend schema | engine/db.py | brain.db |
-| AI adapters (Claude, Ollama) | Existing — no change | engine/adapters/ | subprocess / HTTP |
-| ModelRouter + PII classifier | Existing — no change | engine/router.py, classifier.py | adapters/ |
-| watcher.py (launchd daemon) | Modified — session hook | engine/watcher.py | db.py, intelligence/recap.py |
-| capture.py | Modified — connection hook | engine/capture.py | embed.py, intelligence/connections.py |
-| search.py | Modified — --semantic flag | engine/search.py | embed.py (RRF merge) |
-| forget.py | Modified — clean new tables | engine/forget.py | note_embeddings, actions tables |
-| reindex.py | Modified — embedding pass | engine/reindex.py | embed.py |
-| init_brain.py | Modified — Drive + Ollama automation | engine/init_brain.py | OS subprocess |
-| db.py | Modified — connection factory | engine/db.py | crypto.py, new DDL |
-| **api.py** | New | engine/api.py | All engine modules |
-| **mcp_server.py** | New | engine/mcp_server.py | FastMCP, engine modules |
-| **embed.py** | New | engine/embed.py | sentence-transformers, db.py |
-| **crypto.py** | New | engine/crypto.py | sqlcipher3, pyrage, keyring |
-| **intelligence/recap.py** | New | engine/intelligence/ | db.py, ai.py |
-| **intelligence/digest.py** | New | engine/intelligence/ | db.py, ai.py, actions.py |
-| **intelligence/actions.py** | New | engine/intelligence/ | ai.py, db.py |
-| **intelligence/nudge.py** | New | engine/intelligence/ | db.py |
-| **intelligence/connections.py** | New | engine/intelligence/ | embed.py, rag.py |
-| **gui/** | New — Tauri + React | gui/ (repo root) | localhost:37491 HTTP |
+The GUI-to-engine boundary is hard: the pywebview HTML page calls Flask endpoints only — it never imports Python modules. Every new feature the GUI needs must be backed by a new or extended Flask route in `engine/api.py`.
 
 ---
 
 ## Component Responsibilities
 
-| Component | Responsibility |
-|-----------|---------------|
-| engine/api.py | FastAPI HTTP facade — thin routes, no business logic, calls engine functions |
-| engine/mcp_server.py | FastMCP stdio server — exposes brain commands as MCP tools |
-| engine/embed.py | Embedding generation (sentence-transformers) + sqlite-vec query + RRF merge |
-| engine/crypto.py | SQLCipher connection factory; pyrage file encrypt/decrypt; keyring passphrase access |
-| engine/intelligence/ | Orchestrators composing db.py + ai.py + embed.py into proactive features |
-| gui/ | Tauri desktop shell + React webview — UI only, no engine logic |
+| Component | Responsibility | v3.0 Status |
+|-----------|---------------|-------------|
+| `engine/api.py` | HTTP surface — only entry point from GUI | Modified — new routes added |
+| `engine/gui/static/app.js` | All GUI logic — calls API only | Modified — SSE, tag edit, file upload, health panel |
+| `engine/gui/static/index.html` | Shell — loads app.js and EasyMDE | Modified — new DOM elements |
+| `engine/gui/static/style.css` | Layout and scroll behaviour | Modified — scroll fix, collapsible sidebar |
+| `engine/search.py` | FTS5 BM25, semantic, hybrid RRF | Modified — tag filter param, optional RRF k tuning |
+| `engine/health.py` | System component checks (CLI `sb-health`) | Modified — new brain data quality checks |
+| `engine/intelligence.py` | Recap, actions, stale nudges | Modified — expose recap trigger function |
+| `engine/capture.py` | Single-note atomic capture | Modified — `batch_capture()` added |
+| `engine/db.py` | SQLite connection + schema | Possibly modified — tags column index |
+
+No new top-level Python files are required. All changes land in existing modules.
 
 ---
 
-## GUI Hub: Integration Pattern
+## Recommended Project Structure
 
-### Decision: Tauri + React + FastAPI sidecar
-
-The GUI talks to the Python engine via a local HTTP REST API (FastAPI on `127.0.0.1:37491`). Tauri wraps the webview and manages the Python sidecar process lifecycle.
-
-**Why Tauri over alternatives:**
-- PyQt/PySide: Qt ships a heavy runtime; no web UI ecosystem; non-native look on Windows
-- Electron: 150–200MB bundle; ships Chromium; memory-heavy
-- Tauri: uses OS native WebView (WebKit on macOS, WebView2 on Windows); 3–10MB overhead; cross-platform; active 2026 maintenance (v2.4.x)
-
-**Why FastAPI sidecar over direct Tauri–Python bindings (PyTauri):**
-- PyTauri is a new project (Oct 2025); production readiness unclear (LOW confidence)
-- FastAPI sidecar is a proven pattern with documented production examples as of Feb 2026
-- FastAPI gives a clean REST API that CLI tools can also call — one surface for GUI and future integrations
-
-**Communication path:**
-```
-GUI (Tauri webview React)
-    └─ fetch("http://127.0.0.1:37491/search?q=...")  ← HTTP/JSON
-    └─ fetch("http://127.0.0.1:37491/capture", POST)
-    └─ fetch("http://127.0.0.1:37491/intelligence/recap")
-
-engine/api.py (FastAPI on 127.0.0.1:37491)
-    └─ import engine.search, capture, intelligence.*
-    └─ calls engine functions in-process (no subprocess)
-    └─ returns JSON responses
-```
-
-**Sidecar startup sequence:**
-1. Tauri launches `sb-api` (Python/FastAPI) as a sidecar process at GUI startup
-2. React polls `GET /health` until ready (5-second timeout with exponential backoff)
-3. GUI renders after health check passes
-4. On GUI close: Tauri sends SIGTERM; FastAPI handles graceful shutdown
-
-**Security constraints:**
-- API bound to `127.0.0.1` only — never `0.0.0.0`
-- Tauri CSP policy restricts webview to only connect to localhost
-- No authentication token needed (single-user, local-only)
-
-**New pyproject.toml entry point needed:** `sb-api` — starts FastAPI on `127.0.0.1:37491`.
-
----
-
-## MCP Server: Integration Pattern
-
-### Decision: FastMCP with stdio transport
-
-The brain is exposed to Claude.ai web and Claude Code as a local MCP server. The client spawns the process over stdio — no TCP port, no configuration beyond a one-time JSON entry.
+Changes annotated per file. No new directories.
 
 ```
-Claude.ai / Claude Code
-    └─ stdio ──► python -m engine.mcp_server  (spawned by MCP client)
-                    └─ FastMCP @mcp.tool decorators
-                    │     sb_search(query, type)
-                    │     sb_capture(type, title, body)
-                    │     sb_read(path)
-                    │     sb_forget(person)
-                    │     sb_recap(days)
-                    │     sb_digest()
-                    │     sb_connections(note_id)
-                    └─ direct import engine.search, capture, ...
-                         └─ PII routing via existing ModelRouter
-```
-
-FastMCP wraps existing engine functions as `@mcp.tool` callables. Each tool call passes through the existing PII classifier and ModelRouter — no new security logic needed.
-
-**Configuration (one-time):** Add entry to `~/.claude/settings.json` (Claude Code) or `~/Library/Application Support/Claude/claude_desktop_config.json` (Claude Desktop). `sb-init` can write this automatically.
-
-**Transport:** stdio (default for FastMCP, correct for local servers). No port binding, no firewall rules, no process management beyond what the MCP client handles.
-
----
-
-## Vector Search: Integration Pattern
-
-### Decision: sqlite-vec inside existing brain.db
-
-sqlite-vec extends the existing SQLite database with a virtual table for KNN vector search. No new process, no new file — same brain.db, same connection, same GDPR erasure guarantees.
-
-**New schema additions:**
-
-```sql
--- Vector embeddings (sqlite-vec virtual table)
-CREATE VIRTUAL TABLE note_embeddings USING vec0(
-    note_id TEXT PRIMARY KEY,
-    embedding FLOAT[384]     -- all-MiniLM-L6-v2 output dimensions
-);
-
--- Action items extracted from notes
-CREATE TABLE actions (
-    id           TEXT PRIMARY KEY,
-    source_note_id TEXT NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
-    action_text  TEXT NOT NULL,
-    due_date     TEXT,
-    status       TEXT NOT NULL DEFAULT 'open',  -- open | done | stale
-    extracted_at TEXT NOT NULL,
-    updated_at   TEXT NOT NULL
-);
-CREATE INDEX idx_actions_source ON actions(source_note_id);
-CREATE INDEX idx_actions_status ON actions(status);
-```
-
-**Embedding model:** `sentence-transformers/all-MiniLM-L6-v2` — 384 dimensions, ~90MB, CPU-capable, runs fully offline. Model cached in `~/.cache/sb-embed/` (not in brain folder, not Drive-synced). First run downloads once; subsequent runs load from cache.
-
-**PII routing:** The embedding model runs on-device for all notes including PII content. No vectors are sent to cloud APIs. sqlite-vec lives inside brain.db — `sb-forget` deletes from `note_embeddings` alongside all other note data.
-
-**Hybrid search (RRF merge):**
-```
-sb-search --semantic "query"
-    └─ BM25 results from FTS5  (existing)
-    └─ encode query → cosine KNN from note_embeddings  (new)
-    └─ Reciprocal Rank Fusion: score = Σ 1/(k + rank_i), k=60
-    └─ return merged, deduplicated, re-ranked results
-```
-BM25 remains the default for plain `sb-search`. Semantic mode is opt-in via `--semantic` flag.
-
----
-
-## Encryption at Rest: Integration Pattern
-
-### Decision: SQLCipher (index) + pyrage (files, opt-in)
-
-**SQLite encryption (strongly recommended):**
-
-SQLCipher (`sqlcipher3` Python package) replaces the stdlib `sqlite3` connection. Provides transparent AES-256 encryption for brain.db. `crypto.py` becomes the connection factory that `db.py` uses — no other module changes.
-
-Passphrase stored in system keychain (`keyring` package — uses macOS Keychain, Windows Credential Manager). Never stored in `.env`, config files, or git.
-
-```
-Any sb-* command starts
-    └─ crypto.get_connection(brain_db_path)
-        └─ keyring.get_password("second-brain", getpass.getuser())
-        └─ conn = sqlcipher3.connect(path)
-        └─ conn.execute("PRAGMA key = ?", (passphrase,))
-        └─ returns encrypted connection (transparent to all callers)
-```
-
-First-run: `sb-init` generates a random 32-byte passphrase, stores it in keychain, creates encrypted brain.db.
-
-**File encryption (opt-in, high-threat model):**
-
-`pyrage` (Python bindings for age encryption, uploaded Jun 2025, supports CPython 3.9+ macOS + Windows) for encrypting note `.md` files. Identity key stored at `~/.config/second-brain/identity.age` (not in brain folder).
-
-This is gated behind a config flag: `[encryption] encrypt_files = false` in `.meta/config.toml`. Default off — Drive access control is sufficient for most users. File encryption adds friction (files become binary blobs to editors and Drive search).
-
-**Key insight:** Drive sync still works with encrypted files. Drive treats `.age` files as binary blobs and syncs them normally. The encryption/decryption is done locally by `sb-read` / `sb-capture`.
-
----
-
-## Intelligence Modules: Architecture
-
-### engine/intelligence/ — thin orchestrators only
-
-These modules do not implement AI logic. They compose `db.py` (data retrieval), `ai.py` (model calls), and `embed.py` (similarity) into higher-level operations. Each module is a single function or a small class — no state, no DB connections of their own.
-
-| Module | Core Function | Key Dependencies |
-|--------|---------------|-----------------|
-| recap.py | Summarize notes created in last N days for session-start | db.py (recent notes), ai.py (Claude/Ollama summary) |
-| digest.py | Weekly summary: themes, open actions, stale items | db.py, ai.py, actions.py |
-| actions.py | Extract commitments from meeting/project notes; write to actions table | ai.py (Claude extraction prompt), db.py |
-| nudge.py | Find notes with no access/update in 90+ days | db.py (last_accessed query), no AI needed |
-| connections.py | For a new note, find top-N related notes by embedding similarity | embed.py (cosine KNN), rag.py |
-
-**Proactive recap trigger in watcher.py:**
-
-`sb-watch` (launchd daemon) already runs at login. It gains a session-start detection: on first activation after system idle > 8 hours, run `recap.py`. Output via `osascript` macOS notification or printed to any open terminal. Once-per-session flag stored in `~/SecondBrain/.meta/session.json` (reset on new day).
-
-**PII routing is inherited:** All intelligence modules call `ai.py`, which calls the existing ModelRouter. Recap of PII notes routes to Ollama. No new routing logic needed.
-
----
-
-## Setup Automation: Changes to init_brain.py
-
-Two additions to `sb-init`, both gated by user consent prompts:
-
-**Google Drive validation (modify existing):** Currently checks if brain directory is mounted. Extend to guide setup if not found. macOS: check `~/Library/CloudStorage/GoogleDrive-*/` pattern. If not found: print Drive install URL and wait for user confirmation before proceeding. Do not auto-install Drive (requires browser OAuth, outside subprocess scope).
-
-**Ollama auto-install (new):** Check `which ollama`. If missing:
-- macOS with Homebrew: `brew install ollama`
-- macOS without Homebrew: download from `https://ollama.ai/download/mac`
-- Windows: download installer via PowerShell `Invoke-WebRequest`
-
-After install: pull default model (`ollama pull llama3.2:3b` — 2GB, reasonable default). Entire flow gated by explicit user `y/n` prompt.
-
----
-
-## Data Flow Changes
-
-### Capture Flow (v2.0 additions shown)
-
-```
-sb-capture (CLI) or GUI capture form
-    │
-    ▼
-engine/capture.py
-    ├── Write markdown note (atomic, unchanged)
-    ├── Index in FTS5 (unchanged)
-    ├── PII routing + AI proactive prompt (unchanged)
-    ├── [NEW] embed.py: generate embedding → INSERT note_embeddings
-    └── [NEW] intelligence/connections.py: KNN → surface related notes to user
-```
-
-### Search Flow (v2.0 additions shown)
-
-```
-sb-search "query" [--semantic]
-    │
-    ▼
-engine/search.py
-    ├── FTS5 BM25 results (existing path, always runs)
-    └── [--semantic only]
-        ├── embed.py: encode query string
-        ├── sqlite-vec KNN on note_embeddings
-        └── RRF merge of BM25 + cosine results → return re-ranked list
-```
-
-### Session Recap Flow (new)
-
-```
-sb-watch (launchd daemon, running at login)
-    └── On activation after idle > 8h AND date changed since last recap
-        └── intelligence/recap.py
-            ├── db.py: SELECT notes WHERE created_at > (now - 7d)
-            ├── ai.py: summarize via Claude (non-PII) or Ollama (PII)
-            └── output recap → macOS notification + stdout
-```
-
-### GUI ↔ Engine Flow (new)
-
-```
-Tauri webview (React)
-    └── fetch("http://127.0.0.1:37491/search?q=foo")
-    └── fetch("http://127.0.0.1:37491/capture", {method: POST, body: ...})
-    └── fetch("http://127.0.0.1:37491/intelligence/recap")
-
-engine/api.py (FastAPI, 127.0.0.1:37491)
-    └── route handler calls engine.search.search() directly (in-process)
-    └── returns JSON — same data as CLI stdout, structured
-```
-
-### MCP Tool Flow (new)
-
-```
-Claude.ai or Claude Code
-    └── MCP tool call: sb_search(query="Alice workload")
-        └── stdio → engine/mcp_server.py (FastMCP, spawned process)
-            └── @mcp.tool function → engine.search.search("Alice workload")
-            └── returns ToolResult with structured note list
-```
-
----
-
-## Recommended Project Structure (v2.0)
-
-```
-second-brain/
-├── engine/
-│   ├── __init__.py
-│   ├── adapters/
-│   │   ├── base.py
-│   │   ├── claude_adapter.py
-│   │   └── ollama_adapter.py
-│   ├── hooks/
-│   ├── intelligence/               # NEW sub-package
-│   │   ├── __init__.py
-│   │   ├── recap.py
-│   │   ├── digest.py
-│   │   ├── actions.py
-│   │   ├── nudge.py
-│   │   └── connections.py
-│   ├── ai.py
-│   ├── anonymize.py
-│   ├── api.py                      # NEW — FastAPI HTTP server
-│   ├── capture.py                  # MODIFIED — embed + connections hook
-│   ├── classifier.py
-│   ├── config_loader.py
-│   ├── crypto.py                   # NEW — SQLCipher + pyrage + keyring
-│   ├── db.py                       # MODIFIED — uses crypto.py, new tables
-│   ├── embed.py                    # NEW — sentence-transformers + sqlite-vec
-│   ├── export.py
-│   ├── forget.py                   # MODIFIED — cleans note_embeddings + actions
-│   ├── init_brain.py               # MODIFIED — Drive guidance + Ollama install
-│   ├── links.py
-│   ├── mcp_server.py               # NEW — FastMCP server
-│   ├── paths.py
-│   ├── rag.py
-│   ├── ratelimit.py
-│   ├── read.py
-│   ├── reindex.py                  # MODIFIED — embedding generation pass
-│   ├── router.py
-│   ├── search.py                   # MODIFIED — --semantic + RRF merge
-│   ├── templates.py
-│   └── watcher.py                  # MODIFIED — session-start recap trigger
-├── gui/                            # NEW — Tauri + React desktop app
-│   ├── src-tauri/
-│   │   ├── src/                    # Rust Tauri shell (minimal — just sidecar mgmt)
-│   │   └── tauri.conf.json
-│   ├── src/                        # React + TypeScript
-│   │   ├── components/
-│   │   ├── pages/
-│   │   └── main.tsx
-│   ├── package.json
-│   └── vite.config.ts
-├── tests/
-├── scripts/
-├── pyproject.toml                  # MODIFIED — new deps + sb-api entry point
-└── uv.lock
+engine/
+├── api.py              # Add: GET /events (SSE), POST /internal/notify,
+│                       #      DELETE /notes/<path>, PATCH /notes/<path>/tags,
+│                       #      POST /files/upload, POST /recap/trigger,
+│                       #      GET /health/brain, POST /batch-capture
+├── search.py           # Modify: add tag_filter param to search_notes();
+│                       #         optionally tune RRF k constant
+├── health.py           # Add: BRAIN_CHECKS group (orphans, broken links, dupes)
+│                       #      and compute_brain_score()
+├── capture.py          # Add: batch_capture(items) wrapping existing capture_note()
+├── intelligence.py     # Add: expose generate_recap() as a callable function
+│                       #      (currently only triggered by launchd / CLI)
+└── gui/
+    └── static/
+        ├── index.html  # Add: tag editor widget, file input, recap button,
+        │               #      health dashboard section, delete button
+        ├── app.js      # Add: EventSource subscriber, tag edit handlers,
+        │               #      file upload, health panel, sidebar collapse,
+        │               #      frontmatter strip before marked.parse()
+        └── style.css   # Add: overflow-y: auto on #viewer and #center,
+                        #      collapsible sidebar CSS
 ```
 
 ---
 
 ## Architectural Patterns
 
-### Pattern 1: Engine-as-Library (existing, extended)
+### Pattern 1: Server-Sent Events for Live Refresh (GUIX-01, GUIX-02)
 
-**What:** All CLI commands, the API server, and the MCP server import engine modules directly. No subprocess calls between engine components.
-**When to use:** Always for intra-engine communication.
-**Trade-offs:** Single process per entry point; no module isolation. Acceptable for a single-user tool.
+**What:** Flask streams `text/event-stream` on `GET /events`. An in-process `queue.SimpleQueue` acts as the event bus. Any write operation (save, create, delete, batch-capture) posts to the queue. The JS `EventSource` subscriber calls `loadNotes()` on `notes_changed` events.
 
-### Pattern 2: Thin HTTP Facade (new for GUI)
+**Why SSE over WebSocket:** SSE is one-directional (server to client) which is all that is needed. It works over standard WSGI with no new dependencies. WebSocket requires `flask-socketio` + gevent/eventlet, which breaks waitress and monkey-patches the stdlib — unacceptable overhead.
 
-**What:** `engine/api.py` is a thin FastAPI wrapper — each route calls one engine function and returns its result as JSON. Zero business logic in the API layer.
-**When to use:** GUI integration only. CLI commands remain direct imports.
-**Trade-offs:** GUI requires the API server process to be running. Mitigated by Tauri sidecar auto-launch.
+**Why SSE over polling:** Polling floods the DB constantly and causes sidebar flicker. SSE pushes exactly when something changes.
+
+**waitress threading note:** The existing `waitress serve(..., threads=4)` keeps one thread occupied per open SSE connection. With one GUI window (single user) this is acceptable. If needed, bump to `threads=8`.
+
+**Implementation sketch:**
 
 ```python
-# Pattern: route calls function, returns JSON — nothing else
-@app.get("/search")
-async def search(q: str, type: str = None, semantic: bool = False):
-    return engine.search.search(q, content_type=type, semantic=semantic)
+# engine/api.py — additions
+import queue, json as _json
+_event_bus: queue.SimpleQueue = queue.SimpleQueue()
+
+def _notify(event_type: str = "notes_changed") -> None:
+    _event_bus.put(_json.dumps({"type": event_type}))
+
+@app.get("/events")
+def sse_stream():
+    def generate():
+        while True:
+            msg = _event_bus.get()   # blocks; releases thread only on event
+            yield f"data: {msg}\n\n"
+    return app.response_class(
+        generate(),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+@app.post("/internal/notify")
+def internal_notify():
+    _notify()
+    return jsonify({"ok": True})
 ```
 
-### Pattern 3: Intelligence as Orchestrators (new)
+```javascript
+// app.js — addition
+const evtSource = new EventSource(`${API}/events`);
+evtSource.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'notes_changed') loadNotes();
+};
+```
 
-**What:** `intelligence/*` modules compose `db.py` + `ai.py` + `embed.py` — they own no state and hold no DB connections.
-**When to use:** All intelligence features. Keeps logic testable and swappable.
-**Trade-offs:** Multiple dependencies per module. Keep them thin — push reusable logic into db.py or ai.py, not into intelligence modules.
+`_notify()` is called at the end of: `save_note()`, `create_note()`, `delete_note()` (new), `patch_tags()` (new), `batch_capture_endpoint()` (new), `files_upload()` (new).
+
+**Watcher process bridge:** `sb-watch` runs as a separate launchd process and cannot call `_notify()` directly. After detecting a new file and triggering reindex, the watcher posts to `POST /internal/notify` over loopback. No authentication needed — loopback-only binding.
+
+### Pattern 2: Client-Side Markdown Rendering (GUIX-03)
+
+**What:** `marked.js` is already present globally — it is bundled inside `vendor/easymde.min.js`. The `renderMarkdown()` function in `app.js` already calls `marked.parse(md)`. The feature is architecturally complete.
+
+**The bug:** Raw note content includes a YAML frontmatter block (`---\ntype: ...\n---`). When passed directly to `marked.parse()`, YAML frontmatter renders as a table or raw text at the top of the note. The fix is a one-line strip before calling `marked.parse()`.
+
+**Fix location:** `app.js` `renderMarkdown()` — strip frontmatter before render. No API change. No new dependency.
+
+```javascript
+function stripFrontmatter(md) {
+    return md.replace(/^---[\s\S]*?---\n?/, '');
+}
+function renderMarkdown(md) {
+    const viewer = document.getElementById('viewer');
+    viewer.innerHTML = typeof marked !== 'undefined'
+        ? marked.parse(stripFrontmatter(md))
+        : stripFrontmatter(md);
+    // ... rest unchanged
+}
+```
+
+### Pattern 3: Tag Editing via PATCH endpoint (GNAV-02, GNAV-03)
+
+**What:** New `PATCH /notes/<path>/tags` accepts `{"tags": ["a","b"]}`. The handler parses YAML frontmatter from the file, rewrites the `tags:` field, and does an atomic `os.replace(tmp, p)` write — same pattern as `save_note()`. It also updates `notes.tags` in SQLite and calls `_notify()`.
+
+**Why PATCH, not PUT:** `PUT /notes/<path>` handles full content replacement. A `PATCH` on the `/tags` sub-resource keeps concerns separated: the GUI does not need to round-trip the entire note body to update a tag. The body content is untouched.
+
+**Frontmatter rewriting:** Use a simple regex rewrite on the `tags:` line rather than a full YAML roundtrip. The frontmatter format is fixed (written by `create_note()`) and does not require a YAML library for this narrow operation.
+
+**Database schema:** The `notes` table currently selects `path, title, type, created_at` in `api.py`. Whether a `tags` column exists needs confirmation against `engine/db.py init_schema`. If missing, add it as a non-breaking `ALTER TABLE` (SQLite allows adding columns with a default value).
+
+**Tag filter in search:** Extend `search_notes()` in `engine/search.py` with an optional `tag_filter` param. If tags are stored as a comma-joined string, use `WHERE tags LIKE '%' || ? || '%'`. If stored as JSON array, use `json_each`. The `/search` endpoint passes the tag through from request body.
+
+### Pattern 4: Brain Health Dashboard (ENGL-04, ENGL-05)
+
+**What:** New `GET /health/brain` endpoint runs a group of data-quality checks against the DB and filesystem and returns structured JSON.
+
+**Where the checks live:** Add a second group to the existing `engine/health.py`. The existing `CHECKS` list covers system components (launchd, Ollama, MCP binary). The new `BRAIN_CHECKS` list covers data quality. `main()` uses `CHECKS` as before; `api.py` imports `BRAIN_CHECKS` for the `/health/brain` route.
+
+```python
+# engine/health.py — additions
+def check_orphan_notes() -> dict:
+    """Notes with no backlinks and no outgoing relationships."""
+    ...
+
+def check_broken_links() -> dict:
+    """Relationships table entries where target path does not exist on disk."""
+    ...
+
+def check_duplicate_titles() -> dict:
+    """Notes table entries sharing the same title (case-insensitive)."""
+    ...
+
+def compute_brain_score(results: list[dict]) -> int:
+    fails = sum(1 for r in results if r["status"] == "fail")
+    warns = sum(1 for r in results if r["status"] == "warn")
+    return max(0, 100 - (fails * 10) - (warns * 3))
+
+BRAIN_CHECKS = [check_orphan_notes, check_broken_links, check_duplicate_titles]
+```
+
+```python
+# engine/api.py — new route
+from engine.health import BRAIN_CHECKS, compute_brain_score
+
+@app.get("/health/brain")
+def brain_health():
+    results = []
+    for fn in BRAIN_CHECKS:
+        try:
+            results.append(fn())
+        except Exception as exc:
+            results.append({"label": fn.__name__, "status": "fail", "detail": str(exc)})
+    return jsonify({"score": compute_brain_score(results), "checks": results})
+```
+
+### Pattern 5: Batch Capture (ENGL-01)
+
+**What:** New `POST /batch-capture` accepts `{"items": [{"title":..., "type":..., "body":...}]}`. The handler calls a new `batch_capture(items)` function in `engine/capture.py` that loops over items, reusing the existing single-item `capture_note()` logic. All items are captured inside a single SQLite transaction. Returns `{"captured": N, "paths": [...]}`.
+
+**No duplication:** `batch_capture()` wraps `capture_note()` — it does not copy its logic. The single-item code path is unchanged.
+
+```python
+# engine/capture.py — addition
+def batch_capture(items: list[dict]) -> list[str]:
+    """Capture multiple notes in a single transaction. Returns list of paths."""
+    paths = []
+    conn = get_connection()
+    try:
+        conn.execute("BEGIN")
+        for item in items:
+            path = capture_note(item["title"], item["type"], item.get("body",""), conn=conn)
+            paths.append(path)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return paths
+```
+
+### Pattern 6: File Upload from GUI (GUIF-01)
+
+**What:** New `POST /files/upload` accepts `multipart/form-data` with a `file` field. It saves the uploaded file to `~/SecondBrain/files/` using `werkzeug.utils.secure_filename`, creates a companion markdown index note (type `file`, title = filename), and returns `{"file_path": ..., "note_path": ...}`.
+
+**Why a separate endpoint:** The existing `POST /files/move` moves files already on disk. A browser `<input type="file">` sends a `multipart/form-data` POST — that requires a distinct endpoint. Flask's `request.files` handles the upload; werkzeug's `secure_filename` prevents path traversal.
+
+**JS side:** A hidden `<input type="file" id="file-upload-input">` in the toolbar. On `change`, build a `FormData` object and POST to `/files/upload`. On success, call `loadNotes()` (which also triggers `_notify()` server-side).
+
+---
+
+## New vs Modified — Explicit Mapping
+
+| Requirement | New or Modified | Component | What Changes |
+|-------------|----------------|-----------|--------------|
+| GUIX-01 Live refresh | New | `engine/api.py` | `GET /events` (SSE), `POST /internal/notify`, `_notify()` helper, call `_notify()` in all write routes |
+| GUIX-01 Live refresh | New | `app.js` | `EventSource` subscriber, call `loadNotes()` on event |
+| GUIX-02 Title edits reflected | Bug fix | `engine/api.py` `save_note()` | Parse new frontmatter after write; `UPDATE notes SET title=?, updated_at=? WHERE path=?` |
+| GUIX-03 Markdown rendering | Bug fix | `app.js` `renderMarkdown()` | Strip YAML frontmatter before `marked.parse()` |
+| GUIX-04 Mouse scroll | CSS fix | `style.css` | `overflow-y: auto` on `#viewer` and `#center` |
+| GUIX-05 Backlinks fix | Bug fix | `engine/api.py` `note_meta()` | Replace fragile `LIKE` heuristic with `relationships` table query |
+| GUIX-06 Delete note | New | `engine/api.py` | `DELETE /notes/<path>` with cascade: file, notes row, FTS5, note_embeddings, relationships, audit_log |
+| GUIX-06 Delete note | Modified | `app.js`, `index.html` | Delete button in viewer toolbar + confirm dialog |
+| GNAV-01 Sidebar collapse | Modified | `app.js` `renderSidebar()`, `style.css` | Type-group headers toggle visibility; CSS for collapsed/expanded state |
+| GNAV-02 Tag editing | New | `engine/api.py` | `PATCH /notes/<path>/tags` — atomic frontmatter rewrite + DB update |
+| GNAV-02 Tag editing | Modified | `app.js`, `index.html` | Tag editor widget in viewer toolbar (inline chips + input) |
+| GNAV-03 Tag filter | Modified | `engine/api.py` `search()` | Accept optional `tag` param, pass to `search_notes()` |
+| GNAV-03 Tag filter | Modified | `engine/search.py` `search_notes()` | Add `tag_filter` param, extend SQL WHERE clause |
+| GNAV-03 Tag filter | Modified | `app.js`, `index.html` | Tag filter dropdown above note list in sidebar |
+| GUIF-01 File capture | New | `engine/api.py` | `POST /files/upload` (multipart) using `werkzeug.utils.secure_filename` |
+| GUIF-01 File capture | Modified | `index.html`, `app.js` | Hidden `<input type="file">`, `FormData` upload handler |
+| GUIF-02 On-demand recap | New | `engine/api.py` | `POST /recap/trigger` — calls `intelligence.generate_recap()`, returns markdown string |
+| GUIF-02 On-demand recap | Modified | `engine/intelligence.py` | Expose `generate_recap()` as a callable (currently only CLI/launchd triggered) |
+| GUIF-02 On-demand recap | Modified | `index.html`, `app.js` | "Run Recap" button in intelligence panel; display result in `#recap-content` |
+| ENGL-01 Batch capture | New | `engine/capture.py` | `batch_capture(items)` wrapping `capture_note()` in single transaction |
+| ENGL-01 Batch capture | New | `engine/api.py` | `POST /batch-capture` endpoint |
+| ENGL-02 Search quality | Modified | `engine/search.py` `_rrf_merge()` | Tune `k` constant (default 60); optionally add field-weighted BM25 column weights |
+| ENGL-03 AI quality | Modified | `engine/intelligence.py` | Improve recap and action extraction prompts — no API surface change |
+| ENGL-04 Brain health data | Modified | `engine/health.py` | Add `BRAIN_CHECKS`: `check_orphan_notes`, `check_broken_links`, `check_duplicate_titles` |
+| ENGL-04 Brain health data | New | `engine/api.py` | `GET /health/brain` endpoint |
+| ENGL-05 Health score | Modified | `engine/health.py` | Add `compute_brain_score(results)` |
+| ENGL-05 Health score | Modified | `index.html`, `app.js` | Health dashboard section in right panel; score badge |
+
+---
+
+## Data Flow
+
+### Live Refresh Flow
+
+```
+[Any write in GUI]
+    ↓
+PUT /notes/<path>  →  save_note()  →  os.replace(tmp, p)  →  UPDATE notes
+    ↓
+_notify()  →  _event_bus.put('{"type":"notes_changed"}')
+    ↓
+GET /events (SSE long-poll, open)  →  yield data frame
+    ↓
+EventSource.onmessage  →  loadNotes()  →  GET /notes  →  renderSidebar()
+```
+
+```
+[sb-watch daemon detects new file on disk]
+    ↓
+POST /internal/notify  (loopback, no auth — localhost only)
+    ↓
+_notify()  →  _event_bus.put(...)  →  (same SSE path as above)
+```
+
+### Tag Edit Flow
+
+```
+[User edits tags in tag editor widget]
+    ↓
+PATCH /notes/<path>/tags  {"tags": ["a","b"]}
+    ↓
+Read file  →  regex-rewrite tags: line in frontmatter
+    ↓
+atomic os.replace(tmp, p)
+    ↓
+UPDATE notes SET tags=? WHERE path=?
+    ↓
+_notify()
+    ↓
+{"saved": true, "tags": ["a","b"]}
+```
+
+### Note Deletion Flow (GUIX-06)
+
+```
+[User clicks Delete + confirms]
+    ↓
+DELETE /notes/<path>
+    ↓
+1. p.unlink()                                          (filesystem)
+2. DELETE FROM notes WHERE path=?                      (index)
+3. DELETE FROM notes_fts WHERE rowid = note.id         (FTS5)
+4. DELETE FROM note_embeddings WHERE note_path=?       (vectors)
+5. DELETE FROM relationships WHERE source=? OR target=? (graph)
+6. INSERT INTO audit_log (event_type='delete', ...)    (audit)
+    ↓
+_notify()
+    ↓
+{"deleted": true}
+```
+
+### Brain Health Flow
+
+```
+[User opens health dashboard OR health panel auto-loads]
+    ↓
+GET /health/brain
+    ↓
+engine/health.py: BRAIN_CHECKS run against DB + filesystem
+    orphan check: notes with no relationships rows
+    broken link check: relationships.target paths not on disk
+    duplicate check: notes with identical title (case-insensitive)
+    ↓
+compute_brain_score(results)  →  0–100 integer
+    ↓
+{"score": 87, "checks": [...]}  →  GUI renders score badge + issue lists
+```
+
+### Search with Tag Filter Flow
+
+```
+[User selects tag filter in sidebar]
+    ↓
+POST /search  {"query": "...", "tag": "meetings"}
+    ↓
+search_notes(conn, query, tag_filter="meetings")
+    ↓
+FTS5 SQL + AND n.tags LIKE '%meetings%'
+    ↓
+Return filtered, BM25-ranked results
+```
+
+### Batch Capture Flow
+
+```
+[External trigger or GUI batch action]
+    ↓
+POST /batch-capture  {"items": [{...}, {...}]}
+    ↓
+engine/capture.py: batch_capture(items)
+    conn.execute("BEGIN")
+    for item in items: capture_note(...)   (reuses existing logic)
+    conn.commit()
+    ↓
+_notify()  (once, after all items written)
+    ↓
+{"captured": N, "paths": [...]}
+```
+
+---
+
+## Internal Boundaries
+
+| Boundary | Communication | Constraint |
+|----------|---------------|-----------|
+| GUI JS to Flask | HTTP fetch to 127.0.0.1:37491 | Hard — GUI never imports Python |
+| SSE stream to app.js | `EventSource` long-poll | One connection per GUI window; fine for single user |
+| `sb-watch` daemon to Flask | `POST /internal/notify` over loopback | Separate process; must not import `api.py` |
+| `api.py` to engine modules | Direct Python import | Only `engine.db`, `engine.search`, `engine.intelligence`, `engine.health`, `engine.capture` |
+| `health.py` system checks vs brain checks | Same module, two groups: `CHECKS` and `BRAIN_CHECKS` | CLI `main()` uses `CHECKS`; `/health/brain` route uses `BRAIN_CHECKS` |
+| `capture.py` single vs batch | `batch_capture()` calls `capture_note()` — no logic duplication | Single-item path unchanged |
 
 ---
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: GUI Shelling Out to CLI Commands
+### Anti-Pattern 1: WebSocket for live refresh
 
-**What people do:** GUI shell-execs `sb-search`, `sb-capture` etc. as subprocesses and parses stdout.
-**Why it's wrong:** ~300ms process spawn latency per call; output format coupling; brittle error handling.
-**Do this instead:** GUI calls `GET /search`, `POST /capture` on the local FastAPI server. Engine runs in-process.
+**What people do:** Add `flask-socketio` + gevent or eventlet for real-time push.
+**Why it's wrong:** Requires monkey-patching the stdlib (gevent breaks waitress), adds two heavy dependencies, and is bi-directional where only one direction is needed.
+**Do this instead:** Flask `text/event-stream` + `EventSource`. One `queue.SimpleQueue` in-process. Zero new dependencies.
 
-### Anti-Pattern 2: Separate Vector Database Process
+### Anti-Pattern 2: Server-side markdown rendering
 
-**What people do:** Run ChromaDB or Qdrant as a separate server for vector search.
-**Why it's wrong:** Extra infrastructure for a single-user tool. sqlite-vec runs inside existing brain.db — no separate process, no ops overhead, same GDPR erasure path.
-**Do this instead:** sqlite-vec virtual table inside brain.db, loaded as a SQLite extension.
+**What people do:** Add `mistune` or `markdown` Python package, render HTML in Flask, return an HTML string from the note endpoint.
+**Why it's wrong:** `marked.js` is already vendored inside `easymde.min.js` and available globally. Adding a server-side renderer duplicates the dependency, adds a round-trip, and makes the viewer feel slower.
+**Do this instead:** Strip frontmatter in `renderMarkdown()` then call `marked.parse()`. The wiring is already there — only the strip step is missing.
 
-### Anti-Pattern 3: MCP Server on a TCP Port
+### Anti-Pattern 3: Polling for live refresh
 
-**What people do:** Bind the MCP server to a localhost TCP port.
-**Why it's wrong:** Port management, potential conflicts, more firewall surface. Stdio is the correct transport for local MCP servers spawned by a client.
-**Do this instead:** FastMCP with stdio transport. Client spawns the process; no port needed.
+**What people do:** `setInterval(() => loadNotes(), 5000)` — reload the full note list every N seconds.
+**Why it's wrong:** Constant DB reads, visible sidebar flicker on every interval, CPU burn when nothing changed.
+**Do this instead:** SSE push — server signals exactly when something changes; JS reloads only then.
 
-### Anti-Pattern 4: Passphrase in .env
+### Anti-Pattern 4: Overloading PUT /notes for tag updates
 
-**What people do:** Put the SQLCipher passphrase in `.env` alongside API keys.
-**Why it's wrong:** `.env` is a plaintext file. Storing the encryption key next to the ciphertext negates the encryption.
-**Do this instead:** `keyring.get_password()` at connection time. Passphrase lives in OS keychain only.
+**What people do:** Send the full note content back via `PUT /notes/<path>` with updated frontmatter tags embedded.
+**Why it's wrong:** GUI must hold the full body in memory to re-serialize frontmatter, risks overwriting concurrent edits, and makes tag-only changes unnecessarily heavy.
+**Do this instead:** `PATCH /notes/<path>/tags` — server owns frontmatter rewriting, body is untouched.
 
-### Anti-Pattern 5: Loading Embedding Model Per-Request
+### Anti-Pattern 5: Direct DB access from the watcher process
 
-**What people do:** Instantiate `SentenceTransformer(...)` inside the search function, so it loads on every call.
-**Why it's wrong:** Model load is ~1–2 seconds cold start. Ruins interactive search latency.
-**Do this instead:** Load model once at `embed.py` module level (or in `api.py` startup) and reuse across calls.
+**What people do:** Have `sb-watch` open `brain.db` directly to update the index after detecting a file change.
+**Why it's wrong:** Two concurrent writers (Flask + watcher) create SQLite locking contention even with WAL mode, especially during batch reindex.
+**Do this instead:** Watcher triggers reindex via CLI (`sb-reindex`), then posts to `POST /internal/notify`. Flask owns the DB connection lifecycle.
 
----
+### Anti-Pattern 6: Separate health module for brain data checks
 
-## Integration Points
-
-### External Services
-
-| Service | Integration Pattern | Notes |
-|---------|---------------------|-------|
-| Claude (AI) | subprocess `claude -p` via claude_adapter.py | Existing, no change |
-| Ollama | HTTP GET/POST localhost:11434 | Existing, no change |
-| Google Drive | Filesystem — files appear at mount path | No API, no change |
-| Claude.ai / Claude Code (MCP) | FastMCP stdio — spawned by MCP client | New — one-time config in Claude settings |
-| sentence-transformers | Python import, model downloaded once to ~/.cache/sb-embed/ | New — first run ~90MB download |
-| sqlite-vec | SQLite extension loaded via `conn.load_extension()` | New — installed as Python package |
-| SQLCipher | Replaces sqlite3 connection in crypto.py factory | New — sqlcipher3 package |
-| keyring | OS keychain access via Python keyring package | New — no config, uses OS credential store |
-
-### Internal Boundaries
-
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| CLI ↔ engine | Direct Python import | No change |
-| GUI ↔ engine | HTTP REST via localhost FastAPI | New — webview cannot import Python |
-| Claude.ai ↔ engine | MCP stdio via FastMCP | New — spawned by MCP client |
-| intelligence/* ↔ db.py | Direct import | intelligence modules own no state |
-| intelligence/* ↔ ai.py | Direct import | PII routing still applies inside ai.py |
-| embed.py ↔ db.py | Direct import — embed uses crypto.get_connection() | embed owns no connection |
-| crypto.py ↔ db.py | crypto.py IS the connection factory — db.py calls it | All DB access goes through crypto.py |
+**What people do:** Create `engine/brain_health.py` as a new module.
+**Why it's wrong:** `engine/health.py` already exists and has the check helper pattern (`_ok`, `_warn`, `_fail`). A second module creates an awkward split with no benefit — the existing module already separates `CHECKS` (system) from `BRAIN_CHECKS` (data quality) by list name.
+**Do this instead:** Add `BRAIN_CHECKS` group to `engine/health.py`. Import only what is needed in each consumer.
 
 ---
 
-## Suggested Build Order
+## Build Order
 
-Dependencies drive this order strictly. Encryption touches everything that writes to db — it must come first.
+Dependencies drive the sequence. The SSE infrastructure (step 3) is the backbone — once in place, every subsequent write endpoint can call `_notify()` for free.
 
-```
-Step 1: crypto.py + db.py migration
-    Rationale: SQLCipher connection factory; every other module
-    depends on db.py. Migrate before adding new data writers.
-    Risk: highest data integrity risk — do first with backup/restore test.
-
-Step 2: embed.py + sqlite-vec schema (note_embeddings table)
-    Rationale: search.py --semantic and intelligence/connections.py
-    both depend on this. Needed before any intelligence module.
-
-Step 3: intelligence/ modules
-    Rationale: all use db.py (now encrypted) + ai.py.
-    connections.py also needs embed.py (step 2 complete).
-    Can be built incrementally — each module is independent.
-
-Step 4: engine/api.py (FastAPI)
-    Rationale: GUI depends on this being complete and stable.
-    Build and verify all endpoints before starting GUI work.
-
-Step 5: GUI hub (Tauri + React)
-    Rationale: depends on api.py (step 4). Longest build — frontend
-    toolchain (Node, Rust) separate from Python engine.
-
-Step 6: engine/mcp_server.py (FastMCP)
-    Rationale: independent of GUI. Can run in parallel with step 5.
-    Depends only on engine modules (steps 1–3 complete).
-
-Step 7: init_brain.py automation (Drive + Ollama)
-    Rationale: fully independent. No other feature depends on it.
-    Can slot anywhere after step 1. Lowest risk, lowest coupling.
-```
+| Order | Feature Group | Requirements | Key Dependency |
+|-------|--------------|--------------|---------------|
+| 1 | GUIX-03 markdown + GUIX-04 scroll | JS one-liner fix + CSS two-liner | None — pure frontend |
+| 2 | GUIX-05 backlink fix + GUIX-02 title sync | Query fix in `note_meta()`; UPDATE in `save_note()` | None |
+| 3 | GUIX-01 Live refresh (SSE) | `_event_bus`, `GET /events`, `POST /internal/notify`, `EventSource` in JS | Steps 1-2 complete so refresh is visually coherent |
+| 4 | GUIX-06 Note deletion | `DELETE /notes/<path>` with cascade | Step 3 (SSE to remove from sidebar) |
+| 5 | GNAV-01 Sidebar collapse | JS/CSS only — no new endpoints | Step 3 (collapse state survives refresh) |
+| 6 | GNAV-02 Tag editing + GNAV-03 Tag filter | `PATCH /notes/<path>/tags`, extend `search_notes()`, tag filter UI | Steps 3-4 |
+| 7 | GUIF-01 File upload | `POST /files/upload`, `<input type="file">` in JS | Step 3 (SSE to surface new note) |
+| 8 | GUIF-02 On-demand recap | `POST /recap/trigger`, expose `generate_recap()` | Step 3 (SSE optionally refreshes intelligence panel) |
+| 9 | ENGL-04/05 Brain health dashboard | `BRAIN_CHECKS` in `health.py`, `GET /health/brain`, health panel in GUI | None — standalone |
+| 10 | ENGL-01 Batch capture | `batch_capture()` in `capture.py`, `POST /batch-capture` | Step 3 (SSE to push results) |
+| 11 | ENGL-02 Search quality (RRF tuning) | Tune `_rrf_merge()` k; optionally add BM25 column weights | None — but needs test queries to validate; do last |
+| 12 | ENGL-03 AI quality | Prompt engineering in `intelligence.py` | None — iterative; do last |
 
 ---
 
 ## Scaling Considerations
 
-Single-user local system. Scale concerns are note volume and feature latency, not concurrency.
+Single-user local app. Scaling concerns are note volume and latency, not concurrency.
 
-| Scale | Concern | Approach |
-|-------|---------|----------|
-| < 10k notes | All features fast | Default behavior |
-| 10k–50k notes | Reindex embedding pass takes minutes | Background threading in reindex.py; progress output |
-| 50k+ notes | sqlite-vec KNN scan may slow (full table scan) | Add sqlite-vec IVF/HNSW index — available in extension |
-| Large binary files | PDF/docx extraction in reindex | Already handled; no change needed |
-
-The embedding model cold-start (~1–2s) is the main latency concern for interactive use. Mitigated by keeping the model loaded in the FastAPI server process (loaded once at startup, reused for all requests). CLI tools load it on first invocation in a session — acceptable for batch reindex, slightly noticeable for single-note capture.
+| Concern | Current state | Risk | Mitigation |
+|---------|--------------|------|------------|
+| SSE thread starvation | waitress 4 threads; SSE holds one | Low — one GUI window | Increase to `threads=8` if needed |
+| Brain health queries | Full table scan for orphans/dupes | Low — brain < 10k notes | On-demand only; no continuous indexing |
+| Tag filter search | `LIKE '%tag%'` is O(n) | Low — < 10k notes | Acceptable; if tags stored as JSON use `json_each` for correctness |
+| Batch capture transaction | Loop in single `BEGIN`/`COMMIT` | Low — typical batch < 100 items | Fine; explicit transaction wrapping the loop |
+| Frontmatter regex rewrite | File read + regex + atomic write per tag update | Negligible | No concern |
 
 ---
 
 ## Sources
 
-- [FastMCP documentation — stdio transport](https://gofastmcp.com/deployment/running-server) — MEDIUM confidence (official project site)
-- [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk) — HIGH confidence (official Anthropic repo)
-- [sqlite-vec GitHub — asg017/sqlite-vec](https://github.com/asg017/sqlite-vec) — HIGH confidence (official repo, active development)
-- [sentence-transformers documentation](https://www.sbert.net/) — HIGH confidence (official docs)
-- [Tauri v2 architecture docs](https://v2.tauri.app/concept/architecture/) — HIGH confidence (official docs, v2.4.x current as of 2026)
-- [tauri-fastapi production template](https://github.com/fudanglp/tauri-fastapi-full-stack-template) — MEDIUM confidence (community reference, Feb 2026)
-- [Tauri v2 Python sidecar example](https://github.com/dieharders/example-tauri-v2-python-server-sidecar) — MEDIUM confidence (community)
-- [SQLCipher Python implementation — Feb 2026](https://oneuptime.com/blog/post/2026-02-02-sqlcipher-encryption/view) — MEDIUM confidence
-- [pyrage on PyPI](https://pypi.org/project/pyrage/) — MEDIUM confidence (Python age bindings, Jun 2025, macOS + Windows support confirmed)
-- [PyTauri GitHub](https://github.com/pytauri/pytauri) — LOW confidence for direct use (Oct 2025, new project; FastAPI sidecar preferred)
+- Direct code inspection: `engine/api.py`, `engine/search.py`, `engine/health.py`, `engine/gui/static/app.js`, `engine/gui/static/index.html` — 2026-03-16 (HIGH confidence)
+- Flask streaming responses (SSE): https://flask.palletsprojects.com/en/3.1.x/patterns/streaming/ (HIGH confidence — official Flask docs)
+- MDN EventSource API: https://developer.mozilla.org/en-US/docs/Web/API/EventSource (HIGH confidence)
+- waitress threading model: https://docs.pylonsproject.org/projects/waitress/en/stable/runner.html — `threads=4` confirmed in existing `main()` (HIGH confidence)
+- EasyMDE bundles marked.js: confirmed by `vendor/easymde.min.js` presence and existing `marked.parse()` call in `app.js` (HIGH confidence — direct inspection)
+- werkzeug `secure_filename`: https://werkzeug.palletsprojects.com/en/3.1.x/utils/#werkzeug.utils.secure_filename (HIGH confidence — official docs)
 
 ---
 
-*Architecture research for: Second Brain v2.0 — Intelligence + GUI Hub*
-*Researched: 2026-03-15*
+*Architecture research for: Second Brain v3.0 — GUI Overhaul and Engine Polish*
+*Researched: 2026-03-16*

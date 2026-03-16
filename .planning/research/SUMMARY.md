@@ -1,17 +1,17 @@
 # Project Research Summary
 
-**Project:** Second Brain v2.0
-**Domain:** Local-first AI-augmented Personal Knowledge Management (CLI + GUI + Intelligence)
-**Researched:** 2026-03-15
-**Confidence:** MEDIUM-HIGH
+**Project:** Second Brain v3.0 — GUI Overhaul and Engine Polish
+**Domain:** Local-first desktop personal knowledge management (pywebview + Flask + SQLite)
+**Researched:** 2026-03-16
+**Confidence:** HIGH (grounded in direct code inspection; all recommendations reference the actual codebase)
 
 ## Executive Summary
 
-Second Brain v2.0 extends a fully-shipped v1.5 CLI foundation (capture, search, GDPR, PII routing, launchd daemon, git hooks) with five new capability areas: semantic vector search, a proactive intelligence layer, a cross-platform GUI hub, encryption at rest, and an MCP server for Claude.ai integration. The stack research is unambiguous: all new components slot into the existing Python/SQLite/uv architecture without requiring new infrastructure processes. sqlite-vec runs inside the existing `brain.db`, sentence-transformers embeds locally on CPU, pywebview wraps a Flask server in-process for the GUI, and FastMCP exposes existing CLI commands over stdio. The only genuinely new toolchain is pywebview + Flask for the GUI — the originally-considered Tauri approach was ruled out after confirming PyTauri remains pre-1.0 (v0.8, Feb 2026).
+Second Brain v3.0 is a polishing milestone on an already-working system. The v2.0 stack (pywebview, Flask/waitress, SQLite FTS5 + sqlite-vec, sentence-transformers, FastMCP, launchd) is validated and unchanged. The v3.0 work falls into two categories: fixing broken-feeling table-stakes behavior in the GUI (live refresh, scroll, markdown rendering, backlinks accuracy, note deletion), and layering on targeted new features (tag editing, file capture, on-demand recap, brain health dashboard, batch capture, search tuning). The recommended approach is to fix the bugs first — the P1 list is short, low-risk, and has high user impact — then ship new features in a coherent second sweep. Only one new PyPI dependency is required across the entire milestone (`Markdown>=3.7`), and even that is optional depending on the markdown rendering decision described in the gaps section.
 
-The recommended build order is dependency-driven and matches both ARCHITECTURE.md and PITFALLS.md: encryption foundation first (touches all DB writes), then vector search infrastructure (unblocks intelligence and connections features), then intelligence orchestrators (low cost, high value), then the FastAPI HTTP layer and GUI, and finally the MCP server (independent, can parallelize with GUI). Intelligence features that compose existing components — session recap, stale nudges, action item extraction — deliver the highest value-to-cost ratio and should ship before any GUI or encryption work begins. The differentiating strength of this system is the combination of local-first operation, GDPR-safe PII routing, and proactive IDE integration: no competitor in the PKM space ships all three.
+The architecture is fully understood through direct code inspection. Every feature has a clear landing zone: new Flask routes in `engine/api.py`, logic in existing engine modules (`capture.py`, `health.py`, `intelligence.py`, `search.py`), and JS/CSS additions in `engine/gui/static/`. No new top-level files or directories are needed. The GUI-to-engine boundary is hard — the JS layer calls Flask endpoints only, never imports Python — so every new capability requires a corresponding new or extended route. The SSE live-refresh infrastructure (`GET /events`, `_notify()` helper) is the single most important piece to land early because it unblocks every subsequent write operation from a UX standpoint.
 
-The top risks are: encryption migration corrupting the existing database (mitigated by write-to-new-file, verify integrity, then atomic swap); stale vector embeddings diverging from edited note content (mitigated by content-hash gating written into the schema from day one); and notification fatigue from independent intelligence triggers (mitigated by a single proactive budget per session with persisted cooldown state). One cross-file conflict was resolved during synthesis: FEATURES.md recommended Tauri 2.x for the GUI, but STACK.md and ARCHITECTURE.md both converge on pywebview 5.4 after confirming PyTauri is not production-ready. **The synthesis decision is pywebview.**
+The key risks are not technical unknowns — they are known implementation shortcuts that must be addressed in v3.0 before they become costly. Path traversal in the notes API, XSS from unsanitized `marked.parse()` output, and duplicate note creation from the GUI-upload/watcher race are all preventable with targeted one-to-five line fixes. The cascade delete pattern already exists in `forget.py` but must be extracted into a shared `delete_note()` utility before GUI deletion is added, or the pattern will be repeated incorrectly on the new endpoint.
 
 ---
 
@@ -19,188 +19,157 @@ The top risks are: encryption migration corrupting the existing database (mitiga
 
 ### Recommended Stack
 
-The v1.5 stack (Python 3.11+, uv tool install, Typer + Rich CLI, SQLite FTS5, launchd daemon) is locked and extended — not replaced. Eight new packages cover all v2.0 capability areas and add no new infrastructure processes.
+The v2.0 stack requires no version changes. Add `Markdown>=3.7` to `pyproject.toml` only if choosing the server-side rendering path (see Gap 1). The watchdog, pywebview, SQLite, and Flask versions already in `pyproject.toml` cover all new feature requirements without upgrade.
 
-**Core technologies — new additions only:**
-- `sqlite-vec 0.1.6` — KNN vector search as a SQLite extension inside `brain.db`; replaces deprecated sqlite-vss; SIMD-accelerated; no separate process; pin `<0.2.0` (0.1.7 is pre-release alpha)
-- `sentence-transformers 5.3.0` with `all-MiniLM-L6-v2` (~90 MB, 384-dim) — local CPU embeddings; fully offline after first download; the only GDPR-compliant option for PII notes; requires CPU-only torch wheel to avoid 2 GB CUDA download
-- `pywebview 5.4` + `flask >=3.0` — cross-platform desktop GUI window wrapping HTML/CSS/JS with in-process Flask backend; no Electron/Chromium; distributes as a standard `uv tool install` entry point (`sb-gui`)
-- `sqlcipher3-binary 0.6.2` — transparent AES-256 encryption for `brain.db`; drop-in for stdlib `sqlite3`; binary wheels for macOS arm64/x86_64 and Windows amd64/arm64/win32; released Jan 2026
-- `cryptography >=42.0` — Fernet symmetric encryption for individual PII markdown files; AES-128-CBC + HMAC; PyCA library, well-audited
-- `keyring 25.7.0` — OS-native credential store for DB passphrase and file encryption key; macOS Keychain / Windows Credential Manager; zero plaintext on disk
-- `apscheduler 3.11.2` — in-process background scheduling for weekly digest; **pin `<4.0`** (v4 is a complete API rewrite with different architecture)
-- `fastmcp >=3.0` — standalone MCP server library; exposes `sb-*` commands as MCP tools for Claude.ai and Claude Desktop via stdio transport
+**Core technologies for v3.0 additions:**
+- `watchdog>=6.0` (already present): second Observer instance for GUI live-refresh — use `window.run_js()` (fire-and-forget, thread-safe) not `evaluate_js()` (blocks, causes deadlock from watchdog thread)
+- `queue.SimpleQueue` (stdlib): in-process SSE event bus — zero new dependencies, replaces the need for Redis or flask-sse
+- `marked.js` (already vendored in EasyMDE): client-side markdown rendering — strip YAML frontmatter with a one-line regex before `marked.parse()`; vendor DOMPurify alongside it
+- `werkzeug.utils.secure_filename` (already present): path-safe file upload handling
+- SQLite FTS5 `bm25()` column weights (already present): title-boosted search ranking without schema change
 
-**Critical encryption scope decision:** `brain.db` is fully encrypted with SQLCipher (all tables: FTS5, embeddings, actions, audit log). Markdown notes with `content_sensitivity: pii` are encrypted with Fernet at the file level. All other Markdown files remain plaintext — Drive sync computes diffs on plaintext; encrypting all notes breaks sync, breaks `sb-check-links`, and breaks git history legibility. This is the correct threat model for a single-user local system backed by Drive's own at-rest encryption.
+See `.planning/research/STACK.md` for full details and alternatives considered.
 
 ### Expected Features
 
-**Must have (table stakes for an intelligence-layer PKM):**
-- Semantic / vector search — BM25 FTS5 keyword search already ships; users of modern PKM tools now expect "find notes like this"; sqlite-vec + all-MiniLM-L6-v2 handles this fully locally
-- Cross-context synthesis ("catch me up on X") — the primary AI value proposition; must respect PII routing (PII notes summarized via Ollama only, never cloud)
-- Action item extraction from meeting notes — expected by any tool claiming intelligence on meeting content; post-capture AI pass on `meetings/` type notes
-- Claude.ai web integration via MCP — MCP is an industry standard (adopted by OpenAI, Google, Microsoft by mid-2025); Max plan users expect it
-- Setup automation (Drive + Ollama in `sb-init`) — `sb-init` must reach a working state without manual steps; silent fallback to a local path is a critical failure mode
+**Must have — P1 bugs (table stakes the GUI currently lacks):**
+- Live refresh via SSE — new/edited notes invisible without restart is a critical bug
+- Markdown CSS polish — `#viewer` renders raw markdown text; scoped `prose` CSS class rules fix this
+- Mouse scroll fix — `overflow-y: auto` on `#viewer`; currently unusable for long notes
+- Backlinks correctness — fuzzy `LIKE` filename match replaced with exact `relationships` table query
+- Note deletion with full cascade — mirrors `sb-forget` pattern; must use shared `delete_note()` utility
+- Sidebar collapsible sections — type grouping already in `renderSidebar()`; needs toggle UI
 
-**Should have (genuine differentiators):**
-- Proactive session recap — no competitor offers ambient context injection into a coding IDE session; HIGH value at LOW cost (CLAUDE.md instruction + one CLI flag)
-- Weekly digest (themes + open actions + stale items) — local generation, fully private; cloud tools (Mem, Saner.AI) only offer cloud-processed digests
-- Stale note nudges (90-day / 180-day) — local SQLite query; uncommon in PKM space; must respect `evergreen: true` frontmatter flag and batch to 5 per session max
-- Connection surfacing at capture time — post-capture KNN similarity query; threshold-gated (cosine similarity > 0.8) to avoid noise
-- GUI hub (read-optimized, cross-platform Mac + Windows) — CLI-only limits adoption for daily review workflows; GUI opens files in system default Markdown editor, never embeds an editor
-- Encryption at rest — no local-first PKM tool ships encryption by default
+**Should have — P2 new features (competitive differentiators):**
+- Tag editing in GUI — inline chip editor; `PATCH /notes/<path>/tags` endpoint; no full-body roundtrip
+- Tag filtering in sidebar/search — `tag` param on `/search`; `WHERE tags LIKE '%tag%'` initially
+- File capture from GUI — `POST /files/upload` (multipart); hidden `<input type="file">`; watcher dedup guard required
+- On-demand recap button — `POST /recap/trigger`; spinner mandatory (5-30s AI latency)
+- Brain health dashboard — `GET /health/brain`; `BRAIN_CHECKS` group in `engine/health.py`; 0-100 score
+- Batch capture endpoint — `POST /batch-capture`; structured per-item success/failure result required
+- Search ranking tuning — BM25 column weights + recency boost; regression suite required before shipping
 
-**Defer to v3+:**
-- Calendar integration for session recap (OAuth complexity; separate integration project)
-- Push notifications to macOS notification center (requires signed app bundle; incompatible with `uv tool install` distribution)
-- Real-time connection surfacing on every keystroke (noise; surface at capture completion only)
-- Auto-push digest to email/Slack (exfiltrates note content; GDPR risk)
-- GUI as primary CRUD interface replacing CLI (duplicates engine; kills zero-friction value for developer persona)
-- Automatic Drive conflict resolution (auto-merge risks data loss; append-only writes are the correct pattern)
+**Defer to v4.0+:**
+- Binary file full-text extraction (PDF/docx reliability work needed)
+- Encryption at rest
+- Tag autocomplete
+- Brain health trend over time (needs baseline data first)
+- Relative paths in DB (schema migration; absolute paths acceptable until first migration event)
+
+See `.planning/research/FEATURES.md` for full prioritization matrix and competitor analysis.
 
 ### Architecture Approach
 
-The architecture follows the clean layered model already established in v1.5: engine modules are the single source of truth, imported directly by CLI commands. v2.0 adds two new access surfaces — a thin FastAPI HTTP facade (`engine/api.py`) for the GUI, and a FastMCP stdio server (`engine/mcp_server.py`) for Claude.ai — both calling the same engine functions. A new `engine/intelligence/` sub-package holds thin orchestrators that compose `db.py` + `ai.py` + `embed.py` with no state of their own. `engine/crypto.py` becomes the SQLite connection factory used by `db.py`; all other modules gain encryption transparently without knowing about it.
+The system is a single-user local desktop app with a hard boundary between the GUI layer (pywebview WebView running vanilla JS) and the engine layer (Flask/waitress sidecar on `127.0.0.1:37491`). All changes land in existing files — no new modules needed. The SSE event bus (`queue.SimpleQueue` in `api.py`) is the backbone: once `GET /events` and `_notify()` are in place, every write endpoint gains live-refresh for free by calling `_notify()` at the end. The `sb-watch` daemon bridges to SSE via `POST /internal/notify` over loopback.
 
-**Major components:**
-1. `engine/embed.py` — sentence-transformers model (loaded once at startup, never per-request); sqlite-vec KNN query; RRF merge with FTS5 BM25 results
-2. `engine/crypto.py` — SQLCipher connection factory; Fernet file encrypt/decrypt for PII notes; keyring passphrase retrieval; all DB access goes through this module
-3. `engine/intelligence/` — five thin orchestrators: `recap.py`, `digest.py`, `actions.py`, `nudge.py`, `connections.py`; own no state; compose db.py + ai.py + embed.py
-4. `engine/api.py` — FastAPI HTTP server on `127.0.0.1:37491`; thin routes only, zero business logic; started as `sb-api` sidecar by GUI process
-5. `engine/mcp_server.py` — FastMCP stdio server; wraps engine functions as `@mcp.tool` callables; PII routing inherited from existing ModelRouter
-6. `gui/` — pywebview + Flask desktop shell; HTML/CSS/JS frontend; read-optimized; no engine logic imported; all writes go through the API or CLI
-7. Extended `brain.db` schema — `note_embeddings` virtual table (sqlite-vec, 384-dim float32), `actions` table with cascade deletes, SQLCipher AES-256 on all tables
+**Major components and their v3.0 responsibilities:**
+1. `engine/api.py` — adds 8 new routes: `/events`, `/internal/notify`, `DELETE /notes/<path>`, `PATCH /notes/<path>/tags`, `POST /files/upload`, `POST /recap/trigger`, `GET /health/brain`, `POST /batch-capture`
+2. `engine/gui/static/app.js` — adds: EventSource subscriber, tag chip editor, file upload handler, health panel renderer, sidebar collapse, frontmatter strip before `marked.parse()`
+3. `engine/health.py` — adds: `BRAIN_CHECKS` list and `compute_brain_score()`
+4. `engine/capture.py` — adds: `batch_capture(items)` wrapping existing `capture_note()` in a single transaction
+5. `engine/search.py` — modifies: `tag_filter` param; optional BM25 column weight tuning in `_rrf_merge()`
+6. `engine/intelligence.py` — modifies: expose `generate_recap()` as a callable for the on-demand endpoint
 
-**Key patterns to enforce:**
-- Engine-as-library: all surfaces (CLI, API, MCP) import engine modules directly; no subprocess calls between engine components
-- Thin HTTP facade: `api.py` routes call one engine function and return JSON; zero business logic in the route handler
-- Intelligence as orchestrators: `intelligence/*` modules own no state and hold no DB connections; push reusable logic into `db.py` or `ai.py`
-- Single proactive budget: one unsolicited message per session, prioritized as: overdue action > session recap > stale nudge > connection / digest; cooldown state persisted in `~/.meta/intelligence_state.json`
+Build order from architecture research: markdown/scroll fixes (pure frontend) → backlink/title-sync fixes → SSE infrastructure (unlocks all subsequent features) → delete + security hardening → sidebar collapse → tags → file upload → recap → health dashboard → batch capture → search tuning last (needs regression fixtures).
+
+See `.planning/research/ARCHITECTURE.md` for full component mapping, data flow diagrams, and anti-patterns.
 
 ### Critical Pitfalls
 
-1. **Encryption migration corrupts existing data (C3)** — Never migrate `brain.db` in-place. Write to `brain.db.enc`, run `PRAGMA integrity_check`, verify round-trip read, then `os.replace()`. The index is rebuildable via `sb-reindex` — treat the Markdown source as the ground truth. Keep `brain.db.plaintext.bak` until verification passes.
+1. **Path traversal in `/notes/<path>` API** — `GET` and `PUT` accept arbitrary paths with no `BRAIN_ROOT` validation. Add a resolved-path prefix check returning 403 before any file read/write. Must be in place before `DELETE /notes/<path>` ships. Also remove `brain_path` from the `POST /notes` request body.
 
-2. **Vector embeddings become stale after note edits (C5)** — Store `content_hash` alongside each embedding row. On every index write, compare hashes; mark `stale = true` if different. A background job re-embeds stale entries; `sb-reindex` always re-embeds all. This must be in the schema design, not retrofitted.
+2. **XSS via `marked.parse()` without DOMPurify** — becomes exploitable as soon as file upload enables external content import. One-line fix: `viewer.innerHTML = DOMPurify.sanitize(marked.parse(stripFrontmatter(md)))`. Vendor DOMPurify alongside EasyMDE. Never acceptable to defer once file upload ships.
 
-3. **Hybrid search produces incoherent results without RRF (C6)** — FTS5 BM25 scores and cosine distances are on incompatible scales. Never add or average them. Use Reciprocal Rank Fusion exclusively: `rrf = 1/(60 + rank_bm25) + 1/(60 + rank_semantic)`. Apply top-K cutoff per retriever before fusion, not after.
+3. **Cascade delete missing `note_embeddings` and `relationships`** — the full cascade exists in `forget.py` but is inline. Extract `delete_note(path, conn, brain_root)` utility; both `forget_person` and `DELETE /notes/<path>` must call it. A naive delete endpoint that only hits the `notes` table leaves orphan rows that corrupt brain health scores.
 
-4. **MCP server enables prompt injection on destructive tools (C7)** — `sb-forget` and `sb-anonymize` must require two-call confirmation via a short-lived token (60-second TTL, in-memory dict). Split read-only tools from write/destructive tools into separate MCP server configurations. Wrap note content in `sb-read` responses in `<brain_note>` XML tags with a system instruction that content inside is user data, not model instructions.
+4. **Watcher fires on GUI-uploaded files — duplicate notes** — `sb-watch` monitors `files/`; GUI upload writes there and triggers a second `capture_note`, producing two sidebar entries. Fix: module-level `{path: expire_monotonic}` "recently captured" registry in `watcher.py`; GUI upload registers the path for 10 seconds; watcher skips registered paths.
 
-5. **Notification fatigue from independent intelligence triggers (C8)** — Each intelligence module built in isolation will fire independently, producing noise the user learns to ignore. Define the proactive budget and `intelligence_state.json` cooldown architecture in Phase 2 before any individual module ships a proactive output.
+5. **Batch capture partial failure is silent** — per-note atomicity is correct; do not wrap all items in one transaction. The problem is the absence of a structured result. Must return `{"succeeded": [...], "failed": [{"item": ..., "reason": ...}]}`. Never use `except Exception: pass` in the batch loop.
 
-6. **GUI engine tight coupling (C1)** — The GUI cannot import from `engine/` modules directly. `engine/api.py` must be complete and stable before any GUI work begins. This is a hard architectural dependency.
+6. **RRF tuning regresses exact-match precision** — boosting vector weight improves recall but degrades precision (exact name/slug queries drop from rank 1). Establish a fixed regression suite (5 precision + 5 recall queries) before touching any `_rrf_merge` parameter. Keep `k=60`.
+
+7. **Brain health false positives after BRAIN_ROOT path change** — all paths stored as absolute; if `BRAIN_ROOT` moves, every stored path fails `.exists()`. Detect stale-prefix pattern; emit a single "run sb-reindex" warning instead of hundreds of individual orphan alerts.
+
+See `.planning/research/PITFALLS.md` for full pitfall descriptions, warning signs, and the "looks done but isn't" verification checklist.
 
 ---
 
 ## Implications for Roadmap
 
-The dependency graph strictly constrains phase order. Six phases are suggested; the first three can all ship value independently without requiring GUI or MCP work to be complete.
+Based on combined research, the dependency graph from ARCHITECTURE.md drives a natural phase structure. The SSE infrastructure is the central dependency — everything after it benefits from live refresh. Security hardening must not slip past the deletion phase.
 
-### Phase 1: Encryption + Embedding Infrastructure
+### Phase 1: Frontend Bug Fixes
+**Rationale:** Zero backend dependencies; pure JS/CSS changes; delivers immediate user-visible quality improvement; unblocks accurate testing of all subsequent phases.
+**Delivers:** Usable viewer (scroll, rendered markdown, no YAML frontmatter bleed), accurate backlinks, title sync after save.
+**Addresses:** GUIX-02 (title sync), GUIX-03 (markdown rendering), GUIX-04 (scroll fix), GUIX-05 (backlinks correctness).
+**Avoids:** Frontmatter-in-viewer UX pitfall; sets up DOMPurify addition before file upload arrives.
+**Research flag:** Standard patterns — skip research-phase.
 
-**Rationale:** `crypto.py` (SQLCipher connection factory) must exist before any new module writes to `brain.db`. `embed.py` (sentence-transformers + sqlite-vec) must exist before intelligence modules that use similarity queries. Both are self-contained, have no UI dependencies, and can be verified with pure unit tests. Doing encryption last (after intelligence and GUI) would require retrofitting encrypted connections across all new modules — high risk.
+### Phase 2: Live Refresh Infrastructure (SSE)
+**Rationale:** SSE event bus is the backbone; once `_notify()` exists, every write in phases 3-6 gets live refresh for free. Must ship before note deletion, file upload, tags, or batch capture.
+**Delivers:** Notes appear in sidebar the moment they are created or edited anywhere (GUI, CLI, watcher daemon).
+**Addresses:** GUIX-01 (live refresh).
+**Uses:** `queue.SimpleQueue` (stdlib), watchdog `run_js()` bridge, `POST /internal/notify` for watcher process.
+**Avoids:** DB-row-before-file-on-disk race — GUI must retry on transient 404 before showing an error.
+**Research flag:** Validate SSE + pywebview `EventSource` compatibility with a minimal proof-of-concept before building the full infrastructure. Otherwise standard patterns.
 
-**Delivers:** `engine/crypto.py` with SQLCipher connection factory and Fernet PII file encryption; passphrase stored in OS keyring; migration from unencrypted v1.5 `brain.db` (write-to-new, verify, atomic swap, keep `.bak`); `engine/embed.py` with model-load-once pattern; `note_embeddings` virtual table (sqlite-vec, 384-dim, content-hash column); `actions` table schema.
+### Phase 3: Note Deletion + Security Hardening
+**Rationale:** Deletion adds a destructive write endpoint — path traversal guard must be in place first. Extract `delete_note()` cascade utility here so it is reused correctly by all future deletion surfaces.
+**Delivers:** Users can delete notes from GUI; no orphan DB rows; path traversal blocked on all endpoints; confirmation dialog prevents accidental data loss.
+**Addresses:** GUIX-06 (note deletion); path traversal guard (Pitfall 8).
+**Avoids:** Cascade-miss pitfall (Pitfall 4); path traversal pitfall (Pitfall 8); accidental person-profile erasure without warning.
+**Research flag:** Standard patterns — cascade pattern already in `forget.py`; path traversal guard is a standard web security pattern.
 
-**Features addressed:** Encryption at rest (complete), vector search infrastructure (partial — no CLI exposure yet).
+### Phase 4: Navigation Polish (Sidebar Collapse + Tags)
+**Rationale:** Sidebar collapse and tag editing/filtering are pure navigation improvements with no inter-phase dependencies beyond SSE. Grouped together because both improve browse ergonomics and neither affects data integrity.
+**Delivers:** Collapsible sidebar type-groups; tag chip editor in viewer; tag filter dropdown in sidebar.
+**Addresses:** GNAV-01 (sidebar collapse), GNAV-02 (tag editing), GNAV-03 (tag filter).
+**Avoids:** Tag-save-without-FTS-update pitfall — tags must update both frontmatter and `notes.tags` DB column + FTS row (targeted update, not full reindex).
+**Research flag:** Standard patterns — skip research-phase. Confirm `tags` column existence in `engine/db.py` schema at phase start (Gap 3).
 
-**Pitfalls to prevent:** C3 (migration corruption), C4 (key in plaintext), C5 (stale embedding schema with content-hash column from day one), C6 (RRF merger function written here, before any CLI exposure).
+### Phase 5: File Capture + Batch Capture
+**Rationale:** File upload and batch capture both write to the filesystem and both need the watcher dedup guard. Group them so the dedup registry is implemented once. DOMPurify must be vendored before this phase ships — file upload introduces external content.
+**Delivers:** Drag-or-pick file upload from GUI; batch capture of all unindexed markdown files; no duplicate notes from watcher race; structured per-item batch result.
+**Addresses:** GUIF-01 (file upload), ENGL-01 (batch capture).
+**Avoids:** Watcher-duplicate pitfall (Pitfall 2); XSS pitfall (Pitfall 3 — DOMPurify required before this phase ships); batch partial-failure silence (Pitfall 5).
+**Research flag:** Standard patterns — skip research-phase.
 
-**Research flag:** NEEDS phase research — SQLCipher migration runbook, Argon2id vs PBKDF2 key derivation decision, `sqlcipher_export()` edge cases on populated databases.
+### Phase 6: Intelligence Features (Recap + Brain Health)
+**Rationale:** On-demand recap and brain health dashboard are independent additive features. Both depend on SSE (Phase 2) for UI feedback. Low risk to ship together as "intelligence additions."
+**Delivers:** "Generate Recap" button with spinner in Intelligence panel; brain health score widget with orphan/broken-link/duplicate checks; `sb-health --brain` CLI flag.
+**Addresses:** GUIF-02 (on-demand recap), ENGL-04 (brain health data), ENGL-05 (health score).
+**Avoids:** Brain health false positive on path change (Pitfall 7); "0 orphans = healthy" when relationships table is empty (UX: distinguish "no issues found" from "nothing checked").
+**Research flag:** Standard patterns — skip research-phase. All check patterns already established in `engine/health.py`.
 
----
-
-### Phase 2: Intelligence Layer
-
-**Rationale:** These five orchestrators compose `db.py` + `ai.py` (both existing and stable) + `embed.py` (Phase 1). They deliver the highest value-to-cost ratio in the entire roadmap: session recap is a CLAUDE.md instruction + one CLI flag; stale nudges are a SQLite query; action item extraction is a structured prompt through the existing AI adapter. Build all five `intelligence/` modules and the proactive budget architecture before tackling GUI or MCP — they are the features users will interact with daily.
-
-**Delivers:** `engine/intelligence/` sub-package (recap, digest, actions, nudge, connections); `sb-read --recent` CLI flag; session state file; proactive budget + cooldown architecture in `~/.meta/intelligence_state.json`; action item extraction triggered on meeting note capture; connection surfacing post-capture (threshold-gated); `evergreen: true` frontmatter support; vault-size gate (minimum 20 notes before any proactive output fires).
-
-**Features addressed:** Proactive session recap, action item extraction, stale note nudges, connection surfacing, cross-context synthesis (partial — enhanced by Phase 3 semantic retrieval).
-
-**Pitfalls to prevent:** C8 (notification fatigue — proactive budget and cooldown designed here, before any feature fires), C9 (prompt injection in intelligence prompts — XML-tag isolation applied to every new AI call in this phase).
-
-**Research flag:** Standard patterns for structured prompt extraction and XML-tag isolation (existing v1.5 pattern). Proactive budget design is novel but low-risk.
-
----
-
-### Phase 3: Semantic Search + Weekly Digest CLI
-
-**Rationale:** With Phase 1 infrastructure complete (`embed.py`, `note_embeddings`, content-hash gating), this phase wires semantic search into the CLI and completes `sb-reindex` with the embedding pass. Weekly digest depends on action items (Phase 2) and stale nudges (Phase 2) being stable — it ships here as the feature that aggregates them. Cross-context synthesis is completed here (Phase 2 built the orchestrator; Phase 3 adds vector-enhanced retrieval).
-
-**Delivers:** `sb-search --semantic` flag; RRF hybrid search in `search.py`; `sb-reindex` with embedding generation pass and content-hash staleness detection; `sb-forget` cascade to `note_embeddings` and `actions` tables; weekly digest with launchd scheduling writing to `.meta/digests/YYYY-WW.md`; `sb-read --digest latest`; cross-context synthesis CLI command.
-
-**Features addressed:** Semantic / vector search (complete), cross-context synthesis (complete), weekly digest (complete), connection surfacing (complete).
-
-**Pitfalls to prevent:** C5 (stale embedding detection verified end-to-end — edit a note, verify `stale=true`, verify background re-embed), C6 (RRF confirmed in code review; no raw score arithmetic anywhere).
-
-**Research flag:** Standard patterns — sqlite-vec and RRF are well-documented by the library author. No phase research needed.
-
----
-
-### Phase 4: FastAPI HTTP Layer + Setup Automation
-
-**Rationale:** `engine/api.py` must be complete and stable before any GUI work begins (C1 — this is the hard dependency). Setup automation for Drive detection and Ollama auto-install is fully independent of all other phases and slots here for logical grouping. Shipping the API layer first allows GUI development to start against a stable contract without coupling.
-
-**Delivers:** `engine/api.py` (FastAPI on `127.0.0.1:37491`, bound to localhost only) with full route coverage for all engine functions; `sb-api` entry point in `pyproject.toml`; health endpoint for GUI polling; Drive detection with canary verification in `sb-init` (exits code 1 if Drive not found, no silent fallback); Ollama auto-install with health-check and CPU-only performance warning (>30s per embed triggers warning).
-
-**Features addressed:** Setup automation (Drive + Ollama complete), API foundation for GUI.
-
-**Pitfalls to prevent:** C1 (API contract exists and is stable before GUI starts), C10 (Drive canary verification — path existence is not sufficient), C11 (Ollama CPU performance warning).
-
-**Research flag:** Drive path detection has platform-specific variants that change with Drive app versions — a quick verification of current macOS (`~/Library/CloudStorage/GoogleDrive-*/`) and Windows mount paths is warranted at planning time.
-
----
-
-### Phase 5: GUI Hub
-
-**Rationale:** Depends on `engine/api.py` (Phase 4) being complete. pywebview 5.4 + Flask is the chosen stack (not Tauri — PyTauri is pre-1.0 as of Feb 2026). GUI is strictly read-optimized: no CRUD forms, no embedded editor; opens files in the system default Markdown application. Sidecar lifecycle (spawn, health-check polling, graceful SIGTERM teardown) must be a first-class deliverable in this phase, not an afterthought.
-
-**Delivers:** `gui/` with pywebview + Flask frontend; `sb-gui` entry point; left sidebar (folder tree / note list), center Markdown render (read-only), right panel (backlinks + metadata + related notes); command palette search; PID lockfile at `~/.meta/engine.pid`; stale lock detection on startup; graceful teardown on window close.
-
-**Features addressed:** GUI hub (complete).
-
-**Pitfalls to prevent:** C2 (sidecar orphan process — PID lockfile + explicit teardown on window-destroyed event), C1 (GUI only calls `127.0.0.1:37491`, never imports from `engine/`).
-
-**Research flag:** NEEDS phase research — pywebview two-way JS bridge (`window.pywebview.api`) threading model with Flask, cross-platform rendering differences (WebKit on macOS vs WebView2 on Windows), WebView2 fallback handling for pre-2021 Windows 10 installs.
-
----
-
-### Phase 6: MCP Server
-
-**Rationale:** Fully independent of the GUI. Depends only on engine modules (Phases 1-3 complete). Can run in parallel with Phase 5 if resources allow. FastMCP with stdio transport is the correct choice: no port binding, no firewall rules, the MCP client spawns the process. Security model (destructive tool confirmation, read/write split) must be specified before any tool registration.
-
-**Delivers:** `engine/mcp_server.py` with FastMCP; `sb-mcp-server` entry point; tools: `sb_search`, `sb_capture`, `sb_read`, `sb_forget`, `sb_recap`, `sb_digest`, `sb_connections`; two-call confirmation gate (token + 60s TTL) for `sb_forget` and `sb_anonymize`; read-only vs read-write server split configuration; `sb-init` auto-writes Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`); PII routing inherited from existing ModelRouter.
-
-**Features addressed:** Claude.ai web integration via MCP (complete).
-
-**Pitfalls to prevent:** C7 (destructive tool confirmation gates, localhost-only binding, XML-tag isolation on `sb_read` responses), C9 (MCP tools call `ai.py` which routes through existing ModelRouter — no new PII bypass).
-
-**Research flag:** Standard patterns — FastMCP documentation covers stdio transport and tool registration. Two-call confirmation token pattern is straightforward (in-memory dict with TTL).
-
----
+### Phase 7: Search Quality Tuning
+**Rationale:** Comes last because it requires evaluation fixtures that can only be built once real notes are flowing through the system. No user-facing feature is blocked on it.
+**Delivers:** BM25 column weight boosting for title matches; optional recency boost for recent notes; tag filter in search results.
+**Addresses:** ENGL-02 (search hybrid ranking tuning), ENGL-03 (AI quality — prompt improvements).
+**Avoids:** RRF precision-regression pitfall (Pitfall 6 — regression suite required and gated before any parameter change).
+**Research flag:** Needs `/gsd:research-phase` — RRF weight calibration is empirical and requires evaluation fixtures built against the actual note corpus. Do not begin implementation without a regression suite in place.
 
 ### Phase Ordering Rationale
 
-- Encryption first because `crypto.py` is the DB connection factory — retrofitting encrypted connections after intelligence and GUI are built is high-risk and touches every module that writes to `brain.db`.
-- Embed infrastructure before intelligence because `connections.py` and the cross-context synthesis retrieval path both call `embed.py`; without it, those features are shells.
-- Intelligence before search CLI exposure and weekly digest because action item extraction and stale nudges are prerequisites for the weekly digest (Phase 3), and they are cheap to build against existing infrastructure before any new CLI flags are needed.
-- API layer before GUI — hard dependency (C1); no exceptions.
-- GUI and MCP are independent of each other and can be parallelized if two engineers are available.
-- Setup automation (Drive + Ollama) is fully independent and slots into Phase 4 only for logical grouping; it could move to Phase 1 if early user testing is a higher priority than encryption.
+- Frontend fixes first (Phase 1): zero-risk pure-frontend changes that make all subsequent testing meaningful.
+- SSE second (Phase 2): backbone infrastructure — phases 3-6 all call `_notify()` for free once it exists.
+- Deletion + security third (Phase 3): a destructive endpoint (DELETE) must not ship without the path traversal guard; cascade utility extracted here reused later.
+- Navigation fourth (Phase 4): self-contained quality-of-life improvement before the more complex capture work.
+- Capture fifth (Phase 5): file upload introduces external content (XSS risk, watcher dedup risk); DOMPurify and the dedup registry must be in place first.
+- Intelligence sixth (Phase 6): additive features that do not affect data integrity; low risk to ship after the core UX is solid.
+- Search tuning last (Phase 7): empirical and iterative; cannot be done correctly without a regression fixture set.
 
 ### Research Flags
 
 Phases needing deeper research during planning:
-- **Phase 1:** SQLCipher migration runbook — `sqlcipher_export()` semantics, Argon2id vs PBKDF2 key derivation choice, version compatibility between SQLCipher 3 and 4 default KDF parameters
-- **Phase 5:** pywebview + Flask integration — two-way JS bridge threading model, WebView2 availability detection on older Windows 10, system default Markdown app open API per platform
+- **Phase 7 (Search Quality):** RRF weight calibration is empirical — build evaluation fixtures against the actual note corpus before touching any `_rrf_merge` parameters.
+- **Phase 2 (SSE):** Validate `EventSource` + pywebview WebKit compatibility with a minimal proof-of-concept at phase start before committing to the full SSE architecture.
 
-Phases with well-documented patterns (research-phase optional):
-- **Phase 2:** Intelligence orchestrators — standard prompt engineering + existing `ai.py` abstraction; XML-tag isolation pattern already established in v1.5
-- **Phase 3:** sqlite-vec + RRF hybrid search — canonical pattern documented by library author (Alex Garcia at alexgarcia.xyz)
-- **Phase 4:** FastAPI thin facade — well-documented; Drive path variants need a quick spot-check only
-- **Phase 6:** FastMCP stdio transport — official FastMCP docs cover the complete pattern
+Phases with standard patterns (skip research-phase):
+- **Phase 1:** Pure CSS/JS changes; all patterns identified in code inspection.
+- **Phase 3:** Cascade pattern already in `forget.py`; path traversal guard is a standard web security one-liner.
+- **Phase 4:** All patterns derived from existing `renderSidebar()` and `PUT /notes/<path>` code paths.
+- **Phase 5:** `capture_note()` already exists; dedup registry is a simple dict; werkzeug `secure_filename` is documented.
+- **Phase 6:** `engine/health.py` check pattern already established; `generate_recap()` already callable from CLI.
 
 ---
 
@@ -208,56 +177,46 @@ Phases with well-documented patterns (research-phase optional):
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Versions verified on PyPI; alternatives evaluated with specific reasoning; pywebview chosen over Tauri after confirming PyTauri pre-1.0 status Feb 2026; APScheduler `<4.0` pin confirmed |
-| Features | HIGH | PKM competitor landscape verified via web research; feature dependency graph is explicit; anti-features well-reasoned against GDPR constraints and developer-persona UX |
-| Architecture | MEDIUM-HIGH | Existing v1.5 architecture is known ground (HIGH); pywebview/Flask in-process pattern and FastMCP stdio integration are MEDIUM (community examples exist, shorter production track record) |
-| Pitfalls | HIGH | SQLCipher migration, RRF fusion, MCP prompt injection all verified against multiple authoritative sources; Tauri sidecar lifecycle and Ollama edge cases are MEDIUM (community-confirmed) |
+| Stack | HIGH | One new dep (`Markdown>=3.7`) verified on PyPI; all others read directly from `pyproject.toml`; version compatibility confirmed |
+| Features | MEDIUM-HIGH | P1 bugs confirmed via code inspection (HIGH); P2 feature patterns derived from Obsidian ecosystem observation (MEDIUM) |
+| Architecture | HIGH | All component boundaries, data flows, and implementation sketches derived from direct code inspection of the actual source files |
+| Pitfalls | HIGH | All critical pitfalls grounded in direct code reading; security findings (path traversal, XSS) are standard web security patterns with HIGH confidence |
 
-**Overall confidence:** MEDIUM-HIGH
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **GUI framework conflict resolved:** FEATURES.md recommended Tauri 2.x; STACK.md and ARCHITECTURE.md both converge on pywebview 5.4 after confirming PyTauri is pre-1.0. Synthesis decision: **pywebview**. Revisit Tauri when PyTauri reaches 1.0.
-- **Key derivation algorithm:** PITFALLS.md recommends Argon2id (memory-hard, GPU-resistant); STACK.md specifies PBKDF2. Needs a definitive decision in Phase 1 planning. Argon2id is the stronger choice.
-- **Embedding model source:** FEATURES.md mentions `nomic-embed-text` via Ollama; STACK.md recommends `all-MiniLM-L6-v2` via sentence-transformers (faster on CPU for sub-100-token notes). Synthesis: sentence-transformers is the primary path (always available, no daemon dependency); Ollama embeddings are the optional GPU-enhanced fallback for users who prefer higher-dimensional models.
-- **First-run install time:** `sentence-transformers` pulls in torch CPU wheel (~800 MB total). First `uv tool install` after v2.0 will take 3-5 minutes. Must be documented prominently in setup notes and v2.0 release notes.
-- **Vault-size gate threshold:** PITFALLS.md recommends gating proactive intelligence on minimum 20 notes. This constant needs to be defined in Phase 2 before any intelligence module ships.
-- **Weekly digest PII routing:** Digest aggregates notes that may include PII content. Must confirm digest generation routes PII note summaries through Ollama and non-PII through Claude — same ModelRouter, but needs an explicit test in Phase 3.
+- **Gap 1 — Server-side vs. client-side markdown rendering:** STACK.md recommends adding `python-markdown` for server-side rendering; ARCHITECTURE.md recommends staying with the already-vendored `marked.js` (client-side, no new dep). These contradict each other. ARCHITECTURE.md is more grounded (direct code inspection). Recommended resolution at Phase 1 planning: use client-side `marked.js` with frontmatter strip — no new dependency, consistent with existing design. Only choose server-side if rendered HTML needs to be consumed by MCP or API clients.
+
+- **Gap 2 — SSE in pywebview WebKit not explicitly confirmed:** FEATURES.md notes that SSE + pywebview was inferred from the absence of known blockers, not confirmed from official docs. Validate with a two-line proof-of-concept (`EventSource` hitting a test `/events` endpoint) at the start of Phase 2 before building the full SSE infrastructure.
+
+- **Gap 3 — `tags` column existence in `notes` table schema:** ARCHITECTURE.md notes the `tags` column needs confirmation against `engine/db.py init_schema`. Confirm at Phase 4 planning start; if absent, add via non-breaking `ALTER TABLE ADD COLUMN tags TEXT DEFAULT ''`.
+
+- **Gap 4 — Search regression fixtures:** Phase 7 cannot be planned or executed without a fixed evaluation set drawn from the actual note corpus. Assemble during Phase 6 when brain health provides visibility into note structure.
 
 ---
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [sqlite-vec GitHub (asg017/sqlite-vec)](https://github.com/asg017/sqlite-vec) — v0.1.6 stable, KNN API, extension loading
-- [alexgarcia.xyz sqlite-vec hybrid search](https://alexgarcia.xyz/blog/2024/sqlite-vec-hybrid-search/index.html) — RRF canonical implementation from library author
-- [sqlcipher3-binary PyPI](https://pypi.org/project/sqlcipher3-binary/) — v0.6.2, binary wheels, Jan 2026
-- [SQLCipher GitHub](https://github.com/sqlcipher/sqlcipher) — migration path, version compatibility
-- [MCP Python SDK GitHub](https://github.com/modelcontextprotocol/python-sdk) — official Anthropic MCP SDK
-- [fastmcp PyPI](https://pypi.org/project/fastmcp/) — v3.x standalone package, stdio transport
-- [sentence-transformers PyPI](https://pypi.org/project/sentence-transformers/) — v5.3.0, all-MiniLM-L6-v2 specs
-- [keyring PyPI](https://pypi.org/project/keyring/) — v25.7.0, platform keychain backends
-- [OWASP LLM01:2025 prompt injection](https://genai.owasp.org/llmrisk/llm01-prompt-injection/) — MCP security model rationale
-- [Unit42 Palo Alto MCP attack vectors](https://unit42.paloaltonetworks.com/model-context-protocol-attack-vectors/) — indirect prompt injection via MCP tools
-- [Tauri v2 architecture docs](https://v2.tauri.app/concept/architecture/) — confirmed Tauri v2.4.x; informed decision to use pywebview instead
-- [PyTauri GitHub](https://github.com/pytauri/pytauri) — confirmed pre-1.0 status (v0.8, Feb 2026)
-- [MCP Integrations — Anthropic official](https://www.anthropic.com/news/integrations) — claude.ai remote MCP on Max plan confirmed
+- Direct code inspection: `engine/api.py`, `engine/gui/static/app.js`, `engine/gui/static/index.html`, `engine/search.py`, `engine/health.py`, `engine/capture.py`, `engine/watcher.py`, `engine/forget.py`, `engine/links.py`, `pyproject.toml` — 2026-03-16
+- Flask streaming responses (SSE): https://flask.palletsprojects.com/en/3.1.x/patterns/streaming/
+- MDN EventSource API: https://developer.mozilla.org/en-US/docs/Web/API/EventSource
+- SQLite FTS5 `bm25()` column weighting: https://www.sqlite.org/fts5.html
+- Python-Markdown PyPI (v3.10.2 current, Feb 2026): https://pypi.org/project/Markdown/
+- werkzeug `secure_filename`: https://werkzeug.palletsprojects.com/en/3.1.x/utils/#werkzeug.utils.secure_filename
+- waitress threading model: https://docs.pylonsproject.org/projects/waitress/en/stable/runner.html
+- RRF `k=60` default: Cormack & Clarke (2009); confirmed as default in LangChain, LlamaIndex, Elasticsearch hybrid search
+- `marked` v5 sanitize removal + DOMPurify as replacement: marked changelog (HIGH confidence)
 
 ### Secondary (MEDIUM confidence)
-- [pywebview GitHub (r0x0r/pywebview)](https://github.com/r0x0r/pywebview) — v5.4 cross-platform support; Flask in-process pattern
-- [APScheduler PyPI](https://pypi.org/project/APScheduler/) — v3.11.2 stable; v4 breaking API rewrite confirmed
-- [cryptography PyCA docs](https://cryptography.io/) — Fernet AES-128-CBC + HMAC pattern
-- [oneuptime.com SQLCipher post, Feb 2026](https://oneuptime.com/blog/post/2026-02-02-sqlcipher-encryption/view) — SQLCipher migration patterns in Python
-- [Electron vs Tauri — DoltHub Blog, Nov 2025](https://www.dolthub.com/blog/2025-11-13-electron-vs-tauri/) — bundle size and RAM comparisons
-- [Tauri sidecar docs](https://v2.tauri.app/develop/sidecar/) — orphan process and teardown patterns (informed C2 even though Tauri was not chosen)
-- [openreview proactive agent research](https://openreview.net/forum?id=sRIU6k2TcU) — notification fatigue basis (40% success rate on proactive tasks in SOTA systems)
-- [Saner.AI second brain UX](https://www.saner.ai/blogs/second-brain) — stale resurfacing and digest UX patterns
-- [Obsidian AI second brain guide 2026](https://www.nxcode.io/resources/news/obsidian-ai-second-brain-complete-guide-2026) — competitor feature landscape
-
-### Tertiary (LOW confidence, needs validation at phase planning time)
-- pyrage (Python age encryption bindings) — mentioned in ARCHITECTURE.md for optional file encryption; superseded in synthesis by Fernet for PII files; revisit if per-file encryption scope expands
-- Ollama CPU inference speed figures — community-reported; measure at Phase 1 with actual hardware before committing to warning thresholds
+- pywebview WebSocket issues (#241, #688, #774): https://github.com/r0x0r/pywebview/issues/241 — confirms SSE preferred over WebSocket in embedded WebKit
+- pywebview `run_js()` thread safety: https://pywebview.flowrl.com/api/ — fire-and-forget confirmed; explicit thread-safety statement not found but community-confirmed
+- Flask SSE without extra dependencies: https://maxhalford.github.io/blog/flask-sse-no-deps/
+- Obsidian vault-statistics plugin (brain health UX validation): https://github.com/bkyle/obsidian-vault-statistics-plugin
+- obsidianstats.com find-unlinked-files (orphan detection validation): https://www.obsidianstats.com/plugins/find-unlinked-files
+- Tag chip editor UX pattern: derived from Obsidian ecosystem observation
 
 ---
-*Research completed: 2026-03-15*
+*Research completed: 2026-03-16*
 *Ready for roadmap: yes*

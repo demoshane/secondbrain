@@ -1,14 +1,27 @@
 # Feature Research
 
-**Domain:** AI-augmented Personal Knowledge Management — v2.0 Intelligence + GUI
-**Researched:** 2026-03-15
-**Confidence:** HIGH for PKM UX patterns (web-verified), MEDIUM for implementation specifics
+**Domain:** Desktop PKM app — GUI overhaul and engine polish (v3.0)
+**Researched:** 2026-03-16
+**Confidence:** MEDIUM-HIGH (core patterns well-established; PKM health scoring is emerging/informal)
 
 ---
 
 ## Scope Note
 
-v1.5 shipped the full capture/search/GDPR foundation. This file covers only the **11 v2.0 features**. v1.5 features (sb-capture, sb-search, sb-read, sb-forget, sb-export, sb-anonymize, sb-reindex, sb-check-links, sb-watch, PII routing, git hooks, backlinks, GDPR) are treated as existing dependencies — not re-researched.
+v1.5 and v2.0 features are treated as existing dependencies. This file covers only the **v3.0 target features**. Focus: GUI live refresh, markdown rendering polish, tag editing, file capture from GUI, on-demand recap, batch capture, search quality, and brain health dashboard.
+
+---
+
+## Existing Foundation (Already Built — Do Not Re-Implement)
+
+- `sb-capture`, `sb-search` (FTS5 + semantic/RRF), `sb-forget`, `sb-export`, `sb-anonymize`
+- `sb-recap`, `sb-actions`, `sb-digest` (weekly, launchd-triggered)
+- `sb-gui` (pywebview + Flask sidecar on 127.0.0.1:37491, three-panel, EasyMDE vendored)
+- `sb-mcp-server` (10 tools), launchd watcher, git hook
+- `marked.parse()` already called via EasyMDE bundle — markdown parser is in the browser
+- Waitress WSGI server (multi-threaded, suitable for SSE streaming)
+- Sidebar groups by type, search mode selector, new-note modal, action checkbox list
+- `GET /notes`, `PUT /notes/:path`, `POST /notes`, `GET /notes/:path/meta`, `GET /intelligence`, `GET /actions`, `GET /files`, `POST /files/move`
 
 ---
 
@@ -16,290 +29,121 @@ v1.5 shipped the full capture/search/GDPR foundation. This file covers only the 
 
 ### Table Stakes (Users Expect These)
 
-For a tool positioning itself as an "active knowledge partner with proactive intelligence," these behaviors are expected baselines. Missing them makes the intelligence layer feel incomplete.
+Features a GUI note app must have. Missing = feels broken.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Cross-context synthesis ("catch me up on X") | Any AI-augmented PKM (Mem, Notion AI, Saner.AI) offers person/project summarization; it's the primary AI value prop | HIGH | Aggregates all notes for a person/project; must respect PII routing — synthesis of PII notes must stay local via Ollama |
-| Action item extraction from meeting notes | Every serious meeting note tool (Fellow, Notion, Obsidian AI) extracts tasks post-capture; managers expect it | HIGH | Post-capture AI pass on `meetings/` type notes; produces structured task list with owner + due date; depends on capture already working |
-| Semantic / vector search | BM25 FTS5 is table stakes for keyword search; users now expect "find notes like this" — Obsidian, Notion, Logseq all added it | HIGH | `sqlite-vec` (successor to sqlite-vss, pure C, no deps) is the right choice for this stack; co-exists with FTS5 in same SQLite DB |
-| Claude.ai web integration via MCP | MCP became an industry standard by mid-2025 (adopted by OpenAI, Google, Microsoft); exposing brain tools as MCP server is now a standard pattern | MEDIUM | Implement as MCP server exposing sb-search, sb-capture, sb-read tools; claude.ai Integrations feature (Beta on Max plan) supports remote MCP — HIGH fit for this user |
-| Setup automation (Drive + Ollama in sb-init) | Users expect `sb-init` to reach a working state without manual steps; anything requiring separate installs feels broken | MEDIUM | Ollama: detect via `which ollama`, install via Homebrew on macOS / winget on Windows if absent; Drive: detect mount point, document if absent (Drive install requires GUI consent — can't fully automate) |
+| Live refresh — new/edited notes appear without restart | Desktop apps reflect filesystem state; requiring restart is a v1 bug | MEDIUM | SSE push is correct; polling creates visible lag; watchdog already ships in project |
+| Markdown renders as formatted HTML | Raw markdown text in a viewer is broken; every PKM tool renders it | LOW | `marked.parse()` already called in `renderMarkdown()` — mostly missing CSS to style output |
+| Mouse scroll in note content area | Basic OS interaction — without it the panel is unusable for long notes | LOW | Likely a missing `overflow-y: auto` on `#viewer` in CSS |
+| Note deletion with cascade | Any data app must let you remove records; half-deleted data is worse than no deletion | MEDIUM | Same cascade pattern as `sb-forget`: notes table, FTS5, vectors, backlinks |
+| Correct backlinks display | Backlinks are a core PKM navigation feature; wrong data destroys trust | MEDIUM | Current `note_meta` uses fuzzy filename substring match — needs exact path lookup |
+| Sidebar collapsible section navigation | 100s of notes across types; a flat list is unusable | LOW | Type grouping exists in `renderSidebar()` already — add collapse/expand toggle; pure JS/CSS |
 
 ### Differentiators (Competitive Advantage)
 
-Features that elevate this system above passive note tools and generic PKM apps. These match the owner's specific persona (Operations Manager, Team Lead, Developer).
+Features that go beyond generic note app UX and fit this system's persona.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Proactive session recap (once-per-session) | No PKM tool does ambient context injection into a coding IDE session; this is unique to Claude Code integration | MEDIUM | Implement as CLAUDE.md instruction + `/sb-read` of recent notes on session start; "once-per-session" enforced via session-scoped state file in `.meta/`; offer text: "3 things happened since your last session — recap?" |
-| Weekly digest (themes + open actions + stale items) | Saner.AI and Mem offer daily/weekly digests; differentiator here is digest is generated locally from own notes (not cloud-processed), and surfaces stale items | HIGH | Scheduled via launchd on macOS (existing infrastructure); generates Markdown digest note in `.meta/digests/`; open actions require action item extraction to be working first |
-| Stale note nudges (3mo / 6mo) | Logseq and Roam have no staleness detection; Mem's "resurface" is cloud-only; local staleness nudge is uncommon | MEDIUM | Track `last_accessed_at` in SQLite (already has audit log); query notes with no access in >90 days; surface via session recap or launchd-triggered CLI notification |
-| Connection surfacing (proactive "this relates to X") | Obsidian has backlink graphs but no proactive notification; Mem.ai does this but cloud-only | HIGH | Triggered at capture time: after writing note, run similarity query against vector index, surface top 3 related notes; threshold-gated to avoid noise |
-| GUI hub (cross-platform Mac + Windows) | CLI-only limits adoption and review workflows; a read-optimized GUI makes the brain accessible for browsing and daily review without terminal | HIGH | See GUI section below for full analysis |
-| Encryption at rest | No PKM tool in the local-first space ships encryption by default; Notesnook is the only encrypted notes app but it's cloud-sync | HIGH | See Encryption section below for analysis |
+| Tag editing in GUI | Most PKM tools require raw frontmatter editing to change tags; in-app chip editor is a UX win | MEDIUM | Parse YAML frontmatter in JS, PUT full rewritten content; tag filter in sidebar is a separate sub-piece |
+| Tag filtering in browse/search | Narrows results without a full-text query; standard in Obsidian tag pane and Notion | LOW | Sidebar already groups by type; add tag dimension; driven by `/notes?tag=X` API param |
+| File capture from GUI | Drag-and-drop or file picker to copy a PDF/docx into `files/` and index it | MEDIUM | `/files/move` exists; need `<input type=file>` + new `POST /files/upload` endpoint + trigger reindex |
+| On-demand weekly recap button | Generate a fresh recap at will, not only on launchd schedule | LOW-MEDIUM | `sb-recap` already works; expose as `POST /intelligence/recap`; show spinner (AI call = 5–30s latency) |
+| Brain health dashboard | Score showing orphans, broken links, stale notes, duplicate candidates | MEDIUM | Obsidian ecosystem validates this (vault-statistics + find-unlinked-files both popular plugins); expose as `GET /health/brain`; surface in GUI |
+| Batch capture trigger | One operation captures all pending new items rather than one at a time | MEDIUM | Find all `~/SecondBrain/**/*.md` not in `notes` table; process in batch; reuses watcher scan logic |
+| Search hybrid ranking tuning | Reduced "why is this first?" frustration; immediately noticeable | MEDIUM-HIGH | Current RRF needs BM25/cosine weight calibration; recency boost for meeting/person notes; needs evaluation fixtures |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Real-time connection surfacing (on every keystroke) | "Instant" feels more powerful | Generates noise, interrupts writing flow, kills performance | Surface connections only at capture completion — once, not continuously |
-| Auto-push digest to email / Slack | "Deliver to me" feels convenient | Exfiltrates note content to third-party services; GDPR risk; Drive sync already covers delivery | Write digest as a Markdown note in brain; read it in morning via sb-read |
-| GUI as primary interface (replace CLI) | Prettier UX | CLI is what makes this zero-friction for the developer persona; building a full CRUD GUI duplicates the engine | GUI is read-optimized and review-focused; all writes go through CLI commands |
-| Calendar integration for session recap | "Know what meetings I have" | OAuth complexity, token refresh, API rate limits — a separate integration project; already listed as out-of-scope | Manual capture of upcoming meetings; pre-meeting brief on demand |
-| Full encryption with passphrase-on-every-read | Security feels maximized | Kills the zero-friction value proposition; passphrase fatigue means users disable it | Encrypt the SQLite index + `.meta/` only; plain Markdown files rely on Drive's access controls; passphrase gate already exists for PII display |
-| Automatic Drive conflict resolution | "Just handle it" | Drive sync is not atomic; auto-resolution risks data loss | Append-only note writes (already the pattern); document conflict indicators; never auto-merge |
-| Weekly digest sent as push notification (macOS notification center) | Feels native | macOS notification entitlements require signed app bundle; complex for a `uv tool` install | launchd-triggered CLI print + write to brain as Markdown note |
-| Semantic search replacing BM25 entirely | "AI search is better" | Vector search has low precision for exact terms, names, dates; BM25 excels at these | Hybrid search: BM25 + vector re-ranking; keep FTS5 as primary, vector as re-ranker |
-
----
-
-## Feature Deep Dives
-
-### GUI Hub
-
-**Expected UX pattern (from Obsidian, Capacities, Craft):**
-- Left sidebar: folder tree / note list
-- Center: rendered Markdown view (read-only or light edit)
-- Right panel: backlinks, related notes, metadata
-- Command palette for search
-- No heavy CRUD forms — those belong in CLI
-
-**Framework recommendation: Tauri 2.x**
-
-Tauri 2.0 released late 2024; adoption up 35% year-over-year. Key facts for this project:
-- Ships <10MB bundle vs Electron's 100MB+
-- Uses system WebView (WebKit on macOS, WebView2 on Windows) — no bundled Chromium
-- Backend is Rust; Python sidecar support is on the roadmap but not production-ready
-- Pattern for Python backends: spawn Python CLI commands via Tauri's `Command` API (shell sidecar), communicate over stdout/JSON
-- Security: strict permission system, reduces attack surface vs Electron
-
-**Alternative considered: Electron**
-- Larger bundles, higher RAM (~100MB idle vs ~30-40MB for Tauri)
-- Better Python integration via child_process
-- Rejected: bloat contradicts local-first / lightweight philosophy
-
-**Complexity: HIGH** — new language (Rust for sidecar bridge), new build toolchain, frontend framework choice (React/Svelte), packaging for both platforms.
-
-**Constraint: GUI is read-optimized.** All writes go through existing CLI. GUI calls `sb-search`, `sb-read`, `sb-capture` as subprocess commands. This keeps the engine as single source of truth and avoids duplicating business logic.
-
-### Semantic / Vector Search
-
-**Recommended library: `sqlite-vec`**
-
-`sqlite-vec` is the maintained successor to `sqlite-vss`. Key properties:
-- Pure C, no dependencies — runs anywhere SQLite runs
-- K-Nearest Neighbor (KNN) search with SIMD acceleration
-- Ships as a Python-loadable SQLite extension
-- Stores float32 or int8 quantized vectors directly in SQLite tables
-
-**Embedding model for local-first:** `nomic-embed-text` via Ollama (already a dependency). Produces 768-dim embeddings, runs entirely locally, no cloud call.
-
-**Hybrid search pattern (correct approach):**
-1. BM25 FTS5 search (existing) returns top-N candidates
-2. Vector re-ranking re-orders by semantic similarity
-3. Final result merges both scores (RRF — Reciprocal Rank Fusion)
-
-This gives precision (BM25 handles exact names/dates) + recall (vector handles concept similarity). Do NOT replace FTS5 with vector-only.
-
-**Complexity: HIGH** — embedding pipeline at capture time (index all notes on first `sb-reindex`), incremental embedding on new notes, storage growth (~3KB per note for 768-dim float32 vectors).
-
-### Encryption at Rest
-
-**Scope decision (opinionated):**
-Encrypting raw Markdown files creates a severe UX problem: Drive sync sees encrypted blobs, no diff-ability, no human-readable recovery. The correct scope is:
-
-1. **Encrypt SQLite index** (`brain.db`) — contains FTS5 index, audit log, embeddings. Use SQLCipher (SQLite encryption extension) or encrypt the file at rest with Fernet (Python cryptography library) and decrypt to a temp file on open.
-2. **Encrypt `.meta/` directory** — config, schemas, secrets.
-3. **Leave Markdown files unencrypted** — they rely on Google Drive's access controls + OS-level full-disk encryption (FileVault on macOS). This is the correct threat model for a single-user local system.
-
-**Recommended library:** Python `cryptography` (Fernet, AES-256-GCM) for file-level encryption of the SQLite DB file. Key derived from passphrase via PBKDF2. Key stored in macOS Keychain via `keyring` library.
-
-**Anti-pattern to avoid:** Per-note encryption. Kills FTS5, kills backlinks, kills all indexing. Wrong granularity.
-
-**Complexity: HIGH** — key management, keychain integration, migration path for existing unencrypted DBs, GDPR interaction (encrypted DB still needs `sb-forget` to work).
-
-### Claude.ai Web Integration (MCP)
-
-**Current state (verified March 2026):**
-- MCP became industry standard by mid-2025; Linux Foundation donated
-- claude.ai Integrations (Beta) supports remote MCP servers on Max, Team, Enterprise plans
-- This user is on Max plan — direct fit
-- MCP spec (Nov 2025 update) added OAuth 2.1, stateless Streamable HTTP transport
-
-**Implementation pattern:**
-- Build a local MCP server exposing: `sb_search`, `sb_capture`, `sb_read`, `sb_cross_context_synthesis`
-- Transport: stdio (for Claude Code, already done conceptually) + HTTP (for claude.ai web)
-- PII routing must still apply — MCP tools must run the same classifier before routing to Claude vs Ollama
-- Local server runs on localhost; claude.ai web integration requires the server to be reachable (use ngrok or Cloudflare Tunnel for remote access, or accept Claude Code-only for local use)
-
-**Complexity: MEDIUM** — MCP Python SDK available; main complexity is HTTP transport + auth for remote access.
-
-### Proactive Session Recap
-
-**PKM tools that do this:** None at the CLI/IDE level. This is a genuine differentiator.
-
-**Expected behavior (from CLAUDE.md instruction pattern):**
-1. Claude Code session starts
-2. CLAUDE.md instruction triggers `sb-read --recent` on first tool use
-3. Brain returns: "Last session: [date]. Since then: 3 notes captured (2 meetings, 1 strategy). 2 open action items. 1 stale nudge."
-4. Offer: "Recap? [y/n]"
-5. Session-scoped deduplication: offer made once, state stored in `.meta/session_state.json` keyed by session start timestamp
-
-**Complexity: MEDIUM** — mostly a CLAUDE.md + `sb-read --recent` CLI flag + session state file. No new infrastructure. High leverage, low cost.
-
-### Action Item Extraction
-
-**Expected behavior (from Fellow, Notion AI, Obsidian AI):**
-- Triggered automatically on capture of a `meeting` type note
-- AI reads note body, extracts: task description, owner (person name), due date or urgency
-- Writes extracted items to a structured section in the note (`## Action Items`)
-- Optionally creates a separate `actions/` note or appends to a running action log
-- Does NOT create external task manager integrations (no Jira, no Todoist — out of scope)
-
-**Edge cases:**
-- Implicit commitments ("I'll look into that") vs explicit tasks ("Action: Alice to send report by Friday") — AI must handle both
-- PII notes: extraction must run via Ollama if note is PII-typed
-- Duplicate detection: same action captured in two meeting notes
-
-**Complexity: HIGH** — prompt engineering for reliable extraction, structured output parsing, PII-safe routing, deduplication logic.
-
-### Weekly Digest
-
-**Expected behavior (from Saner.AI, Mem weekly review):**
-- Runs every Monday morning via launchd
-- Aggregates: notes captured in last 7 days, open action items, stale notes (>90 days), recurring themes (from tags + content)
-- Writes to `.meta/digests/YYYY-WW.md`
-- User reads it via `sb-read --digest latest` or GUI
-
-**Differentiator vs cloud tools:** fully local generation, no note content sent to cloud for digest (use Ollama for summarization, Claude only for non-PII theme extraction).
-
-**Complexity: HIGH** — requires action item extraction to be working (for "open actions" section), stale detection query, theme extraction AI pass, scheduling via launchd.
-
-**Dependency chain:** launchd (existing) → action item extraction → stale note tracking → digest writer.
-
-### Stale Note Nudges
-
-**Expected behavior:**
-- 90-day nudge: "You haven't reviewed `people/alice.md` in 3 months. Still relevant?"
-- 180-day nudge: "This note may be outdated. Archive, update, or forget?"
-- Nudge delivery: via session recap (not push notification — avoids macOS entitlement complexity)
-- Tracking: `last_accessed_at` already in SQLite audit log
-
-**Edge cases:**
-- Notes that are intentionally static (e.g., reference docs) — need a frontmatter flag `evergreen: true` to suppress nudges
-- Bulk nudges: if 40 notes go stale at once (e.g., after a vacation), don't flood the user — batch to "5 oldest stale notes" per session
-
-**Complexity: MEDIUM** — SQLite query is trivial; the UX (batching, evergreen flag, nudge delivery via session recap) is the design work.
+| Polling-based live refresh | Simpler to implement | 3–10s lag; constant CPU use even on idle; interval management complexity | SSE push: emit event from Flask after write operations; JS `EventSource` calls `loadNotes()` |
+| WebSocket for live refresh | "More real-time" | pywebview has documented WebSocket issues (GitHub issues #241, #688); ws:// URL in embedded WebKit needs extra config; bidirectionality not needed | SSE is unidirectional push — exactly what's needed here; no known pywebview blockers |
+| Full markdown editor rebuild | Rich editing | EasyMDE already vendored with side-by-side preview; rebuilding wastes effort | Use EasyMDE's existing `side-by-side` toolbar option |
+| Auto-save on every keystroke | Feels modern | Constant filesystem churn; Drive sync conflicts on rapid sequential writes; worse for audit log | Explicit Cmd+S (already wired) + unsaved-changes warning on navigation |
+| Real-time collaborative editing | Modern feel | Violates local-first constraint; single-user system; adds OT/CRDT complexity | Google Drive handles multi-device; no in-app collab needed |
+| Encryption at rest | Security | Deferred to v4.0 per PROJECT.md; blocks simpler features | Passphrase-gated PII display covers the sensitive content case |
+| Binary file full-text extraction in GUI | Completeness | python-docx/pypdf edge cases; wrong extractions corrupt search results | Index metadata only (filename, date, size, manual description) in v3.0 |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[Existing: sb-capture, sb-search, SQLite FTS5, PII routing, Ollama, launchd]
-    └── all v2.0 features depend on v1.5 foundation
+[Live refresh — SSE push]
+    └──requires──> [GET /events SSE endpoint in Flask (new)]
+                       └──requires──> [Waitress streaming (already present, threaded)]
+    └──enables──> [File capture appearing instantly after upload]
+    └──enables──> [Brain health score updating after batch capture]
 
-Semantic / Vector Search
-    └── requires: sqlite-vec extension installed
-    └── requires: embedding model (nomic-embed-text via Ollama)
-    └── requires: sb-reindex updated to generate embeddings
-    └── enhances: Cross-context synthesis (better retrieval)
-    └── enhances: Connection surfacing (similarity threshold query)
+[Tag editing in GUI]
+    └──requires──> [YAML frontmatter parser in JS (js-yaml or simple regex)]
+    └──requires──> [PUT /notes/:path already rewrites full content (existing) — reuse]
+    └──enhances──> [Tag filtering in sidebar]
 
-Action Item Extraction
-    └── requires: sb-capture (meeting notes exist)
-    └── requires: PII routing (meeting notes may be PII)
-    └── enhances: Weekly digest (open actions section)
-    └── enhances: Cross-context synthesis (surfaces commitments)
+[File capture from GUI]
+    └──requires──> [POST /files/upload endpoint (new)]
+    └──enhances──> [Live refresh — captured file appears in sidebar immediately]
+    └──enhances──> [Batch capture — file drop can be part of batch flow]
 
-Cross-context synthesis ("catch me up on X")
-    └── requires: sb-search (base retrieval)
-    └── enhanced by: Semantic search (better recall)
-    └── enhanced by: Action item extraction (richer context)
-    └── requires: PII routing (synthesis of PII notes stays local)
+[Brain health dashboard]
+    └──requires──> [GET /health/brain endpoint (new)]
+    └──requires──> [Orphan detection query — notes not linked by any other]
+    └──requires──> [Broken links detection — links table targets not in notes table]
+    └──requires──> [get_stale_notes() already in engine/intelligence.py]
+    └──enhances──> [Live refresh — score updates after capture]
 
-Stale Note Nudges
-    └── requires: SQLite audit log with last_accessed_at (v1.5)
-    └── enhances: Weekly digest (stale items section)
-    └── enhances: Session recap (surfaces nudges inline)
+[On-demand recap button]
+    └──requires──> [POST /intelligence/recap endpoint (new, wraps sb-recap logic)]
+    └──requires──> [Spinner/loading state in Intelligence panel (UI only)]
 
-Proactive Session Recap
-    └── requires: sb-read --recent (new CLI flag)
-    └── enhanced by: Stale note nudges (includes nudges in recap)
-    └── enhanced by: Action item extraction (surfaces open actions)
-    └── requires: session state file in .meta/ (new, trivial)
+[Batch capture]
+    └──requires──> [POST /capture/batch endpoint (new, reuses watcher scan logic)]
+    └──enhances──> [Live refresh — sidebar updates when batch completes]
 
-Weekly Digest
-    └── requires: Action item extraction (open actions section)
-    └── requires: Stale note nudges (stale items section)
-    └── requires: launchd (existing scheduler)
-    └── requires: Ollama (local summarization for PII content)
-
-Connection Surfacing
-    └── requires: Semantic search / sqlite-vec (similarity query)
-    └── triggered by: sb-capture (post-write hook)
-    └── threshold-gated (suppress if similarity < 0.75)
-
-GUI Hub
-    └── requires: sb-search, sb-read, sb-capture as stable CLI (v1.5)
-    └── enhanced by: Semantic search (GUI search experience)
-    └── enhanced by: Cross-context synthesis (GUI "catch me up" view)
-    └── requires: Tauri 2.x + frontend framework (new stack)
-
-Encryption at Rest
-    └── requires: Key management (macOS Keychain via keyring)
-    └── conflicts with: plain-text Drive diff (Markdown stays unencrypted)
-    └── requires: migration path for existing unencrypted brain.db
-    └── must preserve: sb-forget erasure through encrypted DB
-
-Claude.ai Web Integration (MCP)
-    └── requires: MCP server wrapping existing sb-* CLI tools
-    └── requires: same PII routing as CLI (classifier runs inside MCP tool)
-    └── enhanced by: Cross-context synthesis (expose as MCP tool)
-    └── optional: HTTP transport for claude.ai remote access
-
-Setup Automation (Drive + Ollama)
-    └── modifies: sb-init
-    └── requires: Ollama detection + Homebrew/winget install path
-    └── Drive: detect mount only; cannot automate Drive app install
-    └── enhances: Semantic search (ensures Ollama available)
+[Search quality improvement]
+    └──requires──> [Existing RRF in engine/search.py]
+    └──requires──> [Evaluation fixtures to validate ranking changes before shipping]
 ```
+
+### Dependency Notes
+
+- **Live refresh must ship with file capture:** Without live refresh, user won't see the captured file appear — the two are effectively one unit of work.
+- **Tag editing reuses existing save path:** `PUT /notes/:path` writes full file content atomically. Tag edit in JS = parse frontmatter → mutate tags array → reconstruct markdown → PUT. No new API endpoint needed.
+- **Brain health needs accurate links data:** If a `links` table is incomplete, orphan detection falls back to full-text scan for `[[wikilinks]]` — acceptable but slower. Verify links table coverage before implementing.
+- **On-demand recap has AI latency:** Claude call can take 5–30s. Spinner + disabled button during generation is not optional — without it the UX feels frozen.
 
 ---
 
-## MVP Definition for v2.0
+## MVP Definition
 
-### Phase 1 — Intelligence Core (Build First)
+### Ship in v3.0 (This Milestone)
 
-These features have the highest leverage and lowest new-infrastructure cost. They run on existing CLI + SQLite.
+**Bug-fixes first (P1):**
+- [ ] Live refresh via SSE — immediately unblocks "new notes invisible without restart"
+- [ ] Markdown rendering CSS polish — style `#viewer` rendered HTML (headers, code, tables, lists)
+- [ ] Mouse scroll fix — `overflow-y: auto` on `#viewer`
+- [ ] Backlinks correctness — exact path match, not fuzzy filename substring
+- [ ] Note deletion with cascade — mirrors `sb-forget` cascade
 
-- [ ] Proactive session recap — CLAUDE.md instruction + `sb-read --recent` flag; unlocks daily value immediately
-- [ ] Action item extraction — triggered on meeting capture; highest manager persona value
-- [ ] Stale note nudges — SQLite query + session recap integration; low complexity, high utility
-- [ ] Setup automation (Ollama in sb-init) — unblocks semantic search and local AI features
+**Navigation/UX (P1):**
+- [ ] Sidebar collapsible sections — pure JS/CSS, no API change
 
-### Phase 2 — Search + Synthesis
+**New features (P2):**
+- [ ] Tag editing + filtering
+- [ ] File capture from GUI
+- [ ] On-demand recap button
+- [ ] Brain health dashboard (CLI + GUI widget)
+- [ ] Batch capture endpoint
+- [ ] Search ranking tuning (BM25/cosine weights + recency boost)
 
-Requires new infrastructure (sqlite-vec, embedding pipeline) but unlocks multiple downstream features.
+### Add After v3.0 (Future)
 
-- [ ] Semantic / vector search — sqlite-vec + nomic-embed-text; enables connection surfacing
-- [ ] Cross-context synthesis — aggregation + AI summarization; uses improved retrieval
-- [ ] Connection surfacing — post-capture similarity query; depends on vector search
-
-### Phase 3 — Digest + Automation
-
-Depends on Phase 1 outputs (action items, stale nudges) being stable.
-
-- [ ] Weekly digest — aggregates action items + stale notes + themes; launchd scheduler
-
-### Phase 4 — GUI + Encryption + Integration
-
-Highest complexity, new toolchains, least dependent on other phases.
-
-- [ ] GUI hub (Tauri) — read-optimized; calls existing CLI as subprocess
-- [ ] Encryption at rest — SQLite DB + .meta/ only; Markdown stays plain
-- [ ] Claude.ai web integration (MCP) — MCP server wrapping sb-* tools
+- [ ] Full text extraction for binary files (PDF, docx) — reliability work needed
+- [ ] Encryption at rest — deferred to v4.0
+- [ ] Tag autocomplete (suggest existing tags while editing) — nice UX, not blocking
+- [ ] Brain health trend over time (score history) — needs baseline data first
 
 ---
 
@@ -307,58 +151,142 @@ Highest complexity, new toolchains, least dependent on other phases.
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Proactive session recap | HIGH | LOW | P1 |
-| Action item extraction | HIGH | HIGH | P1 |
-| Setup automation | HIGH | MEDIUM | P1 |
-| Stale note nudges | MEDIUM | MEDIUM | P1 |
-| Cross-context synthesis | HIGH | HIGH | P2 |
-| Semantic / vector search | HIGH | HIGH | P2 |
-| Connection surfacing | MEDIUM | HIGH | P2 |
-| Weekly digest | MEDIUM | HIGH | P2 |
-| Claude.ai MCP integration | MEDIUM | MEDIUM | P2 |
-| GUI hub | MEDIUM | HIGH | P3 |
-| Encryption at rest | LOW | HIGH | P3 |
+| Live refresh (SSE) | HIGH | MEDIUM | P1 |
+| Markdown HTML styling | HIGH | LOW | P1 |
+| Mouse scroll fix | HIGH | LOW | P1 |
+| Backlinks correctness | HIGH | MEDIUM | P1 |
+| Note deletion + cascade | HIGH | MEDIUM | P1 |
+| Sidebar collapse navigation | MEDIUM | LOW | P1 |
+| Tag editing + filtering | HIGH | MEDIUM | P2 |
+| File capture from GUI | MEDIUM | MEDIUM | P2 |
+| On-demand recap button | MEDIUM | LOW-MEDIUM | P2 |
+| Brain health dashboard | MEDIUM | MEDIUM | P2 |
+| Batch capture | MEDIUM | MEDIUM | P2 |
+| Search ranking tuning | MEDIUM | HIGH | P2 |
 
-**Priority key:** P1 = Phase 1 MVP, P2 = Phase 2 after search infra, P3 = Phase 3 new toolchain
+**Priority key:** P1 = bugs and missing table-stakes, ship first. P2 = new features, ship in same milestone after P1 stable.
+
+---
+
+## Implementation Patterns (Research Findings)
+
+### Live Refresh: SSE, Not Polling, Not WebSocket
+
+**Decision: Server-Sent Events (SSE) via Flask `text/event-stream` response.**
+
+Rationale:
+- pywebview has documented WebSocket compatibility issues in embedded WebKit (GitHub #241, #688, #774 — ws:// URL handling, code:1006 errors)
+- SSE uses plain HTTP — pywebview's WKWebView handles `EventSource` natively, no special config
+- Communication is one-directional (server → client push) which is all that's needed for refresh notifications
+- Flask SSE without extra deps: a generator endpoint streaming `data: ...\n\n` with `Content-Type: text/event-stream`; Waitress handles this in threaded mode
+- Client: `const es = new EventSource('http://127.0.0.1:37491/events')` — `es.onmessage` calls `loadNotes()`
+- Events to emit: after `POST /notes` (create), `PUT /notes/*` (save), `POST /capture/batch`, `POST /files/upload`
+- No Redis required (flask-sse needs Redis; the dependency-free pattern uses a simple thread-safe queue or just a timestamp signal)
+
+Confidence: MEDIUM — SSE in Flask is well-documented; the specific pywebview + SSE combination was not found in official docs, but no known blockers exist and the HTTP-only transport avoids the known WebSocket issues.
+
+### Markdown Rendering: marked.js (Already Bundled)
+
+**Decision: Use `marked` global already available from vendored EasyMDE. No new library.**
+
+- `marked.parse()` is already called in `renderMarkdown()` in `app.js` — the parser works
+- Missing piece is CSS: rules for h1–h6, `code`, `pre`, `blockquote`, `table`, `ul`/`ol` inside `#viewer`
+- EasyMDE's own CSS targets `.EasyMDEContainer` scope — those rules do not apply to `#viewer` in view mode
+- Solution: add a `prose` CSS class to `#viewer` and write scoped rules in `style.css`
+- No CDN dependency, no new vendor file — consistent with "vendored offline" key decision
+
+Confidence: HIGH — marked.js is the most-downloaded JS markdown parser on npm; already in use in this codebase.
+
+### Tag Editing UX (from Obsidian/PKM ecosystem)
+
+**Pattern: Inline chip editor in the note meta panel.**
+
+- Display current tags as removable chips (`<span class="tag-chip">tag <button>×</button></span>`)
+- Text input with add-on-Enter behavior appends a new tag chip
+- On save: re-read current note content, parse YAML frontmatter `tags:` array (regex or `js-yaml`), replace with updated array, PUT full content
+- Tag filter in sidebar: add a tag dropdown or click-on-chip-to-filter behavior; `/notes?tag=X` API param filters SQLite query with `WHERE tags LIKE '%"tag"%'` or JSON array containment
+- Obsidian's tag pane shows all tags across vault with note counts — a nice v3.1 addition but not required for v3.0
+
+Confidence: MEDIUM — pattern derived from Obsidian ecosystem observation, not official Obsidian docs.
+
+### Brain Health Scoring (from Obsidian vault-statistics ecosystem)
+
+**Decision: Simple weighted score displayed as 0–100 with green/amber/red bands. No graph analytics.**
+
+Obsidian's "Vault Full Statistics" plugin tracks note count, link count, word count, and a "quality" metric. The "find-unlinked-files" plugin surfaces orphans and broken links on demand. Both are popular community plugins, validating user demand for vault health metrics.
+
+For Second Brain v3.0:
+
+| Signal | Weight | Implementation |
+|--------|--------|----------------|
+| Orphan notes (no backlinks, no outgoing links) | 30% | Notes not referenced in links table on either side |
+| Broken links (target path not in notes table) | 30% | `links.target NOT IN (SELECT path FROM notes)` |
+| Stale notes (updated_at > 90 days, not evergreen) | 20% | Already implemented in `get_stale_notes()` |
+| Duplicate candidates (title similarity > 0.9) | 20% | sqlite-vec cosine query — skip if vectors not built |
+
+Score = 100 − (weighted_penalty × 100). Show as integer with band: 80–100 = green, 60–79 = amber, <60 = red.
+
+Expose as `GET /health/brain` returning `{score, orphans, broken_links, stale_count, duplicates}`. Render in GUI Intelligence panel footer or as a dedicated "Brain Health" section.
+
+Confidence: MEDIUM — signals are logical and match Obsidian plugin patterns; specific weights are a recommendation, not an industry standard.
+
+### On-Demand Recap UX
+
+**Pattern: Button with loading state, result rendered inline.**
+
+- Intelligence panel already has `recap-content` div
+- Add "Generate Recap" button above it
+- On click: disable button, show spinner/loading text, `POST /intelligence/recap`
+- AI call latency is 5–30s — spinner is not optional; without it the UI feels frozen
+- On response: render recap text in `recap-content`, re-enable button with label "Regenerate"
+- Edge case: AI unavailable (Ollama down, Claude Code not active) — catch error, show "AI unavailable — try again" gracefully without crashing the panel
+
+Confidence: MEDIUM — UX pattern is standard; the main risk is AI latency management.
+
+### Batch Capture Pattern
+
+**Pattern: Scan → diff → process unindexed.**
+
+- `POST /capture/batch` enumerates `~/SecondBrain/**/*.md`, compares against `path` column in `notes` table, processes new/modified entries in sequence
+- Progress: emit SSE event per processed file so sidebar updates incrementally
+- Rate-limit: process max 50 files per batch call to avoid blocking the Waitress thread pool
+- This reuses the same logic as `sb-watch` and the launchd watcher — extract into a shared `engine/capture.py` function if not already factored
+
+Confidence: MEDIUM — pattern matches existing watcher logic; API design is a recommendation.
 
 ---
 
 ## Competitor Feature Analysis
 
-| Feature | Obsidian AI | Mem.ai | Saner.AI | This System |
-|---------|-------------|--------|----------|-------------|
-| Proactive session recap | No | No | No | CLAUDE.md injection — unique to IDE workflow |
-| Action item extraction | Plugin-based | Yes (cloud) | Yes (cloud) | Local, PII-safe, meeting-triggered |
-| Weekly digest | No | Yes (cloud) | Yes (cloud) | Local generation, fully private |
-| Stale nudges | No | Resurface (cloud) | Partial | Local SQLite query, evergreen flag |
-| Cross-context synthesis | Q&A plugin | Yes (cloud) | Yes (cloud) | Local for PII, Claude for non-PII |
-| Vector search | Plugin (cloud embed) | Yes (cloud) | Yes (cloud) | sqlite-vec + Ollama embeddings, fully local |
-| Connection surfacing | Backlink graph (manual) | Yes (cloud) | No | Post-capture similarity, threshold-gated |
-| GUI | Yes | Web-only | Web-only | Tauri, read-optimized, offline |
-| Encryption | No | Cloud-managed | No | SQLite + .meta/ only, keys in Keychain |
-| MCP / API | Community plugin | No | No | First-class MCP server |
-| Local-first / offline | Yes | No | No | Yes — core constraint |
-| GDPR / PII routing | No | No | No | Per-type routing, sb-forget, audit log |
-
-**Differentiation verdict:** No competitor combines local-first + GDPR-safe PII routing + proactive IDE integration + offline vector search. The combination is the moat, not any single feature.
+| Feature | Obsidian | Notion | Second Brain v3.0 |
+|---------|----------|--------|-------------------|
+| Live refresh | Real-time (native FS access) | Cloud sync, instant | SSE push from Flask sidecar |
+| Markdown rendering | Full CommonMark + extensions | Block-based (not raw MD) | marked.js, already integrated |
+| Tag editing | Properties pane + frontmatter | Inline tag field | Chip editor in meta panel, frontmatter rewrite |
+| Tag filtering | Tag pane, filter by tag | Filter view | Sidebar filter + `/notes?tag=X` |
+| File attachment | Drag to vault | Upload to block | File input + `POST /files/upload` |
+| Health dashboard | Vault Statistics plugin (community) | None | `GET /health/brain`, GUI widget |
+| On-demand recap | None (manual review) | None | `POST /intelligence/recap` button |
+| Batch capture | None (manual drag) | Clipper extension | `POST /capture/batch` |
+| Local-first | Yes | No | Yes — hard constraint |
 
 ---
 
 ## Sources
 
-- [Best PKM Apps 2026 — ToolFinder](https://toolfinder.com/best/pkm-apps) — MEDIUM confidence
-- [Obsidian AI Second Brain Guide 2026 — NxCode](https://www.nxcode.io/resources/news/obsidian-ai-second-brain-complete-guide-2026) — MEDIUM confidence
-- [Saner.AI Second Brain — stale resurfacing UX](https://www.saner.ai/blogs/second-brain) — MEDIUM confidence
-- [sqlite-vec GitHub — asg017/sqlite-vec](https://github.com/asg017/sqlite-vec) — HIGH confidence (official repo)
-- [The State of Vector Search in SQLite — Marco Bambini](https://marcobambini.substack.com/p/the-state-of-vector-search-in-sqlite) — MEDIUM confidence
-- [Electron vs Tauri — DoltHub Blog, Nov 2025](https://www.dolthub.com/blog/2025-11-13-electron-vs-tauri/) — HIGH confidence (dated Nov 2025)
-- [Tauri vs Electron — gethopp.app](https://www.gethopp.app/blog/tauri-vs-electron) — MEDIUM confidence
-- [MCP Integrations — Anthropic official](https://www.anthropic.com/news/integrations) — HIGH confidence (official source)
-- [Connect to local MCP servers — modelcontextprotocol.io](https://modelcontextprotocol.io/docs/develop/connect-local-servers) — HIGH confidence (official spec)
-- [Claude Code Session Memory — claudefa.st](https://claudefa.st/blog/guide/mechanics/session-memory) — MEDIUM confidence
-- [Ollama Setup Guide 2026 — SitePoint](https://www.sitepoint.com/ollama-setup-guide-2026/) — MEDIUM confidence
-- [Python cryptography library — PyPI](https://pypi.org/project/cryptography/) — HIGH confidence
+- pywebview GitHub issues #241, #688, #774 — WebSocket compatibility in embedded WebKit: https://github.com/r0x0r/pywebview/issues/241
+- pywebview 6.0 release notes: https://pywebview.flowrl.com/blog/pywebview6
+- Flask SSE without extra dependencies: https://maxhalford.github.io/blog/flask-sse-no-deps/
+- marked.js official: https://marked.js.org/
+- npm trends (markdown-it vs marked vs remarkable vs showdown): https://npmtrends.com/markdown-it-vs-marked-vs-remarkable-vs-showdown
+- Obsidian vault-statistics plugin: https://github.com/bkyle/obsidian-vault-statistics-plugin
+- Obsidian vault-full-statistics plugin: https://github.com/jtprogru/obsidian-vault-full-statistics-plugin
+- obsidianstats.com find-unlinked-files: https://www.obsidianstats.com/plugins/find-unlinked-files
+- obsidian-find-orphan-block-identifiers: https://github.com/dashed/obsidian-find-orphan-block-identifiers
+- Obsidian CLI (for vault health scripting): https://dev.to/shimo4228/obsidians-official-cli-is-here-no-more-hacking-your-vault-from-the-back-door-3123
+- PKM batch capture patterns: https://buildin.ai/blog/personal-knowledge-management-system-with-ai
+- Codebase: engine/api.py, engine/gui/static/app.js, engine/gui/static/index.html (read 2026-03-16)
 
 ---
-*Feature research for: Second Brain v2.0 Intelligence + GUI*
-*Researched: 2026-03-15*
+*Feature research for: Second Brain v3.0 GUI Overhaul and Engine Polish*
+*Researched: 2026-03-16*
