@@ -17,8 +17,12 @@ def client():
 
 
 @pytest.fixture
-def tmp_note(tmp_path):
-    """Create a real temporary .md file with valid frontmatter; yield its absolute path."""
+def tmp_note(tmp_path, monkeypatch):
+    """Create a real temporary .md file with valid frontmatter; yield its absolute path.
+
+    Sets BRAIN_PATH to tmp_path so _resolve_note_path accepts the note's absolute path.
+    """
+    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
     note = tmp_path / "test-note.md"
     note.write_text(
         "---\ntitle: Original Title\ntags: [test]\ntype: idea\n---\n\nBody content here.\n",
@@ -72,8 +76,11 @@ class TestSearch:
 
 
 class TestReadNote:
-    def test_read_missing_note_404(self, client):
-        response = client.get("/notes/nonexistent%2Fpath.md")
+    def test_read_missing_note_404(self, client, tmp_path, monkeypatch):
+        """A path inside brain_root that doesn't exist returns 404."""
+        monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+        ghost = tmp_path / "nonexistent.md"
+        response = client.get(f"/notes/{ghost}")
         assert response.status_code == 404
 
     def test_read_note_returns_body_key(self, client, tmp_note):
@@ -133,8 +140,9 @@ class TestActionItems:
 
 
 @pytest.fixture
-def tmp_note_pair(tmp_path):
+def tmp_note_pair(tmp_path, monkeypatch):
     """Create temp .md files and insert them into SQLite for backlinks testing."""
+    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
     note_a = tmp_path / "note_a.md"
     note_a.write_text(
         "---\ntitle: Alice Smith\n---\n\nProject lead for Q1.",

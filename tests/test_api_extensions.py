@@ -22,7 +22,8 @@ class TestGuiShell:
 
 
 class TestSaveNote:
-    def test_put_note_saves_content(self, client, tmp_path):
+    def test_put_note_saves_content(self, client, tmp_path, monkeypatch):
+        monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
         p = tmp_path / "test.md"
         p.write_text("# Hello")
         # Absolute path starts with '/' — join without doubling the slash
@@ -48,7 +49,8 @@ class TestCreateNote:
 
 
 class TestNoteMeta:
-    def test_get_note_meta_returns_structure(self, client, tmp_path):
+    def test_get_note_meta_returns_structure(self, client, tmp_path, monkeypatch):
+        monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
         p = tmp_path / "note.md"
         p.write_text("# Note")
         # Absolute path starts with '/' — join without doubling the slash

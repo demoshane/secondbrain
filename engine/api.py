@@ -146,9 +146,21 @@ def search():
     return jsonify({"results": results})
 
 
+def _resolve_note_path(note_path: str) -> tuple[Path, Path]:
+    """Return (abs_path, brain_root). Raises ValueError if path escapes brain_root."""
+    brain_root = Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))).resolve()
+    p = (Path(note_path) if note_path.startswith("/") else (Path("/") / note_path)).resolve()
+    if not p.is_relative_to(brain_root):
+        raise ValueError("path traversal")
+    return p, brain_root
+
+
 @app.get("/notes/<path:note_path>")
 def read_note(note_path):
-    p = Path(note_path) if note_path.startswith("/") else Path("/") / note_path
+    try:
+        p, _brain_root = _resolve_note_path(note_path)
+    except ValueError:
+        return jsonify({"error": "Forbidden"}), 403
     if not p.exists():
         return jsonify({"error": "Not found"}), 404
     raw = p.read_text(encoding="utf-8")
@@ -180,7 +192,10 @@ def gui_static(filename):
 
 @app.put("/notes/<path:note_path>")
 def save_note(note_path):
-    p = _Path(note_path) if note_path.startswith("/") else _Path("/") / note_path
+    try:
+        p, _brain_root = _resolve_note_path(note_path)
+    except ValueError:
+        return jsonify({"error": "Forbidden"}), 403
     if not p.exists():
         return jsonify({"error": "Not found"}), 404
     body = request.get_json(force=True) or {}
@@ -229,8 +244,30 @@ def create_note():
     return jsonify({"path": str(target)}), 201
 
 
+@app.delete("/notes/<path:note_path>")
+def delete_note_endpoint(note_path):
+    try:
+        p, brain_root = _resolve_note_path(note_path)
+    except ValueError:
+        return jsonify({"error": "Forbidden"}), 403
+    if not p.exists():
+        return jsonify({"error": "Not found"}), 404
+    try:
+        from engine.delete import delete_note  # lazy import
+        conn = get_connection()
+        result = delete_note(p, conn, brain_root)
+        conn.close()
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": type(e).__name__}), 500
+
+
 @app.get("/notes/<path:note_path>/meta")
 def note_meta(note_path):
+    try:
+        p, _brain_root = _resolve_note_path(note_path)
+    except ValueError:
+        return jsonify({"error": "Forbidden"}), 403
     p = _Path(note_path) if note_path.startswith("/") else _Path("/") / note_path
     conn = get_connection()
     conn.row_factory = sqlite3.Row
