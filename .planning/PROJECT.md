@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A local-first, AI-augmented personal knowledge CLI system. Markdown notes stored in `~/SecondBrain` (Google Drive synced), indexed by SQLite FTS5, enriched by multi-model AI (Claude for public/private content, Ollama for PII). Operated entirely via CLI commands (`sb-capture`, `sb-search`, `sb-read`, `sb-forget`, `sb-export`, `sb-anonymize`, `sb-update-memory`, `sb-reindex`, `sb-check-links`, `sb-watch`). Native macOS integration via `uv tool` global install, launchd watcher daemon, and git hook installer. GDPR-compliant with right to erasure, data export, anonymization, passphrase PII gate, and full audit log.
+A local-first, AI-augmented personal knowledge system with CLI, desktop GUI, and MCP server. Markdown notes stored in `~/SecondBrain` (Google Drive synced), indexed by SQLite FTS5 + vector embeddings (sqlite-vec), enriched by multi-model AI (Claude for public/private content, Ollama for PII). Operated via CLI (`sb-capture`, `sb-search`, `sb-read`, `sb-forget`, `sb-export`, `sb-anonymize`, `sb-update-memory`, `sb-reindex`, `sb-check-links`, `sb-watch`, `sb-recap`, `sb-actions`, `sb-digest`), a pywebview desktop app (`sb-gui`), and a FastMCP stdio server (`sb-mcp-server`) for Claude Desktop / Claude.ai integration. Intelligence layer proactively surfaces session recaps, action items, stale nudges, connection suggestions, and weekly digests. Native macOS via `uv tool`, launchd watcher daemon, git hook installer. GDPR-compliant with right to erasure, data export, anonymization, passphrase PII gate, and full audit log.
 
 ## Core Value
 
@@ -51,7 +51,9 @@ Tuomas Leppanen — Operations Manager, Direct Manager, Team Lead, Account Manag
 
 ### AI Interaction Surfaces
 
-- **CLI commands**: `sb-capture`, `sb-search`, `sb-read`, `sb-forget`, `sb-export`, `sb-anonymize`, `sb-update-memory`, `sb-reindex`, `sb-check-links`, `sb-watch`
+- **CLI commands**: `sb-capture`, `sb-search`, `sb-read`, `sb-forget`, `sb-export`, `sb-anonymize`, `sb-update-memory`, `sb-reindex`, `sb-check-links`, `sb-watch`, `sb-recap`, `sb-actions`, `sb-digest`
+- **Desktop GUI**: `sb-gui` (pywebview + Flask sidecar) — three-panel interface (sidebar / viewer / intelligence)
+- **MCP server**: `sb-mcp-server` (FastMCP stdio) — 10 tools exposed to Claude Desktop / Claude.ai
 - **Claude Code skills**: 10 slash commands in `.claude/commands/`
 - **Git hooks**: Auto-capture on commit (summarize, link to projects/people)
 - **File watcher**: `sb-watch` via launchd — detects new files dropped into `~/SecondBrain`, triggers AI categorization
@@ -87,7 +89,7 @@ Model routing configurable per content-type in `.meta/config.toml`.
 | Engine language | Python 3.11+ | Cross-platform, rich ecosystem |
 | Install method | `uv tool install` (global) | Native macOS — no venv activation |
 | Note format | Markdown + YAML frontmatter | Human-readable, git-diffable, tool-agnostic |
-| Index/search | SQLite (FTS5) | Zero-infrastructure, rebuildable, GDPR-erasable |
+| Index/search | SQLite (FTS5 + sqlite-vec) | Zero-infrastructure, rebuildable, GDPR-erasable; sqlite-vec adds KNN vector search |
 | File sync | Google Drive (host-level) | Handles binary files; user already has it |
 | Code sync | GitHub private repo | Engine code versioned, brain content excluded |
 | AI (primary) | Claude (via Claude Code/MCP) | No direct API key — uses Anthropic Max plan |
@@ -148,21 +150,26 @@ Model routing configurable per content-type in `.meta/config.toml`.
 - ✓ `sb-anonymize` and `sb-update-memory` registered as CLI entry points — v1.5
 - ✓ `sb-reindex` stores absolute paths and preserves `people` column — v1.5
 - ✓ All 13 phases reach `nyquist_compliant: true` — v1.5
+- ✓ Local vector embeddings via `sb-reindex` (`all-MiniLM-L6-v2`, no cloud) — v2.0
+- ✓ Stale embedding detection via content-hash; `sb-forget` cascades to embeddings — v2.0
+- ✓ Proactive session recap (`sb-recap`) — once-per-session offer in Claude Code — v2.0
+- ✓ Action item extraction and `sb-actions` CLI — v2.0
+- ✓ Stale note nudges (90-day threshold, `evergreen` flag) — v2.0
+- ✓ Connection surfacing on new capture (cosine similarity > 0.8) — v2.0
+- ✓ Semantic search (`sb-search --semantic`) with RRF hybrid ranking — v2.0
+- ✓ Cross-context synthesis (`sb-recap <name>`) across all related notes — v2.0
+- ✓ Weekly digest auto-written to `.meta/digests/` via launchd — v2.0
+- ✓ Google Drive auto-detection in `sb-init` — v2.0
+- ✓ Ollama auto-install in `sb-init` with size warning — v2.0
+- ✓ Flask HTTP sidecar (`engine/api.py`) on `127.0.0.1:37491` — v2.0
+- ✓ `sb-gui` desktop app (pywebview) — three-panel sidebar/viewer/intelligence — v2.0
+- ✓ MCP server (`sb-mcp-server`) with 10 tools, two-step destructive confirmation, Claude Desktop config — v2.0
 
-### Active (v2.0)
+### Active (v3.0)
 
-- [ ] Claude.ai web integration — MCP tools to expose brain commands to claude.ai sessions
-- [ ] Google Drive setup automated in `sb-init` — currently requires manual configuration
-- [ ] Ollama auto-installed during `sb-init` — currently requires manual setup
-- [ ] Semantic / vector search — BM25-only; add embedding-based retrieval
 - [ ] Encryption at rest — brain content and SQLite index unencrypted on disk
-- [ ] Proactive session recap — brain detects context at session start, offers once-per-session recap of recent relevant activity
-- [ ] Action item extraction — extract and track commitments/tasks from meeting and project notes
-- [ ] Weekly digest — summary of captured notes, key themes, open actions, stale items
-- [ ] Stale note nudges — first nudge at 3 months, recheck at 6 months of no access/update
-- [ ] Cross-context synthesis — on-demand "catch me up on [person/project]" summary across all related notes
-- [ ] Connection surfacing — proactive notification when a new note relates to older notes
-- [ ] GUI hub — cross-platform desktop app (Mac + Windows) as central interface for the brain
+- [ ] Windows support for GUI — current build tested on macOS only
+- [ ] Mobile access (read-only) — PWA or React Native companion app
 
 ### Out of Scope
 
@@ -191,15 +198,20 @@ Model routing configurable per content-type in `.meta/config.toml`.
 | Stub-first TDD (Wave 0 → Wave 1) | Write all test stubs before implementation; prevents scope creep and ensures coverage | Wave-based execution |
 | Sensitivity tier architecture (public / private / pii) | Three-tier model gives clear routing rules without NLP classification | Frontmatter `content_sensitivity` field |
 | GDPR scope: export + anonymize + consent | v1.5 added Article 20 (export), runtime anonymize, and first-run consent — not just erasure | Full GDPR trio in v1.5 |
+| sqlite-vec for KNN (not pgvector/faiss) | Zero-infrastructure; ships as SQLite extension; consistent with existing DB layer | sqlite-vec + sentence-transformers |
+| pywebview + Flask sidecar for GUI | pywebview provides native OS window; Flask sidecar reuses existing API layer — no Electron needed | `sb-gui` + `engine/api.py` |
+| FastMCP for MCP server | Official Python MCP SDK; stdio transport avoids port management; native tool decorator pattern | `engine/mcp_server.py` |
+| Two-step token confirmation for destructive MCP ops | Prevents accidental `sb_forget`/`sb_anonymize` via LLM hallucination; token expires in 60s | `_issue_token` / `_consume_token` pattern |
+| EasyMDE vendored offline | GUI has no CDN access at runtime; vendored JS/CSS guarantees offline operation | Vendored in `engine/gui/static/` |
 
 ---
 
 ## Context
 
-- **Codebase**: 5,348 Python LOC, 58 files
-- **Development**: 186 commits, 14 phases, 60 plans, ~15 sessions, 2 days
-- **Shipped**: 2026-03-15
-- **Milestone**: v1.5 Second Brain MVP
+- **Codebase**: ~8,000+ Python LOC, 80+ files (v2.0 added 81 files, +12,732 / -145 lines)
+- **Development**: 200+ commits, 20 phases, 83 plans, ~20 sessions, 3 days total
+- **Shipped**: v1.5 2026-03-15, v2.0 2026-03-16
+- **Milestone**: v2.0 Intelligence + GUI Hub
 
 ---
 
@@ -215,7 +227,7 @@ Model routing configurable per content-type in `.meta/config.toml`.
 
 - **Drive sync conflicts**: Drive is not atomic. Notes should use append-only writes; conflict resolution undocumented.
 - **Binary file indexing**: `.docx`/`.pptx`/`.pdf` text extraction uses python-docx/python-pptx/pypdf — each has edge cases.
-- **No encryption at rest**: Brain content and index unencrypted. Covered by v2.0 active requirement.
+- **No encryption at rest**: Brain content and index unencrypted. Deferred to v3.0.
 
 ---
 
@@ -229,17 +241,6 @@ Model routing configurable per content-type in `.meta/config.toml`.
 
 ---
 
-## Current Milestone: v2.0 Intelligence + GUI Hub
-
-**Goal:** Elevate the brain from a capture/search tool to an active knowledge partner with proactive intelligence and a cross-platform desktop GUI.
-
-**Target features:**
-- GUI hub (Mac + Windows)
-- Intelligence layer (session recap, action items, weekly digest, stale nudges, connection surfacing, cross-context synthesis)
-- Setup automation (Drive + Ollama in `sb-init`)
-- Semantic search + encryption at rest
-- Claude.ai web integration
-
 ---
 
-*Last updated: 2026-03-15 after v2.0 milestone start*
+*Last updated: 2026-03-16 after v2.0 milestone*

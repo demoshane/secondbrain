@@ -55,6 +55,54 @@
 
 ---
 
+## Milestone: v2.0 — Intelligence + GUI Hub
+
+**Shipped:** 2026-03-16
+**Phases:** 6 (14–19) | **Plans:** 23
+
+### What Was Built
+
+- **Local vector embeddings**: sqlite-vec KNN table + sentence-transformers (`all-MiniLM-L6-v2`), content-hash staleness detection, GDPR cascade delete from `note_embeddings`
+- **Intelligence layer**: Session recap (`sb-recap`), action item extraction + `sb-actions` CLI, stale nudges (90-day threshold), connection surfacing (cosine > 0.8), proactive budget gate (one notification per session)
+- **Semantic search + digest**: `sb-search --semantic`, RRF hybrid ranking, cross-context synthesis (`sb-recap <name>`), weekly digest auto-written to `.meta/digests/` via launchd
+- **Setup automation**: Flask HTTP sidecar (`engine/api.py`) on `127.0.0.1:37491`, Drive auto-detection, Ollama auto-install with size warning in `sb-init`
+- **Desktop GUI**: `sb-gui` via pywebview — three-panel sidebar/viewer/intelligence layout, EasyMDE editor vendored offline, new note modal, 300ms debounce search
+- **MCP server**: `sb-mcp-server` FastMCP stdio with 10 tools, two-step token confirmation for destructive ops, Claude Desktop config auto-written by `sb-init`
+
+### What Worked
+
+- **Incremental architecture** (CLI → API → GUI → MCP): Each phase built on a stable previous layer. Phase 18 (GUI) plugged into Phase 17 (API) with no rework; Phase 19 (MCP) bypassed the GUI entirely and called the engine directly — the layered design paid off.
+- **Two-step token pattern for destructive ops**: The `_issue_token` / `_consume_token` pattern for `sb_forget`/`sb_anonymize` via MCP was simple to implement and completely prevents accidental destructive calls from LLM hallucination. Worth reusing in any MCP context with write ops.
+- **EasyMDE offline vendoring**: Deciding early to vendor EasyMDE instead of CDN-linking it prevented a class of runtime failures with no internet access. The offline-first constraint forced a better decision.
+- **Stub-first TDD continued to hold**: All 6 phases started with Wave 0 RED scaffolds. Phase 19 had 14 tests all passing before human verification.
+
+### What Was Inefficient
+
+- **Traceability table not updated as phases completed**: EMBED-01–04 showed "Pending" at milestone close despite Phase 14 being fully implemented. The traceability table should be updated at phase completion, not just at roadmap creation.
+- **Phase 14 embeddings: Intel Mac lazy-import workaround**: sentence-transformers has issues on Intel Mac; a lazy-import workaround was added. This technical debt will need revisiting when moving to M-chip.
+- **MCP server human verification was partially blocked**: Live Claude Desktop `sb_search` test couldn't fully complete in CI context — verified via unit tests instead. Functional but not end-to-end verified in the strictest sense.
+
+### Patterns Established
+
+- **Two-step token confirmation**: For any MCP tool that performs irreversible actions, use `_issue_token()` / `_consume_token()` with a 60s TTL. First call returns a token; second call with token executes. Never execute destructive ops on a single call.
+- **Flask sidecar as GUI adapter**: `engine/api.py` on a fixed port (`127.0.0.1:37491`) serves as the adapter between native UI frameworks (pywebview) and engine logic. No engine imports in the GUI layer — HTTP only.
+- **Offline-first JS vendoring**: Any web assets used in the GUI must be vendored locally. No CDN references at runtime.
+
+### Key Lessons
+
+1. **Update traceability at phase close, not only at roadmap creation.** The EMBED row staleness caused unnecessary ambiguity at milestone close. Each phase execution should end with a traceability row update.
+2. **Two-step confirmation is the right default for destructive MCP tools.** Implement it from the start — it is cheap to add and expensive to retrofit after users trust single-call behavior.
+3. **The layered architecture (CLI → engine → API → GUI/MCP) scaled cleanly.** Each surface calls the layer below it; no surface imports from another surface. This separation made it trivial to add GUI and MCP without modifying CLI or engine logic.
+4. **Intel Mac embedding workaround should be removed on M-chip migration.** The lazy-import workaround in `engine/embeddings.py` exists only for Intel Mac. When migrating to M-chip, run Phase 14 setup fresh to verify native sentence-transformers behavior.
+
+### Cost Observations
+
+- Model: 100% Sonnet (claude-sonnet-4-6)
+- Sessions: ~5 sessions, 1 day
+- Notable: 6 phases, 23 plans completed in a single day. Semantic search + GUI + MCP in one milestone was ambitious but the layered architecture made each phase independently executable.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -62,14 +110,18 @@
 | Milestone | Sessions | Phases | Key Change |
 |-----------|----------|--------|------------|
 | v1.5 | ~15 | 13 | First milestone — established stub-first TDD, wave-based execution, Nyquist discipline |
+| v2.0 | ~5 | 6 | Layered architecture (CLI→API→GUI→MCP); two-step token confirmation pattern; traceability gap identified |
 
 ### Cumulative Quality
 
 | Milestone | Tests | Coverage | Zero-Dep Additions |
 |-----------|-------|----------|-------------------|
 | v1.5 | ~60+ stubs + implementations | Full path coverage across 14 phases | 0 — all deps explicit in pyproject.toml |
+| v2.0 | 14 MCP tests + full intelligence/GUI/search test suites | All 47 requirements covered; 4 EMBED rows stale in traceability | sqlite-vec, sentence-transformers, fastmcp, pywebview, flask, waitress, tenacity |
 
 ### Top Lessons (Verified Across Milestones)
 
 1. Stub-first TDD catches integration gaps before they become gap-closure phases.
 2. Architecture decisions that change mid-project waste earlier work — lock the runtime before Phase 1.
+3. Update traceability rows at phase close — stale rows create ambiguity at milestone completion.
+4. Two-step confirmation is the correct default for any destructive operation exposed via MCP.
