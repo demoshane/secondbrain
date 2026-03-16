@@ -174,3 +174,13 @@ Plans:
 | 24. File Capture + Batch Capture | v3.0 | 0/? | Not started | - |
 | 25. Intelligence Features | v3.0 | 0/? | Not started | - |
 | 26. Search Quality Tuning | v3.0 | 0/? | Not started | - |
+
+### Phase 27: This phase should resolve all open TODOs and Gaps that can be identified when the phase starts
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 26
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 27 to break down)

@@ -79,6 +79,10 @@ Recent decisions affecting current work:
 - [Phase 22]: delete_note() stub committed; sb-hook immediately auto-implemented full cascade from 22-02 plan on first commit
 - [Phase 22]: relationships table uses rel_type column (not relationship_type); tmp_api_note fixture requires BRAIN_PATH monkeypatch for path resolution
 
+### Roadmap Evolution
+
+- Phase 27 added: Resolve all open TODOs and Gaps
+
 ### Pending Todos
 
 - Fix sb-recap returning nothing despite existing entries (general)
