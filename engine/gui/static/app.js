@@ -8,21 +8,31 @@ let activeTagFilter = null;
 let _suppressNextTagRefresh = false;
 let _allNotes = []; // module-level cache of all notes from last loadNotes()
 
-// --- Sidebar collapse state ---
-function getCollapseState() {
+// --- Sidebar collapse state (server-side persistence via /ui/prefs) ---
+let _collapseState = {}; // in-memory cache; loaded async at startup
+
+async function _loadCollapseState() {
     try {
-        return JSON.parse(localStorage.getItem('sb-sidebar-collapse') || '{}');
-    } catch (_) {
-        return {};
-    }
+        const res = await fetch(`${API}/ui/prefs`);
+        if (res.ok) {
+            const prefs = await res.json();
+            _collapseState = prefs.collapseState || {};
+        }
+    } catch (_) {}
+}
+
+function getCollapseState() {
+    return _collapseState;
 }
 
 function setCollapseState(key, collapsed) {
-    try {
-        const state = getCollapseState();
-        state[key] = collapsed;
-        localStorage.setItem('sb-sidebar-collapse', JSON.stringify(state));
-    } catch (_) {}
+    _collapseState[key] = collapsed;
+    // Persist to server (fire-and-forget)
+    fetch(`${API}/ui/prefs`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collapseState: _collapseState }),
+    }).catch(() => {});
 }
 
 // Extract top-level folder name from an absolute note path
@@ -197,6 +207,34 @@ function renderHierarchySidebar(notes) {
     document.getElementById('sidebar-loading').style.display = 'none';
 }
 
+// --- Tag autocomplete helpers ---
+
+function _getAllUniqueTags() {
+    const seen = new Set();
+    for (const n of _allNotes) {
+        for (const t of (n.tags || [])) seen.add(t);
+    }
+    return [...seen].sort();
+}
+
+function _attachTagDatalist(inputEl) {
+    // Reuse or create a shared datalist element
+    let dl = document.getElementById('sb-tag-datalist');
+    if (!dl) {
+        dl = document.createElement('datalist');
+        dl.id = 'sb-tag-datalist';
+        document.body.appendChild(dl);
+    }
+    // Populate with current unique tags
+    dl.innerHTML = '';
+    for (const tag of _getAllUniqueTags()) {
+        const opt = document.createElement('option');
+        opt.value = tag;
+        dl.appendChild(opt);
+    }
+    inputEl.setAttribute('list', 'sb-tag-datalist');
+}
+
 // --- Tag chips ---
 
 function renderTagChips(tags, notePath) {
@@ -229,6 +267,7 @@ function makeChipEditable(chipEl, tagIndex, allTags, notePath) {
     input.type = 'text';
     input.className = 'tag-chip-input';
     input.value = allTags[tagIndex];
+    _attachTagDatalist(input);
     chipEl.replaceWith(input);
     input.focus();
     input.select();
@@ -264,6 +303,7 @@ function addNewTag(allTags, notePath) {
     input.type = 'text';
     input.className = 'tag-chip-input';
     input.placeholder = 'new tag';
+    _attachTagDatalist(input);
     container.appendChild(input);
     input.focus();
 
@@ -706,7 +746,9 @@ document.getElementById('delete-modal-confirm').addEventListener('click', async 
 });
 
 // --- Init ---
-loadNotes();
+// Load collapse state from server before rendering sidebar so sections
+// are shown in their correct collapsed/expanded state on first paint.
+_loadCollapseState().then(() => loadNotes());
 loadActions();
 loadIntelligence();
 connectSSE();
