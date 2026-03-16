@@ -43,7 +43,7 @@ def _start_sidecar(ready: threading.Event) -> None:
     t = threading.Thread(
         target=serve,
         args=(flask_app,),
-        kwargs={"host": "127.0.0.1", "port": API_PORT, "threads": 4},
+        kwargs={"host": "127.0.0.1", "port": API_PORT, "threads": 8},
         daemon=True,
     )
     t.start()
