@@ -11,7 +11,7 @@
 - [ ] **GUIX-01**: New notes and edits to existing notes are reflected in the GUI without restarting the application (live refresh)
 - [x] **GUIX-02**: Title edits made in the GUI are reflected immediately without restart
 - [x] **GUIX-03**: Note content renders as formatted HTML (not raw markdown text)
-- [ ] **GUIX-04**: User can scroll the note content area with the mouse wheel
+- [x] **GUIX-04**: User can scroll the note content area with the mouse wheel
 - [x] **GUIX-05**: Backlinks display correctly in the note viewer
 - [ ] **GUIX-06**: User can delete a note from the GUI; deletion cascades to backlinks and FTS5 index
 
@@ -62,7 +62,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GUIX-01 | Phase 21 | Pending |
 | GUIX-02 | Phase 20 | Complete |
 | GUIX-03 | Phase 20 | Complete |
-| GUIX-04 | Phase 20 | Pending |
+| GUIX-04 | Phase 20 | Complete |
 | GUIX-05 | Phase 20 | Complete |
 | GUIX-06 | Phase 22 | Pending |
 | GNAV-01 | Phase 23 | Pending |

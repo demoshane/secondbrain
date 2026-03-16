@@ -42,7 +42,7 @@
 
 ## v3.0 GUI Overhaul & Polish
 
-- [ ] **Phase 20: Frontend Bug Fixes** — Fix scroll, markdown rendering, backlinks, and title sync (pure JS/CSS)
+- [x] **Phase 20: Frontend Bug Fixes** — Fix scroll, markdown rendering, backlinks, and title sync (pure JS/CSS) (completed 2026-03-16)
 - [ ] **Phase 21: Live Refresh SSE** — Server-sent events backbone so all writes reflect instantly in the GUI
 - [ ] **Phase 22: Note Deletion + Security Hardening** — Delete from GUI with cascade; path traversal guard on all note endpoints
 - [ ] **Phase 23: Navigation Polish** — Collapsible sidebar sections, tag editing, tag filtering
@@ -55,7 +55,7 @@
 ### Phase 20: Frontend Bug Fixes
 **Goal**: The GUI viewer is fully usable — note content renders as HTML, scrolls normally, displays correct backlinks, and title changes reflect without restart
 **Requirements**: GUIX-02, GUIX-03, GUIX-04, GUIX-05
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 20-01-PLAN.md — Strip frontmatter in API + save re-index (GUIX-03, GUIX-02)
@@ -144,7 +144,7 @@ Plans:
 | 17. API Layer and Setup Automation | v2.0 | 3/3 | Complete | 2026-03-15 |
 | 18. GUI Hub | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 19. MCP Server | v2.0 | 4/4 | Complete | 2026-03-15 |
-| 20. Frontend Bug Fixes | 2/3 | In Progress|  | - |
+| 20. Frontend Bug Fixes | 3/3 | Complete   | 2026-03-16 | - |
 | 21. Live Refresh SSE | v3.0 | 0/? | Not started | - |
 | 22. Note Deletion + Security Hardening | v3.0 | 0/? | Not started | - |
 | 23. Navigation Polish | v3.0 | 0/? | Not started | - |

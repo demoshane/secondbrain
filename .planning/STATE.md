@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: executing
-stopped_at: Completed 20-02-PLAN.md
-last_updated: "2026-03-16T10:25:51.944Z"
+stopped_at: Completed 20-03-PLAN.md
+last_updated: "2026-03-16T10:58:56.027Z"
 last_activity: 2026-03-16 — Plan 20-01 complete; GUIX-02 and GUIX-03 fixed
 progress:
   total_phases: 7
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 14
+  completed_plans: 3
+  percent: 17
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-16)
 
 **Core value:** Zero-friction capture that surfaces the right context at the right moment
-**Current focus:** Phase 20 — Frontend Bug Fixes (v3.0 start)
+**Current focus:** Phase 20 — Frontend Bug Fixes (v3.0 start) — COMPLETE
 
 ## Current Position
 
-Phase: 20 of 26 (Frontend Bug Fixes)
-Plan: 1 of 3 in current phase
-Status: In progress
-Last activity: 2026-03-16 — Plan 20-01 complete; GUIX-02 and GUIX-03 fixed
+Phase: 20 of 26 (Frontend Bug Fixes) — complete
+Plan: 3 of 3 in current phase — all plans done
+Status: Phase complete — ready for Phase 21
+Last activity: 2026-03-16 — Plan 20-03 complete; GUIX-04 CSS scroll fix applied
 
-Progress: [█░░░░░░░░░] 14%
+Progress: [█░░░░░░░░░] 17%
 
 ## Performance Metrics
 
@@ -45,6 +45,7 @@ Progress: [█░░░░░░░░░] 14%
 
 *Updated after each plan completion*
 | Phase 20 P02 | 4 | 2 tasks | 2 files |
+| Phase 20 P03 | 15 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -60,6 +61,8 @@ Recent decisions affecting current work:
 - [20-01]: read_note returns body (stripped) by default; ?raw=true returns full content for editor
 - [20-01]: save_note parses frontmatter post-write to extract title for SQLite UPDATE
 - [Phase 20]: Use LOWER(body) LIKE LOWER(?) for case-insensitive backlinks query
+- [Phase 20]: min-height: 0 on flex container is canonical fix for flex child overflow-scroll; apply to entire ancestor chain not just leaf
+- [Phase 20]: Vendor marked.min.js — pywebview runs offline, CDN scripts fail silently
 
 ### Pending Todos
 
@@ -73,6 +76,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-16T10:25:51.925Z
-Stopped at: Completed 20-02-PLAN.md
+Last session: 2026-03-16T10:58:56.021Z
+Stopped at: Completed 20-03-PLAN.md
 Resume file: None
