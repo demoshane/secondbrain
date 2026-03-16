@@ -266,6 +266,7 @@ function makeChipEditable(chipEl, tagIndex, allTags, notePath) {
     const input = document.createElement('input');
     input.type = 'text';
     input.className = 'tag-chip-input';
+    input.autocomplete = 'off';
     input.value = allTags[tagIndex];
     _attachTagDatalist(input);
     chipEl.replaceWith(input);
@@ -302,6 +303,7 @@ function addNewTag(allTags, notePath) {
     const input = document.createElement('input');
     input.type = 'text';
     input.className = 'tag-chip-input';
+    input.autocomplete = 'off';
     input.placeholder = 'new tag';
     _attachTagDatalist(input);
     container.appendChild(input);
