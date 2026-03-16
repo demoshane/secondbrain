@@ -161,9 +161,15 @@ def test_fts5_clean_after_delete(note_file):
 
 
 @pytest.fixture
-def tmp_api_note(tmp_path):
-    """Real .md file + DB row for endpoint integration tests."""
+def tmp_api_note(tmp_path, monkeypatch):
+    """Real .md file + DB row for endpoint integration tests.
+
+    Sets BRAIN_PATH to tmp_path so _resolve_note_path accepts the note's absolute path.
+    """
+    import os
     from engine.db import get_connection
+
+    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
 
     note = tmp_path / "api-note.md"
     note.write_text(
@@ -197,9 +203,12 @@ def test_delete_endpoint_200(client, tmp_api_note):
     assert data.get("deleted") is True, f"Expected deleted=True, got: {data}"
 
 
-def test_delete_endpoint_404(client):
-    """DELETE /notes/<nonexistent> returns 404."""
-    response = client.delete("/notes/nonexistent%2Fpath%2Fnote.md")
+def test_delete_endpoint_404(client, tmp_path, monkeypatch):
+    """DELETE /notes/<nonexistent path inside brain_root> returns 404."""
+    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+    # Construct a path that is inside brain_root but doesn't exist on disk
+    ghost = tmp_path / "does-not-exist.md"
+    response = client.delete(f"/notes/{ghost}")
     assert response.status_code == 404, f"Expected 404, got {response.status_code}"
 
 
