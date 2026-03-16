@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: executing
-stopped_at: Completed 22-01-PLAN.md
-last_updated: "2026-03-16T13:49:43.007Z"
+stopped_at: Completed 22-02-PLAN.md
+last_updated: "2026-03-16T13:54:04.044Z"
 last_activity: 2026-03-16 — Phase 21 fully complete; GUIX-01 human-verified; conflict banner and false deletion bugs fixed
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 2
   total_plans: 13
-  completed_plans: 10
+  completed_plans: 11
   percent: 17
 ---
 
@@ -53,6 +53,7 @@ Progress: [█░░░░░░░░░] 17%
 | Phase 21 P05 | 5 | 2 tasks | 3 files |
 | Phase 21 P06 | 5 min | 2 tasks | 1 file |
 | Phase 22 P01 | 4 | 2 tasks | 2 files |
+| Phase 22 P02 | 12 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,9 @@ Recent decisions affecting current work:
 - [Phase 21]: easyMDE !== null is the correct primary guard in handleNoteEvent — isDirty alone is stale-prone; any open editor session must be protected regardless of keystroke count
 - [Phase 22]: delete_note() stub committed; sb-hook immediately auto-implemented full cascade from 22-02 plan on first commit
 - [Phase 22]: relationships table uses rel_type column (not relationship_type); tmp_api_note fixture requires BRAIN_PATH monkeypatch for path resolution
+- [Phase 22]: Lazy import of suppress_next_delete inside delete_note() avoids circular import with engine.watcher
+- [Phase 22]: _resolve_note_path reads BRAIN_PATH env var; test fixtures must monkeypatch BRAIN_PATH to tmp_path
+- [Phase 22]: notes_ad AFTER DELETE trigger handles FTS5 automatically — no explicit rebuild in delete_note()
 
 ### Roadmap Evolution
 
@@ -101,6 +105,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-16T13:49:43.001Z
-Stopped at: Completed 22-01-PLAN.md
+Last session: 2026-03-16T13:54:04.037Z
+Stopped at: Completed 22-02-PLAN.md
 Resume file: None
