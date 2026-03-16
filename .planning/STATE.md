@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: "Completed 21-02-PLAN.md (SSE backend: /events endpoint and NoteChangeHandler)"
-last_updated: "2026-03-16T12:08:42.819Z"
+stopped_at: "Completed 21-03-PLAN.md (SSE frontend: EventSource, status dot, conflict banner, isDirty)"
+last_updated: "2026-03-16T12:12:15.817Z"
 last_activity: 2026-03-16 — Plan 20-03 complete; GUIX-04 CSS scroll fix applied
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
   percent: 17
 ---
 
@@ -48,6 +48,7 @@ Progress: [█░░░░░░░░░] 17%
 | Phase 20 P03 | 15 | 2 tasks | 4 files |
 | Phase 21 P01 | 2 | 1 tasks | 2 files |
 | Phase 21 P02 | 8 min | 2 tasks | 3 files |
+| Phase 21 P03 | 5 min | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,7 @@ Recent decisions affecting current work:
 - [Phase 21]: _ImmediateTimer helper used in NoteChangeHandler tests to avoid real 300ms debounce wait; documents TDD contract for Path 02 implementor
 - [Phase 21]: Queue maxsize=50 with put_nowait + silent pass on Full: slow clients silently dropped rather than blocking broadcast
 - [Phase 21]: NoteChangeHandler._is_note() uses Path.parts for files segment check to avoid substring false positives
+- [Phase 21]: connectSSE() called at init; matchesCurrent uses endsWith for absolute vs relative path comparison; _sseWasConnected gates reconnect refresh
 
 ### Pending Todos
 
@@ -81,6 +83,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-16T12:08:42.812Z
-Stopped at: Completed 21-02-PLAN.md (SSE backend: /events endpoint and NoteChangeHandler)
+Last session: 2026-03-16T12:12:15.806Z
+Stopped at: Completed 21-03-PLAN.md (SSE frontend: EventSource, status dot, conflict banner, isDirty)
 Resume file: None
