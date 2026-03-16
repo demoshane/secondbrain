@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
-status: completed
-stopped_at: "Completed 21-03-PLAN.md (SSE frontend: EventSource, status dot, conflict banner, isDirty)"
-last_updated: "2026-03-16T12:12:15.817Z"
-last_activity: 2026-03-16 — Plan 20-03 complete; GUIX-04 CSS scroll fix applied
+status: blocked
+stopped_at: "21-04 verification FAILED — 2 bugs require fixes before phase 21 can close"
+last_updated: "2026-03-16T13:00:00.000Z"
+last_activity: 2026-03-16 — Plan 21-04 human verification failed; 3 bugs found (1 critical data-loss, 1 medium false-positive)
 progress:
   total_phases: 7
   completed_phases: 1
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-Phase: 20 of 26 (Frontend Bug Fixes) — complete
-Plan: 3 of 3 in current phase — all plans done
-Status: Phase complete — ready for Phase 21
-Last activity: 2026-03-16 — Plan 20-03 complete; GUIX-04 CSS scroll fix applied
+Phase: 21 of 26 (Live Refresh SSE)
+Plan: 4 of 4 in current phase — verification FAILED
+Status: Blocked — bugs must be fixed before phase 21 can close; GUIX-01 remains open
+Last activity: 2026-03-16 — Plan 21-04 human verification failed; 3 bugs found (1 critical data-loss, 1 medium false-positive)
 
 Progress: [█░░░░░░░░░] 17%
 
@@ -49,6 +49,7 @@ Progress: [█░░░░░░░░░] 17%
 | Phase 21 P01 | 2 | 1 tasks | 2 files |
 | Phase 21 P02 | 8 min | 2 tasks | 3 files |
 | Phase 21 P03 | 5 min | 1 tasks | 3 files |
+| Phase 21 P04 | 0 min | 0 tasks | 0 files | VERIFICATION FAILED |
 
 ## Accumulated Context
 
@@ -77,12 +78,15 @@ None yet.
 
 ### Blockers/Concerns
 
+- [Phase 21 - CRITICAL]: Conflict banner not shown when editor is dirty and external SSE change arrives — editor silently discarded, data loss risk. Fix: check isEditing && isDirty before auto-reload in handleNoteChange (app.js)
+- [Phase 21 - BUG]: False-positive "note deleted" notification fires on save — likely watchdog emitting deleted event during write. Fix: debounce/suppress note_deleted events within ~500ms of a note_updated for same path
+- [Phase 21 - Minor]: Status dot takes ~5s to go green on launch (expected: 1-2s). Low priority.
 - [Phase 21]: SSE + pywebview WebKit compatibility not confirmed from official docs — validate with minimal proof-of-concept at phase start
 - [Phase 23]: `tags` column existence in `notes` table needs confirmation; if absent, add via `ALTER TABLE ADD COLUMN`
 - [Phase 26]: RRF weight calibration is empirical — do not begin without regression fixture set (5 precision + 5 recall queries)
 
 ## Session Continuity
 
-Last session: 2026-03-16T12:12:15.806Z
-Stopped at: Completed 21-03-PLAN.md (SSE frontend: EventSource, status dot, conflict banner, isDirty)
+Last session: 2026-03-16T13:00:00.000Z
+Stopped at: 21-04 verification FAILED — fix conflict banner (data loss) and false deletion notification before continuing
 Resume file: None
