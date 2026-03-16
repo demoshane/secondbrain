@@ -4,6 +4,7 @@
 
 - ✅ **v1.5 Second Brain MVP** — Phases 1–13 (shipped 2026-03-15)
 - ✅ **v2.0 Intelligence + GUI Hub** — Phases 14–19 (shipped 2026-03-16)
+- 🔄 **v3.0 GUI Overhaul & Polish** — Phases 20–26 (in progress)
 
 ## Phases
 
@@ -39,6 +40,86 @@
 
 </details>
 
+## v3.0 GUI Overhaul & Polish
+
+- [ ] **Phase 20: Frontend Bug Fixes** — Fix scroll, markdown rendering, backlinks, and title sync (pure JS/CSS)
+- [ ] **Phase 21: Live Refresh SSE** — Server-sent events backbone so all writes reflect instantly in the GUI
+- [ ] **Phase 22: Note Deletion + Security Hardening** — Delete from GUI with cascade; path traversal guard on all note endpoints
+- [ ] **Phase 23: Navigation Polish** — Collapsible sidebar sections, tag editing, tag filtering
+- [ ] **Phase 24: File Capture + Batch Capture** — File upload from GUI; batch capture of unindexed items; watcher dedup guard
+- [ ] **Phase 25: Intelligence Features** — On-demand recap button, brain health dashboard, health score CLI
+- [ ] **Phase 26: Search Quality Tuning** — BM25 column weight tuning, recency boost, AI recap quality improvements
+
+### Phase Details
+
+### Phase 20: Frontend Bug Fixes
+**Goal**: The GUI viewer is fully usable — note content renders as HTML, scrolls normally, displays correct backlinks, and title changes reflect without restart
+**Requirements**: GUIX-02, GUIX-03, GUIX-04, GUIX-05
+**Plans:** 2/3 plans executed
+
+Plans:
+- [ ] 20-01-PLAN.md — Strip frontmatter in API + save re-index (GUIX-03, GUIX-02)
+- [ ] 20-02-PLAN.md — Fix backlinks content query (GUIX-05)
+- [ ] 20-03-PLAN.md — CSS scroll fix + human verify (GUIX-04)
+
+**Success criteria**:
+1. User can scroll long notes using the mouse wheel in the viewer panel
+2. Note content renders as formatted HTML (headings, bold, lists) with no raw markdown or YAML frontmatter visible
+3. After editing and saving a note title in the GUI, the sidebar and viewer heading update without a restart
+4. Backlinks shown in the viewer panel match the actual relationships stored in the database (no false positives, no missing links)
+
+### Phase 21: Live Refresh SSE
+**Goal**: Notes created or edited anywhere (GUI, CLI, file watcher daemon) appear in the sidebar and viewer without restarting the application
+**Requirements**: GUIX-01
+**Success criteria**:
+1. A note created via `sb-capture` appears in the GUI sidebar within 2 seconds without any user action
+2. A note edited via CLI appears with updated content in the viewer within 2 seconds
+3. The file watcher daemon bridges new file events to the SSE bus via `POST /internal/notify`
+4. The GUI reconnects automatically if the SSE connection drops
+
+### Phase 22: Note Deletion + Security Hardening
+**Goal**: Users can delete notes from the GUI with full cascade, and all note endpoints are protected against path traversal
+**Requirements**: GUIX-06
+**Success criteria**:
+1. User can delete a note from the GUI using a confirmation dialog; the note disappears from the sidebar immediately
+2. Deleting a note removes its FTS5 index entry, backlinks, and embedding row — no orphan DB rows remain
+3. Attempting to access a path outside `BRAIN_ROOT` via any notes API returns HTTP 403
+4. The `delete_note()` utility is the single shared implementation used by both `forget.py` and the GUI delete endpoint
+
+### Phase 23: Navigation Polish
+**Goal**: Users can navigate notes by type/folder, edit tags inline, and filter notes by tag
+**Requirements**: GNAV-01, GNAV-02, GNAV-03
+**Success criteria**:
+1. The sidebar shows notes grouped by type/folder with a collapse/expand toggle per section
+2. User can click a tag chip in the viewer and edit it inline; the change saves to both frontmatter and the database without a full reindex
+3. User can filter the sidebar or search results to show only notes with a specific tag
+
+### Phase 24: File Capture + Batch Capture
+**Goal**: Users can capture files from the GUI and run a single batch capture of all unindexed items, with no duplicate notes from the watcher race
+**Requirements**: GUIF-01, ENGL-01
+**Success criteria**:
+1. User can select or drag a file in the GUI; the file is saved to `files/` and appears indexed in the sidebar
+2. A single "Batch Capture" action captures all unindexed markdown files present in the brain directory
+3. Uploading a file via the GUI does not produce a duplicate note when the file watcher also fires on the same path
+4. Batch capture returns a structured result showing which items succeeded and which failed with a reason
+
+### Phase 25: Intelligence Features
+**Goal**: Users can trigger a weekly recap on demand from the GUI and view a brain health dashboard showing orphans, broken links, duplicates, and a health score
+**Requirements**: GUIF-02, ENGL-03, ENGL-04, ENGL-05
+**Success criteria**:
+1. The Intelligence panel has a "Generate Recap" button; clicking it shows a spinner and then displays the generated recap
+2. `sb-health` CLI command reports a 0-100 brain health score with counts of orphan notes, broken links, and potential duplicates
+3. The GUI health panel displays the same score and check results with a clear "no issues found" vs "N issues" distinction
+4. AI recap and action extraction produce deduplicated, accurate output (no repeated items across consecutive recaps)
+
+### Phase 26: Search Quality Tuning
+**Goal**: Search returns the most relevant notes first, with title matches ranked above body matches and a regression suite confirming no precision regressions
+**Requirements**: ENGL-02
+**Success criteria**:
+1. An exact title search returns the matching note as the first result
+2. A semantic search for a topic returns contextually relevant notes above unrelated ones
+3. A fixed regression suite of at least 5 precision queries and 5 recall queries all pass before any RRF parameter is changed
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -63,3 +144,10 @@
 | 17. API Layer and Setup Automation | v2.0 | 3/3 | Complete | 2026-03-15 |
 | 18. GUI Hub | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 19. MCP Server | v2.0 | 4/4 | Complete | 2026-03-15 |
+| 20. Frontend Bug Fixes | 2/3 | In Progress|  | - |
+| 21. Live Refresh SSE | v3.0 | 0/? | Not started | - |
+| 22. Note Deletion + Security Hardening | v3.0 | 0/? | Not started | - |
+| 23. Navigation Polish | v3.0 | 0/? | Not started | - |
+| 24. File Capture + Batch Capture | v3.0 | 0/? | Not started | - |
+| 25. Intelligence Features | v3.0 | 0/? | Not started | - |
+| 26. Search Quality Tuning | v3.0 | 0/? | Not started | - |

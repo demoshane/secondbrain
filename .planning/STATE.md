@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
-status: planning
-stopped_at: Phase 20 context gathered
-last_updated: "2026-03-16T10:02:49.251Z"
-last_activity: 2026-03-16 — v3.0 roadmap created; phases 20-26 defined
+status: in-progress
+stopped_at: "Completed 20-01-PLAN.md"
+last_updated: "2026-03-16T10:23:00Z"
+last_activity: 2026-03-16 — Phase 20 plan 01 complete (GUIX-02, GUIX-03 fixed)
 progress:
   total_phases: 7
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 3
+  completed_plans: 1
+  percent: 14
 ---
 
 # Project State
@@ -26,18 +26,22 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 20 of 26 (Frontend Bug Fixes)
-Plan: 0 of ? in current phase
-Status: Ready to plan
-Last activity: 2026-03-16 — v3.0 roadmap created; phases 20-26 defined
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-03-16 — Plan 20-01 complete; GUIX-02 and GUIX-03 fixed
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 14%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 3 minutes
+- Total execution time: 0.05 hours
+
+| Phase | Plan | Duration | Tasks | Files |
+|-------|------|----------|-------|-------|
+| 20 | 01 | 3 min | 2 | 4 |
 
 *Updated after each plan completion*
 
@@ -52,6 +56,8 @@ Recent decisions affecting current work:
 - [v3.0 Roadmap]: Use client-side `marked.js` (already vendored) for markdown rendering — no new dep
 - [v3.0 Roadmap]: SSE backbone (Phase 21) must ship before any write features (deletion, upload, tags, batch)
 - [v3.0 Roadmap]: Extract shared `delete_note()` utility in Phase 22 to prevent cascade miss on GUI delete
+- [20-01]: read_note returns body (stripped) by default; ?raw=true returns full content for editor
+- [20-01]: save_note parses frontmatter post-write to extract title for SQLite UPDATE
 
 ### Pending Todos
 
@@ -65,6 +71,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-16T10:02:49.245Z
-Stopped at: Phase 20 context gathered
-Resume file: .planning/phases/20-frontend-bug-fixes/20-CONTEXT.md
+Last session: 2026-03-16T10:23:00Z
+Stopped at: Completed 20-01-PLAN.md
+Resume file: .planning/phases/20-frontend-bug-fixes/20-02-PLAN.md
