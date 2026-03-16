@@ -55,14 +55,14 @@ def note_file(tmp_path, initialized_db):
     )
     # relationships rows
     initialized_db.execute(
-        "INSERT OR IGNORE INTO relationships (source_path, target_path, relationship_type)"
+        "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type)"
         " VALUES (?, ?, ?)",
-        (path_str, "/other/note.md", "related"),
+        (path_str, "/other/note.md", "link"),
     )
     initialized_db.execute(
-        "INSERT OR IGNORE INTO relationships (source_path, target_path, relationship_type)"
+        "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type)"
         " VALUES (?, ?, ?)",
-        ("/other/note.md", path_str, "related"),
+        ("/other/note.md", path_str, "link"),
     )
     # action_items row
     initialized_db.execute(
