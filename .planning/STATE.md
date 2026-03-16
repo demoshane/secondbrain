@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
-status: blocked
-stopped_at: "21-04 verification FAILED — 2 bugs require fixes before phase 21 can close"
-last_updated: "2026-03-16T13:00:00.000Z"
+status: Blocked — bugs must be fixed before phase 21 can close; GUIX-01 remains open
+stopped_at: Completed 21-05-PLAN.md
+last_updated: "2026-03-16T12:43:24.636Z"
 last_activity: 2026-03-16 — Plan 21-04 human verification failed; 3 bugs found (1 critical data-loss, 1 medium false-positive)
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 7
-  completed_plans: 6
+  total_plans: 9
+  completed_plans: 8
   percent: 17
 ---
 
@@ -50,6 +50,7 @@ Progress: [█░░░░░░░░░] 17%
 | Phase 21 P02 | 8 min | 2 tasks | 3 files |
 | Phase 21 P03 | 5 min | 1 tasks | 3 files |
 | Phase 21 P04 | 0 min | 0 tasks | 0 files | VERIFICATION FAILED |
+| Phase 21 P05 | 5 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,7 @@ Recent decisions affecting current work:
 - [Phase 21]: Queue maxsize=50 with put_nowait + silent pass on Full: slow clients silently dropped rather than blocking broadcast
 - [Phase 21]: NoteChangeHandler._is_note() uses Path.parts for files segment check to avoid substring false positives
 - [Phase 21]: connectSSE() called at init; matchesCurrent uses endsWith for absolute vs relative path comparison; _sseWasConnected gates reconnect refresh
+- [Phase 21]: 500ms suppress window outlasts FSEvents propagation delay after os.replace(); module-level suppression set shared across all NoteChangeHandler instances
 
 ### Pending Todos
 
@@ -87,6 +89,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-16T13:00:00.000Z
-Stopped at: 21-04 verification FAILED — fix conflict banner (data loss) and false deletion notification before continuing
+Last session: 2026-03-16T12:43:24.627Z
+Stopped at: Completed 21-05-PLAN.md
 Resume file: None

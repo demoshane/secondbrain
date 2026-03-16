@@ -71,20 +71,20 @@ Plans:
 ### Phase 21: Live Refresh SSE
 **Goal**: Notes created or edited anywhere (GUI, CLI, file watcher daemon) appear in the sidebar and viewer without restarting the application
 **Requirements**: GUIX-01
-**Plans:** 4/4 executed — BLOCKED (verification failed)
+**Plans:** 5/6 plans executed
 
 Plans:
 - [x] 21-01-PLAN.md — Test scaffolds for SSE endpoint + NoteChangeHandler (failing stubs, Wave 1)
 - [x] 21-02-PLAN.md — Backend SSE: NoteChangeHandler + /events route + observer wiring (Wave 2)
 - [x] 21-03-PLAN.md — Frontend SSE: EventSource, status dot, conflict banner, dirty state (Wave 3)
 - [x] 21-04-PLAN.md — Human verify: FAILED — 3 issues found (see 21-04-SUMMARY.md)
+- [ ] 21-05-PLAN.md — Gap closure: save-suppression (watcher + api), threads=8 in GUI sidecar (Wave 1)
+- [ ] 21-06-PLAN.md — Gap closure: conflict banner easyMDE guard + human re-verify (Wave 2)
 
-**Verification failures (must fix before phase closes):**
-1. [CRITICAL] Conflict banner not shown when editor dirty — external change silently discards in-progress edits (data loss)
-2. [BUG] False-positive "note deleted" notification fires on normal save — watchdog emits deleted event during write
-3. [Minor] Status dot takes ~5s to turn green (expected 1-2s)
-
-GUIX-01 remains OPEN.
+**Gap closure status:**
+1. [CRITICAL] Conflict banner — plan 21-06 fixes easyMDE !== null guard in handleNoteEvent
+2. [BUG] False deletion on save — plan 21-05 adds suppress_next_delete() to watcher + api
+3. [Minor] Status dot 5s delay — accepted as cosmetic; no code change needed
 
 **Success criteria**:
 1. A note created via `sb-capture` appears in the GUI sidebar within 2 seconds without any user action
@@ -160,7 +160,7 @@ GUIX-01 remains OPEN.
 | 18. GUI Hub | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 19. MCP Server | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 20. Frontend Bug Fixes | v3.0 | 3/3 | Complete | 2026-03-16 |
-| 21. Live Refresh SSE | v3.0 | 4/4 executed | Blocked — verification failed (2 bugs) | - |
+| 21. Live Refresh SSE | 5/6 | In Progress|  | - |
 | 22. Note Deletion + Security Hardening | v3.0 | 0/? | Not started | - |
 | 23. Navigation Polish | v3.0 | 0/? | Not started | - |
 | 24. File Capture + Batch Capture | v3.0 | 0/? | Not started | - |
