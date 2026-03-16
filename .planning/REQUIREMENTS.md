@@ -17,7 +17,7 @@
 
 ### GUI Navigation & UX (GNAV)
 
-- [ ] **GNAV-01**: Sidebar shows collapsible section navigation by note type/folder (replaces flat list)
+- [x] **GNAV-01**: Sidebar shows collapsible section navigation by note type/folder (replaces flat list)
 - [x] **GNAV-02**: User can edit note tags and metadata directly from the GUI
 - [x] **GNAV-03**: User can filter notes by tag in search and browse
 
@@ -65,7 +65,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GUIX-04 | Phase 20 | Complete |
 | GUIX-05 | Phase 20 | Complete |
 | GUIX-06 | Phase 22 | Complete |
-| GNAV-01 | Phase 23 | Pending |
+| GNAV-01 | Phase 23 | Complete |
 | GNAV-02 | Phase 23 | Complete |
 | GNAV-03 | Phase 23 | Complete |
 | GUIF-01 | Phase 24 | Pending |

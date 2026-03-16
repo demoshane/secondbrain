@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 23-01-PLAN.md
-last_updated: "2026-03-16T18:29:10.839Z"
+stopped_at: Completed 23-02-PLAN.md
+last_updated: "2026-03-16T18:36:22.962Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 17
-  completed_plans: 14
+  completed_plans: 15
   percent: 99
 ---
 
@@ -57,6 +57,7 @@ Progress: [██████████] 99%
 | Phase 22 P03 | 3 | 2 tasks | 3 files |
 | Phase 22 P04 | 15 | 3 tasks | 1 files |
 | Phase 23 P01 | 6 | 2 tasks | 2 files |
+| Phase 23 P02 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,8 @@ Recent decisions affecting current work:
 - [Phase 22]: File deletion working correctly: missing_ok=True on unlink is correct policy — audit_log confirmed deleted notes are gone from disk; user's report was a false alarm (file pre-absent before GUI delete ran)
 - [Phase 23]: Tags-only PUT reads+patches frontmatter via python-frontmatter, writes via tempfile+os.replace; targeted DB UPDATE only
 - [Phase 23]: Empty query + tags_filter in POST /search bypasses FTS5 (rejects empty queries) and uses direct SELECT with Python-side AND filter
+- [Phase 23]: folder-section.collapsed > ul selector hides all child ul elements for both folder and type sections
+- [Phase 23]: folderName() uses parts[-2] for top-level folder extraction; falls back to 'other' for flat paths
 
 ### Roadmap Evolution
 
@@ -112,6 +115,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-16T18:29:10.832Z
-Stopped at: Completed 23-01-PLAN.md
+Last session: 2026-03-16T18:36:22.956Z
+Stopped at: Completed 23-02-PLAN.md
 Resume file: None
