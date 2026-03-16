@@ -260,7 +260,11 @@ def put_prefs():
 
 @app.get("/ui")
 def gui_shell():
-    return (_STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    html = (_STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    api_base = request.host_url.rstrip("/")
+    injection = f'<script>window.API_BASE = "{api_base}";</script>'
+    html = html.replace("</head>", injection + "\n</head>", 1)
+    return html
 
 
 @app.get("/ui/<path:filename>")

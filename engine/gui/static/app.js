@@ -1,5 +1,5 @@
 // Second Brain GUI — ES module
-const API = 'http://127.0.0.1:37491';
+const API = window.API_BASE || 'http://127.0.0.1:37491';
 let currentPath = null;
 let easyMDE = null;
 let brainPath = null;
