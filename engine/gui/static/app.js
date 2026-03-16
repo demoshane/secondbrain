@@ -5,6 +5,30 @@ let easyMDE = null;
 let brainPath = null;
 let isDirty = false;
 
+// --- Sidebar collapse state ---
+function getCollapseState() {
+    try {
+        return JSON.parse(localStorage.getItem('sb-sidebar-collapse') || '{}');
+    } catch (_) {
+        return {};
+    }
+}
+
+function setCollapseState(key, collapsed) {
+    try {
+        const state = getCollapseState();
+        state[key] = collapsed;
+        localStorage.setItem('sb-sidebar-collapse', JSON.stringify(state));
+    } catch (_) {}
+}
+
+// Extract top-level folder name from an absolute note path
+function folderName(notePath) {
+    const parts = notePath.split('/');
+    // parts[-1] = filename, parts[-2] = folder; fallback 'other' if flat
+    return parts.length >= 2 ? (parts[parts.length - 2] || 'other') : 'other';
+}
+
 // --- Sidebar ---
 async function loadNotes() {
     const res = await fetch(`${API}/notes`);
@@ -15,13 +39,14 @@ async function loadNotes() {
         // Heuristic: brain root is 2 levels up from note path
         brainPath = parts.slice(0, -2).join('/') || '/';
     }
-    renderSidebar(notes);
+    renderHierarchySidebar(notes);
 }
 
-function renderSidebar(notes) {
+// Flat list used by search results and tag-filter mode
+function renderFlatList(notes) {
     const list = document.getElementById('note-list');
     list.innerHTML = '';
-    // Group by type
+    // Group by type (same as original renderSidebar behavior)
     const groups = {};
     for (const n of notes) {
         const t = n.type || 'other';
@@ -41,6 +66,125 @@ function renderSidebar(notes) {
             list.appendChild(li);
         }
     }
+    document.getElementById('sidebar-loading').style.display = 'none';
+}
+
+// Hierarchy sidebar: Recent section + folder > type grouping
+function renderHierarchySidebar(notes) {
+    const list = document.getElementById('note-list');
+    list.innerHTML = '';
+    const collapseState = getCollapseState();
+
+    // Helper: create a note <li>
+    function makeNoteLi(n) {
+        const li = document.createElement('li');
+        li.dataset.path = n.path;
+        li.innerHTML = `<div>${n.title || n.path.split('/').pop()}</div>`;
+        li.addEventListener('click', () => openNote(n.path));
+        return li;
+    }
+
+    // Helper: create a collapsible section wrapper <li>
+    function makeSection(key, headerText, noteItems, extraClass) {
+        const isCollapsed = collapseState[key] === true;
+
+        const section = document.createElement('li');
+        section.className = `folder-section${extraClass ? ' ' + extraClass : ''}${isCollapsed ? ' collapsed' : ''}`;
+        section.dataset.folder = key;
+
+        const hdr = document.createElement('div');
+        hdr.className = 'folder-header';
+        hdr.innerHTML = `<span class="collapse-toggle">${isCollapsed ? '▶' : '▼'}</span> ${headerText}`;
+        hdr.addEventListener('click', () => {
+            const nowCollapsed = !section.classList.contains('collapsed');
+            section.classList.toggle('collapsed', nowCollapsed);
+            hdr.querySelector('.collapse-toggle').textContent = nowCollapsed ? '▶' : '▼';
+            setCollapseState(key, nowCollapsed);
+        });
+        section.appendChild(hdr);
+
+        const ul = document.createElement('ul');
+        ul.className = 'folder-notes';
+        for (const n of noteItems) ul.appendChild(makeNoteLi(n));
+        section.appendChild(ul);
+
+        return section;
+    }
+
+    // Helper: create a type-within-folder sub-section
+    function makeTypeSection(folderKey, typeName, noteItems) {
+        const typeKey = `${folderKey}::${typeName}`;
+        const isCollapsed = collapseState[typeKey] === true;
+
+        const section = document.createElement('li');
+        section.className = `type-section${isCollapsed ? ' collapsed' : ''}`;
+        section.dataset.typeKey = typeKey;
+
+        const hdr = document.createElement('div');
+        hdr.className = 'type-header';
+        hdr.innerHTML = `<span class="collapse-toggle">${isCollapsed ? '▶' : '▼'}</span> ${typeName} <span class="section-count">(${noteItems.length})</span>`;
+        hdr.addEventListener('click', () => {
+            const nowCollapsed = !section.classList.contains('collapsed');
+            section.classList.toggle('collapsed', nowCollapsed);
+            hdr.querySelector('.collapse-toggle').textContent = nowCollapsed ? '▶' : '▼';
+            setCollapseState(typeKey, nowCollapsed);
+        });
+        section.appendChild(hdr);
+
+        const ul = document.createElement('ul');
+        ul.className = 'type-notes';
+        for (const n of noteItems) ul.appendChild(makeNoteLi(n));
+        section.appendChild(ul);
+
+        return section;
+    }
+
+    // 1. Recent section — first 10 notes (server returns created_at DESC)
+    const recentNotes = notes.slice(0, 10);
+    const recentSection = makeSection('recent', `Recent <span class="section-count">(${recentNotes.length})</span>`, recentNotes, 'recent-section');
+    list.appendChild(recentSection);
+
+    // 2. Build folder > type map
+    const folderMap = {}; // { folderName: { typeName: [notes] } }
+    for (const n of notes) {
+        const folder = folderName(n.path);
+        const type = n.type || 'other';
+        if (!folderMap[folder]) folderMap[folder] = {};
+        if (!folderMap[folder][type]) folderMap[folder][type] = [];
+        folderMap[folder][type].push(n);
+    }
+
+    // 3. Render each folder section
+    for (const [folder, typeMap] of Object.entries(folderMap).sort()) {
+        const totalCount = Object.values(typeMap).reduce((sum, arr) => sum + arr.length, 0);
+        const isCollapsed = collapseState[folder] === true;
+
+        const folderSection = document.createElement('li');
+        folderSection.className = `folder-section${isCollapsed ? ' collapsed' : ''}`;
+        folderSection.dataset.folder = folder;
+
+        const folderHdr = document.createElement('div');
+        folderHdr.className = 'folder-header';
+        folderHdr.innerHTML = `<span class="collapse-toggle">${isCollapsed ? '▶' : '▼'}</span> ${folder}/ <span class="section-count">(${totalCount})</span>`;
+        folderHdr.addEventListener('click', () => {
+            const nowCollapsed = !folderSection.classList.contains('collapsed');
+            folderSection.classList.toggle('collapsed', nowCollapsed);
+            folderHdr.querySelector('.collapse-toggle').textContent = nowCollapsed ? '▶' : '▼';
+            setCollapseState(folder, nowCollapsed);
+        });
+        folderSection.appendChild(folderHdr);
+
+        const typesUl = document.createElement('ul');
+        typesUl.className = 'folder-types';
+
+        for (const [typeName, noteItems] of Object.entries(typeMap).sort()) {
+            typesUl.appendChild(makeTypeSection(folder, typeName, noteItems));
+        }
+
+        folderSection.appendChild(typesUl);
+        list.appendChild(folderSection);
+    }
+
     document.getElementById('sidebar-loading').style.display = 'none';
 }
 
@@ -162,7 +306,7 @@ async function runSearch(query) {
         body: JSON.stringify({ query, mode }),
     });
     const { results } = await res.json();
-    renderSidebar(results.map(r => ({ path: r.path || r, title: r.title || r, type: r.type || 'result' })));
+    renderFlatList(results.map(r => ({ path: r.path || r, title: r.title || r, type: r.type || 'result' })));
 }
 
 // --- Right panel: meta ---
