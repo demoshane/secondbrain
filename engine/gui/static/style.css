@@ -127,6 +127,18 @@ body { margin: 0; font-family: system-ui, -apple-system, sans-serif; font-size: 
     min-height: 0;
 }
 
+.tag-chip-delete {
+    display: none;
+    margin-left: 0.3em;
+    font-size: 1em;
+    line-height: 1;
+    color: #2c6fcf;
+    opacity: 0.6;
+    cursor: pointer;
+}
+.tag-chip-delete:hover { opacity: 1; }
+.tag-chip:hover .tag-chip-delete { display: inline; }
+
 .tag-chip {
     display: inline-flex;
     align-items: center;

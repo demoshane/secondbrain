@@ -282,6 +282,17 @@ function renderTagChips(tags, notePath) {
             e.stopPropagation();
             makeChipEditable(chip, idx, tagsCopy, notePath);
         });
+
+        const del = document.createElement('span');
+        del.className = 'tag-chip-delete';
+        del.textContent = '×';
+        del.title = 'Remove tag';
+        del.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const updated = tagsCopy.filter((_, i) => i !== idx);
+            saveTags(updated, notePath);
+        });
+        chip.appendChild(del);
         container.appendChild(chip);
     });
 
