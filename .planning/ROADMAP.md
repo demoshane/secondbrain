@@ -112,7 +112,7 @@ Plans:
 ### Phase 23: Navigation Polish
 **Goal**: Users can navigate notes by type/folder, edit tags inline, and filter notes by tag
 **Requirements**: GNAV-01, GNAV-02, GNAV-03
-**Plans:** 4 plans
+**Plans:** 1/4 plans executed
 
 Plans:
 - [ ] 23-01-PLAN.md — Test scaffold + backend API extensions (tags save, tag search filter, tags parse)
@@ -178,7 +178,7 @@ Plans:
 | 20. Frontend Bug Fixes | v3.0 | 3/3 | Complete | 2026-03-16 |
 | 21. Live Refresh SSE | v3.0 | Complete    | 2026-03-16 | 2026-03-16 |
 | 22. Note Deletion + Security Hardening | 4/4 | Complete    | 2026-03-16 | - |
-| 23. Navigation Polish | v3.0 | 0/? | Not started | - |
+| 23. Navigation Polish | 1/4 | In Progress|  | - |
 | 24. File Capture + Batch Capture | v3.0 | 0/? | Not started | - |
 | 25. Intelligence Features | v3.0 | 0/? | Not started | - |
 | 26. Search Quality Tuning | v3.0 | 0/? | Not started | - |

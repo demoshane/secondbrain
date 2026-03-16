@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Phase 23 context gathered
-last_updated: "2026-03-16T16:01:43.557Z"
+stopped_at: Completed 23-01-PLAN.md
+last_updated: "2026-03-16T18:29:10.839Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 8
   completed_phases: 3
-  total_plans: 13
-  completed_plans: 13
+  total_plans: 17
+  completed_plans: 14
   percent: 99
 ---
 
@@ -56,6 +56,7 @@ Progress: [██████████] 99%
 | Phase 22 P02 | 12 | 2 tasks | 5 files |
 | Phase 22 P03 | 3 | 2 tasks | 3 files |
 | Phase 22 P04 | 15 | 3 tasks | 1 files |
+| Phase 23 P01 | 6 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,8 @@ Recent decisions affecting current work:
 - [Phase 22]: notes_ad AFTER DELETE trigger handles FTS5 automatically — no explicit rebuild in delete_note()
 - [Phase 22 P03]: exitEditMode() called unconditionally in delete confirm handler — named function declaration in ES module, always in scope; typeof guard unnecessary
 - [Phase 22]: File deletion working correctly: missing_ok=True on unlink is correct policy — audit_log confirmed deleted notes are gone from disk; user's report was a false alarm (file pre-absent before GUI delete ran)
+- [Phase 23]: Tags-only PUT reads+patches frontmatter via python-frontmatter, writes via tempfile+os.replace; targeted DB UPDATE only
+- [Phase 23]: Empty query + tags_filter in POST /search bypasses FTS5 (rejects empty queries) and uses direct SELECT with Python-side AND filter
 
 ### Roadmap Evolution
 
@@ -109,6 +112,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-16T16:01:43.549Z
-Stopped at: Phase 23 context gathered
-Resume file: .planning/phases/23-navigation-polish/23-CONTEXT.md
+Last session: 2026-03-16T18:29:10.832Z
+Stopped at: Completed 23-01-PLAN.md
+Resume file: None

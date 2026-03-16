@@ -13,13 +13,13 @@
 - [x] **GUIX-03**: Note content renders as formatted HTML (not raw markdown text)
 - [x] **GUIX-04**: User can scroll the note content area with the mouse wheel
 - [x] **GUIX-05**: Backlinks display correctly in the note viewer
-- [ ] **GUIX-06**: User can delete a note from the GUI; deletion cascades to backlinks and FTS5 index
+- [x] **GUIX-06**: User can delete a note from the GUI; deletion cascades to backlinks and FTS5 index
 
 ### GUI Navigation & UX (GNAV)
 
 - [ ] **GNAV-01**: Sidebar shows collapsible section navigation by note type/folder (replaces flat list)
-- [ ] **GNAV-02**: User can edit note tags and metadata directly from the GUI
-- [ ] **GNAV-03**: User can filter notes by tag in search and browse
+- [x] **GNAV-02**: User can edit note tags and metadata directly from the GUI
+- [x] **GNAV-03**: User can filter notes by tag in search and browse
 
 ### GUI Features (GUIF)
 
@@ -64,10 +64,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GUIX-03 | Phase 20 | Complete |
 | GUIX-04 | Phase 20 | Complete |
 | GUIX-05 | Phase 20 | Complete |
-| GUIX-06 | Phase 22 | Pending |
+| GUIX-06 | Phase 22 | Complete |
 | GNAV-01 | Phase 23 | Pending |
-| GNAV-02 | Phase 23 | Pending |
-| GNAV-03 | Phase 23 | Pending |
+| GNAV-02 | Phase 23 | Complete |
+| GNAV-03 | Phase 23 | Complete |
 | GUIF-01 | Phase 24 | Pending |
 | GUIF-02 | Phase 25 | Pending |
 | ENGL-01 | Phase 24 | Pending |
