@@ -46,9 +46,10 @@
 - [x] **Phase 21: Live Refresh SSE** — Server-sent events backbone so all writes reflect instantly in the GUI (completed 2026-03-16)
 - [x] **Phase 22: Note Deletion + Security Hardening** — Delete from GUI with cascade; path traversal guard on all note endpoints (completed 2026-03-16)
 - [x] **Phase 23: Navigation Polish** — Collapsible sidebar sections, tag editing, tag filtering (completed 2026-03-16)
-- [ ] **Phase 24: File Capture + Batch Capture** — File upload from GUI; batch capture of unindexed items; watcher dedup guard
-- [ ] **Phase 25: Intelligence Features** — On-demand recap button, brain health dashboard, health score CLI
-- [ ] **Phase 26: Search Quality Tuning** — BM25 column weight tuning, recency boost, AI recap quality improvements
+- [ ] **Phase 24: Playwright GUI Test Suite** — End-to-end browser tests covering all GUI functionality built in phases 20–23
+- [ ] **Phase 25: File Capture + Batch Capture** — File upload from GUI; batch capture of unindexed items; watcher dedup guard
+- [ ] **Phase 26: Intelligence Features** — On-demand recap button, brain health dashboard, health score CLI
+- [ ] **Phase 27: Search Quality Tuning** — BM25 column weight tuning, recency boost, AI recap quality improvements
 
 ### Phase Details
 
@@ -125,7 +126,30 @@ Plans:
 2. User can click a tag chip in the viewer and edit it inline; the change saves to both frontmatter and the database without a full reindex
 3. User can filter the sidebar or search results to show only notes with a specific tag
 
-### Phase 24: File Capture + Batch Capture
+### Phase 24: Playwright GUI Test Suite
+**Goal**: A pytest-playwright test suite covers all GUI features built in phases 20–23, so regressions are caught automatically on every change
+**Requirements**: TEST-01
+**Plans:** 4 plans
+
+Plans:
+- [ ] 24-01-PLAN.md — Wave 1: infra — API_BASE fix, pytest-playwright dep, conftest fixtures, xfail stubs
+- [ ] 24-02-PLAN.md — Wave 2: markdown rendering, scroll, title sync tests
+- [ ] 24-03-PLAN.md — Wave 3: SSE live refresh + delete flow tests
+- [ ] 24-04-PLAN.md — Wave 4: tag editing, tag filtering, collapsible sections, path traversal tests
+
+**Success criteria**:
+1. `pytest tests/test_gui.py` runs headless against a live Flask dev server with zero manual setup steps
+2. Markdown rendering: a note with headings, bold, and lists renders as HTML (no raw `#`, `**`, or `-` visible in the DOM)
+3. Scroll: the note viewer panel is scrollable; `scrollTop` changes when scripted (regression for the scroll-lock bug)
+4. Title sync: editing and saving a note title updates both the sidebar list item and the viewer heading without a page reload
+5. SSE live refresh: capturing a note via API causes a new sidebar entry to appear within 3 seconds without any user action
+6. Delete flow: clicking delete shows a confirmation dialog; confirming removes the note from the sidebar; cancelling leaves it
+7. Tag editing: clicking a tag chip enables inline edit; typing and pressing Enter saves the new tag to the DOM and API
+8. Tag filtering: clicking a tag chip in the viewer filters the sidebar to only show notes with that tag; clearing the filter restores all notes
+9. Collapsible sidebar sections: clicking a section header toggles visibility of its note list
+10. Path traversal guard: a direct `fetch('/api/notes/../../../etc/passwd')` from the page returns 403 (client-side assertion)
+
+### Phase 25: File Capture + Batch Capture
 **Goal**: Users can capture files from the GUI and run a single batch capture of all unindexed items, with no duplicate notes from the watcher race
 **Requirements**: GUIF-01, ENGL-01
 **Success criteria**:
@@ -134,7 +158,7 @@ Plans:
 3. Uploading a file via the GUI does not produce a duplicate note when the file watcher also fires on the same path
 4. Batch capture returns a structured result showing which items succeeded and which failed with a reason
 
-### Phase 25: Intelligence Features
+### Phase 26: Intelligence Features
 **Goal**: Users can trigger a weekly recap on demand from the GUI and view a brain health dashboard showing orphans, broken links, duplicates, and a health score
 **Requirements**: GUIF-02, ENGL-03, ENGL-04, ENGL-05
 **Success criteria**:
@@ -143,7 +167,7 @@ Plans:
 3. The GUI health panel displays the same score and check results with a clear "no issues found" vs "N issues" distinction
 4. AI recap and action extraction produce deduplicated, accurate output (no repeated items across consecutive recaps)
 
-### Phase 26: Search Quality Tuning
+### Phase 27: Search Quality Tuning
 **Goal**: Search returns the most relevant notes first, with title matches ranked above body matches and a regression suite confirming no precision regressions
 **Requirements**: ENGL-02
 **Success criteria**:
@@ -179,16 +203,18 @@ Plans:
 | 21. Live Refresh SSE | v3.0 | Complete    | 2026-03-16 | 2026-03-16 |
 | 22. Note Deletion + Security Hardening | 4/4 | Complete    | 2026-03-16 | - |
 | 23. Navigation Polish | 4/4 | Complete    | 2026-03-16 | - |
-| 24. File Capture + Batch Capture | v3.0 | 0/? | Not started | - |
-| 25. Intelligence Features | v3.0 | 0/? | Not started | - |
-| 26. Search Quality Tuning | v3.0 | 0/? | Not started | - |
+| 24. Playwright GUI Test Suite | v3.0 | 0/4 | Not started | - |
+| 25. File Capture + Batch Capture | v3.0 | 0/? | Not started | - |
+| 26. Intelligence Features | v3.0 | 0/? | Not started | - |
+| 27. Search Quality Tuning | v3.0 | 0/? | Not started | - |
+| 28. TODO & Gap Resolution | v3.0 | 0/? | Not started | - |
 
-### Phase 27: This phase should resolve all open TODOs and Gaps that can be identified when the phase starts
+### Phase 28: TODO & Gap Resolution
 
-**Goal:** [To be planned]
+**Goal:** All open TODOs, known gaps, and deferred issues identified at phase start are resolved before the milestone is closed
 **Requirements**: TBD
-**Depends on:** Phase 26
+**Depends on:** Phase 27
 **Plans:** 0 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 27 to break down)
+- [ ] TBD (run /gsd:plan-phase 28 to break down)
