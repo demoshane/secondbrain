@@ -79,6 +79,9 @@ function renderMarkdown(md) {
     document.getElementById('edit-btn').style.display = '';
 }
 
+// --- Delete button reference ---
+const deleteBtn = document.getElementById('delete-btn');
+
 // --- Edit mode ---
 document.getElementById('edit-btn').addEventListener('click', enterEditMode);
 document.getElementById('save-btn').addEventListener('click', saveNote);
@@ -102,6 +105,7 @@ async function enterEditMode() {
     easyMDE.codemirror.on('change', () => { isDirty = true; });
     document.getElementById('save-btn').style.display = '';
     document.getElementById('edit-btn').style.display = 'none';
+    deleteBtn.style.display = 'none';
     // Ctrl+S / Cmd+S to save
     document.addEventListener('keydown', handleSaveKey);
 }
@@ -116,6 +120,7 @@ function exitEditMode() {
     document.getElementById('editor-area').style.display = 'none';
     document.getElementById('save-btn').style.display = 'none';
     document.getElementById('edit-btn').style.display = '';
+    deleteBtn.style.display = '';
 }
 
 async function saveNote() {
@@ -320,6 +325,54 @@ function connectSSE() {
         // EventSource auto-reconnects; onopen will fire again
     };
 }
+
+// --- Delete flow ---
+deleteBtn.addEventListener('click', () => {
+    if (!currentPath) return;
+    const filename = currentPath.split('/').pop();
+    document.getElementById('delete-modal-filename').textContent = filename;
+    document.getElementById('delete-modal-error').style.display = 'none';
+    document.getElementById('delete-modal-error').textContent = '';
+    document.getElementById('delete-note-modal').style.display = 'flex';
+});
+
+document.getElementById('delete-modal-cancel').addEventListener('click', () => {
+    document.getElementById('delete-note-modal').style.display = 'none';
+});
+
+document.getElementById('delete-modal-confirm').addEventListener('click', async () => {
+    const pathToDelete = currentPath;
+    if (!pathToDelete) return;
+    let res;
+    try {
+        res = await fetch(`${API}/notes/${encodeURIComponent(pathToDelete)}`, { method: 'DELETE' });
+    } catch (err) {
+        const errEl = document.getElementById('delete-modal-error');
+        errEl.textContent = 'Network error. Please try again.';
+        errEl.style.display = '';
+        return;
+    }
+    if (!res.ok) {
+        const errEl = document.getElementById('delete-modal-error');
+        errEl.textContent = 'Delete failed. Please try again.';
+        errEl.style.display = '';
+        return;
+    }
+    // Success: close modal, optimistic sidebar removal, clear state
+    document.getElementById('delete-note-modal').style.display = 'none';
+    document.querySelectorAll(`#note-list li[data-path="${pathToDelete}"]`).forEach(el => el.remove());
+    currentPath = null;
+    // Exit edit mode if open (clears EasyMDE, resets state)
+    exitEditMode();
+    // Show transient "Note deleted" message, then clear viewer
+    const viewer = document.getElementById('viewer');
+    viewer.innerHTML = '<em>Note deleted.</em>';
+    setTimeout(() => {
+        if (!currentPath) viewer.innerHTML = '';
+    }, 2000);
+    // Background refresh to sync note count / ordering
+    loadNotes();
+});
 
 // --- Init ---
 loadNotes();
