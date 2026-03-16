@@ -202,6 +202,17 @@ def tmp_note_pair(tmp_path, monkeypatch):
 
 
 class TestCreateNote:
+    @pytest.fixture(autouse=True)
+    def _isolate_db(self, tmp_path, monkeypatch):
+        import engine.db as _db
+        from engine.db import init_schema
+        tmp_db = tmp_path / "test.db"
+        monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+        conn = get_connection()
+        init_schema(conn)
+        conn.commit()
+        conn.close()
+
     def test_create_note_returns_201(self, client, tmp_path, monkeypatch):
         """POST /notes returns 201 and a path."""
         monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
