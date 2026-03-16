@@ -28,6 +28,7 @@
         <button id="open-editor-btn">Open in Editor</button>
         <button id="save-btn" style="display:none">Save (Ctrl+S)</button>
         <span id="save-error" style="color:red;display:none"></span>
+        <button id="delete-btn">Delete</button>
       </div>
       <div id="viewer"></div>
       <textarea id="editor-area" style="display:none"></textarea>
@@ -63,6 +64,18 @@
       <label>Body:<br><textarea id="modal-body" rows="6"></textarea></label>
       <button id="modal-save">Create</button>
       <button id="modal-cancel">Cancel</button>
+    </div>
+  </div>
+  <div id="delete-note-modal" style="display:none">
+    <div id="delete-modal-content">
+      <h2>Delete Note</h2>
+      <p id="delete-modal-filename" style="font-weight:bold"></p>
+      <p>This will permanently delete the note and all its index entries.</p>
+      <span id="delete-modal-error" style="color:red;display:none"></span>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+        <button id="delete-modal-cancel">Cancel</button>
+        <button id="delete-modal-confirm">Delete</button>
+      </div>
     </div>
   </div>
   <script src="/ui/vendor/marked.min.js"></script>
