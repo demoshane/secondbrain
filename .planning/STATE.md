@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 24-01-PLAN.md
-last_updated: "2026-03-16T20:36:00.801Z"
+stopped_at: Completed 24-02-PLAN.md
+last_updated: "2026-03-16T20:44:01.728Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 21
-  completed_plans: 18
+  completed_plans: 19
   percent: 99
 ---
 
@@ -61,6 +61,7 @@ Progress: [██████████] 99%
 | Phase 23 P03 | 8 | 2 tasks | 3 files |
 | Phase 23 P04 | 25 | 2 tasks | 3 files |
 | Phase 24-playwright-gui-test-suite P01 | 15 | 3 tasks | 5 files |
+| Phase 24-playwright-gui-test-suite P02 | 12 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,9 @@ Recent decisions affecting current work:
 - [Phase 24-01]: window.API_BASE injected by /ui route using request.host_url.rstrip('/'); app.js uses || fallback so production pywebview is unchanged
 - [Phase 24-01]: engine._db does not exist; DB_PATH lives in engine.paths — patch both engine.db.DB_PATH and engine.paths.DB_PATH for session-scoped GUI test isolation
 - [Phase 24-01]: Flask GUI test server started via daemon thread (not pytest-flask live_server) to avoid playwright teardown hang
+- [Phase 24-playwright-gui-test-suite]: PUT /notes/<path> expects content key (full frontmatter+body string), not {title, body} as plan stated
+- [Phase 24-playwright-gui-test-suite]: SSE broadcast requires POST /notes/refresh in test env — start_note_observer() not called by daemon-thread Flask server
+- [Phase 24-playwright-gui-test-suite]: Viewer does not inject h1 from frontmatter title — body must contain # heading for h1 assertions
 
 ### Roadmap Evolution
 
@@ -127,8 +131,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-16T20:36:00.794Z
-Stopped at: Completed 24-01-PLAN.md
+Last session: 2026-03-16T20:44:01.721Z
+Stopped at: Completed 24-02-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
