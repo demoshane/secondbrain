@@ -21,6 +21,7 @@ dev = [
     "pytest-cov>=4.0",
     "detect-secrets>=1.5.0",
     "pre-commit>=3.0",
+    "pytest-playwright>=0.5.0",
 ]
 
 [project.scripts]
@@ -42,6 +43,7 @@ sb-digest        = "engine.digest:digest_main"
 sb-api           = "engine.api:main"
 sb-gui           = "engine.gui:main"
 sb-mcp-server    = "engine.mcp_server:main"
+sb-health        = "engine.health:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
