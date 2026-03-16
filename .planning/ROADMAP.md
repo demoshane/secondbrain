@@ -46,7 +46,7 @@
 - [x] **Phase 21: Live Refresh SSE** — Server-sent events backbone so all writes reflect instantly in the GUI (completed 2026-03-16)
 - [x] **Phase 22: Note Deletion + Security Hardening** — Delete from GUI with cascade; path traversal guard on all note endpoints (completed 2026-03-16)
 - [x] **Phase 23: Navigation Polish** — Collapsible sidebar sections, tag editing, tag filtering (completed 2026-03-16)
-- [ ] **Phase 24: Playwright GUI Test Suite** — End-to-end browser tests covering all GUI functionality built in phases 20–23
+- [x] **Phase 24: Playwright GUI Test Suite** — End-to-end browser tests covering all GUI functionality built in phases 20–23 (completed 2026-03-16)
 - [ ] **Phase 25: File Capture + Batch Capture** — File upload from GUI; batch capture of unindexed items; watcher dedup guard
 - [ ] **Phase 26: Intelligence Features** — On-demand recap button, brain health dashboard, health score CLI
 - [ ] **Phase 27: Search Quality Tuning** — BM25 column weight tuning, recency boost, AI recap quality improvements
@@ -129,7 +129,7 @@ Plans:
 ### Phase 24: Playwright GUI Test Suite
 **Goal**: A pytest-playwright test suite covers all GUI features built in phases 20–23, so regressions are caught automatically on every change
 **Requirements**: TEST-01
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [ ] 24-01-PLAN.md — Wave 1: infra — API_BASE fix, pytest-playwright dep, conftest fixtures, xfail stubs
@@ -203,7 +203,7 @@ Plans:
 | 21. Live Refresh SSE | v3.0 | Complete    | 2026-03-16 | 2026-03-16 |
 | 22. Note Deletion + Security Hardening | 4/4 | Complete    | 2026-03-16 | - |
 | 23. Navigation Polish | 4/4 | Complete    | 2026-03-16 | - |
-| 24. Playwright GUI Test Suite | 3/4 | In Progress|  | - |
+| 24. Playwright GUI Test Suite | 4/4 | Complete    | 2026-03-16 | - |
 | 25. File Capture + Batch Capture | v3.0 | 0/? | Not started | - |
 | 26. Intelligence Features | v3.0 | 0/? | Not started | - |
 | 27. Search Quality Tuning | v3.0 | 0/? | Not started | - |
