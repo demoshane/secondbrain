@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
-status: in-progress
-stopped_at: "Completed 20-01-PLAN.md"
-last_updated: "2026-03-16T10:23:00Z"
-last_activity: 2026-03-16 — Phase 20 plan 01 complete (GUIX-02, GUIX-03 fixed)
+status: executing
+stopped_at: Completed 20-02-PLAN.md
+last_updated: "2026-03-16T10:25:51.944Z"
+last_activity: 2026-03-16 — Plan 20-01 complete; GUIX-02 and GUIX-03 fixed
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 14
 ---
 
@@ -44,6 +44,7 @@ Progress: [█░░░░░░░░░] 14%
 | 20 | 01 | 3 min | 2 | 4 |
 
 *Updated after each plan completion*
+| Phase 20 P02 | 4 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -58,6 +59,7 @@ Recent decisions affecting current work:
 - [v3.0 Roadmap]: Extract shared `delete_note()` utility in Phase 22 to prevent cascade miss on GUI delete
 - [20-01]: read_note returns body (stripped) by default; ?raw=true returns full content for editor
 - [20-01]: save_note parses frontmatter post-write to extract title for SQLite UPDATE
+- [Phase 20]: Use LOWER(body) LIKE LOWER(?) for case-insensitive backlinks query
 
 ### Pending Todos
 
@@ -71,6 +73,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-16T10:23:00Z
-Stopped at: Completed 20-01-PLAN.md
-Resume file: .planning/phases/20-frontend-bug-fixes/20-02-PLAN.md
+Last session: 2026-03-16T10:25:51.925Z
+Stopped at: Completed 20-02-PLAN.md
+Resume file: None
