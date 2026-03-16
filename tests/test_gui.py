@@ -6,16 +6,32 @@ Run: uv run pytest tests/test_gui.py -v
 import pytest
 
 
-@pytest.mark.xfail(reason="Wave 2: not yet implemented")
 def test_markdown_renders_as_html(page, live_server_url, gui_brain, seed_note_fn):
     """SC-2: note with headings/bold/lists renders as HTML — no raw # ** - in DOM."""
-    pytest.skip("Wave 2")
+    seed_note_fn(gui_brain, "MD Note", "# My Heading\n\n**bold text**\n\n- list item")
+    page.goto("/ui")
+    page.wait_for_selector("#sidebar-loading", state="hidden", timeout=5000)
+    page.locator("#note-list li[data-path]").first.click()
+    page.locator("#viewer").wait_for(state="visible", timeout=5000)
+    text = page.locator("#viewer").inner_text()
+    assert "#" not in text
+    assert "**" not in text
+    assert page.locator("#viewer h1").count() > 0
+    assert page.locator("#viewer strong").count() > 0
+    assert page.locator("#viewer li").count() > 0
 
 
-@pytest.mark.xfail(reason="Wave 2: not yet implemented")
 def test_viewer_scroll(page, live_server_url, gui_brain, seed_note_fn):
     """SC-3: viewer scrollTop changes when scripted (regression for scroll-lock bug)."""
-    pytest.skip("Wave 2")
+    seed_note_fn(gui_brain, "Long Note", "\n".join(f"Line {i}: " + "x" * 80 for i in range(50)))
+    page.goto("/ui")
+    page.wait_for_selector("#sidebar-loading", state="hidden", timeout=5000)
+    page.locator("#note-list li[data-path]", has_text="Long Note").first.click()
+    page.locator("#viewer").wait_for(state="visible", timeout=5000)
+    scroll_top = page.evaluate(
+        "document.getElementById('viewer').scrollTop = 200; document.getElementById('viewer').scrollTop"
+    )
+    assert scroll_top > 0
 
 
 @pytest.mark.xfail(reason="Wave 2: not yet implemented")
