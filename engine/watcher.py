@@ -81,6 +81,21 @@ class FilesDropHandler(FileSystemEventHandler):
 
 DEBOUNCE_MS = 0.3  # seconds (named for clarity; value is in seconds)
 
+_save_suppress: set[str] = set()
+_save_suppress_lock = threading.Lock()
+
+
+def suppress_next_delete(abs_path: str, window: float = 0.5) -> None:
+    """Record abs_path so _fire will skip the next 'deleted' event for it within window seconds."""
+    with _save_suppress_lock:
+        _save_suppress.add(abs_path)
+    threading.Timer(window, _clear_suppress, args=(abs_path,)).start()
+
+
+def _clear_suppress(abs_path: str) -> None:
+    with _save_suppress_lock:
+        _save_suppress.discard(abs_path)
+
 
 class NoteChangeHandler(FileSystemEventHandler):
     """Watch brain directory for .md note changes; debounce and broadcast events.
@@ -121,6 +136,10 @@ class NoteChangeHandler(FileSystemEventHandler):
     def _fire(self, event_type: str, src_path: str) -> None:
         with self._lock:
             self._timers.pop(src_path, None)
+        if event_type == "deleted":
+            with _save_suppress_lock:
+                if src_path in _save_suppress:
+                    return
         brain_root = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
         try:
             rel = Path(src_path).relative_to(brain_root)

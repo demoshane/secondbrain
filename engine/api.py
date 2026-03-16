@@ -21,6 +21,7 @@ from flask_cors import CORS
 from engine.db import get_connection
 from engine.search import search_notes
 from engine.intelligence import list_actions
+from engine.watcher import suppress_next_delete
 
 _STATIC_DIR = _Path(__file__).parent / "gui" / "static"
 
@@ -188,6 +189,7 @@ def save_note(note_path):
         f.write(content)
         tmp = f.name
     os.replace(tmp, p)
+    suppress_next_delete(str(p))
     saved_text = p.read_text(encoding="utf-8")
     post = _fm.loads(saved_text)
     title = post.metadata.get("title", p.stem)
