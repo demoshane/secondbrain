@@ -51,6 +51,8 @@ def _start_sidecar(ready: threading.Event) -> None:
         try:
             urllib.request.urlopen(f"{API_URL}/health", timeout=0.1)
             ready.set()
+            from engine.api import start_note_observer as _start_note_observer
+            _start_note_observer()
             return
         except Exception:
             time.sleep(0.1)

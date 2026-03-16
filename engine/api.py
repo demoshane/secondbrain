@@ -4,10 +4,13 @@ Exposes engine functions as HTTP endpoints on 127.0.0.1:37491.
 The GUI must call this API only — never import engine modules directly.
 """
 import datetime
+import json
 import os
+import queue
 import shutil
 import sqlite3
 import tempfile
+import threading
 from pathlib import Path
 from pathlib import Path as _Path
 
@@ -46,6 +49,73 @@ app.wsgi_app = _SlashNormMiddleware(app.wsgi_app)
 CORS(app, origins=["null", "file://*", "http://127.0.0.1:*"])
 
 
+# ---------------------------------------------------------------------------
+# SSE subscriber registry
+# ---------------------------------------------------------------------------
+
+_subscribers: list[queue.Queue] = []
+_subscribers_lock = threading.Lock()
+
+
+def _subscribe() -> queue.Queue:
+    q: queue.Queue = queue.Queue(maxsize=50)
+    with _subscribers_lock:
+        _subscribers.append(q)
+    return q
+
+
+def _unsubscribe(q: queue.Queue) -> None:
+    with _subscribers_lock:
+        if q in _subscribers:
+            _subscribers.remove(q)
+
+
+def _broadcast(event: dict) -> None:
+    payload = f"event: note\ndata: {json.dumps(event)}\n\n"
+    with _subscribers_lock:
+        for q in list(_subscribers):
+            try:
+                q.put_nowait(payload)
+            except queue.Full:
+                pass
+
+
+@app.get("/events")
+def event_stream():
+    from flask import Response, stream_with_context
+    q = _subscribe()
+
+    def generate():
+        try:
+            while True:
+                try:
+                    data = q.get(timeout=15)
+                    yield data
+                except queue.Empty:
+                    yield ": heartbeat\n\n"
+        except GeneratorExit:
+            pass
+        finally:
+            _unsubscribe(q)
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+def start_note_observer():
+    """Start a watchdog observer for the brain directory; broadcast note changes via SSE."""
+    from watchdog.observers import Observer
+    from engine.watcher import NoteChangeHandler
+    brain_root = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
+    handler = NoteChangeHandler(_broadcast)
+    obs = Observer()
+    obs.schedule(handler, brain_root, recursive=True)
+    obs.daemon = True
+    obs.start()
+    return obs
 
 
 @app.get("/health")
@@ -240,7 +310,12 @@ def get_intelligence():
 
 def main():
     from waitress import serve
-    serve(app, host="127.0.0.1", port=37491, threads=4)
+    obs = start_note_observer()
+    try:
+        serve(app, host="127.0.0.1", port=37491, threads=8)
+    finally:
+        obs.stop()
+        obs.join()
 
 
 if __name__ == "__main__":
