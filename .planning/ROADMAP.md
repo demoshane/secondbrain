@@ -71,7 +71,7 @@ Plans:
 ### Phase 21: Live Refresh SSE
 **Goal**: Notes created or edited anywhere (GUI, CLI, file watcher daemon) appear in the sidebar and viewer without restarting the application
 **Requirements**: GUIX-01
-**Plans:** 1/4 plans executed
+**Plans:** 2/4 plans executed
 
 Plans:
 - [ ] 21-01-PLAN.md — Test scaffolds for SSE endpoint + NoteChangeHandler (failing stubs, Wave 1)
@@ -153,7 +153,7 @@ Plans:
 | 18. GUI Hub | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 19. MCP Server | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 20. Frontend Bug Fixes | v3.0 | 3/3 | Complete | 2026-03-16 |
-| 21. Live Refresh SSE | 1/4 | In Progress|  | - |
+| 21. Live Refresh SSE | 2/4 | In Progress|  | - |
 | 22. Note Deletion + Security Hardening | v3.0 | 0/? | Not started | - |
 | 23. Navigation Polish | v3.0 | 0/? | Not started | - |
 | 24. File Capture + Batch Capture | v3.0 | 0/? | Not started | - |
