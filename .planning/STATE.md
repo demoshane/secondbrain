@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 23-02-PLAN.md
-last_updated: "2026-03-16T18:36:22.962Z"
+stopped_at: Completed 23-03-PLAN.md
+last_updated: "2026-03-16T18:46:14.070Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 17
-  completed_plans: 15
+  completed_plans: 16
   percent: 99
 ---
 
@@ -58,6 +58,7 @@ Progress: [██████████] 99%
 | Phase 22 P04 | 15 | 3 tasks | 1 files |
 | Phase 23 P01 | 6 | 2 tasks | 2 files |
 | Phase 23 P02 | 5 | 2 tasks | 2 files |
+| Phase 23 P03 | 8 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -92,6 +93,9 @@ Recent decisions affecting current work:
 - [Phase 23]: Empty query + tags_filter in POST /search bypasses FTS5 (rejects empty queries) and uses direct SELECT with Python-side AND filter
 - [Phase 23]: folder-section.collapsed > ul selector hides all child ul elements for both folder and type sections
 - [Phase 23]: folderName() uses parts[-2] for top-level folder extraction; falls back to 'other' for flat paths
+- [Phase 23]: GET /notes/<path> no tags; use _allNotes cache for chip display
+- [Phase 23]: Single-click chip = filter; double-click = inline edit to prevent accidental filter trigger
+- [Phase 23]: _suppressNextTagRefresh skips one SSE event after tag save to protect in-progress chip edit
 
 ### Roadmap Evolution
 
@@ -115,6 +119,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-16T18:36:22.956Z
-Stopped at: Completed 23-02-PLAN.md
+Last session: 2026-03-16T18:46:09.720Z
+Stopped at: Completed 23-03-PLAN.md
 Resume file: None
