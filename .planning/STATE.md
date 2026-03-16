@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
-status: Blocked — bugs must be fixed before phase 21 can close; GUIX-01 remains open
-stopped_at: Completed 21-05-PLAN.md
-last_updated: "2026-03-16T12:43:24.636Z"
-last_activity: 2026-03-16 — Plan 21-04 human verification failed; 3 bugs found (1 critical data-loss, 1 medium false-positive)
+status: In Progress — Phase 21 complete; ready for Phase 22 (Note Deletion + Security Hardening)
+stopped_at: Completed 21-06-PLAN.md
+last_updated: "2026-03-16T13:00:00.000Z"
+last_activity: 2026-03-16 — Phase 21 fully complete; GUIX-01 human-verified; conflict banner and false deletion bugs fixed
 progress:
   total_phases: 7
   completed_phases: 1
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-Phase: 21 of 26 (Live Refresh SSE)
-Plan: 4 of 4 in current phase — verification FAILED
-Status: Blocked — bugs must be fixed before phase 21 can close; GUIX-01 remains open
-Last activity: 2026-03-16 — Plan 21-04 human verification failed; 3 bugs found (1 critical data-loss, 1 medium false-positive)
+Phase: 22 of 26 (Note Deletion + Security Hardening)
+Plan: 0 of ? in current phase — not started
+Status: In Progress — Phase 21 complete; ready for Phase 22 (Note Deletion + Security Hardening)
+Last activity: 2026-03-16 — Phase 21 fully complete; GUIX-01 human-verified; conflict banner and false deletion bugs fixed
 
 Progress: [█░░░░░░░░░] 17%
 
@@ -51,6 +51,7 @@ Progress: [█░░░░░░░░░] 17%
 | Phase 21 P03 | 5 min | 1 tasks | 3 files |
 | Phase 21 P04 | 0 min | 0 tasks | 0 files | VERIFICATION FAILED |
 | Phase 21 P05 | 5 | 2 tasks | 3 files |
+| Phase 21 P06 | 5 min | 2 tasks | 1 file |
 
 ## Accumulated Context
 
@@ -73,6 +74,7 @@ Recent decisions affecting current work:
 - [Phase 21]: NoteChangeHandler._is_note() uses Path.parts for files segment check to avoid substring false positives
 - [Phase 21]: connectSSE() called at init; matchesCurrent uses endsWith for absolute vs relative path comparison; _sseWasConnected gates reconnect refresh
 - [Phase 21]: 500ms suppress window outlasts FSEvents propagation delay after os.replace(); module-level suppression set shared across all NoteChangeHandler instances
+- [Phase 21]: easyMDE !== null is the correct primary guard in handleNoteEvent — isDirty alone is stale-prone; any open editor session must be protected regardless of keystroke count
 
 ### Pending Todos
 
@@ -80,15 +82,15 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 21 - CRITICAL]: Conflict banner not shown when editor is dirty and external SSE change arrives — editor silently discarded, data loss risk. Fix: check isEditing && isDirty before auto-reload in handleNoteChange (app.js)
-- [Phase 21 - BUG]: False-positive "note deleted" notification fires on save — likely watchdog emitting deleted event during write. Fix: debounce/suppress note_deleted events within ~500ms of a note_updated for same path
-- [Phase 21 - Minor]: Status dot takes ~5s to go green on launch (expected: 1-2s). Low priority.
+- [Phase 21 - RESOLVED]: Conflict banner fixed via easyMDE !== null guard in handleNoteEvent (plan 21-06)
+- [Phase 21 - RESOLVED]: False-positive "note deleted" on save fixed via suppress_next_delete() in watcher + api (plan 21-05)
+- [Phase 21 - ACCEPTED]: Status dot 5s delay — accepted as cosmetic; no code change needed
 - [Phase 21]: SSE + pywebview WebKit compatibility not confirmed from official docs — validate with minimal proof-of-concept at phase start
 - [Phase 23]: `tags` column existence in `notes` table needs confirmation; if absent, add via `ALTER TABLE ADD COLUMN`
 - [Phase 26]: RRF weight calibration is empirical — do not begin without regression fixture set (5 precision + 5 recall queries)
 
 ## Session Continuity
 
-Last session: 2026-03-16T12:43:24.627Z
-Stopped at: Completed 21-05-PLAN.md
+Last session: 2026-03-16T13:00:00.000Z
+Stopped at: Completed 21-06-PLAN.md
 Resume file: None
