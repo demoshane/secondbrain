@@ -308,7 +308,11 @@ function makeChipEditable(chipEl, tagIndex, allTags, notePath) {
         if (committed) return;
         committed = true;
         const newVal = input.value.trim();
-        if (newVal && newVal !== allTags[tagIndex]) {
+        if (newVal === '') {
+            // Empty = delete this tag
+            const updated = allTags.filter((_, i) => i !== tagIndex);
+            saveTags(updated, notePath);
+        } else if (newVal !== allTags[tagIndex]) {
             allTags[tagIndex] = newVal;
             saveTags([...allTags], notePath);
         } else {
