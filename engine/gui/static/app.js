@@ -53,8 +53,8 @@ async function openNote(path) {
     exitEditMode();
     const res = await fetch(`${API}/notes/${encodeURIComponent(path)}`);
     if (!res.ok) { document.getElementById('viewer').innerHTML = '<em>Error loading note.</em>'; return; }
-    const { content } = await res.json();
-    renderMarkdown(content);
+    const { body } = await res.json();
+    renderMarkdown(body);
     loadMeta(path);
     loadActions();
     loadIntelligence();
@@ -83,7 +83,7 @@ document.getElementById('save-btn').addEventListener('click', saveNote);
 
 async function enterEditMode() {
     if (!currentPath) return;
-    const res = await fetch(`${API}/notes/${encodeURIComponent(currentPath)}`);
+    const res = await fetch(`${API}/notes/${encodeURIComponent(currentPath)}?raw=true`);
     const { content } = await res.json();
     document.getElementById('viewer').style.display = 'none';
     const ta = document.getElementById('editor-area');
@@ -116,15 +116,22 @@ function exitEditMode() {
 
 async function saveNote() {
     if (!currentPath || !easyMDE) return;
-    const content = easyMDE.value();
+    const md = easyMDE.value();
     const res = await fetch(`${API}/notes/${encodeURIComponent(currentPath)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content: md }),
     });
     if (res.ok) {
         exitEditMode();
-        renderMarkdown(content);
+        await loadNotes();
+        document.querySelectorAll('#note-list li[data-path]').forEach(el => {
+            el.classList.toggle('active', el.dataset.path === currentPath);
+        });
+        renderMarkdown(md);
+    } else {
+        const errSpan = document.getElementById('save-error');
+        if (errSpan) { errSpan.textContent = 'Save failed.'; errSpan.style.display = ''; }
     }
 }
 

@@ -3,6 +3,7 @@
 Exposes engine functions as HTTP endpoints on 127.0.0.1:37491.
 The GUI must call this API only — never import engine modules directly.
 """
+import datetime
 import os
 import shutil
 import sqlite3
@@ -10,6 +11,7 @@ import tempfile
 from pathlib import Path
 from pathlib import Path as _Path
 
+import frontmatter as _fm
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
@@ -78,8 +80,11 @@ def read_note(note_path):
     p = Path(note_path) if note_path.startswith("/") else Path("/") / note_path
     if not p.exists():
         return jsonify({"error": "Not found"}), 404
-    content = p.read_text(encoding="utf-8")
-    return jsonify({"content": content, "path": str(p)})
+    raw = p.read_text(encoding="utf-8")
+    if request.args.get("raw"):
+        return jsonify({"content": raw, "path": str(p)})
+    post = _fm.loads(raw)
+    return jsonify({"body": post.content, "path": str(p)})
 
 
 @app.get("/actions")
@@ -113,6 +118,17 @@ def save_note(note_path):
         f.write(content)
         tmp = f.name
     os.replace(tmp, p)
+    saved_text = p.read_text(encoding="utf-8")
+    post = _fm.loads(saved_text)
+    title = post.metadata.get("title", p.stem)
+    now = datetime.datetime.utcnow().isoformat()
+    conn = get_connection()
+    conn.execute(
+        "UPDATE notes SET title=?, updated_at=? WHERE path=?",
+        (title, now, str(p.resolve()))
+    )
+    conn.commit()
+    conn.close()
     return jsonify({"saved": True, "path": str(p)})
 
 
@@ -146,13 +162,18 @@ def note_meta(note_path):
     p = _Path(note_path) if note_path.startswith("/") else _Path("/") / note_path
     conn = get_connection()
     conn.row_factory = sqlite3.Row
-    fname = p.name
-    rows = conn.execute(
-        "SELECT path, title FROM notes WHERE path != ? AND path LIKE '%' || ? || '%'",
-        (str(p), fname[:20]),
-    ).fetchall()
-    backlinks = [dict(r) for r in rows]
-    title_row = conn.execute("SELECT title FROM notes WHERE path=?", (str(p),)).fetchone()
+    title_row = conn.execute(
+        "SELECT title FROM notes WHERE path=?", (str(p),)
+    ).fetchone()
+    if title_row and title_row["title"]:
+        rows = conn.execute(
+            "SELECT path, title FROM notes "
+            "WHERE path != ? AND LOWER(body) LIKE LOWER(?)",
+            (str(p), f"%{title_row['title']}%"),
+        ).fetchall()
+        backlinks = [dict(r) for r in rows]
+    else:
+        backlinks = []
     related = []
     if title_row:
         related_rows = search_notes(conn, title_row["title"])
