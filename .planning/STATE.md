@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 24-03-PLAN.md
-last_updated: "2026-03-16T20:49:47.489Z"
+stopped_at: Completed 24-04-PLAN.md
+last_updated: "2026-03-16T20:55:05.991Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 9
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 21
-  completed_plans: 20
+  completed_plans: 21
   percent: 99
 ---
 
@@ -63,6 +63,7 @@ Progress: [██████████] 99%
 | Phase 24-playwright-gui-test-suite P01 | 15 | 3 tasks | 5 files |
 | Phase 24-playwright-gui-test-suite P02 | 12 | 2 tasks | 1 files |
 | Phase 24-playwright-gui-test-suite P03 | 8 | 2 tasks | 1 files |
+| Phase 24-playwright-gui-test-suite P04 | 4 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -112,6 +113,8 @@ Recent decisions affecting current work:
 - [Phase 24-playwright-gui-test-suite]: Page.wait_for_selector() does not accept has_text param — use page.locator(selector, has_text=).first.wait_for(state=) instead
 - [Phase 24-playwright-gui-test-suite]: POST /notes does not call _broadcast(); test_sse_live_refresh requires explicit POST /notes/refresh like test_title_sync
 - [Phase 24-playwright-gui-test-suite]: state='detached' wait must use locator().wait_for(), not wait_for_selector() with has_text
+- [Phase 24-playwright-gui-test-suite]: Use data-path$='/ideas/filtered-note.md' selector to avoid substring ambiguity when note title is contained in another note title
+- [Phase 24-playwright-gui-test-suite]: test_path_traversal_guard accepts 403 or 404 — Flask/Werkzeug URL normalization may intercept %2F-encoded path before app guard; either status is secure
 
 ### Roadmap Evolution
 
@@ -135,8 +138,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-16T20:49:47.483Z
-Stopped at: Completed 24-03-PLAN.md
+Last session: 2026-03-16T20:55:05.984Z
+Stopped at: Completed 24-04-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
