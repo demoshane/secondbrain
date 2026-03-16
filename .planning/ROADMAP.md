@@ -44,7 +44,7 @@
 
 - [x] **Phase 20: Frontend Bug Fixes** — Fix scroll, markdown rendering, backlinks, and title sync (pure JS/CSS) (completed 2026-03-16)
 - [x] **Phase 21: Live Refresh SSE** — Server-sent events backbone so all writes reflect instantly in the GUI (completed 2026-03-16)
-- [ ] **Phase 22: Note Deletion + Security Hardening** — Delete from GUI with cascade; path traversal guard on all note endpoints
+- [x] **Phase 22: Note Deletion + Security Hardening** — Delete from GUI with cascade; path traversal guard on all note endpoints (completed 2026-03-16)
 - [ ] **Phase 23: Navigation Polish** — Collapsible sidebar sections, tag editing, tag filtering
 - [ ] **Phase 24: File Capture + Batch Capture** — File upload from GUI; batch capture of unindexed items; watcher dedup guard
 - [ ] **Phase 25: Intelligence Features** — On-demand recap button, brain health dashboard, health score CLI
@@ -95,7 +95,7 @@ Plans:
 ### Phase 22: Note Deletion + Security Hardening
 **Goal**: Users can delete notes from the GUI with full cascade, and all note endpoints are protected against path traversal
 **Requirements**: GUIX-06
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [ ] 22-01-PLAN.md — Wave 0: test scaffold (tests/test_delete.py) + engine/delete.py stub
@@ -169,7 +169,7 @@ Plans:
 | 19. MCP Server | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 20. Frontend Bug Fixes | v3.0 | 3/3 | Complete | 2026-03-16 |
 | 21. Live Refresh SSE | v3.0 | Complete    | 2026-03-16 | 2026-03-16 |
-| 22. Note Deletion + Security Hardening | 3/4 | In Progress|  | - |
+| 22. Note Deletion + Security Hardening | 4/4 | Complete   | 2026-03-16 | - |
 | 23. Navigation Polish | v3.0 | 0/? | Not started | - |
 | 24. File Capture + Batch Capture | v3.0 | 0/? | Not started | - |
 | 25. Intelligence Features | v3.0 | 0/? | Not started | - |

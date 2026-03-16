@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: executing
-stopped_at: Completed 22-03-PLAN.md
-last_updated: "2026-03-16T13:58:42.636Z"
-last_activity: 2026-03-16 — Phase 21 fully complete; GUIX-01 human-verified; conflict banner and false deletion bugs fixed
+stopped_at: Completed 22-04-PLAN.md
+last_updated: "2026-03-16T14:38:52.459Z"
+last_activity: 2026-03-16 — Phase 22 plan 03 complete; GUI delete flow (button, modal, optimistic removal) wired to DELETE API
 progress:
   total_phases: 8
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 13
-  completed_plans: 12
-  percent: 17
+  completed_plans: 13
+  percent: 99
 ---
 
 # Project State
@@ -55,6 +55,7 @@ Progress: [██████████] 99%
 | Phase 22 P01 | 4 | 2 tasks | 2 files |
 | Phase 22 P02 | 12 | 2 tasks | 5 files |
 | Phase 22 P03 | 3 | 2 tasks | 3 files |
+| Phase 22 P04 | 15 | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,7 @@ Recent decisions affecting current work:
 - [Phase 22]: _resolve_note_path reads BRAIN_PATH env var; test fixtures must monkeypatch BRAIN_PATH to tmp_path
 - [Phase 22]: notes_ad AFTER DELETE trigger handles FTS5 automatically — no explicit rebuild in delete_note()
 - [Phase 22 P03]: exitEditMode() called unconditionally in delete confirm handler — named function declaration in ES module, always in scope; typeof guard unnecessary
+- [Phase 22]: File deletion working correctly: missing_ok=True on unlink is correct policy — audit_log confirmed deleted notes are gone from disk; user's report was a false alarm (file pre-absent before GUI delete ran)
 
 ### Roadmap Evolution
 
@@ -107,6 +109,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-16T13:58:42.627Z
-Stopped at: Completed 22-03-PLAN.md
+Last session: 2026-03-16T14:38:47.441Z
+Stopped at: Completed 22-04-PLAN.md
 Resume file: None
