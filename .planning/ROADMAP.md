@@ -144,7 +144,7 @@ Plans:
 | 17. API Layer and Setup Automation | v2.0 | 3/3 | Complete | 2026-03-15 |
 | 18. GUI Hub | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 19. MCP Server | v2.0 | 4/4 | Complete | 2026-03-15 |
-| 20. Frontend Bug Fixes | 3/3 | Complete   | 2026-03-16 | - |
+| 20. Frontend Bug Fixes | 3/3 | Complete    | 2026-03-16 | - |
 | 21. Live Refresh SSE | v3.0 | 0/? | Not started | - |
 | 22. Note Deletion + Security Hardening | v3.0 | 0/? | Not started | - |
 | 23. Navigation Polish | v3.0 | 0/? | Not started | - |
