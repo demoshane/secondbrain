@@ -116,3 +116,90 @@ body { margin: 0; font-family: system-ui, -apple-system, sans-serif; font-size: 
     border-left-color: #27ae60;
     color: #444;
 }
+
+/* --- Tag chips --- */
+
+.tag-chips-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4em;
+    padding: 0.4em 24px 0.6em;
+    min-height: 0;
+}
+
+.tag-chip {
+    display: inline-flex;
+    align-items: center;
+    background: #e8f0fb;
+    color: #2c6fcf;
+    padding: 0.2em 0.6em;
+    border-radius: 1em;
+    cursor: pointer;
+    font-size: 0.8em;
+    user-select: none;
+    border: 1px solid transparent;
+    transition: filter 0.1s;
+}
+
+.tag-chip:hover {
+    filter: brightness(0.92);
+    border-color: #2c6fcf;
+}
+
+.tag-chip-input {
+    padding: 0.2em 0.5em;
+    border: 1px solid #2c6fcf;
+    border-radius: 1em;
+    font-size: 0.8em;
+    outline: none;
+    font-family: inherit;
+    min-width: 80px;
+}
+
+.tag-add-btn {
+    background: none;
+    border: none;
+    color: #aaa;
+    cursor: pointer;
+    font-size: 0.8em;
+    padding: 0.2em 0.4em;
+    border-radius: 1em;
+}
+
+.tag-add-btn:hover {
+    color: #2c6fcf;
+    background: #f0f4ff;
+}
+
+.tag-save-error {
+    border: 1px solid #e74c3c !important;
+    border-radius: 4px;
+}
+
+/* --- Filter banner --- */
+
+.filter-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    padding: 0.4em 0.8em;
+    background: rgba(44, 111, 207, 0.1);
+    border-bottom: 1px solid rgba(44, 111, 207, 0.25);
+    font-size: 0.85em;
+    color: #2c4a7a;
+}
+
+.filter-clear-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1em;
+    color: #2c6fcf;
+    margin-left: auto;
+    padding: 0 0.2em;
+    line-height: 1;
+}
+
+.filter-clear-btn:hover {
+    color: #e74c3c;
+}

@@ -420,21 +420,74 @@ async function saveNote() {
     }
 }
 
+// --- Tag filter ---
+
+function activateTagFilter(tag) {
+    activeTagFilter = tag;
+    const banner = document.getElementById('filter-banner');
+    banner.style.display = 'flex';
+    // Use textContent for the label to prevent XSS, then append button separately
+    banner.innerHTML = '';
+    const label = document.createElement('span');
+    label.textContent = 'Filtering: ';
+    const strong = document.createElement('strong');
+    strong.textContent = '#' + tag;
+    label.appendChild(strong);
+    banner.appendChild(label);
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'filter-clear-btn';
+    clearBtn.id = 'filter-clear';
+    clearBtn.textContent = '×';
+    clearBtn.addEventListener('click', clearTagFilter);
+    banner.appendChild(clearBtn);
+    runTagFilter(tag);
+}
+
+function clearTagFilter() {
+    activeTagFilter = null;
+    const banner = document.getElementById('filter-banner');
+    if (banner) banner.style.display = 'none';
+    const q = document.getElementById('search-input').value.trim();
+    if (q) runSearch(q); else loadNotes();
+}
+
+function runTagFilter(tag) {
+    const q = document.getElementById('search-input').value.trim();
+    if (q) {
+        // Active search query present: delegate to runSearch which includes activeTagFilter (AND logic)
+        runSearch(q);
+    } else {
+        // No search query: filter client-side from notes cache
+        const filtered = _allNotes.filter(n => (n.tags || []).includes(tag));
+        renderFlatList(filtered);
+    }
+}
+
 // --- Search ---
 let searchTimer = null;
 document.getElementById('search-input').addEventListener('input', e => {
     clearTimeout(searchTimer);
     const q = e.target.value.trim();
-    if (!q) { loadNotes(); return; }
+    if (!q) {
+        // If tag filter active, show filtered list; otherwise restore full sidebar
+        if (activeTagFilter) { runTagFilter(activeTagFilter); return; }
+        loadNotes();
+        return;
+    }
     searchTimer = setTimeout(() => runSearch(q), 300);
 });
 
 async function runSearch(query) {
     const mode = document.getElementById('search-mode').value;
+    const body = { query, mode };
+    // AND logic: include activeTagFilter as tags param when set
+    if (activeTagFilter !== null) {
+        body.tags = [activeTagFilter];
+    }
     const res = await fetch(`${API}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, mode }),
+        body: JSON.stringify(body),
     });
     const { results } = await res.json();
     renderFlatList(results.map(r => ({ path: r.path || r, title: r.title || r, type: r.type || 'result' })));
