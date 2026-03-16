@@ -201,6 +201,63 @@ def tmp_note_pair(tmp_path, monkeypatch):
     conn.close()
 
 
+class TestCreateNote:
+    def test_create_note_returns_201(self, client, tmp_path, monkeypatch):
+        """POST /notes returns 201 and a path."""
+        monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+        res = client.post("/notes", json={"title": "My Note", "type": "idea", "body": "", "brain_path": str(tmp_path)})
+        assert res.status_code == 201
+        data = res.get_json()
+        assert "path" in data
+
+    def test_create_note_indexed_in_sqlite(self, client, tmp_path, monkeypatch):
+        """POST /notes immediately indexes the note into SQLite so GET /notes returns it."""
+        monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+        res = client.post("/notes", json={"title": "Indexed Note", "type": "idea", "body": "", "brain_path": str(tmp_path)})
+        assert res.status_code == 201
+        note_path = res.get_json()["path"]
+        conn = get_connection()
+        row = conn.execute("SELECT title FROM notes WHERE path=?", (note_path,)).fetchone()
+        conn.close()
+        assert row is not None, "New note must be present in SQLite immediately after creation"
+        assert row[0] == "Indexed Note"
+
+    def test_create_note_file_exists_on_disk(self, client, tmp_path, monkeypatch):
+        """POST /notes writes the markdown file to disk."""
+        monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+        res = client.post("/notes", json={"title": "Disk Note", "type": "idea", "body": "hello", "brain_path": str(tmp_path)})
+        note_path = res.get_json()["path"]
+        assert Path(note_path).exists(), "Note file must exist on disk after creation"
+
+    def test_create_note_slug_collision_resolved(self, client, tmp_path, monkeypatch):
+        """Two notes with the same title get distinct paths (no overwrite)."""
+        monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+        payload = {"title": "Dup Note", "type": "idea", "body": "", "brain_path": str(tmp_path)}
+        r1 = client.post("/notes", json=payload)
+        r2 = client.post("/notes", json=payload)
+        assert r1.status_code == 201
+        assert r2.status_code == 201
+        assert r1.get_json()["path"] != r2.get_json()["path"], "Duplicate titles must produce distinct paths"
+
+
+class TestUIPrefs:
+    def test_get_prefs_empty(self, client, tmp_path, monkeypatch):
+        """GET /ui/prefs returns {} when no prefs file exists."""
+        monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+        res = client.get("/ui/prefs")
+        assert res.status_code == 200
+        assert res.get_json() == {}
+
+    def test_put_and_get_prefs(self, client, tmp_path, monkeypatch):
+        """PUT /ui/prefs persists data; GET /ui/prefs reads it back."""
+        monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+        prefs = {"collapseState": {"recent": True, "projects": False}}
+        put_res = client.put("/ui/prefs", json=prefs)
+        assert put_res.status_code == 200
+        get_res = client.get("/ui/prefs")
+        assert get_res.get_json() == prefs
+
+
 class TestNoteMeta:
     def test_backlinks_content_match(self, client, tmp_note_pair):
         """note_b body mentions 'Alice Smith' — must appear in note_a's backlinks."""

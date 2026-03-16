@@ -227,6 +227,37 @@ def get_actions():
     return jsonify({"actions": actions})
 
 
+_PREFS_FILE = _Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))) / ".sb-gui-prefs.json"
+
+
+def _get_prefs_path() -> _Path:
+    """Return the prefs file path, resolved at call time to respect BRAIN_PATH changes in tests."""
+    brain = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
+    return _Path(brain) / ".sb-gui-prefs.json"
+
+
+@app.get("/ui/prefs")
+def get_prefs():
+    p = _get_prefs_path()
+    if p.exists():
+        try:
+            return jsonify(json.loads(p.read_text(encoding="utf-8")))
+        except Exception:
+            pass
+    return jsonify({})
+
+
+@app.put("/ui/prefs")
+def put_prefs():
+    data = request.get_json(force=True) or {}
+    p = _get_prefs_path()
+    try:
+        p.write_text(json.dumps(data), encoding="utf-8")
+        return jsonify({"saved": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.get("/ui")
 def gui_shell():
     return (_STATIC_DIR / "index.html").read_text(encoding="utf-8")
@@ -303,6 +334,12 @@ def create_note():
     slug = datetime.date.today().isoformat() + "-" + title[:40].replace(" ", "-").lower()
     subdir = "ideas" if note_type == "idea" else note_type
     target = _Path(brain_path) / subdir / f"{slug}.md"
+    # Resolve slug collision: append a counter if the target already exists
+    if target.exists():
+        counter = 1
+        while target.exists():
+            target = _Path(brain_path) / subdir / f"{slug}-{counter}.md"
+            counter += 1
     target.parent.mkdir(parents=True, exist_ok=True)
     now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     today = datetime.date.today().isoformat()
@@ -312,7 +349,18 @@ def create_note():
         f"content_sensitivity: public\n---\n\n{note_body}\n"
     )
     target.write_text(md_content, encoding="utf-8")
-    return jsonify({"path": str(target)}), 201
+    # Index the new note into SQLite immediately so loadNotes() reflects it
+    abs_path = str(target.resolve())
+    conn = get_connection()
+    existing = conn.execute("SELECT path FROM notes WHERE path=?", (abs_path,)).fetchone()
+    if not existing:
+        conn.execute(
+            "INSERT INTO notes (path, title, type, body, tags, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
+            (abs_path, title, note_type, note_body, "[]", now, now),
+        )
+        conn.commit()
+    conn.close()
+    return jsonify({"path": abs_path}), 201
 
 
 @app.delete("/notes/<path:note_path>")
