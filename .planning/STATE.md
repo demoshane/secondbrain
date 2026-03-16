@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Phase 21 context gathered
-last_updated: "2026-03-16T11:41:06.306Z"
+stopped_at: Completed 21-01-PLAN.md (RED stubs for SSE and NoteChangeHandler)
+last_updated: "2026-03-16T12:02:03.330Z"
 last_activity: 2026-03-16 — Plan 20-03 complete; GUIX-04 CSS scroll fix applied
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 7
+  completed_plans: 4
   percent: 17
 ---
 
@@ -46,6 +46,7 @@ Progress: [█░░░░░░░░░] 17%
 *Updated after each plan completion*
 | Phase 20 P02 | 4 | 2 tasks | 2 files |
 | Phase 20 P03 | 15 | 2 tasks | 4 files |
+| Phase 21 P01 | 2 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,7 @@ Recent decisions affecting current work:
 - [Phase 20]: Use LOWER(body) LIKE LOWER(?) for case-insensitive backlinks query
 - [Phase 20]: min-height: 0 on flex container is canonical fix for flex child overflow-scroll; apply to entire ancestor chain not just leaf
 - [Phase 20]: Vendor marked.min.js — pywebview runs offline, CDN scripts fail silently
+- [Phase 21]: _ImmediateTimer helper used in NoteChangeHandler tests to avoid real 300ms debounce wait; documents TDD contract for Path 02 implementor
 
 ### Pending Todos
 
@@ -76,6 +78,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-16T11:41:06.298Z
-Stopped at: Phase 21 context gathered
-Resume file: .planning/phases/21-live-refresh-sse/21-CONTEXT.md
+Last session: 2026-03-16T12:02:03.299Z
+Stopped at: Completed 21-01-PLAN.md (RED stubs for SSE and NoteChangeHandler)
+Resume file: None

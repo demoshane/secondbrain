@@ -71,6 +71,14 @@ Plans:
 ### Phase 21: Live Refresh SSE
 **Goal**: Notes created or edited anywhere (GUI, CLI, file watcher daemon) appear in the sidebar and viewer without restarting the application
 **Requirements**: GUIX-01
+**Plans:** 1/4 plans executed
+
+Plans:
+- [ ] 21-01-PLAN.md — Test scaffolds for SSE endpoint + NoteChangeHandler (failing stubs, Wave 1)
+- [ ] 21-02-PLAN.md — Backend SSE: NoteChangeHandler + /events route + observer wiring (Wave 2)
+- [ ] 21-03-PLAN.md — Frontend SSE: EventSource, status dot, conflict banner, dirty state (Wave 3)
+- [ ] 21-04-PLAN.md — Human verify: end-to-end live refresh (Wave 4)
+
 **Success criteria**:
 1. A note created via `sb-capture` appears in the GUI sidebar within 2 seconds without any user action
 2. A note edited via CLI appears with updated content in the viewer within 2 seconds
@@ -144,8 +152,8 @@ Plans:
 | 17. API Layer and Setup Automation | v2.0 | 3/3 | Complete | 2026-03-15 |
 | 18. GUI Hub | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 19. MCP Server | v2.0 | 4/4 | Complete | 2026-03-15 |
-| 20. Frontend Bug Fixes | 3/3 | Complete    | 2026-03-16 | - |
-| 21. Live Refresh SSE | v3.0 | 0/? | Not started | - |
+| 20. Frontend Bug Fixes | v3.0 | 3/3 | Complete | 2026-03-16 |
+| 21. Live Refresh SSE | 1/4 | In Progress|  | - |
 | 22. Note Deletion + Security Hardening | v3.0 | 0/? | Not started | - |
 | 23. Navigation Polish | v3.0 | 0/? | Not started | - |
 | 24. File Capture + Batch Capture | v3.0 | 0/? | Not started | - |
