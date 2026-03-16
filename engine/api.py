@@ -141,19 +141,55 @@ def list_notes():
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     rows = conn.execute(
-        "SELECT path, title, type, created_at FROM notes ORDER BY created_at DESC"
+        "SELECT path, title, type, created_at, tags FROM notes ORDER BY created_at DESC"
     ).fetchall()
     conn.close()
-    return jsonify({"notes": [dict(r) for r in rows]})
+    notes = []
+    for r in rows:
+        d = dict(r)
+        d["tags"] = json.loads(d.get("tags") or "[]")
+        notes.append(d)
+    return jsonify({"notes": notes})
 
 
 @app.post("/search")
 def search():
     body = request.get_json(force=True) or {}
     query = body.get("query", "")
+    tags_filter = body.get("tags")  # list[str] | None
     conn = get_connection()
     conn.row_factory = sqlite3.Row
-    results = search_notes(conn, query)
+
+    if tags_filter and not query:
+        # Tags-only filter: fetch all notes and filter by tags in Python
+        rows = conn.execute(
+            "SELECT path, type, title, created_at, tags FROM notes ORDER BY created_at DESC"
+        ).fetchall()
+        results = []
+        for r in rows:
+            note_tags = json.loads(r["tags"] or "[]")
+            if all(t in note_tags for t in tags_filter):
+                results.append({
+                    "path": r["path"],
+                    "type": r["type"],
+                    "title": r["title"],
+                    "created_at": r["created_at"],
+                    "score": 0.0,
+                })
+    else:
+        results = search_notes(conn, query)
+        if tags_filter:
+            filtered = []
+            for r in results:
+                row = conn.execute(
+                    "SELECT tags FROM notes WHERE path=?", (r["path"],)
+                ).fetchone()
+                if row:
+                    note_tags = json.loads(row["tags"] or "[]")
+                    if all(t in note_tags for t in tags_filter):
+                        filtered.append(r)
+            results = filtered
+
     conn.close()
     return jsonify({"results": results})
 
@@ -211,6 +247,29 @@ def save_note(note_path):
     if not p.exists():
         return jsonify({"error": "Not found"}), 404
     body = request.get_json(force=True) or {}
+
+    # Tags-only branch: when "tags" present and "content" absent, update frontmatter + DB only
+    tags_val = body.get("tags")
+    if tags_val is not None and "content" not in body:
+        raw = p.read_text(encoding="utf-8")
+        post = _fm.loads(raw)
+        post.metadata["tags"] = tags_val
+        updated_text = _fm.dumps(post)
+        with tempfile.NamedTemporaryFile("w", dir=p.parent, delete=False, suffix=".tmp", encoding="utf-8") as f:
+            f.write(updated_text)
+            tmp = f.name
+        suppress_next_delete(str(p))
+        os.replace(tmp, p)
+        now = datetime.datetime.utcnow().isoformat()
+        conn = get_connection()
+        conn.execute(
+            "UPDATE notes SET tags=?, updated_at=? WHERE path=?",
+            (json.dumps(tags_val), now, str(p.resolve()))
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({"saved": True, "path": str(p)})
+
     content = body.get("content", "")
     with tempfile.NamedTemporaryFile("w", dir=p.parent, delete=False, suffix=".tmp", encoding="utf-8") as f:
         f.write(content)
