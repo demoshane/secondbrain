@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: executing
-stopped_at: Completed 22-02-PLAN.md
-last_updated: "2026-03-16T13:54:04.044Z"
+stopped_at: Completed 22-03-PLAN.md
+last_updated: "2026-03-16T13:58:42.636Z"
 last_activity: 2026-03-16 — Phase 21 fully complete; GUIX-01 human-verified; conflict banner and false deletion bugs fixed
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 13
-  completed_plans: 11
+  completed_plans: 12
   percent: 17
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 22 of 26 (Note Deletion + Security Hardening)
-Plan: 0 of ? in current phase — not started
-Status: In Progress — Phase 21 complete; ready for Phase 22 (Note Deletion + Security Hardening)
-Last activity: 2026-03-16 — Phase 21 fully complete; GUIX-01 human-verified; conflict banner and false deletion bugs fixed
+Plan: 3 of 4 complete in current phase
+Status: In Progress — Phase 22 plans 01-03 complete; plan 04 (security hardening) remaining
+Last activity: 2026-03-16 — Phase 22 plan 03 complete; GUI delete flow (button, modal, optimistic removal) wired to DELETE API
 
-Progress: [█░░░░░░░░░] 17%
+Progress: [██████████] 99%
 
 ## Performance Metrics
 
@@ -54,6 +54,7 @@ Progress: [█░░░░░░░░░] 17%
 | Phase 21 P06 | 5 min | 2 tasks | 1 file |
 | Phase 22 P01 | 4 | 2 tasks | 2 files |
 | Phase 22 P02 | 12 | 2 tasks | 5 files |
+| Phase 22 P03 | 3 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,7 @@ Recent decisions affecting current work:
 - [Phase 22]: Lazy import of suppress_next_delete inside delete_note() avoids circular import with engine.watcher
 - [Phase 22]: _resolve_note_path reads BRAIN_PATH env var; test fixtures must monkeypatch BRAIN_PATH to tmp_path
 - [Phase 22]: notes_ad AFTER DELETE trigger handles FTS5 automatically — no explicit rebuild in delete_note()
+- [Phase 22 P03]: exitEditMode() called unconditionally in delete confirm handler — named function declaration in ES module, always in scope; typeof guard unnecessary
 
 ### Roadmap Evolution
 
@@ -105,6 +107,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-16T13:54:04.037Z
-Stopped at: Completed 22-02-PLAN.md
+Last session: 2026-03-16T13:58:42.627Z
+Stopped at: Completed 22-03-PLAN.md
 Resume file: None
