@@ -281,7 +281,13 @@ function handleNoteEvent({ type, path }) {
     }
 
     if (type === 'modified' || type === 'created') {
-        if (isDirty) {
+        if (easyMDE !== null) {
+            // Editor is open — always show conflict banner regardless of isDirty.
+            // Any open editor session must not be silently destroyed by an external event.
+            // The user can choose Keep (dismiss banner) or Load (reload and close editor).
+            showConflictBanner(currentPath);
+        } else if (isDirty) {
+            // isDirty but editor already closed (defensive: treat as conflict)
             showConflictBanner(currentPath);
         } else {
             openNote(currentPath);
