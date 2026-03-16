@@ -95,6 +95,14 @@ Plans:
 ### Phase 22: Note Deletion + Security Hardening
 **Goal**: Users can delete notes from the GUI with full cascade, and all note endpoints are protected against path traversal
 **Requirements**: GUIX-06
+**Plans:** 1/4 plans executed
+
+Plans:
+- [ ] 22-01-PLAN.md — Wave 0: test scaffold (tests/test_delete.py) + engine/delete.py stub
+- [ ] 22-02-PLAN.md — Wave 1: implement delete_note() cascade + DELETE route + path traversal guard
+- [ ] 22-03-PLAN.md — Wave 2: frontend delete button, confirmation modal, optimistic sidebar removal
+- [ ] 22-04-PLAN.md — Wave 3: full suite sign-off + human verify
+
 **Success criteria**:
 1. User can delete a note from the GUI using a confirmation dialog; the note disappears from the sidebar immediately
 2. Deleting a note removes its FTS5 index entry, backlinks, and embedding row — no orphan DB rows remain
@@ -161,7 +169,7 @@ Plans:
 | 19. MCP Server | v2.0 | 4/4 | Complete | 2026-03-15 |
 | 20. Frontend Bug Fixes | v3.0 | 3/3 | Complete | 2026-03-16 |
 | 21. Live Refresh SSE | v3.0 | Complete    | 2026-03-16 | 2026-03-16 |
-| 22. Note Deletion + Security Hardening | v3.0 | 0/? | Not started | - |
+| 22. Note Deletion + Security Hardening | 1/4 | In Progress|  | - |
 | 23. Navigation Polish | v3.0 | 0/? | Not started | - |
 | 24. File Capture + Batch Capture | v3.0 | 0/? | Not started | - |
 | 25. Intelligence Features | v3.0 | 0/? | Not started | - |

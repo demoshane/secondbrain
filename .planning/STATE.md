@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: executing
-stopped_at: Phase 22 context gathered
-last_updated: "2026-03-16T13:26:44.280Z"
+stopped_at: Completed 22-01-PLAN.md
+last_updated: "2026-03-16T13:49:43.007Z"
 last_activity: 2026-03-16 — Phase 21 fully complete; GUIX-01 human-verified; conflict banner and false deletion bugs fixed
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 9
-  completed_plans: 9
+  total_plans: 13
+  completed_plans: 10
   percent: 17
 ---
 
@@ -52,6 +52,7 @@ Progress: [█░░░░░░░░░] 17%
 | Phase 21 P04 | 0 min | 0 tasks | 0 files | VERIFICATION FAILED |
 | Phase 21 P05 | 5 | 2 tasks | 3 files |
 | Phase 21 P06 | 5 min | 2 tasks | 1 file |
+| Phase 22 P01 | 4 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,8 @@ Recent decisions affecting current work:
 - [Phase 21]: connectSSE() called at init; matchesCurrent uses endsWith for absolute vs relative path comparison; _sseWasConnected gates reconnect refresh
 - [Phase 21]: 500ms suppress window outlasts FSEvents propagation delay after os.replace(); module-level suppression set shared across all NoteChangeHandler instances
 - [Phase 21]: easyMDE !== null is the correct primary guard in handleNoteEvent — isDirty alone is stale-prone; any open editor session must be protected regardless of keystroke count
+- [Phase 22]: delete_note() stub committed; sb-hook immediately auto-implemented full cascade from 22-02 plan on first commit
+- [Phase 22]: relationships table uses rel_type column (not relationship_type); tmp_api_note fixture requires BRAIN_PATH monkeypatch for path resolution
 
 ### Pending Todos
 
@@ -93,6 +96,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-16T13:26:44.273Z
-Stopped at: Phase 22 context gathered
-Resume file: .planning/phases/22-note-deletion-security-hardening/22-CONTEXT.md
+Last session: 2026-03-16T13:49:43.001Z
+Stopped at: Completed 22-01-PLAN.md
+Resume file: None
