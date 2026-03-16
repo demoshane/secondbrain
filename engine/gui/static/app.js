@@ -218,10 +218,19 @@ function _getAllUniqueTags() {
 }
 
 function _attachTagDatalist(inputEl) {
-    // Custom dropdown to avoid browser history contaminating suggestions
+    // Append to body so positioning works regardless of when input enters DOM
     const dropdown = document.createElement('div');
     dropdown.className = 'tag-autocomplete-dropdown';
     dropdown.style.display = 'none';
+    document.body.appendChild(dropdown);
+
+    function position() {
+        const r = inputEl.getBoundingClientRect();
+        dropdown.style.position = 'fixed';
+        dropdown.style.left = r.left + 'px';
+        dropdown.style.top = (r.bottom + 2) + 'px';
+        dropdown.style.minWidth = Math.max(r.width, 140) + 'px';
+    }
 
     function showSuggestions() {
         const q = inputEl.value.trim().toLowerCase();
@@ -233,23 +242,27 @@ function _attachTagDatalist(inputEl) {
             item.className = 'tag-autocomplete-item';
             item.textContent = tag;
             item.addEventListener('mousedown', (e) => {
-                e.preventDefault(); // prevent blur before click
+                e.preventDefault();
                 inputEl.value = tag;
                 dropdown.style.display = 'none';
                 inputEl.dispatchEvent(new Event('tagselected'));
             });
             dropdown.appendChild(item);
         });
+        position();
         dropdown.style.display = 'block';
     }
 
     inputEl.setAttribute('autocomplete', 'off');
     inputEl.addEventListener('input', showSuggestions);
     inputEl.addEventListener('focus', showSuggestions);
-    inputEl.addEventListener('blur', () => { dropdown.style.display = 'none'; });
+    inputEl.addEventListener('blur', () => setTimeout(() => { dropdown.style.display = 'none'; }, 150));
 
-    // Insert dropdown right after the input
-    inputEl.insertAdjacentElement('afterend', dropdown);
+    // Clean up when input leaves DOM
+    const obs = new MutationObserver(() => {
+        if (!document.contains(inputEl)) { dropdown.remove(); obs.disconnect(); }
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
 }
 
 // --- Tag chips ---

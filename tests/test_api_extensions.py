@@ -38,7 +38,15 @@ class TestSaveNote:
 
 
 class TestCreateNote:
-    def test_post_note_creates_file(self, client, tmp_path):
+    def test_post_note_creates_file(self, client, tmp_path, monkeypatch):
+        import engine.db as _db
+        from engine.db import init_schema, get_connection
+        tmp_db = tmp_path / "test.db"
+        monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+        conn = get_connection()
+        init_schema(conn)
+        conn.commit()
+        conn.close()
         r = client.post(
             "/notes",
             json={"title": "Test Note", "type": "idea", "body": "content", "brain_path": str(tmp_path)},

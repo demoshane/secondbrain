@@ -34,13 +34,23 @@ def client():
 
 @pytest.fixture
 def tmp_brain(tmp_path, monkeypatch):
-    """Set BRAIN_PATH to tmp_path and seed two notes in the real DB.
+    """Isolated brain: tmp file tree + tmp SQLite DB (never touches the real DB).
 
     Returns (tmp_path, note_work_path, note_other_path).
     """
-    import os
+    import engine.db as _db
+    from engine.db import init_schema
 
+    # Point DB_PATH at a tmp file so no real DB is touched
+    tmp_db = tmp_path / "test_brain.db"
+    monkeypatch.setattr(_db, "DB_PATH", tmp_db)
     monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+
+    # Bootstrap schema in the tmp DB
+    conn = get_connection()
+    init_schema(conn)
+    conn.commit()
+    conn.close()
 
     # Note 1: tagged ["work", "idea"]
     note_work = tmp_path / "work-note.md"
@@ -73,12 +83,7 @@ def tmp_brain(tmp_path, monkeypatch):
     conn.close()
 
     yield tmp_path, note_work, note_other, path_work, path_other
-
-    # Cleanup
-    conn = get_connection()
-    conn.execute("DELETE FROM notes WHERE path IN (?, ?)", (path_work, path_other))
-    conn.commit()
-    conn.close()
+    # tmp_path is cleaned up automatically by pytest; monkeypatch reverts DB_PATH
 
 
 # ---------------------------------------------------------------------------
