@@ -34,10 +34,43 @@ def test_viewer_scroll(page, live_server_url, gui_brain, seed_note_fn):
     assert scroll_top > 0
 
 
-@pytest.mark.xfail(reason="Wave 2: not yet implemented")
 def test_title_sync(page, live_server_url, gui_brain, seed_note_fn):
-    """SC-4: editing note title via API updates sidebar + viewer heading."""
-    pytest.skip("Wave 2")
+    """SC-4: editing note title via API + SSE refresh updates sidebar; reopen shows new h1."""
+    import requests
+    import urllib.parse
+
+    note_path = seed_note_fn(gui_brain, "Original Title", "# Original Title\n\nbody content")
+
+    page.goto("/ui")
+    page.wait_for_selector("#sidebar-loading", state="hidden", timeout=5000)
+
+    # Click the note to open it
+    page.locator("#note-list li[data-path]", has_text="Original Title").first.click()
+    page.locator("#viewer").wait_for(state="visible", timeout=5000)
+
+    # Build frontmatter+body content string for PUT (API expects "content" key)
+    encoded = urllib.parse.quote(note_path, safe="")
+    content = "---\ntitle: Updated Title\ntags: []\ntype: idea\n---\n\n# Updated Title\n\nbody content\n"
+    resp = requests.put(
+        f"{live_server_url}/notes/{encoded}",
+        json={"content": content},
+    )
+    assert resp.status_code == 200
+
+    # Trigger SSE broadcast so connected browser reloads sidebar
+    refresh_resp = requests.post(f"{live_server_url}/notes/refresh")
+    assert refresh_resp.status_code == 200
+
+    # Sidebar reloads via SSE → wait for "Updated Title" to appear in note list
+    page.locator("#note-list li[data-path]", has_text="Updated Title").first.wait_for(
+        state="visible", timeout=5000
+    )
+
+    # Click the updated note to load it in viewer — h1 should reflect new title
+    page.locator("#note-list li[data-path]", has_text="Updated Title").first.click()
+    page.locator("#viewer h1", has_text="Updated Title").wait_for(
+        state="visible", timeout=5000
+    )
 
 
 @pytest.mark.xfail(reason="Wave 3: not yet implemented")
