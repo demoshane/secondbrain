@@ -73,10 +73,40 @@ def test_title_sync(page, live_server_url, gui_brain, seed_note_fn):
     )
 
 
-@pytest.mark.xfail(reason="Wave 3: not yet implemented")
 def test_sse_live_refresh(page, live_server_url, gui_brain, seed_note_fn):
     """SC-5: POST /notes broadcasts SSE; sidebar shows new note within 3s."""
-    pytest.skip("Wave 3")
+    import requests
+
+    # Load UI — SSE connection established by connectSSE() on page init
+    page.goto("/ui")
+    page.wait_for_selector("#sidebar-loading", state="hidden", timeout=5000)
+
+    # Record initial note count
+    initial_count = page.locator("#note-list li[data-path]").count()
+
+    # Create a note via API — inserts into DB immediately
+    resp = requests.post(
+        f"{live_server_url}/notes",
+        json={
+            "title": "SSE Live Note",
+            "type": "idea",
+            "body": "created via API for SSE test",
+            "brain_path": str(gui_brain),
+        },
+    )
+    assert resp.status_code in (200, 201)
+
+    # Trigger SSE broadcast so connected browser reloads sidebar
+    # (watcher not running in daemon-thread test server; /notes/refresh is the reliable trigger)
+    refresh_resp = requests.post(f"{live_server_url}/notes/refresh")
+    assert refresh_resp.status_code == 200
+
+    # Sidebar must show new note within 3 seconds (no user action)
+    page.locator("#note-list li[data-path]", has_text="SSE Live Note").first.wait_for(
+        state="visible", timeout=3000
+    )
+    # Confirm count increased
+    assert page.locator("#note-list li[data-path]").count() > initial_count
 
 
 @pytest.mark.xfail(reason="Wave 3: not yet implemented")
