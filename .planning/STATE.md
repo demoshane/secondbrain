@@ -84,6 +84,7 @@ Recent decisions affecting current work:
 - Fix sb-recap returning nothing despite existing entries (general)
 - Fix sb_edit wiping YAML frontmatter (general)
 - Link persons to notes in sidebar (ui)
+- Audit and improve context detection on capture (general)
 
 ### Blockers/Concerns
 
