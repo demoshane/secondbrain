@@ -193,12 +193,27 @@ Plans:
 4. AI recap and action extraction produce deduplicated, accurate output (no repeated items across consecutive recaps)
 
 ### Phase 27: Search Quality Tuning
-**Goal**: Search returns the most relevant notes first, with title matches ranked above body matches and a regression suite confirming no precision regressions
+**Goal**: Search returns the most relevant notes first, with title matches ranked above body matches and a regression suite confirming no precision regressions; all open TODOs and test coverage gaps resolved
 **Requirements**: ENGL-02
+**Plans:** 1/7 plans executed
+
+Plans:
+- [ ] 27-01-PLAN.md — Wave 0: regression suite scaffolds (10 xfail tests) + sb_edit stub
+- [ ] 27-02-PLAN.md — Wave 1: BM25 column weighting (10.0/1.0) + recency multiplier in search.py
+- [ ] 27-03-PLAN.md — Wave 1: sb_edit frontmatter fix + sb-recap fallback + capture context heuristics
+- [ ] 27-04-PLAN.md — Wave 1: person→note sidebar chips (meta API + app.js)
+- [ ] 27-05-PLAN.md — Wave 1: LLM adapter tests + health check tests
+- [ ] 27-06-PLAN.md — Wave 1: GitHub Actions CI workflow
+- [ ] 27-07-PLAN.md — Wave 2: full suite sign-off + human verify
+
 **Success criteria**:
 1. An exact title search returns the matching note as the first result
 2. A semantic search for a topic returns contextually relevant notes above unrelated ones
 3. A fixed regression suite of at least 5 precision queries and 5 recall queries all pass before any RRF parameter is changed
+4. sb_edit preserves YAML frontmatter when editing note body
+5. sb-recap returns results when recent notes exist
+6. Person chips visible in sidebar for notes with people frontmatter
+7. GitHub Actions CI runs pytest on every push to main
 
 ### Phase 27.1: Smart Capture & Proactive Brain
 **Goal**: Enrich every captured note with extracted entities at write time, deduplicate incoming notes via embedding similarity before saving, support multi-note capture in one call, document the project in CLAUDE.md, and expose MCP tool self-documentation so agents know what tools are available
@@ -251,7 +266,7 @@ Plans:
 | 24. Playwright GUI Test Suite | 4/4 | Complete    | 2026-03-16 | - |
 | 25. File Capture + Batch Capture | 4/4 | Complete   | 2026-03-17 | - |
 | 26. Intelligence Features | 4/4 | Complete    | 2026-03-17 | - |
-| 27. Search Quality Tuning | v3.0 | 0/? | Not started | - |
+| 27. Search Quality Tuning | 1/7 | In Progress|  | - |
 | 27.1. Smart Capture & Proactive Brain | 5/5 | Complete    | 2026-03-17 | - |
 | 28. TODO & Gap Resolution | v3.0 | 0/? | Not started | - |
 

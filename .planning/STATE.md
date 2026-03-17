@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Phase 27 context gathered
-last_updated: "2026-03-17T17:25:34.004Z"
+stopped_at: Completed 27-search-quality-tuning-01-PLAN.md
+last_updated: "2026-03-17T17:54:00.983Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 10
   completed_phases: 8
-  total_plans: 34
-  completed_plans: 34
+  total_plans: 41
+  completed_plans: 35
   percent: 99
 ---
 
@@ -77,6 +77,7 @@ Progress: [██████████] 99%
 | Phase 27.1 P03 | 5 | 2 tasks | 2 files |
 | Phase 27.1 P04 | 8 | 2 tasks | 2 files |
 | Phase 27.1 P05 | 1 | 1 tasks | 1 files |
+| Phase 27-search-quality-tuning P01 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -156,6 +157,7 @@ Recent decisions affecting current work:
 - [Phase 27.1]: sb_capture_batch uses per-note try/except isolation; failed notes don't block others; returns succeeded/failed lists with index
 - [Phase 27.1]: sb_tools uses mcp._tool_manager._tools (sync dict) to avoid asyncio.run() RuntimeError in FastMCP stdio event loop; excludes itself from output
 - [Phase 27.1]: CLAUDE.md kept under 100 lines using tables for entry points and engine layout; BRAIN_PATH fixture gotcha documented for test authors
+- [Phase 27-search-quality-tuning]: xfail(strict=False) chosen for 27 stubs — auto-promotes to PASS once BM25 tuning / sb_edit fix ships; reg_conn uses get_connection(str(db_path)) for isolation matching Phase 27.1 pattern
 
 ### Roadmap Evolution
 
@@ -179,9 +181,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-17T17:25:33.990Z
-Stopped at: Phase 27 context gathered
-Resume file: .planning/phases/27-this-phase-should-resolve-all-open-todos-and-gaps-that-can-be-identified-when-the-phase-starts/27-CONTEXT.md
+Last session: 2026-03-17T17:54:00.973Z
+Stopped at: Completed 27-search-quality-tuning-01-PLAN.md
+Resume file: None
 
 ## TODOs (for Phase 27)
 - **Tag management UI**: Global tab/panel listing all tags with usage counts; rename tag across all notes; delete tag globally. (Per-note chip editing already shipped in Phase 23.)
