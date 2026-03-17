@@ -440,8 +440,9 @@ def sb_tools() -> list[dict]:
     """
     try:
         # Avoid asyncio.run() — FastMCP stdio runs in an existing event loop.
-        # _tool_manager._tools is a sync dict; no event loop needed.
-        tools = list(mcp._tool_manager._tools.values())
+        # _local_provider._components is a sync dict keyed as "tool:<name>@".
+        components = mcp._local_provider._components
+        tools = [v for k, v in components.items() if k.startswith("tool:")]
         return [
             {
                 "name": t.name,

@@ -11,11 +11,12 @@ def test_sb_search():
 
 
 def test_tool_parity():
-    # 12 tools must be registered — use public list_tools() API (FastMCP 3.x)
-    import asyncio
-    tools = asyncio.run(mcp_mod.mcp.list_tools())
-    tool_names = [t.name for t in tools]
-    assert len(tools) >= 12, f"Expected 12 tools, got {len(tools)}: {tool_names}"
+    # 12 tools must be registered — use sync internal dict (same as sb_tools uses)
+    # asyncio.run() raises RuntimeError when called from a running event loop (pytest-anyio)
+    # FastMCP stores tools in _local_provider._components keyed as "tool:<name>@"
+    components = mcp_mod.mcp._local_provider._components
+    tool_names = [k.split(":")[1].rstrip("@") for k in components if k.startswith("tool:")]
+    assert len(tool_names) >= 12, f"Expected >=12 tools, got {len(tool_names)}: {tool_names}"
 
 
 def test_two_step_confirmation():

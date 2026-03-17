@@ -279,11 +279,16 @@ class TestRecapNoContext:
 
 class TestClaudeMdHook:
     def test_claude_md_contains_session_hook(self):
-        """~/.claude/CLAUDE.md contains the sb-recap session hook line."""
-        claude_md = Path.home() / ".claude" / "CLAUDE.md"
-        assert claude_md.exists(), "~/.claude/CLAUDE.md must exist"
-        content = claude_md.read_text()
-        assert "sb-recap" in content  # not yet added → RED
+        """~/.claude/second-brain.md contains the sb-recap session hook line.
+
+        The global ~/.claude/CLAUDE.md references second-brain.md via @-import;
+        the actual sb-recap hook text lives in the referenced file.
+        """
+        # Check the second-brain-specific rules file (referenced via @ from CLAUDE.md)
+        second_brain_md = Path.home() / ".claude" / "second-brain.md"
+        assert second_brain_md.exists(), "~/.claude/second-brain.md must exist"
+        content = second_brain_md.read_text()
+        assert "sb-recap" in content
 
 
 # --- Wave 0 RED stubs for Phase 16 recap_entity ---
