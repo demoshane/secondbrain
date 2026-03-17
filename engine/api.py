@@ -445,6 +445,63 @@ def list_files():
     return jsonify({"files": file_list})
 
 
+@app.get("/files/usages")
+def file_usages():
+    """Return notes that reference a given file path via the attachments table."""
+    file_path = request.args.get("path", "")
+    if not file_path:
+        return jsonify({"usages": []})
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """SELECT a.note_path, COALESCE(n.title, a.note_path) AS title
+               FROM attachments a
+               LEFT JOIN notes n ON n.path = a.note_path
+               WHERE a.file_path = ?""",
+            (file_path,),
+        ).fetchall()
+    finally:
+        conn.close()
+    return jsonify({"usages": [{"note_path": r[0], "title": r[1]} for r in rows]})
+
+
+@app.delete("/files")
+def delete_file():
+    """Delete an uploaded file from disk and remove its attachments row.
+
+    JSON body:
+        path: absolute path to the file (must be inside BRAIN_PATH/files/).
+    """
+    body = request.get_json(force=True) or {}
+    file_path = body.get("path", "")
+    if not file_path:
+        return jsonify({"error": "path required"}), 400
+
+    brain_path = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
+    files_dir = _Path(brain_path) / "files"
+    target = _Path(file_path).resolve()
+
+    # Path-traversal guard: must be inside files/
+    try:
+        target.relative_to(files_dir.resolve())
+    except ValueError:
+        return jsonify({"error": "Path outside files directory"}), 403
+
+    if not target.exists():
+        return jsonify({"error": "File not found"}), 404
+
+    target.unlink()
+
+    conn = get_connection()
+    try:
+        conn.execute("DELETE FROM attachments WHERE file_path = ?", (file_path,))
+        conn.commit()
+    finally:
+        conn.close()
+
+    return jsonify({"deleted": True})
+
+
 @app.post("/files/move")
 def move_file():
     body = request.get_json(force=True) or {}
@@ -574,6 +631,29 @@ def batch_capture():
                 succeeded.append({"path": abs_str, "title": title})
             except Exception as exc:
                 failed.append({"path": abs_str, "error": str(exc)})
+
+        # Also register any files in files/ not yet tracked in attachments table
+        files_dir = brain_root / "files"
+        if files_dir.exists():
+            tracked_files = {
+                row[0] for row in conn.execute("SELECT file_path FROM attachments").fetchall()
+            }
+            now = datetime.datetime.utcnow().isoformat()
+            for f in sorted(files_dir.rglob("*")):
+                if not f.is_file():
+                    continue
+                abs_file = str(f.resolve())
+                if abs_file in tracked_files:
+                    continue
+                try:
+                    conn.execute(
+                        "INSERT INTO attachments (note_path, file_path, filename, size, uploaded_at) "
+                        "VALUES (?, ?, ?, ?, ?)",
+                        ("", abs_file, f.name, f.stat().st_size, now),
+                    )
+                    succeeded.append({"path": abs_file, "title": f.name})
+                except Exception as exc:
+                    failed.append({"path": abs_file, "error": str(exc)})
 
         conn.commit()
     finally:

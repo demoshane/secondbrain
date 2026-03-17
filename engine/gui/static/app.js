@@ -843,16 +843,76 @@ async function openFilesModal() {
         filesModalList.innerHTML = '';
         files.forEach(f => {
             const li = document.createElement('li');
-            li.style.cssText = 'padding:6px 0; border-bottom:1px solid #f0f0f0; cursor:pointer;';
+            li.style.cssText = 'padding:6px 0; border-bottom:1px solid #f0f0f0; display:flex; align-items:center; gap:8px;';
             const sizeStr = f.size > 1048576
                 ? (f.size / 1048576).toFixed(1) + ' MB'
                 : (f.size / 1024).toFixed(0) + ' KB';
-            li.textContent = `${f.name}  ·  ${sizeStr}`;
-            li.title = f.path;
-            li.addEventListener('click', () => {
-                if (window.pywebview) window.pywebview.api.open_in_editor(f.path).catch(() => {});
-                else alert(`Path: ${f.path}`);
+            // Usage panel (hidden by default)
+            const usagePanel = document.createElement('div');
+            usagePanel.style.cssText = 'display:none; width:100%; padding:4px 0 4px 8px; font-size:12px; color:#555;';
+
+            const label = document.createElement('span');
+            label.style.cssText = 'flex:1; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;';
+            label.textContent = `${f.name}  ·  ${sizeStr}`;
+            label.title = 'Click to see which notes use this file';
+            label.addEventListener('click', async () => {
+                if (usagePanel.style.display !== 'none') {
+                    usagePanel.style.display = 'none';
+                    return;
+                }
+                usagePanel.innerHTML = '<em style="color:#999">Loading…</em>';
+                usagePanel.style.display = 'block';
+                try {
+                    const r = await fetch(`${API}/files/usages?path=${encodeURIComponent(f.path)}`);
+                    const { usages } = await r.json();
+                    if (!usages || usages.length === 0) {
+                        usagePanel.innerHTML = '<em style="color:#aaa">Not linked to any note.</em>';
+                    } else {
+                        usagePanel.innerHTML = '<strong>Used in:</strong> ';
+                        usages.forEach((u, i) => {
+                            const a = document.createElement('a');
+                            a.href = '#';
+                            a.textContent = u.title;
+                            a.style.cssText = 'color:#0066cc; margin-right:8px;';
+                            a.addEventListener('click', e => {
+                                e.preventDefault();
+                                filesModal.style.display = 'none';
+                                loadNote(u.note_path);
+                            });
+                            usagePanel.appendChild(a);
+                        });
+                    }
+                } catch (_) {
+                    usagePanel.innerHTML = '<em style="color:red">Failed to load usages.</em>';
+                }
             });
+            const delBtn = document.createElement('button');
+            delBtn.textContent = '🗑';
+            delBtn.title = 'Delete file';
+            delBtn.style.cssText = 'background:none; border:none; cursor:pointer; color:#c00; font-size:14px; padding:0 4px; flex-shrink:0;';
+            delBtn.addEventListener('click', async () => {
+                if (!confirm(`Delete "${f.name}"? This cannot be undone.`)) return;
+                const res = await fetch(`${API}/files`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: f.path }),
+                });
+                if (res.ok) {
+                    li.remove();
+                    if (filesModalList.children.length === 0) {
+                        filesModalList.innerHTML = '<li style="color:#999"><em>No uploaded files yet.</em></li>';
+                    }
+                    // Refresh attachment section if the deleted file was linked to current note
+                    if (currentPath) loadAttachments(currentPath);
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    alert(`Delete failed: ${err.error || res.status}`);
+                }
+            });
+            li.style.flexWrap = 'wrap';
+            li.appendChild(label);
+            li.appendChild(delBtn);
+            li.appendChild(usagePanel);
             filesModalList.appendChild(li);
         });
     } catch (_) {
