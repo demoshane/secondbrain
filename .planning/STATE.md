@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 25-02-PLAN.md
-last_updated: "2026-03-17T06:40:06.069Z"
+stopped_at: Completed 25-03-PLAN.md
+last_updated: "2026-03-17T06:44:16.203Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 25
-  completed_plans: 23
+  completed_plans: 24
   percent: 99
 ---
 
@@ -66,6 +66,7 @@ Progress: [██████████] 99%
 | Phase 24-playwright-gui-test-suite P04 | 4 | 2 tasks | 1 files |
 | Phase 25-file-capture-batch-capture P01 | 2 | 2 tasks | 3 files |
 | Phase 25-file-capture-batch-capture P02 | 8 | 2 tasks | 4 files |
+| Phase 25-file-capture-batch-capture P03 | 1 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -122,6 +123,9 @@ Recent decisions affecting current work:
 - [Phase 25-file-capture-batch-capture]: [25-01] client fixture patches both engine.db.DB_PATH and engine.paths.DB_PATH for full isolation
 - [Phase 25-file-capture-batch-capture]: GET /notes/<path>/attachments uses note_path as DB key only — no path-traversal guard needed since no file is opened
 - [Phase 25-file-capture-batch-capture]: suppress_next_create() called BEFORE f.save() so suppress window is open when FSEvents fires
+- [Phase 25-file-capture-batch-capture]: [25-03] #attachments-section placed as sibling of #viewer so renderMarkdown() never wipes attachment list
+- [Phase 25-file-capture-batch-capture]: [25-03] Batch capture result prepended into #recap-content via DOM prepend — no new DOM structure needed
+- [Phase 25-file-capture-batch-capture]: [25-03] upload-btn starts disabled in HTML; openNote() enables it to enforce no-upload-without-note invariant
 
 ### Roadmap Evolution
 
@@ -145,8 +149,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-17T06:40:01.459Z
-Stopped at: Completed 25-02-PLAN.md
+Last session: 2026-03-17T06:44:16.195Z
+Stopped at: Completed 25-03-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
