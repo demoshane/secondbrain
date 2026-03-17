@@ -36,10 +36,10 @@
 
 ### GUI Pages (GPAG)
 
-- [ ] **GPAG-01**: App has a top tab bar with tabs for Notes, Action Items, and extensible future pages
-- [ ] **GPAG-02**: Dedicated Action Items page shows all action items with status, due date, and assignee filtering
-- [ ] **GPAG-03**: Action items can be assigned to a person note (assignee_path column on action_items table)
-- [ ] **GPAG-04**: Person note view includes a "My Actions" section listing all action items assigned to that person
+- [x] **GPAG-01**: App has a top tab bar with tabs for Notes, Action Items, and extensible future pages
+- [x] **GPAG-02**: Dedicated Action Items page shows all action items with status, due date, and assignee filtering
+- [x] **GPAG-03**: Action items can be assigned to a person note (assignee_path column on action_items table)
+- [x] **GPAG-04**: Person note view includes a "My Actions" section listing all action items assigned to that person
 
 ## Future Requirements (v4.0)
 

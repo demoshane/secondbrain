@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27-07-PLAN.md — Phase 27 sign-off complete
-last_updated: "2026-03-17T19:11:16.355Z"
+stopped_at: Completed 27.2-01-PLAN.md
+last_updated: "2026-03-17T19:59:55.418Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
-  total_phases: 10
+  total_phases: 11
   completed_phases: 9
-  total_plans: 41
-  completed_plans: 41
+  total_plans: 45
+  completed_plans: 42
   percent: 99
 ---
 
@@ -84,6 +84,7 @@ Progress: [██████████] 99%
 | Phase 27 P05 | 8 | 2 tasks | 2 files |
 | Phase 27-search-quality-tuning P03 | 22 | 2 tasks | 5 files |
 | Phase 27-search-quality-tuning P07 | 15 | 2 tasks | 5 files |
+| Phase 27.2-action-items-page-nav-scaffold P01 | 7 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -176,6 +177,7 @@ Recent decisions affecting current work:
 - [Phase 27-search-quality-tuning]: [27-07] FastMCP 3.x tool registry: mcp._local_provider._components (keyed 'tool:<name>@'), not _tool_manager._tools
 - [Phase 27-search-quality-tuning]: [27-07] detect-secrets subprocess silently filters example AWS keys via is_likely_id_string; use AWSKeyDetector.analyze_string() directly in tests
 - [Phase 27-search-quality-tuning]: [27-07] Session hook test checks ~/.claude/second-brain.md (@ imported file), not ~/.claude/CLAUDE.md
+- [Phase 27.2]: [27.2-01] xfail(strict=False) stubs for tab bar and action item filters — auto-promote to PASS once implementation ships
 
 ### Roadmap Evolution
 
@@ -199,8 +201,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-17T18:51:43.981Z
-Stopped at: Completed 27-07-PLAN.md — Phase 27 sign-off complete
+Last session: 2026-03-17T19:59:55.410Z
+Stopped at: Completed 27.2-01-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
