@@ -11,3 +11,18 @@ if command -v uv >/dev/null 2>&1; then
 else
     cd "$BRAIN_DIR" && SB_PROJECT_DIR="$PROJECT_DIR" python -m engine.hooks.post_commit "$@"
 fi
+
+# If this commit touches engine/ source in the brain repo, restart sb-api so
+# the running process picks up the new code (editable install, but not hot-reload).
+if [ "$PROJECT_DIR" = "$BRAIN_DIR" ]; then
+    CHANGED=$(git diff-tree -r --name-only --no-commit-id HEAD 2>/dev/null | grep "^engine/") || true
+    if [ -n "$CHANGED" ]; then
+        echo "[second-brain] engine/ changed — restarting sb-api..."
+        launchctl kickstart -k "gui/$(id -u)/com.secondbrain.api" 2>/dev/null \
+            && echo "[second-brain] sb-api restarted." \
+            || echo "[second-brain] WARNING: could not restart sb-api"
+        echo "[second-brain] Cycling sb-mcp-server so next tool call uses new code..."
+        pkill -f "sb-mcp-server" 2>/dev/null && echo "[second-brain] sb-mcp-server stopped (Claude Desktop will restart it)." \
+            || echo "[second-brain] sb-mcp-server not running (no action needed)."
+    fi
+fi
