@@ -202,3 +202,40 @@ def test_sb_tools():
     assert "name" in tool
     assert "description" in tool
     assert "parameters" in tool
+
+
+# ---------------------------------------------------------------------------
+# Phase 27 Wave 0 stubs — sb_edit frontmatter preservation
+# ---------------------------------------------------------------------------
+
+@pytest.mark.xfail(strict=False, reason="sb_edit frontmatter wipe not yet fixed")
+def test_sb_edit_preserves_frontmatter(tmp_path, monkeypatch):
+    """sb_edit must not wipe YAML frontmatter when editing note body."""
+    import frontmatter as _fm
+    brain = tmp_path / "brain"
+    brain.mkdir()
+    monkeypatch.setenv("BRAIN_PATH", str(brain))
+    import engine.db, engine.paths
+    db_path = brain / ".meta" / "brain.db"
+    (brain / ".meta").mkdir()
+    monkeypatch.setattr(engine.db, "DB_PATH", str(db_path))
+    monkeypatch.setattr(engine.paths, "DB_PATH", str(db_path))
+    from engine.db import get_connection, init_schema
+    conn = get_connection(str(db_path))
+    init_schema(conn)
+    conn.close()
+
+    # Write a note with frontmatter
+    note_path = brain / "ideas" / "test-note.md"
+    note_path.parent.mkdir(parents=True)
+    note_path.write_text(
+        "---\ntitle: My Test Note\ntype: ideas\ntags: [foo, bar]\n---\n\nOriginal body.\n"
+    )
+    # Call sb_edit directly (matches existing test style in this file)
+    result = mcp_mod.sb_edit(path="ideas/test-note.md", body="Updated body content.")
+    # Verify frontmatter preserved
+    post = _fm.load(str(note_path))
+    assert post["title"] == "My Test Note"
+    assert post["type"] == "ideas"
+    assert post["tags"] == ["foo", "bar"]
+    assert "Updated body content." in post.content
