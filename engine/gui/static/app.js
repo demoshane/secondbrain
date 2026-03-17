@@ -421,6 +421,11 @@ async function openNote(path) {
     loadMeta(path);
     loadActions();
     loadIntelligence();
+    loadAttachments(path);
+    const uploadBtn = document.getElementById('upload-btn');
+    const viewerUploadBtn = document.getElementById('viewer-upload-btn');
+    if (uploadBtn) uploadBtn.disabled = false;
+    if (viewerUploadBtn) viewerUploadBtn.style.display = '';
     document.getElementById('open-editor-btn').onclick = () => {
         if (window.pywebview) pywebview.api.open_in_editor(path);
     };
@@ -791,6 +796,109 @@ document.getElementById('delete-modal-confirm').addEventListener('click', async 
     // Background refresh to sync note count / ordering
     loadNotes();
 });
+
+// --- File upload & attachments ---
+
+async function uploadFile(file) {
+    if (!currentPath) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('note_path', currentPath);
+    const res = await fetch(`${API}/files/upload`, { method: 'POST', body: fd });
+    if (res.ok) {
+        await loadAttachments(currentPath);
+        await loadNotes();
+    }
+    // silent success — no toast per CONTEXT.md
+}
+
+// Sidebar upload button
+const uploadBtn = document.getElementById('upload-btn');
+const fileInput = document.getElementById('file-input');
+if (uploadBtn && fileInput) {
+    uploadBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (file) uploadFile(file);
+        e.target.value = '';
+    });
+}
+
+// Viewer upload button (same action)
+const viewerUploadBtn = document.getElementById('viewer-upload-btn');
+if (viewerUploadBtn) {
+    viewerUploadBtn.addEventListener('click', () => fileInput && fileInput.click());
+}
+
+// Drag-and-drop onto viewer
+const viewerEl = document.getElementById('viewer');
+if (viewerEl) {
+    viewerEl.addEventListener('dragover', e => { e.preventDefault(); });
+    viewerEl.addEventListener('drop', e => {
+        e.preventDefault();
+        const file = e.dataTransfer.files[0];
+        if (file && currentPath) uploadFile(file);
+    });
+}
+
+async function loadAttachments(notePath) {
+    const section = document.getElementById('attachments-section');
+    const list = document.getElementById('attachments-list');
+    if (!section || !list) return;
+    const res = await fetch(`${API}/notes/${encodeURIComponent(notePath)}/attachments`);
+    if (!res.ok) { section.style.display = 'none'; return; }
+    const data = await res.json();
+    const items = data.attachments || [];
+    if (items.length === 0) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    list.innerHTML = '';
+    items.forEach(att => {
+        const li = document.createElement('li');
+        li.style.cssText = 'padding: 4px 0; font-size: 13px; cursor: pointer;';
+        const sizeStr = att.size > 1048576
+            ? (att.size / 1048576).toFixed(1) + ' MB'
+            : (att.size / 1024).toFixed(0) + ' KB';
+        const dateStr = att.uploaded_at ? att.uploaded_at.slice(0, 10) : '';
+        li.textContent = `${att.filename} · ${dateStr} · ${sizeStr}`;
+        li.title = att.file_path;
+        li.addEventListener('click', () => {
+            // Show metadata in viewer; offer OS open
+            const info = `File: ${att.filename}\nSize: ${sizeStr}\nDate: ${dateStr}\nPath: ${att.file_path}`;
+            if (window.pywebview) {
+                window.pywebview.api.open_file(att.file_path).catch(() => {});
+            } else {
+                alert(info);
+            }
+        });
+        list.appendChild(li);
+    });
+}
+
+// --- Batch capture ---
+const batchCaptureBtn = document.getElementById('batch-capture-btn');
+if (batchCaptureBtn) {
+    batchCaptureBtn.addEventListener('click', async () => {
+        batchCaptureBtn.disabled = true;
+        batchCaptureBtn.textContent = 'Capturing...';
+        try {
+            const res = await fetch(`${API}/batch-capture`, { method: 'POST' });
+            const data = await res.json();
+            const msg = `Batch capture: ${data.succeeded.length} captured, ${data.failed.length} failed`;
+            // Display in Intelligence panel using existing pattern
+            const intel = document.getElementById('recap-content');
+            if (intel) {
+                const p = document.createElement('p');
+                p.style.cssText = 'margin: 4px 0; font-size: 13px;';
+                p.textContent = msg;
+                intel.prepend(p);
+            }
+            await loadNotes();
+        } finally {
+            batchCaptureBtn.disabled = false;
+            batchCaptureBtn.textContent = 'Batch Capture';
+        }
+    });
+}
 
 // --- Init ---
 // Load collapse state from server before rendering sidebar so sections
