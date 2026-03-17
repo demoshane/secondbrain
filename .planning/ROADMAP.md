@@ -49,7 +49,7 @@
 - [x] **Phase 24: Playwright GUI Test Suite** — End-to-end browser tests covering all GUI functionality built in phases 20–23 (completed 2026-03-16)
 - [x] **Phase 25: File Capture + Batch Capture** — File upload from GUI; batch capture of unindexed items; watcher dedup guard (completed 2026-03-17)
 - [x] **Phase 26: Intelligence Features** — On-demand recap button, brain health dashboard, health score CLI (completed 2026-03-17)
-- [ ] **Phase 27: Search Quality Tuning** — BM25 column weight tuning, recency boost, AI recap quality improvements
+- [x] **Phase 27: Search Quality Tuning** — BM25 column weight tuning, recency boost, AI recap quality improvements (completed 2026-03-17)
 - [x] **Phase 27.1: Smart Capture & Proactive Brain** — Entity extraction at capture time, dedup via embedding similarity, multi-capture, CLAUDE.md in repo, MCP tool self-documentation (completed 2026-03-17)
 - [ ] **Phase 27.2: Action Items Page + Nav Scaffold** — Top tab bar (extensible), dedicated Action Items page, assignee picker with autocomplete, assignee_path on action_items, person note "My Actions" section
 - [ ] **Phase 27.3: UI/UX Overhaul** — Design system (typography, spacing, color tokens), visual consistency across all panels, dark mode polish
@@ -195,7 +195,7 @@ Plans:
 ### Phase 27: Search Quality Tuning
 **Goal**: Search returns the most relevant notes first, with title matches ranked above body matches and a regression suite confirming no precision regressions; all open TODOs and test coverage gaps resolved
 **Requirements**: ENGL-02
-**Plans:** 6/7 plans executed
+**Plans:** 7/7 plans complete
 
 Plans:
 - [ ] 27-01-PLAN.md — Wave 0: regression suite scaffolds (10 xfail tests) + sb_edit stub
@@ -266,7 +266,7 @@ Plans:
 | 24. Playwright GUI Test Suite | 4/4 | Complete    | 2026-03-16 | - |
 | 25. File Capture + Batch Capture | 4/4 | Complete   | 2026-03-17 | - |
 | 26. Intelligence Features | 4/4 | Complete    | 2026-03-17 | - |
-| 27. Search Quality Tuning | 6/7 | In Progress|  | - |
+| 27. Search Quality Tuning | 7/7 | Complete   | 2026-03-17 | - |
 | 27.1. Smart Capture & Proactive Brain | 5/5 | Complete    | 2026-03-17 | - |
 | 28. TODO & Gap Resolution | v3.0 | 0/? | Not started | - |
 

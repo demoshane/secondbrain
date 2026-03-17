@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27-search-quality-tuning-03-PLAN.md
-last_updated: "2026-03-17T18:18:30.751Z"
+stopped_at: "Checkpoint: 27-07 Task 2 human-verify — awaiting GUI approval"
+last_updated: "2026-03-17T18:44:26.521Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 10
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 41
-  completed_plans: 40
+  completed_plans: 41
   percent: 99
 ---
 
@@ -83,6 +83,7 @@ Progress: [██████████] 99%
 | Phase 27-search-quality-tuning P02 | 4 | 2 tasks | 2 files |
 | Phase 27 P05 | 8 | 2 tasks | 2 files |
 | Phase 27-search-quality-tuning P03 | 22 | 2 tasks | 5 files |
+| Phase 27-search-quality-tuning P07 | 15 | 1 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -172,6 +173,9 @@ Recent decisions affecting current work:
 - [Phase 27-03]: recap_main() fallback prints plain list of 5 recent notes, no AI adapter call — faster and dependency-free
 - [Phase 27-03]: _suggest_note_type_from_title() is standalone helper, not wired into CLI yet — available for future interactive capture
 - [Phase 27-03]: Test fix: monkeypatch DB_PATH as Path obj; patch BRAIN_ROOT in mcp_mod; use absolute path in sb_edit call
+- [Phase 27-search-quality-tuning]: [27-07] FastMCP 3.x tool registry: mcp._local_provider._components (keyed 'tool:<name>@'), not _tool_manager._tools
+- [Phase 27-search-quality-tuning]: [27-07] detect-secrets subprocess silently filters example AWS keys via is_likely_id_string; use AWSKeyDetector.analyze_string() directly in tests
+- [Phase 27-search-quality-tuning]: [27-07] Session hook test checks ~/.claude/second-brain.md (@ imported file), not ~/.claude/CLAUDE.md
 
 ### Roadmap Evolution
 
@@ -195,8 +199,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-17T18:18:30.742Z
-Stopped at: Completed 27-search-quality-tuning-03-PLAN.md
+Last session: 2026-03-17T18:44:26.512Z
+Stopped at: Checkpoint: 27-07 Task 2 human-verify — awaiting GUI approval
 Resume file: None
 
 ## TODOs (for Phase 27)
