@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27-05-PLAN.md
-last_updated: "2026-03-17T18:02:45.956Z"
+stopped_at: Completed 27-search-quality-tuning-03-PLAN.md
+last_updated: "2026-03-17T18:18:30.751Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 10
   completed_phases: 8
   total_plans: 41
-  completed_plans: 39
+  completed_plans: 40
   percent: 99
 ---
 
@@ -82,6 +82,7 @@ Progress: [██████████] 99%
 | Phase 27-search-quality-tuning P04 | 8 | 2 tasks | 4 files |
 | Phase 27-search-quality-tuning P02 | 4 | 2 tasks | 2 files |
 | Phase 27 P05 | 8 | 2 tasks | 2 files |
+| Phase 27-search-quality-tuning P03 | 22 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -167,6 +168,10 @@ Recent decisions affecting current work:
 - [Phase 27-search-quality-tuning]: [27-02] BM25 column weights 10.0 title / 1.0 body — title match always beats body-only match
 - [Phase 27-search-quality-tuning]: [27-02] Recency multiplier applied to BM25 leg only not semantic leg
 - [Phase 27]: Router tests added to existing test_adapters.py — natural extension of adapter tests, avoids file proliferation
+- [Phase 27-03]: write_note_atomic update=True uses INSERT OR REPLACE; False (default) keeps INSERT for backward compat
+- [Phase 27-03]: recap_main() fallback prints plain list of 5 recent notes, no AI adapter call — faster and dependency-free
+- [Phase 27-03]: _suggest_note_type_from_title() is standalone helper, not wired into CLI yet — available for future interactive capture
+- [Phase 27-03]: Test fix: monkeypatch DB_PATH as Path obj; patch BRAIN_ROOT in mcp_mod; use absolute path in sb_edit call
 
 ### Roadmap Evolution
 
@@ -190,8 +195,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-17T18:02:45.947Z
-Stopped at: Completed 27-05-PLAN.md
+Last session: 2026-03-17T18:18:30.742Z
+Stopped at: Completed 27-search-quality-tuning-03-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
