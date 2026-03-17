@@ -140,6 +140,21 @@ class NoteChangeHandler(FileSystemEventHandler):
             with _save_suppress_lock:
                 if src_path in _save_suppress:
                     return
+        if event_type == "created":
+            from engine.attachments import is_upload_suppressed
+            if is_upload_suppressed(src_path):
+                return
+            from engine.db import get_connection as _get_conn
+            _conn = _get_conn()
+            try:
+                already = (
+                    _conn.execute("SELECT 1 FROM notes WHERE path=?", (src_path,)).fetchone()
+                    or _conn.execute("SELECT 1 FROM attachments WHERE file_path=?", (src_path,)).fetchone()
+                )
+            finally:
+                _conn.close()
+            if already:
+                return
         brain_root = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
         try:
             rel = Path(src_path).relative_to(brain_root)

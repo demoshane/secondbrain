@@ -5,6 +5,7 @@ The GUI must call this API only — never import engine modules directly.
 """
 import datetime
 import json
+import mimetypes
 import os
 import queue
 import shutil
@@ -17,11 +18,24 @@ from pathlib import Path as _Path
 import frontmatter as _fm
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from werkzeug.utils import secure_filename
 
 from engine.db import get_connection
 from engine.search import search_notes
 from engine.intelligence import list_actions
 from engine.watcher import suppress_next_delete
+
+ALLOWED_MIMES = {
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain', 'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+    'image/bmp', 'image/tiff',
+}
 
 _STATIC_DIR = _Path(__file__).parent / "gui" / "static"
 
@@ -445,6 +459,125 @@ def move_file():
     dst_p.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(src_p), str(dst_p))
     return jsonify({"moved": True, "dst": str(dst_p)})
+
+
+@app.post("/files/upload")
+def upload_file():
+    """Receive a file upload, save to files/, record in attachments table.
+
+    Form fields:
+        file:      The uploaded file (multipart).
+        note_path: The note this attachment belongs to (string).
+
+    Returns 400 if no file or empty filename, 415 if MIME type not allowed.
+    """
+    from engine.attachments import save_attachment, suppress_next_create
+
+    f = request.files.get("file")
+    if not f or not f.filename:
+        return jsonify({"error": "No file provided"}), 400
+
+    note_path = request.form.get("note_path", "")
+
+    # MIME check — use supplied content_type first, fall back to guessing from extension
+    mime = f.content_type or mimetypes.guess_type(f.filename)[0] or ""
+    # Strip charset suffix if present (e.g. "text/plain; charset=utf-8")
+    mime = mime.split(";")[0].strip()
+    if mime not in ALLOWED_MIMES:
+        return jsonify({"error": "Unsupported media type"}), 415
+
+    filename = secure_filename(f.filename)
+    if not filename:
+        return jsonify({"error": "Invalid filename"}), 400
+
+    brain_path = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
+    dest = _Path(brain_path) / "files" / filename
+
+    # Collision handling: append counter suffix before extension
+    if dest.exists():
+        stem = dest.stem
+        suffix = dest.suffix
+        counter = 2
+        while dest.exists():
+            dest = _Path(brain_path) / "files" / f"{stem}-{counter}{suffix}"
+            counter += 1
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
+
+    # Suppress watchdog created event BEFORE saving to disk
+    suppress_next_create(str(dest))
+    f.save(str(dest))
+
+    attachment = save_attachment(note_path, str(dest), dest.name, dest.stat().st_size)
+    return jsonify(attachment), 200
+
+
+@app.get("/notes/<path:note_path>/attachments")
+def list_note_attachments(note_path):
+    """Return all attachments associated with a note.
+
+    note_path is used as a DB lookup key (matches the value stored at upload time),
+    so no path-traversal guard is needed — it is never used to open a file.
+    """
+    from engine.attachments import list_attachments
+
+    attachments = list_attachments(note_path)
+    return jsonify(attachments), 200
+
+
+@app.post("/batch-capture")
+def batch_capture():
+    """Index all untracked .md files in the brain directory into the notes table.
+
+    Walks brain_root rglob("*.md"), skips hidden-directory paths and paths
+    already present in the notes table, inserts absent ones, and returns
+    {"succeeded": [...], "failed": [...]}.
+    """
+    import frontmatter as _fm_batch
+
+    brain_path = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
+    brain_root = _Path(brain_path)
+
+    conn = get_connection()
+    try:
+        existing = {
+            row[0] for row in conn.execute("SELECT path FROM notes").fetchall()
+        }
+
+        succeeded = []
+        failed = []
+
+        for md_file in brain_root.rglob("*.md"):
+            # Skip hidden directories (any path segment starting with '.')
+            if any(part.startswith(".") for part in md_file.parts):
+                continue
+
+            abs_str = str(md_file.resolve())
+            if abs_str in existing:
+                continue
+
+            try:
+                text = md_file.read_text(encoding="utf-8", errors="ignore")
+                post = _fm_batch.loads(text)
+                title = post.metadata.get("title", md_file.stem)
+                note_type = post.metadata.get("type", "note")
+                body = post.content or ""
+                now = datetime.datetime.utcnow().isoformat()
+                conn.execute(
+                    "INSERT INTO notes (path, title, type, body, tags, created_at, updated_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (abs_str, title, note_type, body, "[]", now, now),
+                )
+                succeeded.append({"path": abs_str, "title": title})
+            except Exception as exc:
+                failed.append({"path": abs_str, "error": str(exc)})
+
+        conn.commit()
+    finally:
+        conn.close()
+
+    _broadcast({"type": "created", "path": ""})
+    return jsonify({"succeeded": succeeded, "failed": failed}), 200
 
 
 @app.post("/actions/<int:action_id>/done")
