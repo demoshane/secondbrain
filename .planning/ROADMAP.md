@@ -169,7 +169,7 @@ Plans:
 ### Phase 26: Intelligence Features
 **Goal**: Users can trigger a weekly recap on demand from the GUI and view a brain health dashboard showing orphans, broken links, duplicates, and a health score
 **Requirements**: GUIF-02, ENGL-03, ENGL-04, ENGL-05
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 - [ ] 26-01-PLAN.md — Wave 1: test scaffolds (xfail stubs for all Phase 26 behaviors)
@@ -221,7 +221,7 @@ Plans:
 | 23. Navigation Polish | 4/4 | Complete    | 2026-03-16 | - |
 | 24. Playwright GUI Test Suite | 4/4 | Complete    | 2026-03-16 | - |
 | 25. File Capture + Batch Capture | 4/4 | Complete   | 2026-03-17 | - |
-| 26. Intelligence Features | 2/4 | In Progress|  | - |
+| 26. Intelligence Features | 3/4 | In Progress|  | - |
 | 27. Search Quality Tuning | v3.0 | 0/? | Not started | - |
 | 28. TODO & Gap Resolution | v3.0 | 0/? | Not started | - |
 
