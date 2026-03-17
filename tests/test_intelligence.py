@@ -358,3 +358,65 @@ def test_extract_action_items_no_duplicate_on_recapture(tmp_path, monkeypatch):
                          (str(note.resolve()),)).fetchone()[0]
     conn.close()
     assert count == 1
+
+
+# ---------------------------------------------------------------------------
+# Phase 27-03: recap_main fallback + capture heuristics (TDD RED)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.xfail(strict=False, reason="recap fallback to recent notes not yet implemented")
+def test_recap_main_fallback_to_recent_when_no_context_match(capsys):
+    """recap_main() falls back to 5 most-recent notes when git context yields 0 rows.
+
+    With git context detected but no matching notes, output must contain
+    'Recent activity' or at least one note title from the fallback list.
+    """
+    import sqlite3
+    from engine.db import init_schema
+    from engine import intelligence
+
+    conn = sqlite3.connect(":memory:")
+    init_schema(conn)
+    # Insert a note that won't match the git context name
+    conn.execute(
+        "INSERT INTO notes (path, type, title, body, tags, people, created_at, updated_at, sensitivity)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        ("/brain/ideas/some-note.md", "note", "Some Recent Note", "body text",
+         "[]", "[]", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z", "public"),
+    )
+    conn.commit()
+
+    with patch.object(intelligence, "detect_git_context", return_value="nonexistent-repo-xyz"), \
+         patch("engine.intelligence.get_connection", return_value=conn):
+        intelligence.recap_main([])
+
+    captured = capsys.readouterr()
+    # Should print fallback content — either header or a note title
+    assert len(captured.out.strip()) > 0, "recap_main must print something when notes exist"
+    # Must NOT just print 'No notes found for context'
+    assert "No notes found for context" not in captured.out
+
+
+@pytest.mark.xfail(strict=False, reason="capture heuristic type suggestion not yet implemented")
+def test_capture_suggest_meeting_type_from_title():
+    """capture main() heuristics suggest type=meeting when title contains 'meeting'."""
+    from engine.capture import _suggest_note_type_from_title
+    assert _suggest_note_type_from_title("Q1 Planning Meeting") == "meeting"
+    assert _suggest_note_type_from_title("Weekly Standup") == "meeting"
+    assert _suggest_note_type_from_title("Sprint Retro") == "meeting"
+
+
+@pytest.mark.xfail(strict=False, reason="capture heuristic type suggestion not yet implemented")
+def test_capture_suggest_people_type_from_title():
+    """capture main() heuristics suggest type=people for 'Firstname Lastname' pattern."""
+    from engine.capture import _suggest_note_type_from_title
+    assert _suggest_note_type_from_title("Alice Johnson") == "people"
+    assert _suggest_note_type_from_title("Bob Smith") == "people"
+
+
+@pytest.mark.xfail(strict=False, reason="capture heuristic type suggestion not yet implemented")
+def test_capture_suggest_none_for_generic_title():
+    """_suggest_note_type_from_title returns None for titles that don't match any heuristic."""
+    from engine.capture import _suggest_note_type_from_title
+    assert _suggest_note_type_from_title("Random idea about stuff") is None
+    assert _suggest_note_type_from_title("Tech notes") is None
