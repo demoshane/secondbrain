@@ -8,6 +8,35 @@ let activeTagFilter = null;
 let _suppressNextTagRefresh = false;
 let _allNotes = []; // module-level cache of all notes from last loadNotes()
 
+// --- Tab bar ---
+const TABS = [{id: 'notes', label: 'Notes'}, {id: 'actions', label: 'Action Items'}];
+let currentView = 'notes';
+
+function showView(id) {
+    currentView = id;
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === id);
+    });
+    const isNotes = id === 'notes';
+    document.getElementById('layout').style.display = isNotes ? '' : 'none';
+    document.getElementById('actions-page').style.display = isNotes ? 'none' : '';
+    if (id === 'actions') renderActionsPage();
+}
+
+// Wire tab buttons
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => showView(btn.dataset.tab));
+});
+
+// Assignee filter dropdown population (call after _allNotes is populated)
+function populateAssigneeFilter() {
+    const sel = document.getElementById('filter-assignee');
+    if (!sel) return;
+    const people = (_allNotes || []).filter(n => n.type === 'people');
+    sel.innerHTML = '<option value="">Assignee: all</option>' +
+        people.map(n => `<option value="${n.path}">${n.title || n.path}</option>`).join('');
+}
+
 // --- Sidebar collapse state (server-side persistence via /ui/prefs) ---
 let _collapseState = {}; // in-memory cache; loaded async at startup
 
@@ -47,6 +76,7 @@ async function loadNotes() {
     const res = await fetch(`${API}/notes`);
     const { notes } = await res.json();
     _allNotes = notes;
+    populateAssigneeFilter();
     // Derive brain_path from the first note path (strip deepest components)
     if (notes.length && !brainPath) {
         const parts = notes[0].path.split('/');
@@ -409,6 +439,9 @@ async function saveTags(tags, notePath) {
 // --- Note viewer ---
 async function openNote(path) {
     currentPath = path;
+    // Re-show right panel in case we're returning from Actions tab
+    const rightPanel = document.getElementById('right-panel');
+    if (rightPanel) rightPanel.style.display = '';
     // Mark active
     document.querySelectorAll('#note-list li[data-path]').forEach(el => {
         el.classList.toggle('active', el.dataset.path === path);
@@ -615,7 +648,94 @@ async function loadMeta(path) {
             });
         });
     }
+
+    // My Actions section (only for person notes)
+    const myActionsSection = document.getElementById('my-actions-section');
+    const cachedNote = (_allNotes || []).find(n => n.path === path);
+    if (myActionsSection) {
+        if (cachedNote && cachedNote.type === 'people') {
+            const ar = await fetch(`${API}/actions?assignee=${encodeURIComponent(path)}&done=0`);
+            const { actions } = await ar.json();
+            document.getElementById('my-actions-list').innerHTML =
+                actions.map(a => `<li>${a.text || ''}</li>`).join('') || '<li><em>None assigned</em></li>';
+            myActionsSection.style.display = '';
+        } else {
+            myActionsSection.style.display = 'none';
+        }
+    }
 }
+
+// --- Actions page (full-width tab view) ---
+async function renderActionsPage() {
+    const assigneeFilter = document.getElementById('filter-assignee').value;
+    const showDone = document.getElementById('toggle-done').checked;
+    const statusFilter = document.getElementById('filter-status').value;
+    const params = new URLSearchParams({ done: showDone ? '1' : statusFilter });
+    if (assigneeFilter) params.set('assignee', assigneeFilter);
+    const res = await fetch(`${API}/actions?${params}`);
+    const { actions } = await res.json();
+    const tbody = document.getElementById('actions-table-body');
+    tbody.innerHTML = actions.map(a => {
+        const assigneeName = a.assignee_path
+            ? ((_allNotes || []).find(n => n.path === a.assignee_path)?.title || a.assignee_path.split('/').pop().replace('.md',''))
+            : '';
+        const sourceName = a.note_path ? a.note_path.split('/').pop().replace('.md','') : '';
+        return `<tr data-id="${a.id}">
+            <td><input type="checkbox" class="done-check" data-id="${a.id}" ${a.done ? 'checked' : ''}></td>
+            <td>${a.text || ''}</td>
+            <td>${sourceName}</td>
+            <td class="assignee-cell" data-id="${a.id}" data-path="${a.assignee_path || ''}">${assigneeName || '<em>—</em>'}</td>
+            <td>${a.created_at ? a.created_at.slice(0,10) : ''}</td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="5"><em>No items</em></td></tr>';
+
+    // Done checkboxes
+    tbody.querySelectorAll('.done-check').forEach(cb => {
+        cb.addEventListener('change', async () => {
+            await fetch(`${API}/actions/${cb.dataset.id}/done`, {method:'POST'});
+            renderActionsPage();
+        });
+    });
+
+    // Assignee cell click → inline picker
+    tbody.querySelectorAll('.assignee-cell').forEach(cell => {
+        cell.addEventListener('click', (e) => openAssigneePicker(cell, e));
+    });
+}
+
+function openAssigneePicker(cell, e) {
+    // Remove any existing picker
+    document.querySelectorAll('.assignee-picker').forEach(p => p.remove());
+    const actionId = cell.dataset.id;
+    const people = (_allNotes || []).filter(n => n.type === 'people');
+    const sel = document.createElement('select');
+    sel.className = 'assignee-picker';
+    sel.style.cssText = 'position:fixed;z-index:1000;';
+    sel.innerHTML = '<option value="">— unassign —</option>' +
+        people.map(n => `<option value="${n.path}" ${cell.dataset.path===n.path?'selected':''}>${n.title || n.path}</option>`).join('');
+    // Position near cell
+    const rect = cell.getBoundingClientRect();
+    sel.style.top = rect.bottom + 'px';
+    sel.style.left = rect.left + 'px';
+    document.body.appendChild(sel);
+    sel.focus();
+    sel.addEventListener('change', async () => {
+        const assignee_path = sel.value || null;
+        await fetch(`${API}/actions/${actionId}`, {
+            method: 'PUT',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({assignee_path})
+        });
+        sel.remove();
+        renderActionsPage();
+    });
+    sel.addEventListener('blur', () => setTimeout(() => sel.remove(), 150));
+}
+
+// Wire filter controls to re-render actions page
+document.getElementById('filter-assignee').addEventListener('change', renderActionsPage);
+document.getElementById('filter-status').addEventListener('change', renderActionsPage);
+document.getElementById('toggle-done').addEventListener('change', renderActionsPage);
 
 // --- Action items panel ---
 async function loadActions() {
