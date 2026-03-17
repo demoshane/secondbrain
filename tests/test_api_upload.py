@@ -94,9 +94,9 @@ class TestFileUpload:
 
 class TestAttachmentsList:
     def test_list_attachments(self, client, tmp_path, monkeypatch):
-        """GET /notes/test.md/attachments — returns list of attachment dicts."""
+        """GET /notes/attachments?path=... — returns list of attachment dicts."""
         monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
-        response = client.get("/notes/test.md/attachments")
+        response = client.get("/notes/attachments?path=notes/test.md")
         assert response.status_code == 200
         data = response.get_json()
         assert isinstance(data, list)

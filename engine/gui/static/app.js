@@ -850,7 +850,7 @@ async function openFilesModal() {
             li.textContent = `${f.name}  ·  ${sizeStr}`;
             li.title = f.path;
             li.addEventListener('click', () => {
-                if (window.pywebview) window.pywebview.api.open_file(f.path).catch(() => {});
+                if (window.pywebview) window.pywebview.api.open_in_editor(f.path).catch(() => {});
                 else alert(`Path: ${f.path}`);
             });
             filesModalList.appendChild(li);
@@ -900,7 +900,7 @@ async function loadAttachments(notePath) {
     const section = document.getElementById('attachments-section');
     const list = document.getElementById('attachments-list');
     if (!section || !list) return;
-    const res = await fetch(`${API}/notes/${encodeURIComponent(notePath)}/attachments`);
+    const res = await fetch(`${API}/notes/attachments?path=${encodeURIComponent(notePath)}`);
     if (!res.ok) { section.style.display = 'none'; return; }
     const data = await res.json();
     const items = data.attachments || [];
@@ -920,7 +920,7 @@ async function loadAttachments(notePath) {
             // Show metadata in viewer; offer OS open
             const info = `File: ${att.filename}\nSize: ${sizeStr}\nDate: ${dateStr}\nPath: ${att.file_path}`;
             if (window.pywebview) {
-                window.pywebview.api.open_file(att.file_path).catch(() => {});
+                window.pywebview.api.open_in_editor(att.file_path).catch(() => {});
             } else {
                 alert(info);
             }

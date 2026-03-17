@@ -513,15 +513,17 @@ def upload_file():
     return jsonify(attachment), 200
 
 
-@app.get("/notes/<path:note_path>/attachments")
-def list_note_attachments(note_path):
+@app.get("/notes/attachments")
+def list_note_attachments():
     """Return all attachments associated with a note.
 
-    note_path is used as a DB lookup key (matches the value stored at upload time),
-    so no path-traversal guard is needed — it is never used to open a file.
+    note_path is a query parameter (?path=...) to avoid %2F encoding issues
+    when absolute filesystem paths are passed from the frontend.
+    It is used only as a DB lookup key — never to open a file.
     """
     from engine.attachments import list_attachments
 
+    note_path = request.args.get("path", "")
     attachments = list_attachments(note_path)
     return jsonify(attachments), 200
 
