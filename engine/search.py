@@ -1,6 +1,31 @@
 """FTS5 BM25 full-text search with audit log, plus semantic and hybrid RRF modes."""
 import datetime
+import math
 import sqlite3
+
+
+def _recency_multiplier(created_at_str: str, half_life_days: int = 30) -> float:
+    """Return a score multiplier >= 1.0 based on note age.
+
+    New notes get a small boost (~1.1); the boost decays exponentially with a
+    configurable half-life (default 30 days).  At 180+ days the multiplier
+    approaches 1.0 (no meaningful boost).
+
+    Args:
+        created_at_str: ISO-8601 timestamp string (trailing 'Z' is stripped).
+        half_life_days: Days after which the boost halves. Default 30.
+
+    Returns:
+        Float >= 1.0. Falls back to 1.0 on any parse error.
+    """
+    try:
+        created = datetime.datetime.fromisoformat(str(created_at_str).rstrip("Z"))
+        age_days = (datetime.datetime.utcnow() - created).days
+        boost = 0.1
+        scale = half_life_days / math.log(2)
+        return 1.0 + boost * math.exp(-age_days / scale)
+    except Exception:
+        return 1.0
 
 
 def _fts5_query(query: str) -> str:
@@ -65,7 +90,7 @@ def search_notes(
     )
     conn.commit()
 
-    return [
+    results = [
         {
             "path": row[0],
             "type": row[1],
@@ -75,6 +100,11 @@ def search_notes(
         }
         for row in rows
     ]
+    results = [
+        {**r, "score": r["score"] * _recency_multiplier(r.get("created_at", ""))}
+        for r in results
+    ]
+    return results
 
 
 def _rrf_merge(
