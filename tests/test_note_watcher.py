@@ -148,3 +148,8 @@ def test_files_dir_excluded():
         handler.on_modified(_FakeEvent(f"{brain_root}/files/attachment.md"))
 
     broadcast.assert_not_called()
+
+
+class TestWatcherDedup:
+    def test_dedup_skips_already_indexed(self, tmp_path, monkeypatch):
+        pytest.xfail("not implemented yet")
