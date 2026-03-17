@@ -626,6 +626,55 @@ async function loadIntelligence() {
     nl.innerHTML = nudges.map(n => `<li>${n.title || n.path || JSON.stringify(n)}</li>`).join('') || '<li><em>No stale notes</em></li>';
 }
 
+// On-demand recap generation
+async function generateRecap() {
+    const btn = document.getElementById('generate-recap-btn');
+    const content = document.getElementById('recap-content');
+    if (!btn || !content) return;
+    btn.disabled = true;
+    const prev = content.textContent;
+    content.textContent = 'Generating recap\u2026';
+    try {
+        const res = await fetch(`${API}/intelligence/recap`, { method: 'POST' });
+        const data = await res.json();
+        content.textContent = data.recap || 'No recap available.';
+    } catch (e) {
+        content.textContent = prev || 'Error generating recap.';
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// Brain health dashboard
+async function loadBrainHealth() {
+    const scoreEl = document.getElementById('health-score');
+    const detailsEl = document.getElementById('health-details');
+    if (!scoreEl || !detailsEl) return;
+    scoreEl.textContent = 'Loading\u2026';
+    detailsEl.textContent = '';
+    try {
+        const res = await fetch(`${API}/brain-health`);
+        const data = await res.json();
+        const score = data.score ?? '?';
+        // Color coding: >=80 green, >=50 amber, <50 red
+        const color = score >= 80 ? '#2d9e2d' : score >= 50 ? '#e6a817' : '#c0392b';
+        scoreEl.innerHTML = `<span style="font-size:1.4em;font-weight:bold;color:${color}">${score}/100</span>`;
+        const orphanCount = (data.orphans || []).length;
+        const brokenCount = (data.broken_links || []).length;
+        const dupCount = (data.duplicate_candidates || []).length;
+        detailsEl.innerHTML = [
+            orphanCount === 0 ? '\u2713 No orphan notes' : `\u26a0 ${orphanCount} orphan note${orphanCount !== 1 ? 's' : ''}`,
+            brokenCount === 0 ? '\u2713 No broken links' : `\u26a0 ${brokenCount} broken link${brokenCount !== 1 ? 's' : ''}`,
+            dupCount === 0 ? '\u2713 No duplicate candidates' : `\u26a0 ${dupCount} duplicate pair${dupCount !== 1 ? 's' : ''}`,
+        ].map(line => `<div>${line}</div>`).join('');
+    } catch (e) {
+        scoreEl.textContent = 'Health check unavailable.';
+    }
+}
+
+document.getElementById('generate-recap-btn')?.addEventListener('click', generateRecap);
+document.getElementById('refresh-health-btn')?.addEventListener('click', loadBrainHealth);
+
 // --- New note modal ---
 document.getElementById('new-note-btn').addEventListener('click', () => {
     document.getElementById('new-note-modal').style.display = 'flex';
@@ -1021,4 +1070,5 @@ if (batchCaptureBtn) {
 _loadCollapseState().then(() => loadNotes());
 loadActions();
 loadIntelligence();
+loadBrainHealth();
 connectSSE();
