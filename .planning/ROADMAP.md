@@ -266,7 +266,7 @@ Plans:
 | 24. Playwright GUI Test Suite | 4/4 | Complete    | 2026-03-16 | - |
 | 25. File Capture + Batch Capture | 4/4 | Complete   | 2026-03-17 | - |
 | 26. Intelligence Features | 4/4 | Complete    | 2026-03-17 | - |
-| 27. Search Quality Tuning | 7/7 | Complete   | 2026-03-17 | - |
+| 27. Search Quality Tuning | 7/7 | Complete    | 2026-03-17 | - |
 | 27.1. Smart Capture & Proactive Brain | 5/5 | Complete    | 2026-03-17 | - |
 | 28. TODO & Gap Resolution | v3.0 | 0/? | Not started | - |
 

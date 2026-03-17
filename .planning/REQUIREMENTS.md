@@ -29,7 +29,7 @@
 ### Engine / Logic (ENGL)
 
 - [x] **ENGL-01**: A single capture trigger captures all relevant new items in batch (not just the first)
-- [ ] **ENGL-02**: Search hybrid ranking tuned for improved relevance (RRF weights, query normalization)
+- [x] **ENGL-02**: Search hybrid ranking tuned for improved relevance (RRF weights, query normalization)
 - [x] **ENGL-03**: AI recap and action extraction quality improved (better prompts, deduplication, accuracy)
 - [x] **ENGL-04**: Brain health dashboard shows orphan notes, broken links, and potential duplicates
 - [x] **ENGL-05**: Brain health score visible via CLI (sb-health) or GUI
@@ -71,7 +71,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GUIF-01 | Phase 24 | Complete |
 | GUIF-02 | Phase 25 | Complete |
 | ENGL-01 | Phase 24 | Complete |
-| ENGL-02 | Phase 26 | Pending |
+| ENGL-02 | Phase 26 | Complete |
 | ENGL-03 | Phase 26 | Complete |
 | ENGL-04 | Phase 25 | Complete |
 | ENGL-05 | Phase 25 | Complete |
