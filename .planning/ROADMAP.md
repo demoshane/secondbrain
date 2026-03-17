@@ -50,7 +50,7 @@
 - [x] **Phase 25: File Capture + Batch Capture** — File upload from GUI; batch capture of unindexed items; watcher dedup guard (completed 2026-03-17)
 - [x] **Phase 26: Intelligence Features** — On-demand recap button, brain health dashboard, health score CLI (completed 2026-03-17)
 - [ ] **Phase 27: Search Quality Tuning** — BM25 column weight tuning, recency boost, AI recap quality improvements
-- [ ] **Phase 27.1: Smart Capture & Proactive Brain** — Entity extraction at capture time, dedup via embedding similarity, multi-capture, CLAUDE.md in repo, MCP tool self-documentation
+- [x] **Phase 27.1: Smart Capture & Proactive Brain** — Entity extraction at capture time, dedup via embedding similarity, multi-capture, CLAUDE.md in repo, MCP tool self-documentation (completed 2026-03-17)
 - [ ] **Phase 27.2: Action Items Page + Nav Scaffold** — Top tab bar (extensible), dedicated Action Items page, assignee picker with autocomplete, assignee_path on action_items, person note "My Actions" section
 - [ ] **Phase 27.3: UI/UX Overhaul** — Design system (typography, spacing, color tokens), visual consistency across all panels, dark mode polish
 - [ ] **Phase 27.4: People Page** — People directory, per-person view with meetings, action items, and backlinks
@@ -211,7 +211,7 @@ Plans:
 5. Each MCP tool returns a self-describing schema that agents can query
 
 **Requirements**: 27.1-SC-01, 27.1-SC-02, 27.1-SC-03, 27.1-SC-04, 27.1-SC-05
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 - [ ] 27.1-01-PLAN.md — Wave 0 test scaffolds (xfail stubs for all 27.1 behaviors)
@@ -252,7 +252,7 @@ Plans:
 | 25. File Capture + Batch Capture | 4/4 | Complete   | 2026-03-17 | - |
 | 26. Intelligence Features | 4/4 | Complete    | 2026-03-17 | - |
 | 27. Search Quality Tuning | v3.0 | 0/? | Not started | - |
-| 27.1. Smart Capture & Proactive Brain | 4/5 | In Progress|  | - |
+| 27.1. Smart Capture & Proactive Brain | 5/5 | Complete   | 2026-03-17 | - |
 | 28. TODO & Gap Resolution | v3.0 | 0/? | Not started | - |
 
 ### Phase 28: TODO & Gap Resolution
