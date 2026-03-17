@@ -152,4 +152,42 @@ def test_files_dir_excluded():
 
 class TestWatcherDedup:
     def test_dedup_skips_already_indexed(self, tmp_path, monkeypatch):
-        pytest.xfail("not implemented yet")
+        """_fire() skips 'created' events for paths already present in notes table."""
+        import sqlite3
+        from engine.db import init_schema
+
+        # Set up isolated DB with one pre-indexed note
+        db_file = tmp_path / "brain.db"
+        monkeypatch.setattr("engine.db.DB_PATH", db_file)
+        monkeypatch.setattr("engine.paths.DB_PATH", db_file)
+        monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+
+        conn = sqlite3.connect(str(db_file))
+        init_schema(conn)
+        note_path = str(tmp_path / "already-indexed.md")
+        conn.execute(
+            "INSERT INTO notes (path, title, type, body) VALUES (?, ?, ?, ?)",
+            (note_path, "Existing", "note", "content"),
+        )
+        conn.commit()
+        conn.close()
+
+        broadcast = MagicMock()
+
+        class _ImmediateTimer:
+            def __init__(self, interval, fn, args=()):
+                self._fn = fn
+                self._args = args
+
+            def cancel(self):
+                pass
+
+            def start(self):
+                self._fn(*self._args)
+
+        with patch("engine.watcher.threading.Timer", _ImmediateTimer), \
+             patch.dict(os.environ, {"BRAIN_PATH": str(tmp_path)}):
+            handler = NoteChangeHandler(broadcast)
+            handler.on_created(_FakeEvent(note_path))
+
+        broadcast.assert_not_called()
