@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27.2-02-PLAN.md
-last_updated: "2026-03-17T20:08:29.010Z"
+stopped_at: Completed 27.2-03-PLAN.md
+last_updated: "2026-03-17T20:30:06.594Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 11
   completed_phases: 9
   total_plans: 45
-  completed_plans: 43
+  completed_plans: 44
   percent: 99
 ---
 
@@ -86,6 +86,7 @@ Progress: [██████████] 99%
 | Phase 27-search-quality-tuning P07 | 15 | 2 tasks | 5 files |
 | Phase 27.2-action-items-page-nav-scaffold P01 | 7 | 2 tasks | 2 files |
 | Phase 27.2-action-items-page-nav-scaffold P02 | 6 | 2 tasks | 3 files |
+| Phase 27.2-action-items-page-nav-scaffold P03 | 5 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -180,6 +181,9 @@ Recent decisions affecting current work:
 - [Phase 27-search-quality-tuning]: [27-07] Session hook test checks ~/.claude/second-brain.md (@ imported file), not ~/.claude/CLAUDE.md
 - [Phase 27.2]: [27.2-01] xfail(strict=False) stubs for tab bar and action item filters — auto-promote to PASS once implementation ships
 - [Phase 27.2]: [27.2-02] migrate_add_assignee_path/due_date follow ALTER TABLE pattern; list_actions() assignee param conditional SQL; PUT /actions/<id> placed adjacent to POST /actions/<id>/done
+- [Phase 27.2-action-items-page-nav-scaffold]: [27.2-03] showView('notes') does NOT hide #right-panel; openNote() re-shows it to avoid permanent hide on tab switch-back
+- [Phase 27.2-action-items-page-nav-scaffold]: [27.2-03] Assignee picker source is _allNotes.filter(n => n.type === 'people') — no extra API call
+- [Phase 27.2-action-items-page-nav-scaffold]: [27.2-03] Tab bar height 36px; layout/actions-page use calc(100vh - 44px - 36px)
 
 ### Roadmap Evolution
 
@@ -203,8 +207,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-17T20:08:29.001Z
-Stopped at: Completed 27.2-02-PLAN.md
+Last session: 2026-03-17T20:29:59.518Z
+Stopped at: Completed 27.2-03-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
