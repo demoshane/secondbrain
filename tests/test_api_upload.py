@@ -99,7 +99,8 @@ class TestAttachmentsList:
         response = client.get("/notes/attachments?path=notes/test.md")
         assert response.status_code == 200
         data = response.get_json()
-        assert isinstance(data, list)
+        assert "attachments" in data
+        assert isinstance(data["attachments"], list)
 
 
 class TestBatchCapture:

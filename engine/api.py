@@ -525,7 +525,7 @@ def list_note_attachments():
 
     note_path = request.args.get("path", "")
     attachments = list_attachments(note_path)
-    return jsonify(attachments), 200
+    return jsonify({"attachments": attachments}), 200
 
 
 @app.post("/batch-capture")
