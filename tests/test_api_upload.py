@@ -1,9 +1,5 @@
 """
-Upload, attachment list, and batch capture test stubs — Wave 1 RED scaffolds.
-
-All tests are marked xfail(strict=False) because the endpoints they test
-do not yet exist.  Wave 2 will implement the production code; at that point
-the marks should be removed.
+Upload, attachment list, and batch capture tests — all endpoints implemented in Phase 25.
 """
 import io
 import sqlite3
@@ -39,7 +35,6 @@ def client(tmp_path, monkeypatch):
 
 
 class TestFileUpload:
-    @pytest.mark.xfail(strict=False, reason="not implemented yet")
     def test_upload_saves_file(self, client, tmp_path, monkeypatch):
         """POST /files/upload with a PDF — file is saved to the files/ dir."""
         monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
@@ -57,7 +52,6 @@ class TestFileUpload:
         saved = list((tmp_path / "files").glob("*.pdf"))
         assert len(saved) == 1
 
-    @pytest.mark.xfail(strict=False, reason="not implemented yet")
     def test_upload_inserts_attachment_row(self, client, tmp_path, monkeypatch):
         """POST /files/upload — a row is inserted into the attachments table."""
         monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
@@ -79,7 +73,6 @@ class TestFileUpload:
         conn.close()
         assert len(rows) == 1
 
-    @pytest.mark.xfail(strict=False, reason="not implemented yet")
     def test_upload_rejects_executable(self, client, tmp_path, monkeypatch):
         """POST /files/upload with an .exe MIME type — returns 415."""
         monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
@@ -100,7 +93,6 @@ class TestFileUpload:
 
 
 class TestAttachmentsList:
-    @pytest.mark.xfail(strict=False, reason="not implemented yet")
     def test_list_attachments(self, client, tmp_path, monkeypatch):
         """GET /notes/test.md/attachments — returns list of attachment dicts."""
         monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
@@ -111,7 +103,6 @@ class TestAttachmentsList:
 
 
 class TestBatchCapture:
-    @pytest.mark.xfail(strict=False, reason="not implemented yet")
     def test_batch_captures_unindexed(self, client, tmp_path, monkeypatch):
         """POST /batch-capture with an .md absent from DB — it appears in succeeded list."""
         monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
@@ -125,7 +116,6 @@ class TestBatchCapture:
         succeeded_paths = [r.get("path", r) for r in result.get("succeeded", [])]
         assert any("new-note.md" in str(p) for p in succeeded_paths)
 
-    @pytest.mark.xfail(strict=False, reason="not implemented yet")
     def test_batch_skips_indexed(self, client, tmp_path, monkeypatch):
         """POST /batch-capture with an .md already in notes table — NOT in succeeded."""
         monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
@@ -148,7 +138,6 @@ class TestBatchCapture:
         succeeded_paths = [r.get("path", r) for r in result.get("succeeded", [])]
         assert not any("existing-note.md" in str(p) for p in succeeded_paths)
 
-    @pytest.mark.xfail(strict=False, reason="not implemented yet")
     def test_batch_returns_structured_result(self, client, tmp_path, monkeypatch):
         """POST /batch-capture — response has 'succeeded' and 'failed' keys."""
         monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
