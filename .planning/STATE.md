@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 25-04-PLAN.md
-last_updated: "2026-03-17T08:39:51.553Z"
+stopped_at: Completed 26-01-PLAN.md
+last_updated: "2026-03-17T13:00:56.506Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 9
   completed_phases: 6
-  total_plans: 25
-  completed_plans: 25
+  total_plans: 29
+  completed_plans: 26
   percent: 99
 ---
 
@@ -68,6 +68,7 @@ Progress: [██████████] 99%
 | Phase 25-file-capture-batch-capture P02 | 8 | 2 tasks | 4 files |
 | Phase 25-file-capture-batch-capture P03 | 1 | 2 tasks | 2 files |
 | Phase 25-file-capture-batch-capture P04 | 25 | 6 tasks | 3 files |
+| Phase 26-intelligence-features P01 | 3 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -130,6 +131,8 @@ Recent decisions affecting current work:
 - [Phase 25-file-capture-batch-capture]: [25-04] _ensure_schema() in main() is the canonical fix for existing DBs missing new tables
 - [Phase 25-file-capture-batch-capture]: [25-04] SSE attachment event type for targeted list refresh without sidebar reload
 - [Phase 25-file-capture-batch-capture]: [25-04] Tag error guard: skip chips >60 chars or matching AI error sentence prefixes
+- [Phase 26-intelligence-features]: xfail(strict=False) used for stubs — auto-promotes to pass once Wave 2 ships, not skipped
+- [Phase 26-intelligence-features]: Local client fixture in test_brain_health.py patches both engine.db.DB_PATH and engine.paths.DB_PATH for isolation
 
 ### Roadmap Evolution
 
@@ -153,8 +156,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-17T08:39:51.546Z
-Stopped at: Completed 25-04-PLAN.md
+Last session: 2026-03-17T13:00:56.498Z
+Stopped at: Completed 26-01-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)

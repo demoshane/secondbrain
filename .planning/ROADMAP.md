@@ -169,9 +169,17 @@ Plans:
 ### Phase 26: Intelligence Features
 **Goal**: Users can trigger a weekly recap on demand from the GUI and view a brain health dashboard showing orphans, broken links, duplicates, and a health score
 **Requirements**: GUIF-02, ENGL-03, ENGL-04, ENGL-05
+**Plans:** 1/4 plans executed
+
+Plans:
+- [ ] 26-01-PLAN.md — Wave 1: test scaffolds (xfail stubs for all Phase 26 behaviors)
+- [ ] 26-02-PLAN.md — Wave 2: recap backend — generate_recap_on_demand(), action item dedup, digest column fix, POST /intelligence/recap
+- [ ] 26-03-PLAN.md — Wave 2: brain health backend — engine/brain_health.py, GET /brain-health, sb-health --brain
+- [ ] 26-04-PLAN.md — Wave 3: frontend — recap button + health panel in GUI + human verify
+
 **Success criteria**:
 1. The Intelligence panel has a "Generate Recap" button; clicking it shows a spinner and then displays the generated recap
-2. `sb-health` CLI command reports a 0-100 brain health score with counts of orphan notes, broken links, and potential duplicates
+2. `sb-health --brain` reports a 0-100 brain health score with counts of orphan notes, broken links, and potential duplicates
 3. The GUI health panel displays the same score and check results with a clear "no issues found" vs "N issues" distinction
 4. AI recap and action extraction produce deduplicated, accurate output (no repeated items across consecutive recaps)
 
@@ -213,7 +221,7 @@ Plans:
 | 23. Navigation Polish | 4/4 | Complete    | 2026-03-16 | - |
 | 24. Playwright GUI Test Suite | 4/4 | Complete    | 2026-03-16 | - |
 | 25. File Capture + Batch Capture | 4/4 | Complete   | 2026-03-17 | - |
-| 26. Intelligence Features | v3.0 | 0/? | Not started | - |
+| 26. Intelligence Features | 1/4 | In Progress|  | - |
 | 27. Search Quality Tuning | v3.0 | 0/? | Not started | - |
 | 28. TODO & Gap Resolution | v3.0 | 0/? | Not started | - |
 

@@ -23,16 +23,16 @@
 
 ### GUI Features (GUIF)
 
-- [ ] **GUIF-01**: User can capture a file from the GUI or by pointing sb-capture at an external file path (e.g., a presentation created by Claude Code); file saved to files/ and indexed
-- [ ] **GUIF-02**: User can trigger on-demand weekly recap generation from the Intelligence panel
+- [x] **GUIF-01**: User can capture a file from the GUI or by pointing sb-capture at an external file path (e.g., a presentation created by Claude Code); file saved to files/ and indexed
+- [x] **GUIF-02**: User can trigger on-demand weekly recap generation from the Intelligence panel
 
 ### Engine / Logic (ENGL)
 
-- [ ] **ENGL-01**: A single capture trigger captures all relevant new items in batch (not just the first)
+- [x] **ENGL-01**: A single capture trigger captures all relevant new items in batch (not just the first)
 - [ ] **ENGL-02**: Search hybrid ranking tuned for improved relevance (RRF weights, query normalization)
-- [ ] **ENGL-03**: AI recap and action extraction quality improved (better prompts, deduplication, accuracy)
-- [ ] **ENGL-04**: Brain health dashboard shows orphan notes, broken links, and potential duplicates
-- [ ] **ENGL-05**: Brain health score visible via CLI (sb-health) or GUI
+- [x] **ENGL-03**: AI recap and action extraction quality improved (better prompts, deduplication, accuracy)
+- [x] **ENGL-04**: Brain health dashboard shows orphan notes, broken links, and potential duplicates
+- [x] **ENGL-05**: Brain health score visible via CLI (sb-health) or GUI
 
 ## Future Requirements (v4.0)
 
@@ -68,13 +68,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GNAV-01 | Phase 23 | Complete |
 | GNAV-02 | Phase 23 | Complete |
 | GNAV-03 | Phase 23 | Complete |
-| GUIF-01 | Phase 24 | Pending |
-| GUIF-02 | Phase 25 | Pending |
-| ENGL-01 | Phase 24 | Pending |
+| GUIF-01 | Phase 24 | Complete |
+| GUIF-02 | Phase 25 | Complete |
+| ENGL-01 | Phase 24 | Complete |
 | ENGL-02 | Phase 26 | Pending |
-| ENGL-03 | Phase 26 | Pending |
-| ENGL-04 | Phase 25 | Pending |
-| ENGL-05 | Phase 25 | Pending |
+| ENGL-03 | Phase 26 | Complete |
+| ENGL-04 | Phase 25 | Complete |
+| ENGL-05 | Phase 25 | Complete |
 
 **Coverage:**
 - v3.0 requirements: 16 total
