@@ -690,11 +690,12 @@ function showConflictBanner(path) {
 }
 
 function handleNoteEvent({ type, path, note_path }) {
-    // Attachment event: refresh attachment list for the current note if it matches
+    // Attachment event: refresh attachment list + sidebar (file may appear as new item)
     if (type === 'attachment') {
         if (currentPath && (currentPath === note_path || (note_path && currentPath.endsWith('/' + note_path)))) {
             loadAttachments(currentPath);
         }
+        loadNotes();
         return;
     }
 

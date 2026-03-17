@@ -604,8 +604,12 @@ def get_intelligence():
     return jsonify({"recap": None, "nudges": nudges})
 
 
-def _ensure_schema() -> None:
-    """Run DB migrations on startup so new tables (e.g. attachments) exist on existing DBs."""
+def startup() -> None:
+    """Pre-serve initialization. Call before serve() in any startup path.
+
+    Runs all DB migrations so existing databases pick up new tables
+    (e.g. attachments) without requiring a manual schema reset.
+    """
     from engine.db import init_schema
     conn = get_connection()
     try:
@@ -616,7 +620,7 @@ def _ensure_schema() -> None:
 
 def main():
     from waitress import serve
-    _ensure_schema()
+    startup()
     obs = start_note_observer()
     try:
         serve(app, host="127.0.0.1", port=37491, threads=8)
