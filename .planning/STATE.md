@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 26-04-PLAN.md
-last_updated: "2026-03-17T15:04:38.176Z"
+stopped_at: Completed 27.1-01-PLAN.md
+last_updated: "2026-03-17T16:19:39.612Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
-  total_phases: 9
+  total_phases: 10
   completed_phases: 7
-  total_plans: 29
-  completed_plans: 29
+  total_plans: 34
+  completed_plans: 30
   percent: 99
 ---
 
@@ -72,6 +72,7 @@ Progress: [██████████] 99%
 | Phase 26 P02 | 4 | 2 tasks | 3 files |
 | Phase 26-intelligence-features P03 | 10 | 2 tasks | 3 files |
 | Phase 26-intelligence-features P04 | 25 | 1 tasks | 2 files |
+| Phase 27.1 P01 | 4 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -142,6 +143,7 @@ Recent decisions affecting current work:
 - [Phase 26-intelligence-features]: GET /brain-health always returns 200 with score; 500 only on unexpected exception
 - [Phase 26-04]: loadBrainHealth() called at page init alongside loadIntelligence() — both auto-populate on load without user action
 - [Phase 26-04]: generateRecap() restores previous recap text on network error rather than showing empty panel
+- [Phase 27.1]: xfail(strict=False) chosen for 27.1 stubs — auto-promotes to PASS once Wave 2 ships; test_mcp.py stubs use direct mcp_mod.* calls matching existing file style
 
 ### Roadmap Evolution
 
@@ -165,8 +167,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-17T15:04:38.169Z
-Stopped at: Completed 26-04-PLAN.md
+Last session: 2026-03-17T16:19:39.603Z
+Stopped at: Completed 27.1-01-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)

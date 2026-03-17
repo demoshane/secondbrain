@@ -50,6 +50,15 @@
 - [x] **Phase 25: File Capture + Batch Capture** — File upload from GUI; batch capture of unindexed items; watcher dedup guard (completed 2026-03-17)
 - [x] **Phase 26: Intelligence Features** — On-demand recap button, brain health dashboard, health score CLI (completed 2026-03-17)
 - [ ] **Phase 27: Search Quality Tuning** — BM25 column weight tuning, recency boost, AI recap quality improvements
+- [ ] **Phase 27.1: Smart Capture & Proactive Brain** — Entity extraction at capture time, dedup via embedding similarity, multi-capture, CLAUDE.md in repo, MCP tool self-documentation
+- [ ] **Phase 27.2: Action Items Page + Nav Scaffold** — Top tab bar (extensible), dedicated Action Items page, assignee picker with autocomplete, assignee_path on action_items, person note "My Actions" section
+- [ ] **Phase 27.3: UI/UX Overhaul** — Design system (typography, spacing, color tokens), visual consistency across all panels, dark mode polish
+- [ ] **Phase 27.4: People Page** — People directory, per-person view with meetings, action items, and backlinks
+- [ ] **Phase 27.5: Meetings Page** — Chronological meeting log, participants, outcomes, linked action items
+- [ ] **Phase 27.6: Projects Page** — Project status tracking, related notes, open action items per project
+- [ ] **Phase 27.7: Intelligence Page** — Promote recap, brain health, digest from sidebar panel to full dedicated page
+- [ ] **Phase 27.8: Inbox Page** — Review queue: empty notes, unprocessed captures, unassigned action items
+- [ ] **Phase 27.9: Graph View** — Visual knowledge map, nodes = notes, edges = relationships, zoomable/filterable
 
 ### Phase Details
 
@@ -172,7 +181,7 @@ Plans:
 **Plans:** 4/4 plans complete
 
 Plans:
-- [ ] 26-01-PLAN.md — Wave 1: test scaffolds (xfail stubs for all Phase 26 behaviors)
+- [x] 26-01-PLAN.md — Wave 1: test scaffolds (xfail stubs for all Phase 26 behaviors) (completed 2026-03-17)
 - [ ] 26-02-PLAN.md — Wave 2: recap backend — generate_recap_on_demand(), action item dedup, digest column fix, POST /intelligence/recap
 - [ ] 26-03-PLAN.md — Wave 2: brain health backend — engine/brain_health.py, GET /brain-health, sb-health --brain
 - [ ] 26-04-PLAN.md — Wave 3: frontend — recap button + health panel in GUI + human verify
@@ -190,6 +199,26 @@ Plans:
 1. An exact title search returns the matching note as the first result
 2. A semantic search for a topic returns contextually relevant notes above unrelated ones
 3. A fixed regression suite of at least 5 precision queries and 5 recall queries all pass before any RRF parameter is changed
+
+### Phase 27.1: Smart Capture & Proactive Brain
+**Goal**: Enrich every captured note with extracted entities at write time, deduplicate incoming notes via embedding similarity before saving, support multi-note capture in one call, document the project in CLAUDE.md, and expose MCP tool self-documentation so agents know what tools are available
+**Depends on:** Phase 27
+**Success criteria**:
+1. Capturing a note automatically extracts and stores entities (people, places, topics) in its metadata
+2. Capturing a near-duplicate note warns the user and requires confirmation before saving
+3. A single MCP call can capture multiple notes atomically
+4. A CLAUDE.md exists at the repo root with accurate project context
+5. Each MCP tool returns a self-describing schema that agents can query
+
+**Requirements**: 27.1-SC-01, 27.1-SC-02, 27.1-SC-03, 27.1-SC-04, 27.1-SC-05
+**Plans:** 1/5 plans executed
+
+Plans:
+- [ ] 27.1-01-PLAN.md — Wave 0 test scaffolds (xfail stubs for all 27.1 behaviors)
+- [ ] 27.1-02-PLAN.md — Entity extraction: engine/entities.py + DB migration + capture_note() enrichment
+- [ ] 27.1-03-PLAN.md — Dedup check: check_capture_dedup() + sb_capture dedup + confirm_token flow
+- [ ] 27.1-04-PLAN.md — sb_capture_batch() + sb_tools() MCP tools
+- [ ] 27.1-05-PLAN.md — CLAUDE.md at repo root
 
 ## Progress
 
@@ -221,14 +250,14 @@ Plans:
 | 23. Navigation Polish | 4/4 | Complete    | 2026-03-16 | - |
 | 24. Playwright GUI Test Suite | 4/4 | Complete    | 2026-03-16 | - |
 | 25. File Capture + Batch Capture | 4/4 | Complete   | 2026-03-17 | - |
-| 26. Intelligence Features | 4/4 | Complete   | 2026-03-17 | - |
+| 26. Intelligence Features | 4/4 | Complete    | 2026-03-17 | - |
 | 27. Search Quality Tuning | v3.0 | 0/? | Not started | - |
+| 27.1. Smart Capture & Proactive Brain | 1/5 | In Progress|  | - |
 | 28. TODO & Gap Resolution | v3.0 | 0/? | Not started | - |
 
 ### Phase 28: TODO & Gap Resolution
 
 **Goal:** All open TODOs, known gaps, and deferred issues identified at phase start are resolved before the milestone is closed
-**Requirements**: TBD
 **Depends on:** Phase 27
 **Plans:** 0 plans
 
