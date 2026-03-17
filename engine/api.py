@@ -700,6 +700,45 @@ def intelligence_recap():
         conn.close()
 
 
+@app.get("/brain-health")
+def brain_health_endpoint():
+    """Brain content health dashboard: orphans, broken links, duplicates, score."""
+    import sqlite3 as _sqlite3
+    conn = get_connection()
+    conn.row_factory = _sqlite3.Row
+    try:
+        from engine.brain_health import (
+            get_orphan_notes,
+            get_duplicate_candidates,
+            compute_health_score,
+        )
+        from engine.links import check_links
+        from engine.paths import BRAIN_ROOT
+        total = conn.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
+        orphans = get_orphan_notes(conn)
+        broken = check_links(BRAIN_ROOT, conn)
+        duplicates = get_duplicate_candidates(conn)
+        score = compute_health_score(
+            total_notes=total,
+            orphans=len(orphans),
+            broken=len(broken),
+            duplicates=len(duplicates),
+        )
+        return jsonify(
+            {
+                "score": score,
+                "total_notes": total,
+                "orphans": orphans[:20],
+                "broken_links": broken[:20],
+                "duplicate_candidates": duplicates[:20],
+            }
+        )
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+    finally:
+        conn.close()
+
+
 def startup() -> None:
     """Pre-serve initialization. Call before serve() in any startup path.
 
