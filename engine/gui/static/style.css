@@ -177,6 +177,17 @@ body { margin: 0; font-family: system-ui, -apple-system, sans-serif; font-size: 
     background: #3a3a3a;
 }
 
+.person-chip {
+    cursor: pointer;
+    padding: 2px 6px;
+    background: #e8f4f8;
+    border-radius: 4px;
+    display: inline-block;
+    margin: 2px;
+    font-size: 0.85em;
+}
+.person-chip:hover { background: #c8e4f0; }
+
 .tag-chip-input {
     padding: 0.2em 0.5em;
     border: 1px solid #2c6fcf;

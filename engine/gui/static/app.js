@@ -590,13 +590,31 @@ async function runSearch(query) {
 async function loadMeta(path) {
     const res = await fetch(`${API}/notes/${encodeURIComponent(path)}/meta`);
     if (!res.ok) return;
-    const { backlinks, related } = await res.json();
+    const { backlinks, related, people } = await res.json();
     const bl = document.getElementById('backlinks-list');
     bl.innerHTML = backlinks.map(n => `<li data-path="${n.path}">${n.title || n.path}</li>`).join('') || '<li><em>None</em></li>';
     bl.querySelectorAll('li[data-path]').forEach(li => li.addEventListener('click', () => openNote(li.dataset.path)));
     const rl = document.getElementById('related-list');
     rl.innerHTML = related.map(n => `<li data-path="${n.path || n}">${n.title || n.path || n}</li>`).join('') || '<li><em>None</em></li>';
     rl.querySelectorAll('li[data-path]').forEach(li => li.addEventListener('click', () => openNote(li.dataset.path)));
+    const peopleList = document.getElementById('people-list');
+    if (peopleList) {
+        const peopleArr = people || [];
+        peopleList.innerHTML = peopleArr.length
+            ? peopleArr.map(name =>
+                `<li class="person-chip" data-name="${name}">${name}</li>`
+              ).join('')
+            : '<li class="none"><em>None</em></li>';
+        peopleList.querySelectorAll('.person-chip').forEach(li => {
+            li.addEventListener('click', () => {
+                const nameLower = li.dataset.name.toLowerCase();
+                const match = (_allNotes || []).find(n =>
+                    n.type === 'people' && n.title.toLowerCase() === nameLower
+                );
+                if (match) openNote(match.path);
+            });
+        });
+    }
 }
 
 // --- Action items panel ---
@@ -659,14 +677,16 @@ async function loadBrainHealth() {
         // Color coding: >=80 green, >=50 amber, <50 red
         const color = score >= 80 ? '#2d9e2d' : score >= 50 ? '#e6a817' : '#c0392b';
         scoreEl.innerHTML = `<span style="font-size:1.4em;font-weight:bold;color:${color}">${score}/100</span>`;
-        const orphanCount = (data.orphans || []).length;
-        const brokenCount = (data.broken_links || []).length;
-        const dupCount = (data.duplicate_candidates || []).length;
+        const emptyCount = data.empty_count ?? 0;
+        const brokenCount = data.broken_link_count ?? (data.broken_links || []).length;
+        const dupCount = data.duplicate_count ?? (data.duplicate_candidates || []).length;
+        const orphanCount = data.orphan_count ?? (data.orphans || []).length;
         detailsEl.innerHTML = [
-            orphanCount === 0 ? '\u2713 No orphan notes' : `\u26a0 ${orphanCount} orphan note${orphanCount !== 1 ? 's' : ''}`,
+            emptyCount === 0 ? '\u2713 No empty notes' : `\u26a0 ${emptyCount} empty note${emptyCount !== 1 ? 's' : ''} (captured, never filled)`,
             brokenCount === 0 ? '\u2713 No broken links' : `\u26a0 ${brokenCount} broken link${brokenCount !== 1 ? 's' : ''}`,
             dupCount === 0 ? '\u2713 No duplicate candidates' : `\u26a0 ${dupCount} duplicate pair${dupCount !== 1 ? 's' : ''}`,
-        ].map(line => `<div>${line}</div>`).join('');
+            orphanCount === 0 ? '' : `<span style="color:#888;font-size:0.9em">${orphanCount} unlinked note${orphanCount !== 1 ? 's' : ''} (informational)</span>`,
+        ].filter(Boolean).map(line => `<div>${line}</div>`).join('');
     } catch (e) {
         scoreEl.textContent = 'Health check unavailable.';
     }
