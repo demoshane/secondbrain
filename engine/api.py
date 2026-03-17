@@ -424,8 +424,12 @@ def note_meta(note_path):
     if title_row:
         related_rows = search_notes(conn, title_row["title"])
         related = [r for r in related_rows if r.get("path") != str(p)][:5]
+    people_row = conn.execute(
+        "SELECT people FROM notes WHERE path=?", (str(p),)
+    ).fetchone()
+    people = json.loads(people_row[0]) if people_row and people_row[0] else []
     conn.close()
-    return jsonify({"backlinks": backlinks, "related": related})
+    return jsonify({"backlinks": backlinks, "related": related, "people": people})
 
 
 @app.get("/files")
@@ -709,6 +713,7 @@ def brain_health_endpoint():
     try:
         from engine.brain_health import (
             get_orphan_notes,
+            get_empty_notes,
             get_duplicate_candidates,
             compute_health_score,
         )
@@ -716,11 +721,12 @@ def brain_health_endpoint():
         from engine.paths import BRAIN_ROOT
         total = conn.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
         orphans = get_orphan_notes(conn)
+        empty = get_empty_notes(conn)
         broken = check_links(BRAIN_ROOT, conn)
         duplicates = get_duplicate_candidates(conn)
         score = compute_health_score(
             total_notes=total,
-            orphans=len(orphans),
+            empty=len(empty),
             broken=len(broken),
             duplicates=len(duplicates),
         )
@@ -728,8 +734,13 @@ def brain_health_endpoint():
             {
                 "score": score,
                 "total_notes": total,
+                "orphan_count": len(orphans),
                 "orphans": orphans[:20],
+                "empty_count": len(empty),
+                "empty_notes": empty[:20],
+                "broken_link_count": len(broken),
                 "broken_links": broken[:20],
+                "duplicate_count": len(duplicates),
                 "duplicate_candidates": duplicates[:20],
             }
         )
