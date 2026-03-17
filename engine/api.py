@@ -234,9 +234,11 @@ def read_note(note_path):
 
 @app.get("/actions")
 def get_actions():
+    done = request.args.get("done", "0") == "1"
+    assignee = request.args.get("assignee") or None
     conn = get_connection()
     conn.row_factory = sqlite3.Row
-    actions = list_actions(conn, done=False)
+    actions = list_actions(conn, done=done, assignee=assignee)
     conn.close()
     return jsonify({"actions": actions})
 
@@ -674,6 +676,21 @@ def action_done(action_id):
     conn.commit()
     conn.close()
     return jsonify({"done": True, "id": action_id})
+
+
+@app.put("/actions/<int:action_id>")
+def update_action(action_id):
+    """Update action item fields. Currently supports: assignee_path."""
+    data = request.get_json(force=True)
+    conn = get_connection()
+    if "assignee_path" in data:
+        conn.execute(
+            "UPDATE action_items SET assignee_path=? WHERE id=?",
+            (data["assignee_path"], action_id),
+        )
+    conn.commit()
+    conn.close()
+    return jsonify({"updated": True, "id": action_id})
 
 
 @app.get("/intelligence")
