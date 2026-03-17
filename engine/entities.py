@@ -18,10 +18,13 @@ def extract_entities(title: str, body: str) -> dict:
         All lists are deduplicated and sorted.
     """
     try:
-        text = f"{title or ''} {body or ''}"
-        people = _extract_people(text)
-        topics = _extract_topics(text)
-        places = _extract_places(text, people)
+        # Process title and body separately to avoid cross-boundary bigrams
+        # (e.g. "... Wonderland" title + "Alice ..." body must not yield "Wonderland Alice")
+        title_text = title or ""
+        body_text = body or ""
+        people = list(set(_extract_people(title_text)) | set(_extract_people(body_text)))
+        topics = list(set(_extract_topics(title_text)) | set(_extract_topics(body_text)))
+        places = list(set(_extract_places(title_text, people)) | set(_extract_places(body_text, people)))
         return {
             "people": sorted(set(people)),
             "places": sorted(set(places)),

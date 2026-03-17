@@ -78,10 +78,15 @@ DROP TABLE IF EXISTS audit_log;
 """
 
 
-def get_connection() -> sqlite3.Connection:
-    """Open a connection to the brain SQLite database."""
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH), timeout=5)
+def get_connection(db_path: str | None = None) -> sqlite3.Connection:
+    """Open a connection to the brain SQLite database.
+
+    Args:
+        db_path: Optional path string to override DB_PATH (useful in tests).
+    """
+    path = Path(db_path) if db_path is not None else DB_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(path), timeout=5)
     conn.execute("PRAGMA journal_mode=WAL")
     return conn
 
@@ -91,6 +96,14 @@ def migrate_add_people_column(conn: sqlite3.Connection) -> None:
     cols = {row[1] for row in conn.execute("PRAGMA table_info(notes)").fetchall()}
     if "people" not in cols:
         conn.execute("ALTER TABLE notes ADD COLUMN people TEXT NOT NULL DEFAULT '[]'")
+        conn.commit()
+
+
+def migrate_add_entities_column(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: add 'entities' TEXT column to notes if absent."""
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(notes)").fetchall()}
+    if "entities" not in cols:
+        conn.execute("ALTER TABLE notes ADD COLUMN entities TEXT NOT NULL DEFAULT '{}'")
         conn.commit()
 
 
@@ -134,5 +147,6 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
 
     conn.executescript(SCHEMA_SQL)
     migrate_add_people_column(conn)
+    migrate_add_entities_column(conn)
     migrate_add_action_items_table(conn)
     migrate_add_attachments_table(conn)

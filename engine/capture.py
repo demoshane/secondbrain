@@ -120,6 +120,13 @@ def write_note_atomic(
             ),
         )
         log_audit(conn, "create", resolved_path)
+        # Store entities in DB column if present in post (best-effort)
+        entities_val = post.get("entities")
+        if entities_val is not None:
+            conn.execute(
+                "UPDATE notes SET entities = ? WHERE path = ?",
+                (json.dumps(entities_val), resolved_path),
+            )
         conn.commit()
 
         # Phase 3: atomic rename — only after DB commit succeeds
@@ -144,7 +151,7 @@ def write_note_atomic(
 def main(argv=None) -> None:
     """CLI entry point for sb-capture."""
     import argparse
-    from engine.db import get_connection, init_schema, migrate_add_people_column
+    from engine.db import get_connection, init_schema, migrate_add_people_column, migrate_add_entities_column
 
     parser = argparse.ArgumentParser(description="Capture a note into the second brain")
     parser.add_argument(
@@ -180,6 +187,7 @@ def main(argv=None) -> None:
     conn = get_connection()
     init_schema(conn)
     migrate_add_people_column(conn)
+    migrate_add_entities_column(conn)
 
     # AI-01: Ask 2-3 follow-up questions (best-effort, never blocks capture)
     try:
@@ -248,6 +256,13 @@ def capture_note(
         counter += 1
 
     post = build_post(note_type, title, body, tags, people, content_sensitivity)
+    # Entity enrichment: best-effort, never blocks capture
+    try:
+        from engine.entities import extract_entities
+        entities = extract_entities(post.get("title", ""), post.content)
+        post["entities"] = entities
+    except Exception:
+        post["entities"] = {"people": [], "places": [], "topics": []}
     write_note_atomic(target, post, conn)
 
     # Auto-backlink: update referenced people's profiles
