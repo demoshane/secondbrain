@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: "Checkpoint: 27-07 Task 2 human-verify — awaiting GUI approval"
-last_updated: "2026-03-17T18:44:26.521Z"
+stopped_at: Completed 27-07-PLAN.md — Phase 27 sign-off complete
+last_updated: "2026-03-17T18:51:43.991Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 10
@@ -83,7 +83,7 @@ Progress: [██████████] 99%
 | Phase 27-search-quality-tuning P02 | 4 | 2 tasks | 2 files |
 | Phase 27 P05 | 8 | 2 tasks | 2 files |
 | Phase 27-search-quality-tuning P03 | 22 | 2 tasks | 5 files |
-| Phase 27-search-quality-tuning P07 | 15 | 1 tasks | 5 files |
+| Phase 27-search-quality-tuning P07 | 15 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -183,10 +183,10 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-- Fix sb-recap returning nothing despite existing entries (general)
-- Fix sb_edit wiping YAML frontmatter (general)
-- Link persons to notes in sidebar (ui)
 - Audit and improve context detection on capture (general)
+- ~~Fix sb-recap returning nothing despite existing entries~~ — resolved Phase 27-03
+- ~~Fix sb_edit wiping YAML frontmatter~~ — resolved Phase 27-03
+- ~~Link persons to notes in sidebar~~ — resolved Phase 27-04
 
 ### Blockers/Concerns
 
@@ -199,8 +199,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-17T18:44:26.512Z
-Stopped at: Checkpoint: 27-07 Task 2 human-verify — awaiting GUI approval
+Last session: 2026-03-17T18:51:43.981Z
+Stopped at: Completed 27-07-PLAN.md — Phase 27 sign-off complete
 Resume file: None
 
 ## TODOs (for Phase 27)
