@@ -138,6 +138,82 @@ class TestActionItems:
         response = client.get("/actions")
         assert "actions" in response.get_json()
 
+    @pytest.mark.xfail(strict=False, reason="GPAG-02: done filter not yet implemented")
+    def test_actions_filter_done_param(self, client):
+        """GET /actions?done=1 returns only items with done=1."""
+        response = client.get("/actions?done=1")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "actions" in data
+        for item in data["actions"]:
+            assert item["done"] == 1
+
+    @pytest.mark.xfail(strict=False, reason="GPAG-02: assignee filter not yet implemented")
+    def test_actions_filter_assignee(self, client):
+        """GET /actions?assignee=people/alice.md returns only items with that assignee_path."""
+        from engine.db import get_connection
+        conn = get_connection()
+        conn.execute(
+            "INSERT INTO action_items (note_path, body, done, assignee_path)"
+            " VALUES (?, ?, 0, ?)",
+            ("notes/test.md", "Test action for alice", "people/alice.md"),
+        )
+        conn.commit()
+        conn.close()
+
+        response = client.get("/actions?assignee=people/alice.md")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "actions" in data
+        paths = [item.get("assignee_path") for item in data["actions"]]
+        assert "people/alice.md" in paths
+        for item in data["actions"]:
+            assert item.get("assignee_path") == "people/alice.md"
+
+    @pytest.mark.xfail(strict=False, reason="GPAG-02: PUT /actions/<id> not yet implemented")
+    def test_action_assign(self, client):
+        """PUT /actions/<id> with assignee_path returns {"updated": True}."""
+        from engine.db import get_connection
+        conn = get_connection()
+        cursor = conn.execute(
+            "INSERT INTO action_items (note_path, body, done) VALUES (?, ?, 0)",
+            ("notes/test-assign.md", "Action to assign"),
+        )
+        item_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        response = client.put(f"/actions/{item_id}", json={"assignee_path": "people/alice.md"})
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data.get("updated") is True
+
+    @pytest.mark.xfail(strict=False, reason="GPAG-02: my-actions filter not yet implemented")
+    def test_my_actions(self, client):
+        """GET /actions?assignee=people/alice.md&done=0 excludes done items."""
+        from engine.db import get_connection
+        conn = get_connection()
+        conn.execute(
+            "INSERT INTO action_items (note_path, body, done, assignee_path)"
+            " VALUES (?, ?, 0, ?)",
+            ("notes/my-actions-open.md", "Open action for alice", "people/alice.md"),
+        )
+        conn.execute(
+            "INSERT INTO action_items (note_path, body, done, assignee_path)"
+            " VALUES (?, ?, 1, ?)",
+            ("notes/my-actions-done.md", "Done action for alice", "people/alice.md"),
+        )
+        conn.commit()
+        conn.close()
+
+        response = client.get("/actions?assignee=people/alice.md&done=0")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "actions" in data
+        for item in data["actions"]:
+            assert item.get("done") == 0
+            assert item.get("assignee_path") == "people/alice.md"
+
 
 @pytest.fixture
 def tmp_note_pair(tmp_path, monkeypatch):
@@ -315,3 +391,11 @@ class TestNoteMeta:
         assert str(note_lower) in backlink_paths, (
             f"Expected note_lower ({note_lower}) in backlinks (case-insensitive), got: {backlink_paths}"
         )
+
+
+class TestTabBar:
+    @pytest.mark.xfail(strict=False, reason="GPAG-01: tab bar not yet implemented")
+    def test_tab_bar_html(self, client):
+        r = client.get("/ui")
+        assert r.status_code == 200
+        assert b'id="tab-bar"' in r.data
