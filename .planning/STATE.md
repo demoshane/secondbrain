@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27.2-03-PLAN.md
-last_updated: "2026-03-17T20:30:06.594Z"
+stopped_at: Completed 27.2-04-PLAN.md
+last_updated: "2026-03-17T21:15:00.000Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 11
@@ -87,6 +87,7 @@ Progress: [██████████] 99%
 | Phase 27.2-action-items-page-nav-scaffold P01 | 7 | 2 tasks | 2 files |
 | Phase 27.2-action-items-page-nav-scaffold P02 | 6 | 2 tasks | 3 files |
 | Phase 27.2-action-items-page-nav-scaffold P03 | 5 | 2 tasks | 3 files |
+| Phase 27.2-action-items-page-nav-scaffold P04 | 8 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -184,6 +185,9 @@ Recent decisions affecting current work:
 - [Phase 27.2-action-items-page-nav-scaffold]: [27.2-03] showView('notes') does NOT hide #right-panel; openNote() re-shows it to avoid permanent hide on tab switch-back
 - [Phase 27.2-action-items-page-nav-scaffold]: [27.2-03] Assignee picker source is _allNotes.filter(n => n.type === 'people') — no extra API call
 - [Phase 27.2-action-items-page-nav-scaffold]: [27.2-03] Tab bar height 36px; layout/actions-page use calc(100vh - 44px - 36px)
+- [Phase 27.2-action-items-page-nav-scaffold]: [27.2-04] PUT /actions/<id> extended to accept done field — done checkbox change handler checks cb.checked to reopen or close
+- [Phase 27.2-action-items-page-nav-scaffold]: [27.2-04] openAssigneePicker() fetches GET /notes fresh for people list — avoids stale _allNotes cache causing missing people in picker
+- [Phase 27.2-action-items-page-nav-scaffold]: [27.2-04] sel.showPicker() with try/catch fallback auto-opens native select on first click; degrades to focus() gracefully
 
 ### Roadmap Evolution
 
@@ -208,7 +212,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-03-17T20:29:59.518Z
-Stopped at: Completed 27.2-03-PLAN.md
+Stopped at: Completed 27.2-04-PLAN.md (Phase 27.2 complete)
 Resume file: None
 
 ## TODOs (for Phase 27)

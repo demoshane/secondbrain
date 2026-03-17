@@ -51,7 +51,7 @@
 - [x] **Phase 26: Intelligence Features** — On-demand recap button, brain health dashboard, health score CLI (completed 2026-03-17)
 - [x] **Phase 27: Search Quality Tuning** — BM25 column weight tuning, recency boost, AI recap quality improvements (completed 2026-03-17)
 - [x] **Phase 27.1: Smart Capture & Proactive Brain** — Entity extraction at capture time, dedup via embedding similarity, multi-capture, CLAUDE.md in repo, MCP tool self-documentation (completed 2026-03-17)
-- [ ] **Phase 27.2: Action Items Page + Nav Scaffold** — Top tab bar (extensible), dedicated Action Items page, assignee picker with autocomplete, assignee_path on action_items, person note "My Actions" section
+- [x] **Phase 27.2: Action Items Page + Nav Scaffold** — Top tab bar (extensible), dedicated Action Items page, assignee picker with autocomplete, assignee_path on action_items, person note "My Actions" section (completed 2026-03-17)
 - [ ] **Phase 27.3: UI/UX Overhaul** — Design system (typography, spacing, color tokens), visual consistency across all panels, dark mode polish
 - [ ] **Phase 27.4: People Page** — People directory, per-person view with meetings, action items, and backlinks
 - [ ] **Phase 27.5: Meetings Page** — Chronological meeting log, participants, outcomes, linked action items
@@ -245,13 +245,13 @@ Plans:
 4. Opening a person note shows a "My Actions" section listing all action items where assignee_path matches that note
 
 **Requirements**: GPAG-01, GPAG-02, GPAG-03, GPAG-04
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans executed
 
 Plans:
-- [ ] 27.2-01-PLAN.md — Wave 0: xfail test scaffolds (TestTabBar, filter/assign/my-actions stubs, DB migration stubs)
-- [ ] 27.2-02-PLAN.md — Wave 1: DB migrations (assignee_path, due_date) + backend API extensions
-- [ ] 27.2-03-PLAN.md — Wave 2: frontend tab bar, Actions page, assignee picker, My Actions section
-- [ ] 27.2-04-PLAN.md — Wave 3: full suite sign-off + human verify
+- [x] 27.2-01-PLAN.md — Wave 0: xfail test scaffolds (TestTabBar, filter/assign/my-actions stubs, DB migration stubs)
+- [x] 27.2-02-PLAN.md — Wave 1: DB migrations (assignee_path, due_date) + backend API extensions
+- [x] 27.2-03-PLAN.md — Wave 2: frontend tab bar, Actions page, assignee picker, My Actions section
+- [x] 27.2-04-PLAN.md — Wave 3: full suite sign-off + human verify + bug fixes
 
 ## Progress
 
@@ -286,7 +286,7 @@ Plans:
 | 26. Intelligence Features | 4/4 | Complete    | 2026-03-17 | - |
 | 27. Search Quality Tuning | 7/7 | Complete    | 2026-03-17 | - |
 | 27.1. Smart Capture & Proactive Brain | 5/5 | Complete    | 2026-03-17 | - |
-| 27.2. Action Items Page + Nav Scaffold | 3/4 | In Progress|  | - |
+| 27.2. Action Items Page + Nav Scaffold | 4/4 | Complete | 2026-03-17 | - |
 | 28. TODO & Gap Resolution | v3.0 | 0/? | Not started | - |
 
 ### Phase 28: TODO & Gap Resolution
