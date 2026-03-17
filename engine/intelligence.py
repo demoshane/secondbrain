@@ -18,9 +18,11 @@ ACTION_ITEM_SYSTEM_PROMPT = (
 )
 
 RECAP_SYSTEM_PROMPT = (
-    "You are a personal assistant. Given a list of recent notes about a context, "
-    "write a 3-5 sentence summary of recent activity, key themes, and open threads. "
-    "Be concise. Output plain text, no bullet points."
+    "You are a personal assistant reviewing a week of notes. "
+    "Write a 3-5 sentence summary covering: (1) what was worked on, "
+    "(2) key decisions made, (3) open threads or risks. "
+    "Be specific — mention note titles or topics by name. "
+    "Output plain prose, no bullet points, no headers."
 )
 
 RECAP_ENTITY_SYSTEM_PROMPT = (
@@ -101,18 +103,42 @@ def detect_git_context() -> str | None:
 # Action item extraction (INTL-03/04/05)
 # ---------------------------------------------------------------------------
 
-def extract_action_items(note_path: Path, body: str, sensitivity: str, conn) -> None:
-    """Extract and store action items from note body. Best-effort — never raises."""
+def extract_action_items(note_path: Path, body_or_conn=None, sensitivity: str = "public", conn=None) -> None:
+    """Extract and store action items from note body. Best-effort — never raises.
+
+    Supports two call signatures:
+      extract_action_items(note_path, body, sensitivity, conn)  -- original
+      extract_action_items(note_path, conn)                     -- reads note from disk
+    """
     try:
+        import frontmatter as _fm
+        # Detect call style: if second arg is a connection (no body/sensitivity supplied)
+        if conn is None and body_or_conn is not None and not isinstance(body_or_conn, str):
+            # Called as extract_action_items(note_path, conn)
+            conn = body_or_conn
+            try:
+                meta = _fm.load(str(note_path))
+                body = meta.content
+                sensitivity = meta.get("sensitivity", "public") or "public"
+            except Exception:
+                body = note_path.read_text(encoding="utf-8") if note_path.exists() else ""
+        else:
+            body = body_or_conn if isinstance(body_or_conn, str) else ""
+
         from engine.paths import CONFIG_PATH
         adapter = _router.get_adapter(sensitivity, CONFIG_PATH)
         raw = adapter.generate(user_content=body, system_prompt=ACTION_ITEM_SYSTEM_PROMPT)
         lines = [line.strip() for line in raw.splitlines() if line.strip() and line.strip() != "NONE"]
         for line in lines:
-            conn.execute(
-                "INSERT INTO action_items (note_path, text) VALUES (?, ?)",
+            existing = conn.execute(
+                "SELECT COUNT(*) FROM action_items WHERE note_path=? AND text=?",
                 (str(note_path.resolve()), line),
-            )
+            ).fetchone()[0]
+            if existing == 0:
+                conn.execute(
+                    "INSERT INTO action_items (note_path, text, done) VALUES (?, ?, 0)",
+                    (str(note_path.resolve()), line),
+                )
         conn.commit()
     except Exception:
         pass  # Best-effort — never blocks capture
@@ -405,6 +431,49 @@ def recap_entity(name: str, conn) -> str | None:
     result = "\n\n".join(output_parts)
     print(result)
     return result
+
+
+# ---------------------------------------------------------------------------
+# On-demand recap (GUIF-02 / ENGL-03)
+# ---------------------------------------------------------------------------
+
+def generate_recap_on_demand(conn) -> str:
+    """Generate recap from last 7 days of notes. Always regenerates (no idempotency guard).
+    Returns the summary string. Returns fallback string on error or empty DB."""
+    try:
+        rows = conn.execute(
+            "SELECT title, body, sensitivity FROM notes "
+            "WHERE created_at >= datetime('now', '-7 days') "
+            "ORDER BY created_at DESC LIMIT 30"
+        ).fetchall()
+        if not rows:
+            return "No notes captured in the last 7 days."
+        # Separate PII from public
+        pii_parts = []
+        public_parts = []
+        for title, body, sensitivity in rows:
+            snippet = f"## {title}\n{body[:300]}"
+            if sensitivity == "pii":
+                pii_parts.append(snippet)
+            else:
+                public_parts.append(snippet)
+        from engine.paths import CONFIG_PATH
+        parts = []
+        if public_parts:
+            adapter = _router.get_adapter("public", CONFIG_PATH)
+            text = "\n\n".join(public_parts)
+            result = adapter.generate(user_content=text, system_prompt=RECAP_SYSTEM_PROMPT)
+            if result:
+                parts.append(result)
+        if pii_parts:
+            adapter = _router.get_adapter("pii", CONFIG_PATH)
+            text = "\n\n".join(pii_parts)
+            result = adapter.generate(user_content=text, system_prompt=RECAP_SYSTEM_PROMPT)
+            if result:
+                parts.append(result)
+        return "\n\n".join(parts) if parts else "Recap generation unavailable (AI adapter not responding)."
+    except Exception as exc:
+        return f"Error generating recap: {exc}"
 
 
 # ---------------------------------------------------------------------------

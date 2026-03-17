@@ -686,6 +686,20 @@ def get_intelligence():
     return jsonify({"recap": None, "nudges": nudges})
 
 
+@app.post("/intelligence/recap")
+def intelligence_recap():
+    """On-demand recap generation. Always regenerates — no idempotency guard."""
+    conn = get_connection()
+    try:
+        from engine.intelligence import generate_recap_on_demand
+        text = generate_recap_on_demand(conn)
+        return jsonify({"recap": text})
+    except Exception as exc:
+        return jsonify({"recap": f"Error: {exc}"}), 500
+    finally:
+        conn.close()
+
+
 def startup() -> None:
     """Pre-serve initialization. Call before serve() in any startup path.
 

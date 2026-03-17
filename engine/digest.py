@@ -56,7 +56,7 @@ def generate_digest(conn, digests_dir: Path) -> Path:
     if conn is not None:
         try:
             action_rows = conn.execute(
-                "SELECT action_text, due_date FROM action_items WHERE status='open' ORDER BY due_date ASC NULLS LAST LIMIT 20"
+                "SELECT text, due_date FROM action_items WHERE done=0 ORDER BY due_date ASC NULLS LAST LIMIT 20"
             ).fetchall()
             if action_rows:
                 open_actions = "\n".join(
