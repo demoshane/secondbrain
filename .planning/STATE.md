@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 25-03-PLAN.md
-last_updated: "2026-03-17T06:44:16.203Z"
+stopped_at: Completed 25-04-PLAN.md
+last_updated: "2026-03-17T08:39:51.553Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 9
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 25
-  completed_plans: 24
+  completed_plans: 25
   percent: 99
 ---
 
@@ -67,6 +67,7 @@ Progress: [██████████] 99%
 | Phase 25-file-capture-batch-capture P01 | 2 | 2 tasks | 3 files |
 | Phase 25-file-capture-batch-capture P02 | 8 | 2 tasks | 4 files |
 | Phase 25-file-capture-batch-capture P03 | 1 | 2 tasks | 2 files |
+| Phase 25-file-capture-batch-capture P04 | 25 | 6 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -126,6 +127,9 @@ Recent decisions affecting current work:
 - [Phase 25-file-capture-batch-capture]: [25-03] #attachments-section placed as sibling of #viewer so renderMarkdown() never wipes attachment list
 - [Phase 25-file-capture-batch-capture]: [25-03] Batch capture result prepended into #recap-content via DOM prepend — no new DOM structure needed
 - [Phase 25-file-capture-batch-capture]: [25-03] upload-btn starts disabled in HTML; openNote() enables it to enforce no-upload-without-note invariant
+- [Phase 25-file-capture-batch-capture]: [25-04] _ensure_schema() in main() is the canonical fix for existing DBs missing new tables
+- [Phase 25-file-capture-batch-capture]: [25-04] SSE attachment event type for targeted list refresh without sidebar reload
+- [Phase 25-file-capture-batch-capture]: [25-04] Tag error guard: skip chips >60 chars or matching AI error sentence prefixes
 
 ### Roadmap Evolution
 
@@ -149,8 +153,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-17T06:44:16.195Z
-Stopped at: Completed 25-03-PLAN.md
+Last session: 2026-03-17T08:39:51.546Z
+Stopped at: Completed 25-04-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
