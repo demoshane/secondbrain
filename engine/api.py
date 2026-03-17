@@ -509,6 +509,7 @@ def upload_file():
     f.save(str(dest))
 
     attachment = save_attachment(note_path, str(dest), dest.name, dest.stat().st_size)
+    _broadcast({"type": "attachment", "note_path": note_path})
     return jsonify(attachment), 200
 
 
@@ -603,8 +604,19 @@ def get_intelligence():
     return jsonify({"recap": None, "nudges": nudges})
 
 
+def _ensure_schema() -> None:
+    """Run DB migrations on startup so new tables (e.g. attachments) exist on existing DBs."""
+    from engine.db import init_schema
+    conn = get_connection()
+    try:
+        init_schema(conn)
+    finally:
+        conn.close()
+
+
 def main():
     from waitress import serve
+    _ensure_schema()
     obs = start_note_observer()
     try:
         serve(app, host="127.0.0.1", port=37491, threads=8)
