@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27.1-02-PLAN.md
-last_updated: "2026-03-17T16:34:24.338Z"
+stopped_at: Completed 27.1-03-PLAN.md
+last_updated: "2026-03-17T16:41:45.323Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 10
   completed_phases: 7
   total_plans: 34
-  completed_plans: 31
+  completed_plans: 32
   percent: 99
 ---
 
@@ -74,6 +74,7 @@ Progress: [██████████] 99%
 | Phase 26-intelligence-features P04 | 25 | 1 tasks | 2 files |
 | Phase 27.1 P01 | 4 | 2 tasks | 3 files |
 | Phase 27.1 P02 | 2 | 2 tasks | 3 files |
+| Phase 27.1 P03 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -148,6 +149,8 @@ Recent decisions affecting current work:
 - [Phase 27.1]: extract_entities() processes title/body separately to prevent cross-boundary bigrams
 - [Phase 27.1]: write_note_atomic() uses UPDATE after INSERT for entities column to avoid changing INSERT signature
 - [Phase 27.1]: get_connection() accepts optional db_path for test isolation
+- [Phase 27.1]: check_capture_dedup() threshold 0.92 vs 0.8 for find_similar() — higher threshold reduces false positives at capture time
+- [Phase 27.1]: Dedup block placed after conn open but before capture_note() in sb_capture() — same conn scope, clean transaction boundary
 
 ### Roadmap Evolution
 
@@ -171,8 +174,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-17T16:34:19.894Z
-Stopped at: Completed 27.1-02-PLAN.md
+Last session: 2026-03-17T16:41:45.315Z
+Stopped at: Completed 27.1-03-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)

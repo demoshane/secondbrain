@@ -211,7 +211,7 @@ Plans:
 5. Each MCP tool returns a self-describing schema that agents can query
 
 **Requirements**: 27.1-SC-01, 27.1-SC-02, 27.1-SC-03, 27.1-SC-04, 27.1-SC-05
-**Plans:** 2/5 plans executed
+**Plans:** 3/5 plans executed
 
 Plans:
 - [ ] 27.1-01-PLAN.md — Wave 0 test scaffolds (xfail stubs for all 27.1 behaviors)
@@ -252,7 +252,7 @@ Plans:
 | 25. File Capture + Batch Capture | 4/4 | Complete   | 2026-03-17 | - |
 | 26. Intelligence Features | 4/4 | Complete    | 2026-03-17 | - |
 | 27. Search Quality Tuning | v3.0 | 0/? | Not started | - |
-| 27.1. Smart Capture & Proactive Brain | 2/5 | In Progress|  | - |
+| 27.1. Smart Capture & Proactive Brain | 3/5 | In Progress|  | - |
 | 28. TODO & Gap Resolution | v3.0 | 0/? | Not started | - |
 
 ### Phase 28: TODO & Gap Resolution
