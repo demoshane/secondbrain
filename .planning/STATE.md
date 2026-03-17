@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 26-01-PLAN.md
-last_updated: "2026-03-17T13:00:56.506Z"
+stopped_at: Completed 26-02-PLAN.md
+last_updated: "2026-03-17T13:07:50.355Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 29
-  completed_plans: 26
+  completed_plans: 27
   percent: 99
 ---
 
@@ -69,6 +69,7 @@ Progress: [██████████] 99%
 | Phase 25-file-capture-batch-capture P03 | 1 | 2 tasks | 2 files |
 | Phase 25-file-capture-batch-capture P04 | 25 | 6 tasks | 3 files |
 | Phase 26-intelligence-features P01 | 3 | 2 tasks | 3 files |
+| Phase 26 P02 | 4 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -133,6 +134,8 @@ Recent decisions affecting current work:
 - [Phase 25-file-capture-batch-capture]: [25-04] Tag error guard: skip chips >60 chars or matching AI error sentence prefixes
 - [Phase 26-intelligence-features]: xfail(strict=False) used for stubs — auto-promotes to pass once Wave 2 ships, not skipped
 - [Phase 26-intelligence-features]: Local client fixture in test_brain_health.py patches both engine.db.DB_PATH and engine.paths.DB_PATH for isolation
+- [Phase 26]: generate_recap_on_demand() always regenerates; no idempotency guard — caller controls when to invoke
+- [Phase 26]: extract_action_items() dedup uses SELECT COUNT(*) per row before INSERT; dual call signature supports (note_path, conn) reading from disk
 
 ### Roadmap Evolution
 
@@ -156,8 +159,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-17T13:00:56.498Z
-Stopped at: Completed 26-01-PLAN.md
+Last session: 2026-03-17T13:07:34.922Z
+Stopped at: Completed 26-02-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
