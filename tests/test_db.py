@@ -32,3 +32,35 @@ def test_fts5_triggers_exist(db_conn):
     ).fetchall()}
     for t in ["notes_ai", "notes_ad", "notes_au"]:
         assert t in triggers, f"Trigger {t} missing"
+
+
+@pytest.mark.xfail(strict=False, reason="GPAG-03: assignee_path migration not yet implemented")
+def test_migrate_assignee_path(tmp_path):
+    import sqlite3
+    from engine.db import init_schema
+    db = tmp_path / "test.db"
+    conn = sqlite3.connect(str(db))
+    init_schema(conn)
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(action_items)").fetchall()}
+    assert "assignee_path" in cols
+    # Idempotency: second call must not raise
+    init_schema(conn)
+    cols2 = {row[1] for row in conn.execute("PRAGMA table_info(action_items)").fetchall()}
+    assert "assignee_path" in cols2
+    conn.close()
+
+
+@pytest.mark.xfail(strict=False, reason="GPAG-03: due_date migration not yet implemented")
+def test_migrate_due_date(tmp_path):
+    import sqlite3
+    from engine.db import init_schema
+    db = tmp_path / "test.db"
+    conn = sqlite3.connect(str(db))
+    init_schema(conn)
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(action_items)").fetchall()}
+    assert "due_date" in cols
+    # Idempotency: second call must not raise
+    init_schema(conn)
+    cols2 = {row[1] for row in conn.execute("PRAGMA table_info(action_items)").fetchall()}
+    assert "due_date" in cols2
+    conn.close()
