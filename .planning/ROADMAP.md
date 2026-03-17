@@ -235,6 +235,18 @@ Plans:
 - [ ] 27.1-04-PLAN.md — sb_capture_batch() + sb_tools() MCP tools
 - [ ] 27.1-05-PLAN.md — CLAUDE.md at repo root
 
+### Phase 27.2: Action Items Page + Nav Scaffold
+**Goal**: Replace the single-panel GUI with a top tab bar and deliver a dedicated Action Items page where users can view, filter, and assign action items to people, with person notes showing their assigned actions
+**Depends on:** Phase 27.1
+**Success criteria**:
+1. A top tab bar is visible in the GUI with at least "Notes" and "Action Items" tabs; clicking switches the main view
+2. The Action Items page lists all action items with status, due date, and assignee; supports filtering by status and assignee
+3. An action item can be assigned to a person note via an assignee picker with autocomplete
+4. Opening a person note shows a "My Actions" section listing all action items where assignee_path matches that note
+
+**Requirements**: GPAG-01, GPAG-02, GPAG-03, GPAG-04
+**Plans:** 0 plans
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -268,6 +280,7 @@ Plans:
 | 26. Intelligence Features | 4/4 | Complete    | 2026-03-17 | - |
 | 27. Search Quality Tuning | 7/7 | Complete    | 2026-03-17 | - |
 | 27.1. Smart Capture & Proactive Brain | 5/5 | Complete    | 2026-03-17 | - |
+| 27.2. Action Items Page + Nav Scaffold | v3.0 | 0/? | Not started | - |
 | 28. TODO & Gap Resolution | v3.0 | 0/? | Not started | - |
 
 ### Phase 28: TODO & Gap Resolution
