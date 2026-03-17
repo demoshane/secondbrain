@@ -274,6 +274,9 @@ function renderTagChips(tags, notePath) {
     const tagsCopy = [...tags];
 
     tagsCopy.forEach((tag, idx) => {
+        // Guard: skip error strings leaking into the tag field (AI processing artifacts).
+        // A valid tag is short and doesn't start with a prose sentence.
+        if (typeof tag !== 'string' || tag.length > 60 || /^(The |Could |Error|Failed|Unable )/i.test(tag)) return;
         const chip = document.createElement('span');
         chip.className = 'tag-chip';
         chip.textContent = '#' + tag;
@@ -422,9 +425,7 @@ async function openNote(path) {
     loadActions();
     loadIntelligence();
     loadAttachments(path);
-    const uploadBtn = document.getElementById('upload-btn');
     const viewerUploadBtn = document.getElementById('viewer-upload-btn');
-    if (uploadBtn) uploadBtn.disabled = false;
     if (viewerUploadBtn) viewerUploadBtn.style.display = '';
     document.getElementById('open-editor-btn').onclick = () => {
         if (window.pywebview) pywebview.api.open_in_editor(path);
@@ -688,7 +689,15 @@ function showConflictBanner(path) {
     };
 }
 
-function handleNoteEvent({ type, path }) {
+function handleNoteEvent({ type, path, note_path }) {
+    // Attachment event: refresh attachment list for the current note if it matches
+    if (type === 'attachment') {
+        if (currentPath && (currentPath === note_path || (note_path && currentPath.endsWith('/' + note_path)))) {
+            loadAttachments(currentPath);
+        }
+        return;
+    }
+
     // Always refresh sidebar silently
     loadNotes();
 
@@ -812,11 +821,56 @@ async function uploadFile(file) {
     // silent success — no toast per CONTEXT.md
 }
 
-// Sidebar upload button
+// Top toolbar "File" button — opens global file management modal
 const uploadBtn = document.getElementById('upload-btn');
 const fileInput = document.getElementById('file-input');
-if (uploadBtn && fileInput) {
-    uploadBtn.addEventListener('click', () => fileInput.click());
+const filesModal = document.getElementById('files-modal');
+const filesModalList = document.getElementById('files-modal-list');
+const filesModalClose = document.getElementById('files-modal-close');
+
+async function openFilesModal() {
+    if (!filesModal || !filesModalList) return;
+    filesModalList.innerHTML = '<li style="color:#999">Loading...</li>';
+    filesModal.style.display = 'flex';
+    try {
+        const res = await fetch(`${API}/files`);
+        const { files } = await res.json();
+        if (!files || files.length === 0) {
+            filesModalList.innerHTML = '<li style="color:#999"><em>No uploaded files yet.</em></li>';
+            return;
+        }
+        filesModalList.innerHTML = '';
+        files.forEach(f => {
+            const li = document.createElement('li');
+            li.style.cssText = 'padding:6px 0; border-bottom:1px solid #f0f0f0; cursor:pointer;';
+            const sizeStr = f.size > 1048576
+                ? (f.size / 1048576).toFixed(1) + ' MB'
+                : (f.size / 1024).toFixed(0) + ' KB';
+            li.textContent = `${f.name}  ·  ${sizeStr}`;
+            li.title = f.path;
+            li.addEventListener('click', () => {
+                if (window.pywebview) window.pywebview.api.open_file(f.path).catch(() => {});
+                else alert(`Path: ${f.path}`);
+            });
+            filesModalList.appendChild(li);
+        });
+    } catch (_) {
+        filesModalList.innerHTML = '<li style="color:red"><em>Failed to load files.</em></li>';
+    }
+}
+
+if (uploadBtn) {
+    // Top toolbar button: open file management modal (note-agnostic)
+    uploadBtn.addEventListener('click', openFilesModal);
+    uploadBtn.disabled = false;  // always enabled — not note-specific
+}
+if (filesModalClose) {
+    filesModalClose.addEventListener('click', () => { if (filesModal) filesModal.style.display = 'none'; });
+}
+if (filesModal) {
+    filesModal.addEventListener('click', (e) => { if (e.target === filesModal) filesModal.style.display = 'none'; });
+}
+if (fileInput) {
     fileInput.addEventListener('change', e => {
         const file = e.target.files[0];
         if (file) uploadFile(file);
