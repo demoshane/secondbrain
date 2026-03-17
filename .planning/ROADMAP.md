@@ -152,6 +152,14 @@ Plans:
 ### Phase 25: File Capture + Batch Capture
 **Goal**: Users can capture files from the GUI and run a single batch capture of all unindexed items, with no duplicate notes from the watcher race
 **Requirements**: GUIF-01, ENGL-01
+**Plans:** 1/4 plans executed
+
+Plans:
+- [ ] 25-01-PLAN.md — Wave 1: DB migration (attachments table) + test scaffolds
+- [ ] 25-02-PLAN.md — Wave 2: backend — engine/attachments.py + API endpoints + watcher dedup guard
+- [ ] 25-03-PLAN.md — Wave 3: frontend — upload button, drag-drop, attachment list, batch capture button
+- [ ] 25-04-PLAN.md — Wave 4: full suite sign-off + human verify
+
 **Success criteria**:
 1. User can select or drag a file in the GUI; the file is saved to `files/` and appears indexed in the sidebar
 2. A single "Batch Capture" action captures all unindexed markdown files present in the brain directory
@@ -204,7 +212,7 @@ Plans:
 | 22. Note Deletion + Security Hardening | 4/4 | Complete    | 2026-03-16 | - |
 | 23. Navigation Polish | 4/4 | Complete    | 2026-03-16 | - |
 | 24. Playwright GUI Test Suite | 4/4 | Complete    | 2026-03-16 | - |
-| 25. File Capture + Batch Capture | v3.0 | 0/? | Not started | - |
+| 25. File Capture + Batch Capture | 1/4 | In Progress|  | - |
 | 26. Intelligence Features | v3.0 | 0/? | Not started | - |
 | 27. Search Quality Tuning | v3.0 | 0/? | Not started | - |
 | 28. TODO & Gap Resolution | v3.0 | 0/? | Not started | - |

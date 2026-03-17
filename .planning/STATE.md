@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Phase 25 context gathered
-last_updated: "2026-03-16T21:27:25.917Z"
+stopped_at: Completed 25-01-PLAN.md
+last_updated: "2026-03-17T06:29:57.761Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 9
   completed_phases: 5
-  total_plans: 21
-  completed_plans: 21
+  total_plans: 25
+  completed_plans: 22
   percent: 99
 ---
 
@@ -64,6 +64,7 @@ Progress: [██████████] 99%
 | Phase 24-playwright-gui-test-suite P02 | 12 | 2 tasks | 1 files |
 | Phase 24-playwright-gui-test-suite P03 | 8 | 2 tasks | 1 files |
 | Phase 24-playwright-gui-test-suite P04 | 4 | 2 tasks | 1 files |
+| Phase 25-file-capture-batch-capture P01 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -115,6 +116,9 @@ Recent decisions affecting current work:
 - [Phase 24-playwright-gui-test-suite]: state='detached' wait must use locator().wait_for(), not wait_for_selector() with has_text
 - [Phase 24-playwright-gui-test-suite]: Use data-path$='/ideas/filtered-note.md' selector to avoid substring ambiguity when note title is contained in another note title
 - [Phase 24-playwright-gui-test-suite]: test_path_traversal_guard accepts 403 or 404 — Flask/Werkzeug URL normalization may intercept %2F-encoded path before app guard; either status is secure
+- [Phase 25-file-capture-batch-capture]: attachments table uses TEXT note_path/file_path/filename (not FK) for loose coupling; matches existing action_items pattern
+- [Phase 25-file-capture-batch-capture]: xfail(strict=False) chosen over pytest.skip — stubs are collected, counted, and will auto-promote to pass once Wave 2 ships
+- [Phase 25-file-capture-batch-capture]: [25-01] client fixture patches both engine.db.DB_PATH and engine.paths.DB_PATH for full isolation
 
 ### Roadmap Evolution
 
@@ -138,9 +142,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-16T21:27:25.909Z
-Stopped at: Phase 25 context gathered
-Resume file: .planning/phases/25-file-capture-batch-capture/25-CONTEXT.md
+Last session: 2026-03-17T06:29:52.151Z
+Stopped at: Completed 25-01-PLAN.md
+Resume file: None
 
 ## TODOs (for Phase 27)
 - **Tag management UI**: Global tab/panel listing all tags with usage counts; rename tag across all notes; delete tag globally. (Per-note chip editing already shipped in Phase 23.)
