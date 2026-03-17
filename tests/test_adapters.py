@@ -62,3 +62,41 @@ def test_system_prompt_not_in_system_field_of_subprocess(mock_subprocess_claude)
     assert "INJECT_MARKER" in full_prompt
     # system_prompt string itself must not contain user content
     assert full_prompt.index("static system") < full_prompt.index("INJECT_MARKER")
+
+
+# ── Router / adapter selection tests ─────────────────────────────────────────
+
+def test_get_adapter_pii_returns_ollama_adapter(tmp_config_toml):
+    from engine.router import get_adapter
+    from engine.adapters.ollama_adapter import OllamaAdapter
+    with patch("ollama.Client"):
+        adapter = get_adapter("pii", tmp_config_toml)
+    assert isinstance(adapter, OllamaAdapter)
+
+
+def test_get_adapter_private_returns_claude_adapter(tmp_config_toml):
+    from engine.router import get_adapter
+    from engine.adapters.claude_adapter import ClaudeAdapter
+    adapter = get_adapter("private", tmp_config_toml)
+    assert isinstance(adapter, ClaudeAdapter)
+
+
+def test_get_adapter_public_returns_claude_adapter(tmp_config_toml):
+    from engine.router import get_adapter
+    from engine.adapters.claude_adapter import ClaudeAdapter
+    adapter = get_adapter("public", tmp_config_toml)
+    assert isinstance(adapter, ClaudeAdapter)
+
+
+def test_get_adapter_unknown_sensitivity_falls_back_to_public(tmp_config_toml):
+    from engine.router import get_adapter
+    from engine.adapters.claude_adapter import ClaudeAdapter
+    # Unknown sensitivity falls back to public_model routing
+    adapter = get_adapter("classified", tmp_config_toml)
+    assert isinstance(adapter, ClaudeAdapter)
+
+
+def test_base_adapter_is_abstract():
+    from engine.adapters.base import BaseAdapter
+    import inspect
+    assert inspect.isabstract(BaseAdapter)
