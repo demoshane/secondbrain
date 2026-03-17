@@ -2,6 +2,7 @@
 import datetime
 import json
 import os
+import re
 import sqlite3
 import tempfile
 from pathlib import Path
@@ -12,6 +13,28 @@ import frontmatter
 TYPE_TO_DIR: dict[str, str] = {
     "idea": "ideas",
 }
+
+_MEETING_KEYWORDS = {"meeting", "standup", "sync", "retro", "review", "1:1"}
+
+
+def _suggest_note_type_from_title(title: str) -> str | None:
+    """Suggest a note type based on title heuristics. Returns None if no match.
+
+    Best-effort: never blocks capture, never raises.
+
+    Rules (in priority order):
+    1. If title contains a meeting/sync keyword → suggest 'meeting'
+    2. If title matches 'Firstname Lastname' (two capitalized words) → suggest 'people'
+
+    Returns:
+        'meeting', 'people', or None.
+    """
+    title_lower = title.lower()
+    if any(kw in title_lower for kw in _MEETING_KEYWORDS):
+        return "meeting"
+    if re.match(r"^[A-Z][a-z]+ [A-Z][a-z]+$", title.strip()):
+        return "people"
+    return None
 
 
 def check_capture_dedup(

@@ -515,11 +515,23 @@ def recap_main(argv=None) -> None:
         """,
         (context_name, context_name, context_name),
     ).fetchall()
-    conn.close()
 
+    # Fallback: no context match — show 5 most-recent notes instead
     if not rows:
-        print(f"No notes found for context: {context_name}")
+        fallback_rows = conn.execute(
+            "SELECT path, title, type, updated_at FROM notes ORDER BY updated_at DESC LIMIT 5"
+        ).fetchall()
+        conn.close()
+        if not fallback_rows:
+            print("No notes found yet. Capture your first note with: sb-capture")
+            return
+        print("Recent activity (no context match):")
+        for path, title, note_type, updated_at in fallback_rows:
+            date_str = updated_at[:10] if updated_at else "unknown"
+            print(f"  [{note_type}] {title}  ({date_str})")
         return
+
+    conn.close()
 
     note_snippets = "\n\n".join(
         f"Title: {title}\n{body[:200]}" for title, body in rows

@@ -364,7 +364,6 @@ def test_extract_action_items_no_duplicate_on_recapture(tmp_path, monkeypatch):
 # Phase 27-03: recap_main fallback + capture heuristics (TDD RED)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(strict=False, reason="recap fallback to recent notes not yet implemented")
 def test_recap_main_fallback_to_recent_when_no_context_match(capsys):
     """recap_main() falls back to 5 most-recent notes when git context yields 0 rows.
 
@@ -397,7 +396,6 @@ def test_recap_main_fallback_to_recent_when_no_context_match(capsys):
     assert "No notes found for context" not in captured.out
 
 
-@pytest.mark.xfail(strict=False, reason="capture heuristic type suggestion not yet implemented")
 def test_capture_suggest_meeting_type_from_title():
     """capture main() heuristics suggest type=meeting when title contains 'meeting'."""
     from engine.capture import _suggest_note_type_from_title
@@ -406,7 +404,6 @@ def test_capture_suggest_meeting_type_from_title():
     assert _suggest_note_type_from_title("Sprint Retro") == "meeting"
 
 
-@pytest.mark.xfail(strict=False, reason="capture heuristic type suggestion not yet implemented")
 def test_capture_suggest_people_type_from_title():
     """capture main() heuristics suggest type=people for 'Firstname Lastname' pattern."""
     from engine.capture import _suggest_note_type_from_title
@@ -414,7 +411,6 @@ def test_capture_suggest_people_type_from_title():
     assert _suggest_note_type_from_title("Bob Smith") == "people"
 
 
-@pytest.mark.xfail(strict=False, reason="capture heuristic type suggestion not yet implemented")
 def test_capture_suggest_none_for_generic_title():
     """_suggest_note_type_from_title returns None for titles that don't match any heuristic."""
     from engine.capture import _suggest_note_type_from_title
