@@ -195,7 +195,7 @@ Plans:
 ### Phase 27: Search Quality Tuning
 **Goal**: Search returns the most relevant notes first, with title matches ranked above body matches and a regression suite confirming no precision regressions; all open TODOs and test coverage gaps resolved
 **Requirements**: ENGL-02
-**Plans:** 4/7 plans executed
+**Plans:** 5/7 plans executed
 
 Plans:
 - [ ] 27-01-PLAN.md — Wave 0: regression suite scaffolds (10 xfail tests) + sb_edit stub
@@ -266,7 +266,7 @@ Plans:
 | 24. Playwright GUI Test Suite | 4/4 | Complete    | 2026-03-16 | - |
 | 25. File Capture + Batch Capture | 4/4 | Complete   | 2026-03-17 | - |
 | 26. Intelligence Features | 4/4 | Complete    | 2026-03-17 | - |
-| 27. Search Quality Tuning | 4/7 | In Progress|  | - |
+| 27. Search Quality Tuning | 5/7 | In Progress|  | - |
 | 27.1. Smart Capture & Proactive Brain | 5/5 | Complete    | 2026-03-17 | - |
 | 28. TODO & Gap Resolution | v3.0 | 0/? | Not started | - |
 
