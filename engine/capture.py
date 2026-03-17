@@ -14,6 +14,46 @@ TYPE_TO_DIR: dict[str, str] = {
 }
 
 
+def check_capture_dedup(
+    title: str, body: str, conn: sqlite3.Connection, threshold: float = 0.92
+) -> list[dict]:
+    """Return similar notes if embedding cosine similarity >= threshold.
+
+    Best-effort: returns [] on any error (model not loaded, extension absent, empty table).
+    Never raises. Never blocks capture.
+
+    Args:
+        title: Note title to embed.
+        body: Note body to embed.
+        conn: Open SQLite connection with note_embeddings table.
+        threshold: Minimum similarity to report (0.0-1.0). Default 0.92 is intentionally
+                   higher than find_similar()'s 0.8 to avoid false positives at capture time.
+
+    Returns:
+        List of {"path": str, "similarity": float} dicts, most similar first.
+        Empty list if no matches or if embeddings unavailable.
+    """
+    try:
+        from engine.embeddings import embed_texts
+        blobs = embed_texts([f"{title}\n{body}"])
+        if not blobs:
+            return []
+        query_blob = blobs[0]
+        rows = conn.execute(
+            """
+            SELECT ne.note_path, (1.0 - vec_distance_cosine(ne.embedding, ?)) AS similarity
+            FROM note_embeddings ne
+            WHERE similarity >= ?
+            ORDER BY similarity DESC
+            LIMIT 5
+            """,
+            (query_blob, threshold),
+        ).fetchall()
+        return [{"path": row[0], "similarity": row[1]} for row in rows]
+    except Exception:
+        return []
+
+
 def build_post(
     note_type: str,
     title: str,
