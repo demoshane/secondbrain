@@ -172,7 +172,6 @@ def test_sb_capture_dedup_confirm():
     assert "status" in result
 
 
-@pytest.mark.xfail(strict=False, reason="Wave 3: sb_capture_batch not yet implemented")
 def test_sb_capture_batch():
     """sb_capture_batch saves multiple notes and returns succeeded/failed lists."""
     notes = [
@@ -184,7 +183,6 @@ def test_sb_capture_batch():
     assert len(result["succeeded"]) == 2
 
 
-@pytest.mark.xfail(strict=False, reason="Wave 3: sb_capture_batch partial failure not yet implemented")
 def test_sb_capture_batch_partial_failure():
     """A failing note in batch does not block other notes from saving."""
     notes = [

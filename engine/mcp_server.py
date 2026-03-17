@@ -191,6 +191,52 @@ def sb_capture(
 
 
 @mcp.tool()
+def sb_capture_batch(notes: list[dict]) -> dict:
+    """Capture multiple notes in a single call. Each note is processed independently.
+
+    Args:
+        notes: List of note dicts. Each dict supports keys:
+               title (required), body, note_type, tags, people, sensitivity.
+
+    Returns:
+        {"succeeded": [{"index": int, "path": str}, ...],
+         "failed":    [{"index": int, "reason": str}, ...]}
+    """
+    from engine.capture import capture_note as _capture_note
+    from engine.db import get_connection as _get_connection, init_schema as _init_schema
+    from engine.paths import BRAIN_ROOT as _BRAIN_ROOT
+
+    conn = _get_connection()
+    _init_schema(conn)
+
+    succeeded = []
+    failed = []
+
+    for i, note in enumerate(notes or []):
+        try:
+            title = note.get("title", "").strip()
+            if not title:
+                raise ValueError("title is required")
+            body = note.get("body", "")
+            note_type = note.get("note_type", "note")
+            tags = [t.strip() for t in note.get("tags", "").split(",") if t.strip()] \
+                   if isinstance(note.get("tags"), str) \
+                   else list(note.get("tags") or [])
+            people = [p.strip() for p in note.get("people", "").split(",") if p.strip()] \
+                     if isinstance(note.get("people"), str) \
+                     else list(note.get("people") or [])
+            sensitivity = note.get("sensitivity", "public")
+
+            path = _capture_note(note_type, title, body, tags, people, sensitivity, _BRAIN_ROOT, conn)
+            succeeded.append({"index": i, "path": str(path)})
+        except Exception as e:
+            failed.append({"index": i, "reason": str(e)})
+
+    conn.close()
+    return {"succeeded": succeeded, "failed": failed}
+
+
+@mcp.tool()
 def sb_read(path: str) -> dict:
     """Read a note by absolute path."""
     p = _safe_path(path)
