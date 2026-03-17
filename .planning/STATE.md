@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27.1-03-PLAN.md
-last_updated: "2026-03-17T16:41:45.323Z"
+stopped_at: Completed 27.1-04-PLAN.md
+last_updated: "2026-03-17T16:52:02.218Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 10
   completed_phases: 7
   total_plans: 34
-  completed_plans: 32
+  completed_plans: 33
   percent: 99
 ---
 
@@ -75,6 +75,7 @@ Progress: [██████████] 99%
 | Phase 27.1 P01 | 4 | 2 tasks | 3 files |
 | Phase 27.1 P02 | 2 | 2 tasks | 3 files |
 | Phase 27.1 P03 | 5 | 2 tasks | 2 files |
+| Phase 27.1 P04 | 8 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -151,6 +152,8 @@ Recent decisions affecting current work:
 - [Phase 27.1]: get_connection() accepts optional db_path for test isolation
 - [Phase 27.1]: check_capture_dedup() threshold 0.92 vs 0.8 for find_similar() — higher threshold reduces false positives at capture time
 - [Phase 27.1]: Dedup block placed after conn open but before capture_note() in sb_capture() — same conn scope, clean transaction boundary
+- [Phase 27.1]: sb_capture_batch uses per-note try/except isolation; failed notes don't block others; returns succeeded/failed lists with index
+- [Phase 27.1]: sb_tools uses mcp._tool_manager._tools (sync dict) to avoid asyncio.run() RuntimeError in FastMCP stdio event loop; excludes itself from output
 
 ### Roadmap Evolution
 
@@ -174,8 +177,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-17T16:41:45.315Z
-Stopped at: Completed 27.1-03-PLAN.md
+Last session: 2026-03-17T16:52:02.210Z
+Stopped at: Completed 27.1-04-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
