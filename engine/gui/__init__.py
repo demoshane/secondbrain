@@ -37,8 +37,10 @@ def _port_is_open(port: int) -> bool:
 
 def _start_sidecar(ready: threading.Event) -> None:
     """Start waitress in a daemon thread; set ready when /health responds."""
-    from engine.api import app as flask_app
+    from engine.api import app as flask_app, _ensure_schema
     from waitress import serve
+
+    _ensure_schema()
 
     t = threading.Thread(
         target=serve,
