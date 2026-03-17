@@ -108,6 +108,21 @@ def migrate_add_action_items_table(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def migrate_add_attachments_table(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: create attachments table if absent."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS attachments (
+            id          INTEGER PRIMARY KEY,
+            note_path   TEXT NOT NULL,
+            file_path   TEXT NOT NULL,
+            filename    TEXT NOT NULL,
+            size        INTEGER NOT NULL DEFAULT 0,
+            uploaded_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+        )
+    """)
+    conn.commit()
+
+
 def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     """Create (or optionally recreate) the full schema.
 
@@ -120,3 +135,4 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     conn.executescript(SCHEMA_SQL)
     migrate_add_people_column(conn)
     migrate_add_action_items_table(conn)
+    migrate_add_attachments_table(conn)
