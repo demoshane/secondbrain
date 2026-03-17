@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27.1-01-PLAN.md
-last_updated: "2026-03-17T16:19:39.612Z"
+stopped_at: Completed 27.1-02-PLAN.md
+last_updated: "2026-03-17T16:34:24.338Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 10
   completed_phases: 7
   total_plans: 34
-  completed_plans: 30
+  completed_plans: 31
   percent: 99
 ---
 
@@ -73,6 +73,7 @@ Progress: [██████████] 99%
 | Phase 26-intelligence-features P03 | 10 | 2 tasks | 3 files |
 | Phase 26-intelligence-features P04 | 25 | 1 tasks | 2 files |
 | Phase 27.1 P01 | 4 | 2 tasks | 3 files |
+| Phase 27.1 P02 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -144,6 +145,9 @@ Recent decisions affecting current work:
 - [Phase 26-04]: loadBrainHealth() called at page init alongside loadIntelligence() — both auto-populate on load without user action
 - [Phase 26-04]: generateRecap() restores previous recap text on network error rather than showing empty panel
 - [Phase 27.1]: xfail(strict=False) chosen for 27.1 stubs — auto-promotes to PASS once Wave 2 ships; test_mcp.py stubs use direct mcp_mod.* calls matching existing file style
+- [Phase 27.1]: extract_entities() processes title/body separately to prevent cross-boundary bigrams
+- [Phase 27.1]: write_note_atomic() uses UPDATE after INSERT for entities column to avoid changing INSERT signature
+- [Phase 27.1]: get_connection() accepts optional db_path for test isolation
 
 ### Roadmap Evolution
 
@@ -167,8 +171,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-17T16:19:39.603Z
-Stopped at: Completed 27.1-01-PLAN.md
+Last session: 2026-03-17T16:34:19.894Z
+Stopped at: Completed 27.1-02-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
