@@ -320,3 +320,41 @@ class TestRecapEntityPIIRouting:
         # Verify it was called with "pii" sensitivity (not "public")
         calls = mock_router.get_adapter.call_args_list
         assert any(c[0][0] == "pii" for c in calls), "Expected Ollama adapter called with pii sensitivity"
+
+
+# --- Phase 26: ENGL-03 / GUIF-02 stubs ---
+
+@pytest.mark.xfail(strict=False, reason="generate_recap_on_demand not yet implemented")
+def test_generate_recap_on_demand_returns_string(tmp_path, monkeypatch):
+    """on_demand: always regenerates, returns string, no file guard."""
+    import sqlite3
+    from engine.db import init_schema
+    from engine.intelligence import generate_recap_on_demand
+    db = tmp_path / "test.db"
+    conn = sqlite3.connect(str(db))
+    init_schema(conn)
+    result = generate_recap_on_demand(conn)
+    conn.close()
+    assert isinstance(result, str)
+    assert len(result) > 0
+
+
+@pytest.mark.xfail(strict=False, reason="action item dedup not yet implemented")
+def test_extract_action_items_no_duplicate_on_recapture(tmp_path, monkeypatch):
+    """dedup: capturing same note twice does not double-insert action items."""
+    import sqlite3
+    from engine.db import init_schema
+    from engine.intelligence import extract_action_items
+    from pathlib import Path
+    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+    note = tmp_path / "task.md"
+    note.write_text("---\ntitle: Task Note\nsensitivity: public\n---\n- [ ] Do something important\n")
+    db = tmp_path / "test.db"
+    conn = sqlite3.connect(str(db))
+    init_schema(conn)
+    extract_action_items(note, conn)
+    extract_action_items(note, conn)  # second call — must not duplicate
+    count = conn.execute("SELECT COUNT(*) FROM action_items WHERE note_path=?",
+                         (str(note.resolve()),)).fetchone()[0]
+    conn.close()
+    assert count == 1

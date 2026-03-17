@@ -79,3 +79,31 @@ class TestDigestPIIRouting:
         result = generate_digest(conn, digests_dir)
         calls = mock_router.get_adapter.call_args_list
         assert any(c[0][0] == "pii" for c in calls), "Expected Ollama adapter called with pii sensitivity"
+
+
+# --- Phase 26: ENGL-03 digest column fix stub ---
+
+@pytest.mark.xfail(strict=False, reason="digest.py action_items column bug not yet fixed")
+def test_generate_digest_open_actions_uses_correct_column(tmp_path, monkeypatch):
+    """digest column fix: generate_digest() must query action_items.text and done=0, not action_text/status."""
+    import sqlite3
+    from engine.db import init_schema
+    from pathlib import Path
+    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+    monkeypatch.setenv("DIGEST_DIR", str(tmp_path / "digests"))
+    db = tmp_path / "test.db"
+    conn = sqlite3.connect(str(db))
+    init_schema(conn)
+    # Insert a known action item using correct column names
+    conn.execute(
+        "INSERT INTO action_items (note_path, text, done) VALUES (?, ?, ?)",
+        ("/brain/note.md", "Important open task", 0)
+    )
+    conn.commit()
+    conn.close()
+    # generate_digest should not raise OperationalError: no such column: action_text
+    try:
+        generate_digest(brain_root=tmp_path, db_path=db, out_dir=tmp_path / "digests")
+    except Exception as e:
+        # Acceptable if AI adapter unavailable — must NOT be OperationalError
+        assert "action_text" not in str(e), f"Column name bug still present: {e}"
