@@ -13,7 +13,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from engine.capture import build_post, capture_note, log_audit, write_note_atomic
+from engine.capture import build_post, capture_note, check_capture_dedup, log_audit, write_note_atomic
 from engine.db import get_connection
 from engine.digest import generate_digest
 from engine.forget import forget_person
@@ -145,8 +145,13 @@ def sb_capture(
     note_type: str = "note",
     tags: list[str] | None = None,
     sensitivity: str = "public",
+    confirm_token: str = "",
 ) -> dict:
-    """Capture a new note. Idempotent — identical title+body returns existing note."""
+    """Capture a new note. Idempotent — identical title+body returns existing note.
+
+    If a near-duplicate exists (cosine similarity >= 0.92), returns a duplicate_warning
+    with a confirm_token. Pass that token back to save despite the similarity match.
+    """
     _ensure_ready()
     if len(title) > _MAX_TITLE_LEN:
         raise ValueError(f"TITLE_TOO_LONG: title exceeds {_MAX_TITLE_LEN} characters.")
@@ -154,6 +159,20 @@ def sb_capture(
         raise ValueError(f"BODY_TOO_LARGE: body exceeds {_MAX_BODY_LEN} characters.")
     conn = get_connection()
     try:
+        # Dedup check: only when no confirm_token provided
+        if not confirm_token:
+            similar = check_capture_dedup(title, body, conn)
+            if similar:
+                tok = _issue_token()
+                return {
+                    "status": "duplicate_warning",
+                    "message": f"Found {len(similar)} similar note(s). Pass confirm_token to save anyway.",
+                    "similar": similar,
+                    "confirm_token": tok,
+                }
+        elif not _consume_token(confirm_token):
+            raise ValueError("TOKEN_EXPIRED: confirm_token is invalid or has expired (300s window)")
+
         path = capture_note(
             note_type=note_type,
             title=title,
