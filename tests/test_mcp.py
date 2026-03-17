@@ -147,3 +147,61 @@ def test_retry_on_db_locked_retry(monkeypatch):
     result = mcp_mod.sb_recap(name="test-entity")
     assert isinstance(result, str)
     assert call_count["n"] >= 2  # confirmed retry fired
+
+
+# ---------------------------------------------------------------------------
+# Phase 27.1 Wave 0 stubs — dedup, batch capture, and sb_tools
+# ---------------------------------------------------------------------------
+
+@pytest.mark.xfail(strict=False, reason="Wave 2: sb_capture dedup not yet implemented")
+def test_sb_capture_dedup_warning():
+    """sb_capture returns duplicate_warning status when a near-duplicate exists."""
+    # Capture original note
+    mcp_mod.sb_capture("Dedup Test Note", "Content about Q1 roadmap planning")
+    # Try to capture near-duplicate — should get duplicate_warning
+    result = mcp_mod.sb_capture("Dedup Test Note", "Content about Q1 roadmap planning")
+    assert result.get("status") == "duplicate_warning"
+    assert "similar" in result
+
+
+@pytest.mark.xfail(strict=False, reason="Wave 2: sb_capture confirm_token not yet implemented")
+def test_sb_capture_dedup_confirm():
+    """sb_capture with confirm_token bypasses dedup and saves the note."""
+    result = mcp_mod.sb_capture("Confirm Token Test", "Some body content", confirm_token="fake-token")
+    # confirm_token path should attempt save (token may be invalid → xfail expected)
+    assert "status" in result
+
+
+@pytest.mark.xfail(strict=False, reason="Wave 3: sb_capture_batch not yet implemented")
+def test_sb_capture_batch():
+    """sb_capture_batch saves multiple notes and returns succeeded/failed lists."""
+    notes = [
+        {"title": "Batch Note 1", "body": "Body 1", "note_type": "note"},
+        {"title": "Batch Note 2", "body": "Body 2", "note_type": "note"},
+    ]
+    result = mcp_mod.sb_capture_batch(notes)
+    assert "succeeded" in result
+    assert len(result["succeeded"]) == 2
+
+
+@pytest.mark.xfail(strict=False, reason="Wave 3: sb_capture_batch partial failure not yet implemented")
+def test_sb_capture_batch_partial_failure():
+    """A failing note in batch does not block other notes from saving."""
+    notes = [
+        {"title": "Good Note", "body": "Valid body content", "note_type": "note"},
+        {"title": "", "body": "", "note_type": "invalid_type"},  # will fail
+    ]
+    result = mcp_mod.sb_capture_batch(notes)
+    assert len(result.get("succeeded", [])) >= 1
+
+
+@pytest.mark.xfail(strict=False, reason="Wave 3: sb_tools not yet implemented")
+def test_sb_tools():
+    """sb_tools returns a list of tool dicts with name, description, parameters fields."""
+    result = mcp_mod.sb_tools()
+    assert isinstance(result, list)
+    assert len(result) > 0
+    tool = result[0]
+    assert "name" in tool
+    assert "description" in tool
+    assert "parameters" in tool

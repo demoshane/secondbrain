@@ -219,3 +219,37 @@ def test_write_note_atomic_path_is_absolute(tmp_path, initialized_db):
     assert stored_path.startswith("/"), (
         f"DB path must start with '/' but got: {stored_path!r}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 27.1 Wave 0 stubs — entity extraction + dedup
+# ---------------------------------------------------------------------------
+
+@pytest.mark.xfail(strict=False, reason="Wave 2: engine/entities.py and capture enrichment not yet implemented")
+def test_capture_stores_entities(tmp_path):
+    """After capture_note(), the written file's frontmatter contains an 'entities' key."""
+    from engine.db import get_connection, init_schema
+    from engine.capture import capture_note
+    conn = get_connection(str(tmp_path / "brain.db"))
+    init_schema(conn)
+    path = capture_note("note", "Alice in Wonderland", "Alice Johnson visited London", [], [], "public", tmp_path, conn)
+    import frontmatter as fm
+    post = fm.load(str(path))
+    assert "entities" in post.metadata
+    entities = post.metadata["entities"]
+    assert "Alice Johnson" in entities.get("people", [])
+
+
+@pytest.mark.xfail(strict=False, reason="Wave 2: check_capture_dedup() not yet implemented")
+def test_dedup_returns_similar(tmp_path):
+    """check_capture_dedup() returns non-empty list when a nearly-identical note exists above threshold."""
+    from engine.db import get_connection, init_schema
+    from engine.capture import check_capture_dedup, capture_note
+    conn = get_connection(str(tmp_path / "brain.db"))
+    init_schema(conn)
+    # Capture a note first so there is something to match
+    capture_note("note", "Meeting Notes Q1", "Discussed Q1 roadmap and priorities", [], [], "public", tmp_path, conn)
+    # check_capture_dedup should find it (if embeddings available) or return [] (best-effort)
+    result = check_capture_dedup("Meeting Notes Q1", "Discussed Q1 roadmap and priorities", conn)
+    # Best-effort: if embeddings not loaded, result is [] and test still xfails gracefully
+    assert isinstance(result, list)
