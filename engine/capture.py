@@ -109,13 +109,14 @@ def write_note_atomic(
     target: Path,
     post: frontmatter.Post,
     conn: sqlite3.Connection,
+    update: bool = False,
 ) -> None:
     """Write a note file atomically with DB indexing in a single transaction.
 
     Order of operations:
     1. Create temp file in same directory as target (never /tmp).
     2. Write frontmatter.dumps(post) to temp file.
-    3. INSERT into notes + log_audit + conn.commit().
+    3. INSERT (or INSERT OR REPLACE when update=True) into notes + log_audit + conn.commit().
     4. os.replace(tmp, target) — atomic rename.
 
     On any exception: delete temp file and re-raise.
@@ -125,6 +126,8 @@ def write_note_atomic(
         target: Final destination path for the note.
         post: frontmatter.Post to serialize.
         conn: Open SQLite connection with schema initialized.
+        update: When True, uses INSERT OR REPLACE (upsert) to overwrite existing row.
+                When False (default), uses INSERT — preserves backward compatibility.
     """
     tmp_path = None
     tmp_fd = None
@@ -144,8 +147,9 @@ def write_note_atomic(
         sensitivity = post.get("content_sensitivity", "public")
 
         resolved_path = str(target.resolve())
+        sql_verb = "INSERT OR REPLACE" if update else "INSERT"
         conn.execute(
-            "INSERT INTO notes (path, type, title, body, tags, people, created_at, updated_at, sensitivity)"
+            f"{sql_verb} INTO notes (path, type, title, body, tags, people, created_at, updated_at, sensitivity)"
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 resolved_path,
@@ -159,7 +163,7 @@ def write_note_atomic(
                 sensitivity,
             ),
         )
-        log_audit(conn, "create", resolved_path)
+        log_audit(conn, "update" if update else "create", resolved_path)
         # Store entities in DB column if present in post (best-effort)
         entities_val = post.get("entities")
         if entities_val is not None:

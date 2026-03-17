@@ -272,7 +272,7 @@ def sb_edit(path: str, body: str) -> dict:
     post.content = body
     conn = get_connection()
     try:
-        write_note_atomic(p, post, conn)
+        write_note_atomic(p, post, conn, update=True)
     finally:
         conn.close()
     _log_mcp_audit("mcp_edit", path)

@@ -64,22 +64,22 @@ def search_notes(
     fts_query = _fts5_query(query)
     if note_type is None:
         sql = """
-            SELECT n.path, n.type, n.title, n.created_at, bm25(notes_fts) AS score
+            SELECT n.path, n.type, n.title, n.created_at, bm25(notes_fts, 10.0, 1.0) AS score
             FROM notes_fts
             JOIN notes n ON notes_fts.rowid = n.id
             WHERE notes_fts MATCH ?
-            ORDER BY bm25(notes_fts)
+            ORDER BY bm25(notes_fts, 10.0, 1.0)
             LIMIT ?
         """
         rows = conn.execute(sql, (fts_query, limit)).fetchall()
     else:
         sql = """
-            SELECT n.path, n.type, n.title, n.created_at, bm25(notes_fts) AS score
+            SELECT n.path, n.type, n.title, n.created_at, bm25(notes_fts, 10.0, 1.0) AS score
             FROM notes_fts
             JOIN notes n ON notes_fts.rowid = n.id
             WHERE notes_fts MATCH ?
               AND n.type = ?
-            ORDER BY bm25(notes_fts)
+            ORDER BY bm25(notes_fts, 10.0, 1.0)
             LIMIT ?
         """
         rows = conn.execute(sql, (fts_query, note_type, limit)).fetchall()
