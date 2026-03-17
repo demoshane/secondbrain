@@ -355,13 +355,25 @@ def capture_note(
         try:
             from engine.db import get_connection as _get_conn
             from engine.intelligence import check_connections, extract_action_items
+            # check_connections is fast — short-lived connection, closed before AI work
             _conn = _get_conn()
             try:
                 check_connections(Path(_target_str), _conn, _brain_root)
-                extract_action_items(Path(_target_str), _body, _sensitivity, _conn)
                 _conn.commit()
             finally:
                 _conn.close()
+        except Exception:
+            pass
+        try:
+            from engine.db import get_connection as _get_conn
+            from engine.intelligence import extract_action_items
+            # extract_action_items runs claude -p (slow) then writes — fresh conn
+            # so the AI wait doesn't hold an open connection blocking concurrent captures
+            _conn2 = _get_conn()
+            try:
+                extract_action_items(Path(_target_str), _body, _sensitivity, _conn2)
+            finally:
+                _conn2.close()
         except Exception:
             pass
 
