@@ -81,7 +81,7 @@ DROP TABLE IF EXISTS audit_log;
 def get_connection() -> sqlite3.Connection:
     """Open a connection to the brain SQLite database."""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(DB_PATH), timeout=5)
     conn.execute("PRAGMA journal_mode=WAL")
     return conn
 

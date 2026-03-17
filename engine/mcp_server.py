@@ -44,6 +44,25 @@ _MAX_BODY_LEN = 50_000
 # Shared helpers
 # ---------------------------------------------------------------------------
 
+def _ensure_ready() -> None:
+    """Fail fast with a clear message if the brain DB is not accessible.
+
+    Raises RuntimeError within 5 s if the DB is locked or missing,
+    instead of hanging until the MCP transport times out.
+    """
+    import sqlite3 as _sqlite3
+    from engine.paths import DB_PATH as _DB_PATH
+    try:
+        conn = _sqlite3.connect(str(_DB_PATH), timeout=5)
+        conn.execute("SELECT 1")
+        conn.close()
+    except Exception as exc:
+        raise RuntimeError(
+            f"BRAIN_NOT_READY: Cannot connect to brain database ({exc}). "
+            "Is the second-brain API running? Start it with: sb-api"
+        ) from exc
+
+
 def _safe_path(raw: str) -> Path:
     """Resolve path and assert it is inside BRAIN_ROOT."""
     p = Path(raw).resolve()
@@ -99,6 +118,7 @@ def _consume_token(tok: str) -> bool:
 @mcp.tool()
 def sb_search(query: str, mode: str = "hybrid", limit: int = 10) -> list[dict]:
     """Search brain notes by keyword, semantic, or hybrid mode."""
+    _ensure_ready()
     if len(query) > _MAX_QUERY_LEN:
         raise ValueError(f"QUERY_TOO_LONG: query exceeds {_MAX_QUERY_LEN} characters.")
     valid_modes = {"hybrid", "semantic", "keyword"}
@@ -127,6 +147,7 @@ def sb_capture(
     sensitivity: str = "public",
 ) -> dict:
     """Capture a new note. Idempotent — identical title+body returns existing note."""
+    _ensure_ready()
     if len(title) > _MAX_TITLE_LEN:
         raise ValueError(f"TITLE_TOO_LONG: title exceeds {_MAX_TITLE_LEN} characters.")
     if len(body) > _MAX_BODY_LEN:
