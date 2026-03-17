@@ -136,6 +136,22 @@ def migrate_add_attachments_table(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def migrate_add_assignee_path(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: add 'assignee_path' TEXT column to action_items if absent."""
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(action_items)").fetchall()}
+    if "assignee_path" not in cols:
+        conn.execute("ALTER TABLE action_items ADD COLUMN assignee_path TEXT NULL")
+        conn.commit()
+
+
+def migrate_add_due_date(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: add 'due_date' TEXT column to action_items if absent."""
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(action_items)").fetchall()}
+    if "due_date" not in cols:
+        conn.execute("ALTER TABLE action_items ADD COLUMN due_date TEXT NULL")
+        conn.commit()
+
+
 def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     """Create (or optionally recreate) the full schema.
 
@@ -150,3 +166,5 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     migrate_add_entities_column(conn)
     migrate_add_action_items_table(conn)
     migrate_add_attachments_table(conn)
+    migrate_add_assignee_path(conn)
+    migrate_add_due_date(conn)
