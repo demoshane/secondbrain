@@ -19,6 +19,10 @@
     <button id="batch-capture-btn" title="Capture all unindexed notes">Batch Capture</button>
     <span id="sse-status" class="sse-dot sse-disconnected" title="Live refresh"></span>
   </header>
+  <nav id="tab-bar">
+    <button class="tab-btn active" data-tab="notes">Notes</button>
+    <button class="tab-btn" data-tab="actions">Action Items</button>
+  </nav>
   <div id="layout">
     <aside id="sidebar">
       <div id="sidebar-loading">Loading...</div>
@@ -52,6 +56,10 @@
           <h3>People</h3>
           <ul id="people-list"></ul>
         </div>
+        <section id="my-actions-section" style="display:none">
+          <h3>My Actions</h3>
+          <ul id="my-actions-list"></ul>
+        </section>
       </section>
       <section id="actions-panel">
         <h3>Action Items</h3>
@@ -71,6 +79,28 @@
         </section>
       </section>
     </aside>
+  </div>
+  <div id="actions-page" style="display:none">
+    <div id="actions-controls">
+      <select id="filter-assignee"><option value="">Assignee: all</option></select>
+      <select id="filter-status">
+        <option value="0">Status: open</option>
+        <option value="1">Status: done</option>
+      </select>
+      <label><input type="checkbox" id="toggle-done"> Show done</label>
+    </div>
+    <table id="actions-table">
+      <thead>
+        <tr>
+          <th>Done</th>
+          <th>Task</th>
+          <th>Source</th>
+          <th>Assignee</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody id="actions-table-body"></tbody>
+    </table>
   </div>
   <div id="new-note-modal" style="display:none">
     <div id="modal-content">
