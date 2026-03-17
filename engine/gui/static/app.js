@@ -689,10 +689,18 @@ async function renderActionsPage() {
         </tr>`;
     }).join('') || '<tr><td colspan="5"><em>No items</em></td></tr>';
 
-    // Done checkboxes
+    // Done checkboxes — check toggles done on; uncheck toggles done off (reopen)
     tbody.querySelectorAll('.done-check').forEach(cb => {
         cb.addEventListener('change', async () => {
-            await fetch(`${API}/actions/${cb.dataset.id}/done`, {method:'POST'});
+            if (cb.checked) {
+                await fetch(`${API}/actions/${cb.dataset.id}/done`, {method:'POST'});
+            } else {
+                await fetch(`${API}/actions/${cb.dataset.id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({done: false})
+                });
+            }
             renderActionsPage();
         });
     });
@@ -703,11 +711,19 @@ async function renderActionsPage() {
     });
 }
 
-function openAssigneePicker(cell, e) {
+async function openAssigneePicker(cell, e) {
     // Remove any existing picker
     document.querySelectorAll('.assignee-picker').forEach(p => p.remove());
     const actionId = cell.dataset.id;
-    const people = (_allNotes || []).filter(n => n.type === 'people');
+    // Fetch people notes directly from API to ensure all indexed people appear
+    let people = [];
+    try {
+        const res = await fetch(`${API}/notes`);
+        const data = await res.json();
+        people = (data.notes || []).filter(n => n.type === 'people');
+    } catch (_) {
+        people = (_allNotes || []).filter(n => n.type === 'people');
+    }
     const sel = document.createElement('select');
     sel.className = 'assignee-picker';
     sel.style.cssText = 'position:fixed;z-index:1000;';
@@ -719,6 +735,8 @@ function openAssigneePicker(cell, e) {
     sel.style.left = rect.left + 'px';
     document.body.appendChild(sel);
     sel.focus();
+    // Auto-open the native dropdown immediately (single-click UX)
+    try { sel.showPicker(); } catch (_) { /* not supported in all browsers — focus() is fallback */ }
     sel.addEventListener('change', async () => {
         const assignee_path = sel.value || null;
         await fetch(`${API}/actions/${actionId}`, {

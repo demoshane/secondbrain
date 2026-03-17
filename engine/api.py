@@ -680,13 +680,18 @@ def action_done(action_id):
 
 @app.put("/actions/<int:action_id>")
 def update_action(action_id):
-    """Update action item fields. Currently supports: assignee_path."""
+    """Update action item fields. Supports: assignee_path, done."""
     data = request.get_json(force=True)
     conn = get_connection()
     if "assignee_path" in data:
         conn.execute(
             "UPDATE action_items SET assignee_path=? WHERE id=?",
             (data["assignee_path"], action_id),
+        )
+    if "done" in data:
+        conn.execute(
+            "UPDATE action_items SET done=? WHERE id=?",
+            (1 if data["done"] else 0, action_id),
         )
     conn.commit()
     conn.close()
