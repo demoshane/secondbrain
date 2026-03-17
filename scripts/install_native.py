@@ -79,6 +79,36 @@ def write_plist(sb_watch_bin: Path, repo_root: Path, plist_path: Path = None) ->
     return target
 
 
+def write_api_plist(plist_dir: Path, log_dir: Path) -> Path:
+    """Generate and write the launchd plist for sb-api (persistent API server).
+
+    Creates com.secondbrain.api.plist in plist_dir.
+    Returns the path to the written plist file.
+    Raises FileNotFoundError if sb-api binary not found in PATH.
+    """
+    sb_api_bin = shutil.which("sb-api")
+    if not sb_api_bin:
+        raise FileNotFoundError("sb-api not found in PATH — run 'uv tool install .' first")
+    label = "com.secondbrain.api"
+    plist = {
+        "Label": label,
+        "ProgramArguments": [sb_api_bin],
+        "WorkingDirectory": str(Path.home() / "SecondBrain"),
+        "EnvironmentVariables": {
+            "PATH": f"{Path.home()}/.local/bin:/usr/local/bin:/usr/bin:/bin",
+            "HOME": str(Path.home()),
+        },
+        "KeepAlive": True,
+        "RunAtLoad": True,
+        "StandardOutPath": str(log_dir / "second-brain-api.log"),
+        "StandardErrorPath": str(log_dir / "second-brain-api-error.log"),
+    }
+    out_path = plist_dir / f"{label}.plist"
+    with open(out_path, "wb") as f:
+        plistlib.dump(plist, f)
+    return out_path
+
+
 def write_digest_plist(plist_dir: Path, log_dir: Path) -> Path:
     """Generate and write the launchd plist for sb-digest (Monday 08:00 weekly trigger).
 
@@ -109,7 +139,7 @@ def write_digest_plist(plist_dir: Path, log_dir: Path) -> Path:
     return out_path
 
 
-def load_launchd_agent(plist_path: Path) -> None:
+def load_launchd_agent(plist_path: Path, label: str = PLIST_LABEL) -> None:
     """Load (or reload) the launchd agent idempotently.
 
     Runs launchctl bootout first (ignores error if not loaded),
@@ -119,7 +149,7 @@ def load_launchd_agent(plist_path: Path) -> None:
     domain = f"gui/{uid}"
     # bootout: ignore failure (exit code 36 = already unloaded, harmless)
     subprocess.run(
-        ["launchctl", "bootout", f"{domain}/{PLIST_LABEL}"],
+        ["launchctl", "bootout", f"{domain}/{label}"],
         capture_output=True,
     )
     result = subprocess.run(
@@ -129,7 +159,7 @@ def load_launchd_agent(plist_path: Path) -> None:
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr)
-    print(f"Loaded launchd agent: {PLIST_LABEL}")
+    print(f"Loaded launchd agent: {label}")
 
 
 def install_hook(repo_path: Path, hooks_dir: Path) -> None:
@@ -176,10 +206,15 @@ def main() -> None:
         log_dir = Path.home() / "Library" / "Logs"
         plist_dir = Path.home() / "Library" / "LaunchAgents"
         try:
-            write_digest_plist(plist_dir, log_dir)
-            print("Digest launchd plist written.")
+            digest_plist = write_digest_plist(plist_dir, log_dir)
+            load_launchd_agent(digest_plist, "com.secondbrain.digest")
         except FileNotFoundError as e:
-            print(f"Warning: {e} — skipping digest plist install.")
+            print(f"Warning: {e} — skipping digest agent install.")
+        try:
+            api_plist = write_api_plist(plist_dir, log_dir)
+            load_launchd_agent(api_plist, "com.secondbrain.api")
+        except FileNotFoundError as e:
+            print(f"Warning: {e} — skipping api agent install.")
 
     if args.hooks:
         for repo in args.hooks:
