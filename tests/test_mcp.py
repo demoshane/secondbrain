@@ -193,7 +193,6 @@ def test_sb_capture_batch_partial_failure():
     assert len(result.get("succeeded", [])) >= 1
 
 
-@pytest.mark.xfail(strict=False, reason="Wave 3: sb_tools not yet implemented")
 def test_sb_tools():
     """sb_tools returns a list of tool dicts with name, description, parameters fields."""
     result = mcp_mod.sb_tools()

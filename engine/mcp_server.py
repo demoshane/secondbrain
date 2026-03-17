@@ -428,5 +428,33 @@ def sb_anonymize(path: str, tokens: list[str] | None = None, confirm_token: str 
         conn.close()
 
 
+@mcp.tool()
+def sb_tools() -> list[dict]:
+    """List all available MCP tools with their input schemas.
+
+    Use this to discover what operations are available without needing external documentation.
+
+    Returns:
+        List of {name, description, parameters, output_schema} dicts, one per tool.
+        sb_tools itself is excluded to prevent infinite agent loops.
+    """
+    try:
+        # Avoid asyncio.run() — FastMCP stdio runs in an existing event loop.
+        # _tool_manager._tools is a sync dict; no event loop needed.
+        tools = list(mcp._tool_manager._tools.values())
+        return [
+            {
+                "name": t.name,
+                "description": t.description or "",
+                "parameters": t.parameters if hasattr(t, "parameters") else {},
+                "output_schema": t.output_schema if hasattr(t, "output_schema") else {},
+            }
+            for t in tools
+            if t.name != "sb_tools"
+        ]
+    except AttributeError:
+        return [{"name": "sb_tools", "description": "Tool introspection unavailable", "parameters": {}}]
+
+
 def main() -> None:
     mcp.run(transport="stdio")
