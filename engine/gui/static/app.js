@@ -32,7 +32,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 function populateAssigneeFilter() {
     const sel = document.getElementById('filter-assignee');
     if (!sel) return;
-    const people = (_allNotes || []).filter(n => n.type === 'people');
+    const people = (_allNotes || []).filter(n => n.type === 'people' || n.type === 'person');
     sel.innerHTML = '<option value="">Assignee: all</option>' +
         people.map(n => `<option value="${n.path}">${n.title || n.path}</option>`).join('');
 }
@@ -720,9 +720,9 @@ async function openAssigneePicker(cell, e) {
     try {
         const res = await fetch(`${API}/notes`);
         const data = await res.json();
-        people = (data.notes || []).filter(n => n.type === 'people');
+        people = (data.notes || []).filter(n => n.type === 'people' || n.type === 'person');
     } catch (_) {
-        people = (_allNotes || []).filter(n => n.type === 'people');
+        people = (_allNotes || []).filter(n => n.type === 'people' || n.type === 'person');
     }
     const sel = document.createElement('select');
     sel.className = 'assignee-picker';

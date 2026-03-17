@@ -56,7 +56,9 @@ def check_capture_dedup(
         List of {"path": str, "similarity": float} dicts, most similar first.
         Empty list if no matches or if embeddings unavailable.
     """
-    try:
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+
+    def _run_dedup():
         from engine.embeddings import embed_texts
         blobs = embed_texts([f"{title}\n{body}"])
         if not blobs:
@@ -73,7 +75,12 @@ def check_capture_dedup(
             (query_blob, threshold),
         ).fetchall()
         return [{"path": row[0], "similarity": row[1]} for row in rows]
-    except Exception:
+
+    try:
+        with ThreadPoolExecutor(max_workers=1) as ex:
+            future = ex.submit(_run_dedup)
+            return future.result(timeout=8)
+    except (FuturesTimeout, Exception):
         return []
 
 
@@ -337,12 +344,27 @@ def capture_note(
         from engine.links import add_backlinks
         add_backlinks(target, people, brain_root, conn)
 
-    # Phase 15: best-effort intelligence hooks — never block capture
-    try:
-        from engine.intelligence import check_connections, extract_action_items
-        check_connections(target, conn, brain_root)
-        extract_action_items(target, body, content_sensitivity, conn)
-    except Exception:
-        pass
+    # Phase 15: best-effort intelligence hooks — run in background, never block capture
+    import threading
+    _target_str = str(target)
+    _body = body
+    _sensitivity = content_sensitivity
+    _brain_root = brain_root
+
+    def _run_intelligence_hooks():
+        try:
+            from engine.db import get_connection as _get_conn
+            from engine.intelligence import check_connections, extract_action_items
+            _conn = _get_conn()
+            try:
+                check_connections(Path(_target_str), _conn, _brain_root)
+                extract_action_items(Path(_target_str), _body, _sensitivity, _conn)
+                _conn.commit()
+            finally:
+                _conn.close()
+        except Exception:
+            pass
+
+    threading.Thread(target=_run_intelligence_hooks, daemon=True).start()
 
     return target

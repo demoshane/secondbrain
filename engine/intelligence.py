@@ -152,7 +152,7 @@ def list_actions(conn, done: bool = False, assignee: str | None = None) -> list[
         done: If True, return completed items; False returns open items (default).
         assignee: If set, filter to items where assignee_path matches this value.
     """
-    sql = "SELECT id, text, note_path, created_at, assignee_path FROM action_items WHERE done=?"
+    sql = "SELECT id, text, note_path, created_at, assignee_path, done FROM action_items WHERE done=?"
     params: list = [1 if done else 0]
     if assignee is not None:
         sql += " AND assignee_path=?"
