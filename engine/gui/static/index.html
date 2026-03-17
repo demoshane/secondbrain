@@ -15,6 +15,8 @@
       <option value="semantic">Semantic</option>
     </select>
     <button id="new-note-btn">+ New Note</button>
+    <button id="upload-btn" title="Attach file to current note" disabled>+ File</button>
+    <button id="batch-capture-btn" title="Capture all unindexed notes">Batch Capture</button>
     <span id="sse-status" class="sse-dot sse-disconnected" title="Live refresh"></span>
   </header>
   <div id="layout">
@@ -30,9 +32,14 @@
         <button id="save-btn" style="display:none">Save (Ctrl+S)</button>
         <span id="save-error" style="color:red;display:none"></span>
         <button id="delete-btn">Delete</button>
+        <button id="viewer-upload-btn" title="Attach file to this note" style="display:none">+ File</button>
       </div>
       <div id="tag-chips" class="tag-chips-row"></div>
       <div id="viewer"></div>
+      <div id="attachments-section" style="display:none; padding: 12px 16px; border-top: 1px solid #e0e0e0;">
+        <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #666;">Attachments</h4>
+        <ul id="attachments-list" style="list-style:none; margin:0; padding:0;"></ul>
+      </div>
       <textarea id="editor-area" style="display:none"></textarea>
     </main>
     <aside id="right-panel">
@@ -80,6 +87,8 @@
       </div>
     </div>
   </div>
+  <input type="file" id="file-input" style="display:none"
+    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.jpg,.jpeg,.png,.gif,.webp,.bmp,.tiff">
   <script src="/ui/vendor/marked.min.js"></script>
   <script src="/ui/vendor/easymde.min.js"></script>
   <script type="module" src="/ui/app.js"></script>
