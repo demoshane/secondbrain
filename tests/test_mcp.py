@@ -154,8 +154,40 @@ def test_retry_on_db_locked_retry(monkeypatch):
 # Phase 27.1 Wave 0 stubs — dedup, batch capture, and sb_tools
 # ---------------------------------------------------------------------------
 
+@pytest.fixture
+def isolated_mcp_brain(tmp_path, monkeypatch):
+    """Redirect mcp_mod.BRAIN_ROOT and DB_PATH to tmp_path so no real brain is touched.
+
+    Patches both the module-level names (mcp_mod.BRAIN_ROOT, engine.paths.BRAIN_ROOT)
+    so that local re-imports inside sb_capture_batch also see the temp path.
+    """
+    import engine.db as _db
+    import engine.paths as _paths
+    from engine.db import init_schema
+
+    brain = tmp_path / "brain"
+    brain.mkdir()
+    for d in ["note", "ideas", "meetings", "people", "projects"]:
+        (brain / d).mkdir()
+
+    tmp_db = brain / "test.db"
+    monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    # Patch BRAIN_ROOT on both the paths module AND the already-imported mcp_mod name
+    monkeypatch.setattr(_paths, "BRAIN_ROOT", brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", brain)
+    monkeypatch.setenv("BRAIN_PATH", str(brain))
+
+    conn = _db.get_connection()
+    init_schema(conn)
+    conn.commit()
+    conn.close()
+
+    return brain
+
+
 @pytest.mark.xfail(strict=False, reason="Wave 2: sb_capture dedup not yet implemented")
-def test_sb_capture_dedup_warning():
+def test_sb_capture_dedup_warning(isolated_mcp_brain):
     """sb_capture returns duplicate_warning status when a near-duplicate exists."""
     # Capture original note
     mcp_mod.sb_capture("Dedup Test Note", "Content about Q1 roadmap planning")
@@ -166,14 +198,14 @@ def test_sb_capture_dedup_warning():
 
 
 @pytest.mark.xfail(strict=False, reason="Wave 2: sb_capture confirm_token not yet implemented")
-def test_sb_capture_dedup_confirm():
+def test_sb_capture_dedup_confirm(isolated_mcp_brain):
     """sb_capture with confirm_token bypasses dedup and saves the note."""
     result = mcp_mod.sb_capture("Confirm Token Test", "Some body content", confirm_token="fake-token")
     # confirm_token path should attempt save (token may be invalid → xfail expected)
     assert "status" in result
 
 
-def test_sb_capture_batch():
+def test_sb_capture_batch(isolated_mcp_brain):
     """sb_capture_batch saves multiple notes and returns succeeded/failed lists."""
     notes = [
         {"title": "Batch Note 1", "body": "Body 1", "note_type": "note"},
@@ -184,7 +216,7 @@ def test_sb_capture_batch():
     assert len(result["succeeded"]) == 2
 
 
-def test_sb_capture_batch_partial_failure():
+def test_sb_capture_batch_partial_failure(isolated_mcp_brain):
     """A failing note in batch does not block other notes from saving."""
     notes = [
         {"title": "Good Note", "body": "Valid body content", "note_type": "note"},

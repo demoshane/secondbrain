@@ -556,10 +556,65 @@ def note_meta(note_path):
     if title_row:
         related_rows = search_notes(conn, title_row["title"])
         related = [r for r in related_rows if r.get("path") != str(p)][:5]
-    people_row = conn.execute(
-        "SELECT people FROM notes WHERE path=?", (str(p),)
+    note_row = conn.execute(
+        "SELECT people, body FROM notes WHERE path=?", (str(p),)
     ).fetchone()
-    people = json.loads(people_row[0]) if people_row and people_row[0] else []
+    raw_people = json.loads(note_row["people"]) if note_row and note_row["people"] else []
+    note_body = note_row["body"] if note_row else ""
+
+    # Resolve raw_people entries — may be absolute paths OR plain name strings
+    people = []
+    seen_paths = set()
+    for item in raw_people:
+        if str(item).startswith("/"):
+            # Absolute path — look up directly
+            title_r = conn.execute(
+                "SELECT path, title FROM notes WHERE path=?", (str(item),)
+            ).fetchone()
+            if title_r:
+                if title_r["path"] not in seen_paths:
+                    seen_paths.add(title_r["path"])
+                    people.append({"path": title_r["path"], "title": title_r["title"]})
+            else:
+                # Path not in DB — derive display title from stem
+                fake_path = str(item)
+                if fake_path not in seen_paths:
+                    seen_paths.add(fake_path)
+                    people.append({
+                        "path": fake_path,
+                        "title": _Path(fake_path).stem.replace("-", " ").title(),
+                    })
+        else:
+            # Plain name string — look up by title in person/people notes
+            title_r = conn.execute(
+                "SELECT path, title FROM notes "
+                "WHERE LOWER(title) = LOWER(?) AND type IN ('person', 'people') "
+                "LIMIT 1",
+                (str(item),),
+            ).fetchone()
+            if title_r:
+                if title_r["path"] not in seen_paths:
+                    seen_paths.add(title_r["path"])
+                    people.append({"path": title_r["path"], "title": title_r["title"]})
+            else:
+                # Name not found as a person note — show as plain label with no path
+                if str(item) not in seen_paths:
+                    seen_paths.add(str(item))
+                    people.append({"path": None, "title": str(item)})
+
+    # Body-mention detection: find person notes whose title appears in this note's body.
+    # This catches notes where people: [] in frontmatter but names appear in the body text
+    # (e.g. Finnish names missed by ASCII-only entity extraction regex).
+    if note_body:
+        person_rows = conn.execute(
+            "SELECT path, title FROM notes WHERE type IN ('person', 'people')"
+        ).fetchall()
+        body_lower = note_body.lower()
+        for pr in person_rows:
+            if pr["path"] not in seen_paths and pr["title"] and pr["title"].lower() in body_lower:
+                seen_paths.add(pr["path"])
+                people.append({"path": pr["path"], "title": pr["title"]})
+
     conn.close()
     return jsonify({"backlinks": backlinks, "related": related, "people": people})
 

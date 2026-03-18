@@ -95,7 +95,18 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False) -> dict:
     indexed = 0
     errors = []
 
+    # Collect all .md files on disk, skipping hidden directories (e.g. .meta, .index, .claude)
+    disk_paths: set[str] = set()
     for md_path in sorted(brain_root.rglob("*.md")):
+        # Skip any file whose path passes through a hidden directory
+        if any(part.startswith(".") for part in md_path.relative_to(brain_root).parts[:-1]):
+            continue
+        disk_paths.add(str(md_path.resolve()))
+
+    for md_path in sorted(brain_root.rglob("*.md")):
+        # Skip hidden directories
+        if any(part.startswith(".") for part in md_path.relative_to(brain_root).parts[:-1]):
+            continue
         try:
             post = frontmatter.load(str(md_path))
             meta = post.metadata
@@ -149,6 +160,21 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False) -> dict:
     conn.execute("INSERT INTO notes_fts(notes_fts) VALUES('rebuild')")
     conn.commit()
 
+    # Purge DB entries for notes that no longer exist on disk
+    db_paths = {row[0] for row in conn.execute("SELECT path FROM notes").fetchall()}
+    stale_paths = db_paths - disk_paths
+    purged = 0
+    if stale_paths:
+        for stale in stale_paths:
+            conn.execute("DELETE FROM notes WHERE path = ?", (stale,))
+            conn.execute("DELETE FROM note_embeddings WHERE note_path = ?", (stale,))
+            conn.execute("DELETE FROM relationships WHERE source_path = ? OR target_path = ?", (stale, stale))
+            conn.execute("DELETE FROM action_items WHERE note_path = ?", (stale,))
+        conn.execute("INSERT INTO notes_fts(notes_fts) VALUES('rebuild')")
+        conn.commit()
+        purged = len(stale_paths)
+        print(f"[sb-reindex] Purged {purged} stale entries no longer on disk")
+
     # Build wiki-link relationships from note bodies
     from engine.links import update_wiki_link_relationships
     all_notes = conn.execute("SELECT path, body FROM notes").fetchall()
@@ -174,6 +200,7 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False) -> dict:
 
     return {
         "indexed": indexed,
+        "purged": purged,
         "errors": errors,
         "embed_updated": embed_result["updated"],
         "embed_unchanged": embed_result["unchanged"],
@@ -190,6 +217,8 @@ def main():
     result = reindex_brain(BRAIN_ROOT, full=args.full)
 
     print(f"  [OK] Indexed {result['indexed']} notes")
+    if result["purged"]:
+        print(f"  [OK] Purged {result['purged']} stale DB entries (files deleted from disk)")
     print(f"  [OK] {result['embed_updated']} embeddings updated, {result['embed_unchanged']} unchanged")
     if result["errors"]:
         print(f"  [WARN] {len(result['errors'])} errors:")

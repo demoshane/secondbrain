@@ -1,5 +1,12 @@
 # Second Brain — Project Orientation
 
+## Mandatory first read
+
+**Before any implementation, debugging, or testing: read `.claude/LEARNINGS.md`.**
+It contains rules, deploy pipelines, and known gotchas specific to this project.
+
+**After resolving any issue or bug: update `.claude/LEARNINGS.md`** with the root cause, fix, and rule to prevent recurrence.
+
 ## What this is
 
 Personal second brain: capture, search, and surface notes via CLI, desktop GUI, and MCP server.

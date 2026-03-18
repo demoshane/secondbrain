@@ -164,12 +164,22 @@ def test_fts5_clean_after_delete(note_file):
 def tmp_api_note(tmp_path, monkeypatch):
     """Real .md file + DB row for endpoint integration tests.
 
-    Sets BRAIN_PATH to tmp_path so _resolve_note_path accepts the note's absolute path.
+    Sets BRAIN_PATH to tmp_path and patches DB_PATH to a temp DB so no real
+    ~/SecondBrain data is touched.
     """
-    import os
-    from engine.db import get_connection
+    import engine.db as _db
+    import engine.paths as _paths
+    from engine.db import get_connection, init_schema
 
+    tmp_db = tmp_path / "test.db"
+    monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
     monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+
+    conn = get_connection()
+    init_schema(conn)
+    conn.commit()
+    conn.close()
 
     note = tmp_path / "api-note.md"
     note.write_text(
@@ -186,13 +196,7 @@ def tmp_api_note(tmp_path, monkeypatch):
     conn.commit()
     conn.close()
     yield path_str
-    # Cleanup: remove DB row if test didn't delete it
-    conn = get_connection()
-    conn.execute("DELETE FROM notes WHERE path=?", (path_str,))
-    conn.commit()
-    conn.close()
-    if note.exists():
-        note.unlink()
+    # tmp_path cleaned up by pytest; monkeypatch reverts DB_PATH automatically
 
 
 def test_delete_endpoint_200(client, tmp_api_note):

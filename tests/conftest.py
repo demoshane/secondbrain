@@ -9,6 +9,56 @@ import pytest
 
 
 # ---------------------------------------------------------------------------
+# Real-brain write guard — fails loudly if any test writes to ~/SecondBrain
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope="session", autouse=True)
+def _guard_real_brain():
+    """Detect any .md files written to the real ~/SecondBrain during the test run.
+
+    Snapshots mtimes before the session and diffs after.  Fails the session if
+    new files appear, so regressions are caught immediately rather than silently
+    polluting Drive-synced brain data.
+    """
+    real_brain = Path.home() / "SecondBrain"
+    if not real_brain.exists():
+        yield
+        return
+
+    def _snapshot(root: Path) -> dict:
+        result = {}
+        try:
+            for p in root.rglob("*.md"):
+                # Skip hidden dirs (e.g. .meta/)
+                if any(part.startswith(".") for part in p.relative_to(root).parts):
+                    continue
+                try:
+                    result[str(p)] = p.stat().st_mtime
+                except OSError:
+                    pass
+        except OSError:
+            pass
+        return result
+
+    before = _snapshot(real_brain)
+    yield
+    after = _snapshot(real_brain)
+
+    new_files = sorted(k for k in after if k not in before)
+    modified = sorted(
+        k for k in after
+        if k in before and after[k] != before[k]
+    )
+    problems = new_files + modified
+    if problems:
+        msg = (
+            "ISOLATION FAILURE: test suite wrote to the real ~/SecondBrain!\n"
+            + "\n".join(f"  {'NEW' if f in new_files else 'MODIFIED'}: {f}" for f in problems)
+        )
+        pytest.fail(msg, pytrace=False)
+
+
+# ---------------------------------------------------------------------------
 # Embedding stub — prevents sentence-transformers download in all tests
 # ---------------------------------------------------------------------------
 

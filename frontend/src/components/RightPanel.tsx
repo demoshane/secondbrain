@@ -6,7 +6,7 @@ import { getAPI } from '@/lib/utils'
 import type { Note } from '@/types'
 
 export function RightPanel() {
-  const { currentPath } = useNoteContext()
+  const { currentPath, openNote } = useNoteContext()
   const [backlinks, setBacklinks] = useState<Note[]>([])
   const [people, setPeople] = useState<Note[]>([])
 
@@ -32,7 +32,14 @@ export function RightPanel() {
           <section>
             <h3 className="text-xs font-semibold uppercase text-muted-foreground mb-1">Backlinks</h3>
             {backlinks.map(b => (
-              <div key={b.path} className="text-sm truncate text-foreground">{b.title}</div>
+              <button
+                key={b.path}
+                className="block w-full text-left text-sm truncate text-foreground hover:text-primary hover:underline py-0.5"
+                onClick={() => openNote(b.path)}
+                data-testid="backlink-item"
+              >
+                {b.title}
+              </button>
             ))}
           </section>
         )}
@@ -40,7 +47,17 @@ export function RightPanel() {
           <section>
             <h3 className="text-xs font-semibold uppercase text-muted-foreground mb-1">People</h3>
             <div className="flex flex-wrap gap-1">
-              {people.map(p => <Badge key={p.path} variant="outline">{p.title}</Badge>)}
+              {people.map(p => (
+                <Badge
+                  key={p.path}
+                  variant="outline"
+                  className="cursor-pointer hover:bg-accent"
+                  onClick={() => openNote(p.path)}
+                  data-testid="people-badge"
+                >
+                  {p.title}
+                </Badge>
+              ))}
             </div>
           </section>
         )}

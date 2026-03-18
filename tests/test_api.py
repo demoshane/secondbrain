@@ -20,9 +20,23 @@ def client():
 def tmp_note(tmp_path, monkeypatch):
     """Create a real temporary .md file with valid frontmatter; yield its absolute path.
 
-    Sets BRAIN_PATH to tmp_path so _resolve_note_path accepts the note's absolute path.
+    Sets BRAIN_PATH to tmp_path and patches DB_PATH to a temp DB so no real
+    ~/SecondBrain data is touched.
     """
+    import engine.db as _db
+    import engine.paths as _paths
+    from engine.db import init_schema
+
+    tmp_db = tmp_path / "test.db"
+    monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
     monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+
+    conn = get_connection()
+    init_schema(conn)
+    conn.commit()
+    conn.close()
+
     note = tmp_path / "test-note.md"
     note.write_text(
         "---\ntitle: Original Title\ntags: [test]\ntype: idea\n---\n\nBody content here.\n",
@@ -38,11 +52,7 @@ def tmp_note(tmp_path, monkeypatch):
     conn.commit()
     conn.close()
     yield str(note.resolve())
-    # Cleanup
-    conn = get_connection()
-    conn.execute("DELETE FROM notes WHERE path=?", (str(note.resolve()),))
-    conn.commit()
-    conn.close()
+    # tmp_path cleaned up by pytest; monkeypatch reverts DB_PATH
 
 
 class TestHealthEndpoint:
@@ -130,6 +140,19 @@ class TestSaveNote:
 
 
 class TestActionItems:
+    @pytest.fixture(autouse=True)
+    def _isolate_db(self, tmp_path, monkeypatch):
+        import engine.db as _db
+        import engine.paths as _paths
+        from engine.db import init_schema
+        tmp_db = tmp_path / "test.db"
+        monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+        monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+        conn = get_connection()
+        init_schema(conn)
+        conn.commit()
+        conn.close()
+
     def test_actions_returns_200(self, client):
         response = client.get("/actions")
         assert response.status_code == 200
@@ -218,7 +241,20 @@ class TestActionItems:
 @pytest.fixture
 def tmp_note_pair(tmp_path, monkeypatch):
     """Create temp .md files and insert them into SQLite for backlinks testing."""
+    import engine.db as _db
+    import engine.paths as _paths
+    from engine.db import init_schema
+
+    tmp_db = tmp_path / "test.db"
+    monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
     monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+
+    conn = get_connection()
+    init_schema(conn)
+    conn.commit()
+    conn.close()
+
     note_a = tmp_path / "note_a.md"
     note_a.write_text(
         "---\ntitle: Alice Smith\n---\n\nProject lead for Q1.",
@@ -269,21 +305,18 @@ def tmp_note_pair(tmp_path, monkeypatch):
         "note_unique": note_unique,
         "note_lower": note_lower,
     }
-
-    conn = get_connection()
-    for path, _, _ in notes_data:
-        conn.execute("DELETE FROM notes WHERE path=?", (path,))
-    conn.commit()
-    conn.close()
+    # tmp_path cleaned up by pytest; monkeypatch reverts DB_PATH automatically
 
 
 class TestCreateNote:
     @pytest.fixture(autouse=True)
     def _isolate_db(self, tmp_path, monkeypatch):
         import engine.db as _db
+        import engine.paths as _paths
         from engine.db import init_schema
         tmp_db = tmp_path / "test.db"
         monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+        monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
         conn = get_connection()
         init_schema(conn)
         conn.commit()
