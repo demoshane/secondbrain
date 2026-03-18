@@ -13,14 +13,16 @@ export function RightPanel() {
   useEffect(() => {
     if (!currentPath) return
     const encoded = encodeURIComponent(currentPath)
-    fetch(`${getAPI()}/notes/${encoded}/backlinks`)
+    fetch(`${getAPI()}/notes/${encoded}/meta`)
       .then(r => r.json())
-      .then(d => setBacklinks(d.backlinks ?? []))
-      .catch(() => setBacklinks([]))
-    fetch(`${getAPI()}/notes/${encoded}/people`)
-      .then(r => r.json())
-      .then(d => setPeople(d.people ?? []))
-      .catch(() => setPeople([]))
+      .then(d => {
+        setBacklinks(d.backlinks ?? [])
+        setPeople(d.people ?? [])
+      })
+      .catch(() => {
+        setBacklinks([])
+        setPeople([])
+      })
   }, [currentPath])
 
   return (

@@ -878,7 +878,7 @@ def brain_health_endpoint():
         duplicates = get_duplicate_candidates(conn)
         score = compute_health_score(
             total_notes=total,
-            empty=len(empty),
+            orphans=len(orphans),
             broken=len(broken),
             duplicates=len(duplicates),
         )
