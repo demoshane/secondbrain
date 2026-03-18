@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27.4-04-PLAN.md (checkpoint:human-verify pending)
-last_updated: "2026-03-18T15:45:00.000Z"
+stopped_at: Completed 27.5-01-PLAN.md
+last_updated: "2026-03-18T16:40:08.696Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
-  total_phases: 13
-  completed_phases: 11
-  total_plans: 60
-  completed_plans: 53
+  total_phases: 14
+  completed_phases: 12
+  total_plans: 63
+  completed_plans: 55
   percent: 99
 ---
 
@@ -98,6 +98,7 @@ Progress: [██████████] 99%
 | Phase 27.4-people-page P02 | 5 | 1 tasks | 1 files |
 | Phase 27.4-people-page P03 | 6 | 2 tasks | 7 files |
 | Phase 27.4-people-page P04 | 10 | 1 tasks | 2 files |
+| Phase 27.5-meetings-page P01 | 8 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -219,6 +220,9 @@ Recent decisions affecting current work:
 - [Phase 27.4-people-page]: .secrets.baseline updated to new vite asset filename; hashed_secret unchanged (same minified keyword pattern)
 - [Phase 27.4-04]: test bodies use live_server_url (not gui_app) to match existing test_gui.py pattern — no new fixture needed
 - [Phase 27.4-04]: gui_brain seeds test-person.md + SQLite row at session scope so people table is non-empty for row-click tests
+- [Phase 27.5-01]: list_meetings() queries notes WHERE type='meeting' sorted by created_at DESC; meeting_date = substr(created_at,1,10)
+- [Phase 27.5-01]: get_meeting() reads body from DB notes.body (not disk) for consistency; path-traversal guarded via _resolve_note_path()
+- [Phase 27.5-01]: list_actions() extended with note_path param; exposed as ?note_path= on GET /actions
 
 ### Roadmap Evolution
 
@@ -242,8 +246,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-18T15:45:00.000Z
-Stopped at: Completed 27.4-04-PLAN.md (checkpoint:human-verify pending)
+Last session: 2026-03-18T16:40:08.686Z
+Stopped at: Completed 27.5-01-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
