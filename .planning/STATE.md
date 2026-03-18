@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27.5-01-PLAN.md
-last_updated: "2026-03-18T16:40:08.696Z"
+stopped_at: Completed 27.5-02-PLAN.md
+last_updated: "2026-03-18T16:55:54.699Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 14
   completed_phases: 12
   total_plans: 63
-  completed_plans: 55
+  completed_plans: 56
   percent: 99
 ---
 
@@ -99,6 +99,7 @@ Progress: [██████████] 99%
 | Phase 27.4-people-page P03 | 6 | 2 tasks | 7 files |
 | Phase 27.4-people-page P04 | 10 | 1 tasks | 2 files |
 | Phase 27.5-meetings-page P01 | 8 | 2 tasks | 3 files |
+| Phase 27.5-meetings-page P02 | 8 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -223,6 +224,8 @@ Recent decisions affecting current work:
 - [Phase 27.5-01]: list_meetings() queries notes WHERE type='meeting' sorted by created_at DESC; meeting_date = substr(created_at,1,10)
 - [Phase 27.5-01]: get_meeting() reads body from DB notes.body (not disk) for consistency; path-traversal guarded via _resolve_note_path()
 - [Phase 27.5-01]: list_actions() extended with note_path param; exposed as ?note_path= on GET /actions
+- [Phase 27.5-meetings-page]: [27.5-02] Tasks 1+2 committed together — App.tsx imports MeetingsPage so both must exist before build verifies
+- [Phase 27.5-meetings-page]: [27.5-02] Action items fetched via GET /actions?note_path=<enc>, not ?assignee= — meetings own actions, not people
 
 ### Roadmap Evolution
 
@@ -246,8 +249,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-18T16:40:08.686Z
-Stopped at: Completed 27.5-01-PLAN.md
+Last session: 2026-03-18T16:55:54.689Z
+Stopped at: Completed 27.5-02-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
