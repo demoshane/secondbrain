@@ -307,6 +307,17 @@ Plans:
 - [ ] 27.6-02-PLAN.md — Frontend: Projects page + project detail view
 - [ ] 27.6-03-PLAN.md — Integration, Playwright tests, sign-off
 
+### Phase 27.7: Intelligence Page
+
+**Goal:** Promote recap, brain health, and digest from the sidebar intelligence panel to a full dedicated Intelligence page in the tab bar
+**Depends on:** Phase 27.6
+**Requirements**: 27.7-INTEL-01, 27.7-INTEL-02, 27.7-INTEL-03, 27.7-INTEL-04
+
+Plans:
+- [ ] 27.7-01-PLAN.md — Backend: intelligence page API endpoints
+- [ ] 27.7-02-PLAN.md — Frontend: Intelligence page + tab bar wiring
+- [ ] 27.7-03-PLAN.md — Integration, Playwright tests, sign-off
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
