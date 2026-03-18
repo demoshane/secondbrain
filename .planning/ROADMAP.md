@@ -56,9 +56,10 @@
 - [x] **Phase 27.4: People Page** — People directory, per-person view with meetings, action items, and backlinks (completed 2026-03-18)
 - [x] **Phase 27.5: Meetings Page** — Chronological meeting log, participants, outcomes, linked action items (completed 2026-03-18)
 - [x] **Phase 27.6: Projects Page** — Project status tracking, related notes, open action items per project (completed 2026-03-18)
-- [x] **Phase 27.7: Intelligence Page** — Promote recap, brain health, digest from sidebar panel to full dedicated page (completed 2026-03-18)
-- [ ] **Phase 27.8: Inbox Page** — Review queue: empty notes, unprocessed captures, unassigned action items
-- [ ] **Phase 27.9: Graph View** — Visual knowledge map, nodes = notes, edges = relationships, zoomable/filterable
+- [ ] **Phase 27.7: Playwright Coverage & Regression Baseline** — Expand Playwright suite to cover all existing features; enforce test isolation; add pre-flight smoke test
+- [x] **Phase 27.8: Intelligence Page** — Promote recap, brain health, digest from sidebar panel to full dedicated page (completed 2026-03-18)
+- [ ] **Phase 27.9: Inbox Page** — Review queue: empty notes, unprocessed captures, unassigned action items
+- [ ] **Phase 27.10: Graph View** — Visual knowledge map, nodes = notes, edges = relationships, zoomable/filterable
 
 ### Phase Details
 
@@ -307,16 +308,30 @@ Plans:
 - [ ] 27.6-02-PLAN.md — Frontend: Projects page + project detail view
 - [ ] 27.6-03-PLAN.md — Integration, Playwright tests, sign-off
 
-### Phase 27.7: Intelligence Page
+### Phase 27.7: Playwright Coverage & Regression Baseline
+
+**Goal:** Expand Playwright test coverage to all existing GUI features so regressions are caught automatically before reaching the user. Add pre-flight smoke test, fix test isolation gaps, establish baseline.
+**Depends on:** Phase 27.6
+**Requirements**: 27.7-QA-01, 27.7-QA-02, 27.7-QA-03, 27.7-QA-04
+
+**Context for discuss-phase:** ⚠️ QUALITY DISCUSSION REQUIRED — Before planning, discuss: (1) agents fixing out-of-scope bugs causing cascading failures, (2) Playwright suite too shallow to catch right panel / people / brain health regressions, (3) pre-existing silent bugs surfacing when adjacent code changes. Agree on scope discipline rules and coverage targets before creating plans.
+
+Plans:
+- [ ] 27.7-01-PLAN.md — Playwright: right panel (backlinks, people, clickability)
+- [ ] 27.7-02-PLAN.md — Playwright: Intelligence page, brain health, recap
+- [ ] 27.7-03-PLAN.md — Playwright: Notes, People, Meetings, Projects tabs smoke tests
+- [ ] 27.7-04-PLAN.md — Pre-flight smoke test + test isolation hardening
+
+### Phase 27.8: Intelligence Page
 
 **Goal:** Promote recap, brain health, and digest from the sidebar intelligence panel to a full dedicated Intelligence page in the tab bar
 **Depends on:** Phase 27.6
-**Requirements**: 27.7-INTEL-01, 27.7-INTEL-02, 27.7-INTEL-03, 27.7-INTEL-04
+**Requirements**: 27.8-INTEL-01, 27.8-INTEL-02, 27.8-INTEL-03, 27.8-INTEL-04
 
 Plans:
-- [ ] 27.7-01-PLAN.md — Backend: intelligence page API endpoints
-- [ ] 27.7-02-PLAN.md — Frontend: Intelligence page + tab bar wiring
-- [ ] 27.7-03-PLAN.md — Integration, Playwright tests, sign-off
+- [ ] 27.8-01-PLAN.md — Backend: intelligence page API endpoints
+- [ ] 27.8-02-PLAN.md — Frontend: Intelligence page + tab bar wiring
+- [ ] 27.8-03-PLAN.md — Integration, Playwright tests, sign-off
 
 ## Progress
 
@@ -352,6 +367,8 @@ Plans:
 | 27. Search Quality Tuning | 7/7 | Complete    | 2026-03-17 | - |
 | 27.1. Smart Capture & Proactive Brain | 5/5 | Complete    | 2026-03-18 | - |
 | 27.2. Action Items Page + Nav Scaffold | 4/4 | Complete    | 2026-03-18 | - |
+| 27.7. Playwright Coverage & Regression Baseline | v3.0 | 0/4 | Not started | - |
+| 27.8. Intelligence Page | v3.0 | 3/3 | Complete | 2026-03-18 |
 | 28. TODO & Gap Resolution | v3.0 | 0/6 | Not started | - |
 
 ### Phase 28: TODO & Gap Resolution
