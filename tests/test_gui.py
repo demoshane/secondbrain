@@ -350,3 +350,30 @@ def test_projects_page_row_click(page, live_server_url):
     row.wait_for(state='visible')
     row.click()
     page.locator('[data-testid="project-actions-section"]').wait_for(state='visible')
+
+
+def test_intelligence_tab(page, live_server_url):
+    """Intelligence tab is visible and switches to intelligence view."""
+    page.goto("/ui")
+    page.locator('[data-testid="tab-bar"]').wait_for(state='visible')
+    page.locator('[data-testid="tab-intelligence"]').wait_for(state='visible')
+    page.locator('[data-testid="tab-intelligence"]').click()
+    page.locator('[data-testid="intelligence-page"]').wait_for(state='visible')
+
+
+def test_intelligence_recap_button(page, live_server_url):
+    """Generate Recap button is visible on the Intelligence page."""
+    page.goto("/ui")
+    page.locator('[data-testid="tab-intelligence"]').wait_for(state='visible')
+    page.locator('[data-testid="tab-intelligence"]').click()
+    page.locator('[data-testid="intelligence-page"]').wait_for(state='visible')
+    page.locator('[data-testid="generate-recap-btn"]').wait_for(state='visible')
+
+
+def test_intelligence_health_score(page, live_server_url):
+    """Brain health score element is visible on the Intelligence page."""
+    page.goto("/ui")
+    page.locator('[data-testid="tab-intelligence"]').wait_for(state='visible')
+    page.locator('[data-testid="tab-intelligence"]').click()
+    page.locator('[data-testid="intelligence-page"]').wait_for(state='visible')
+    page.locator('[data-testid="health-score"]').wait_for(state='visible')
