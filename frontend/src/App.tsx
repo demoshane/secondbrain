@@ -1,38 +1,86 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Topbar } from './components/Topbar'
 import { TabBar } from './components/TabBar'
 import { Sidebar } from './components/Sidebar'
+import { NoteViewer } from './components/NoteViewer'
+import { RightPanel } from './components/RightPanel'
+import { ActionsPage } from './components/ActionsPage'
+import { NewNoteModal } from './components/NewNoteModal'
+import { DeleteNoteModal } from './components/DeleteNoteModal'
+import { FileUploadModal } from './components/FileUploadModal'
+import { BatchCaptureModal } from './components/BatchCaptureModal'
 import { useNoteContext } from './contexts/NoteContext'
 import { useUIContext } from './contexts/UIContext'
-
-// Placeholder components until plan 04
-function NoteViewerPlaceholder() {
-  return <div className="flex-1 p-4 text-muted-foreground">Select a note</div>
-}
-function ActionsPagePlaceholder() {
-  return <div className="flex-1 p-4 text-muted-foreground">Actions page</div>
-}
-function RightPanelPlaceholder() {
-  return <div className="w-64 border-l p-4 text-muted-foreground text-sm">Right panel</div>
-}
+import { Button } from './components/ui/button'
+import { Trash2, Upload } from 'lucide-react'
 
 export default function App() {
-  const { loadNotes } = useNoteContext()
+  const { loadNotes, currentNote, currentPath } = useNoteContext()
   const { currentView } = useUIContext()
+  const [showNewNote, setShowNewNote] = useState(false)
+  const [showDelete, setShowDelete] = useState(false)
+  const [showUpload, setShowUpload] = useState(false)
+  const [showBatch, setShowBatch] = useState(false)
 
   useEffect(() => { loadNotes() }, [loadNotes])
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
-      <Topbar />
+      <Topbar
+        onNewNote={() => setShowNewNote(true)}
+        onBatchCapture={() => setShowBatch(true)}
+      />
       <TabBar />
       <div className="flex flex-1 overflow-hidden">
         {currentView === 'notes' && <Sidebar />}
-        <div className="flex flex-1 overflow-hidden">
-          {currentView === 'notes' ? <NoteViewerPlaceholder /> : <ActionsPagePlaceholder />}
+        <div className="flex flex-1 flex-col overflow-hidden">
+          {currentView === 'notes' ? (
+            currentNote ? (
+              <div className="flex flex-col flex-1 overflow-hidden">
+                <div className="flex items-center gap-1 px-2 py-1 border-b">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setShowUpload(true)}
+                    disabled={!currentPath}
+                    data-testid="upload-btn"
+                  >
+                    <Upload className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setShowDelete(true)}
+                    disabled={!currentPath}
+                    data-testid="delete-btn"
+                    className="text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                <NoteViewer note={currentNote} />
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-muted-foreground" data-testid="no-note-selected">
+                Select a note
+              </div>
+            )
+          ) : (
+            <ActionsPage />
+          )}
         </div>
-        {currentView === 'notes' && <RightPanelPlaceholder />}
+        {currentView === 'notes' && <RightPanel />}
       </div>
+
+      <NewNoteModal open={showNewNote} onClose={() => setShowNewNote(false)} />
+      <DeleteNoteModal
+        open={showDelete}
+        notePath={currentPath ?? ''}
+        noteTitle={currentNote?.title ?? ''}
+        onClose={() => setShowDelete(false)}
+      />
+      <FileUploadModal open={showUpload} onClose={() => setShowUpload(false)} />
+      <BatchCaptureModal open={showBatch} onClose={() => setShowBatch(false)} />
     </div>
   )
 }
