@@ -277,7 +277,7 @@ Plans:
 **Goal:** A dedicated People page in the tab bar that shows the people directory, per-person detail view with associated meetings, action items, and backlinks
 **Depends on:** Phase 27.3
 **Requirements**: 27.4-PP-01, 27.4-PP-02, 27.4-PP-03, 27.4-PP-04
-**Plans:** 1/4 plans executed
+**Plans:** 2/4 plans executed
 
 Plans:
 - [ ] 27.4-01-PLAN.md — Wave 0: xfail test scaffolds
