@@ -5,6 +5,7 @@ import { Sidebar } from './components/Sidebar'
 import { NoteViewer } from './components/NoteViewer'
 import { RightPanel } from './components/RightPanel'
 import { ActionsPage } from './components/ActionsPage'
+import { PeoplePage } from './components/PeoplePage'
 import { NewNoteModal } from './components/NewNoteModal'
 import { DeleteNoteModal } from './components/DeleteNoteModal'
 import { FileUploadModal } from './components/FileUploadModal'
@@ -65,8 +66,10 @@ export default function App() {
                 Select a note
               </div>
             )
-          ) : (
+          ) : currentView === 'actions' ? (
             <ActionsPage />
+          ) : (
+            <PeoplePage />
           )}
         </div>
         {currentView === 'notes' && <RightPanel />}
