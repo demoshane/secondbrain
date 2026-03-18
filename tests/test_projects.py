@@ -120,9 +120,12 @@ def test_project_detail(client):
 
 
 def test_project_detail_not_found(client):
-    """GET /projects/missing.md returns 404."""
+    """GET /projects/<path> returns 404 when path is inside brain but not in DB."""
     c, brain = client
-    resp = c.get("/projects/missing.md")
+    # Build an absolute path inside the brain so _resolve_note_path doesn't raise ValueError
+    missing = str(brain / "projects" / "missing.md")
+    enc = urllib.parse.quote(missing.lstrip("/"), safe="")
+    resp = c.get(f"/projects/{enc}")
     assert resp.status_code == 404
 
 

@@ -319,6 +319,48 @@ def get_meeting(note_path):
     })
 
 
+@app.get("/projects")
+def list_projects():
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT n.path, n.title, substr(n.updated_at,1,10) AS updated_at, "
+        "  (SELECT COUNT(*) FROM action_items a WHERE a.note_path=n.path AND a.done=0) AS open_actions "
+        "FROM notes n WHERE n.type = 'projects' ORDER BY n.updated_at DESC"
+    ).fetchall()
+    conn.close()
+    return jsonify({"projects": [dict(r) for r in rows]})
+
+
+@app.get("/projects/<path:note_path>")
+def get_project(note_path):
+    try:
+        abs_path, _brain_root = _resolve_note_path(note_path)
+    except ValueError:
+        return jsonify({"error": "forbidden"}), 403
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT path, title, body, substr(updated_at,1,10) AS updated_at FROM notes WHERE path=?",
+        (str(abs_path),)
+    ).fetchone()
+    if row is None:
+        conn.close()
+        return jsonify({"error": "not found"}), 404
+    open_actions = conn.execute(
+        "SELECT COUNT(*) FROM action_items WHERE note_path=? AND done=0",
+        (str(abs_path),)
+    ).fetchone()[0]
+    conn.close()
+    return jsonify({
+        "path": row["path"],
+        "title": row["title"] or "",
+        "body": row["body"] or "",
+        "updated_at": row["updated_at"] or "",
+        "open_actions": open_actions,
+    })
+
+
 @app.get("/actions")
 def get_actions():
     done = request.args.get("done", "0") == "1"
