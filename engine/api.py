@@ -246,6 +246,22 @@ def read_note(note_path):
     })
 
 
+@app.get("/people")
+def list_people():
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    brain_root = Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))).resolve()
+    people_prefix = str(brain_root / "people") + "/"
+    rows = conn.execute(
+        "SELECT n.path, n.title, n.updated_at, "
+        "  (SELECT COUNT(*) FROM action_items a WHERE a.assignee_path=n.path AND a.done=0) AS open_actions "
+        "FROM notes n WHERE n.path LIKE ? ORDER BY n.title",
+        (people_prefix + "%",)
+    ).fetchall()
+    conn.close()
+    return jsonify({"people": [dict(r) for r in rows]})
+
+
 @app.get("/actions")
 def get_actions():
     done = request.args.get("done", "0") == "1"
