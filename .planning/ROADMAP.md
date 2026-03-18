@@ -358,7 +358,7 @@ Plans:
 
 **Goal:** All open TODOs, known gaps, and deferred issues identified at phase start are resolved before the milestone is closed
 **Depends on:** Phase 27
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 28-01-PLAN.md — Title-only dedup for long captures (fix MCP timeout on large bodies)
