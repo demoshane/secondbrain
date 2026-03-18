@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27.3-04-PLAN.md
-last_updated: "2026-03-18T12:01:10.482Z"
+stopped_at: "Completed 27.3-05-PLAN.md (checkpoint: awaiting human verify)"
+last_updated: "2026-03-18T12:13:45.083Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 12
-  completed_phases: 10
+  completed_phases: 11
   total_plans: 50
-  completed_plans: 49
+  completed_plans: 50
   percent: 99
 ---
 
@@ -92,6 +92,7 @@ Progress: [██████████] 99%
 | Phase 27.3-ui-ux-overhaul P02 | 9 | 2 tasks | 9 files |
 | Phase 27.3-ui-ux-overhaul P03 | 12 | 2 tasks | 10 files |
 | Phase 27.3-ui-ux-overhaul P04 | 12 | 2 tasks | 13 files |
+| Phase 27.3-ui-ux-overhaul P05 | 11 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -200,6 +201,8 @@ Recent decisions affecting current work:
 - [Phase 27.3-03]: [27.3-03] shadcn npx add installed Radix packages but did not generate component source files; hand-crafted from standard shadcn templates
 - [Phase 27.3-03]: [27.3-03] groupNotes() uses Map<folder, Map<type, Note[]>> for two-level hierarchy — pure function with no side effects
 - [Phase 27.3-04]: NoteViewer uses Attachment.file_path (not .url) matching types.ts; RightPanel catches all fetch errors silently; modal state owned by App.tsx; TDD: test RED before GREEN
+- [Phase 27.3-05]: [27.3-05] [data-testid='note-body'] targets the scrollable content div inside NoteViewer — correct target for scroll tests replacing #viewer
+- [Phase 27.3-05]: [27.3-05] Playwright sidebar-loading wait removed — React renders sidebar inline without dedicated loading indicator; wait for first note-item instead
 
 ### Roadmap Evolution
 
@@ -223,8 +226,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-18T12:01:05.134Z
-Stopped at: Completed 27.3-04-PLAN.md
+Last session: 2026-03-18T12:13:39.972Z
+Stopped at: Completed 27.3-05-PLAN.md (checkpoint: awaiting human verify)
 Resume file: None
 
 ## TODOs (for Phase 27)

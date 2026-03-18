@@ -52,7 +52,7 @@
 - [x] **Phase 27: Search Quality Tuning** — BM25 column weight tuning, recency boost, AI recap quality improvements (completed 2026-03-17)
 - [x] **Phase 27.1: Smart Capture & Proactive Brain** — Entity extraction at capture time, dedup via embedding similarity, multi-capture, CLAUDE.md in repo, MCP tool self-documentation (completed 2026-03-17)
 - [x] **Phase 27.2: Action Items Page + Nav Scaffold** — Top tab bar (extensible), dedicated Action Items page, assignee picker with autocomplete, assignee_path on action_items, person note "My Actions" section (completed 2026-03-17)
-- [ ] **Phase 27.3: UI/UX Overhaul** — Design system (typography, spacing, color tokens), visual consistency across all panels, dark mode polish
+- [x] **Phase 27.3: UI/UX Overhaul** — Design system (typography, spacing, color tokens), visual consistency across all panels, dark mode polish (completed 2026-03-18)
 - [ ] **Phase 27.4: People Page** — People directory, per-person view with meetings, action items, and backlinks
 - [ ] **Phase 27.5: Meetings Page** — Chronological meeting log, participants, outcomes, linked action items
 - [ ] **Phase 27.6: Projects Page** — Project status tracking, related notes, open action items per project
@@ -263,7 +263,7 @@ Plans:
 4. All existing backend tests pass; no API contract regressions
 
 **Requirements**: UIUX-01, UIUX-02, UIUX-03, UIUX-04
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 - [ ] 27.3-01-PLAN.md — Vite + React + shadcn/ui scaffold, types, Vitest stubs
