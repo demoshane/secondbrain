@@ -37,3 +37,11 @@ export interface PersonSummary {
   updated_at: string
   open_actions: number
 }
+
+export interface MeetingSummary {
+  path: string
+  title: string
+  meeting_date: string
+  participant_count: number
+  open_actions: number
+}

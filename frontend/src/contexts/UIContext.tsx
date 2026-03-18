@@ -1,6 +1,6 @@
 import { createContext, useContext, useState } from 'react'
 
-type View = 'notes' | 'actions' | 'people'
+type View = 'notes' | 'actions' | 'people' | 'meetings'
 
 interface UIContextValue {
   currentView: View
