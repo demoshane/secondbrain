@@ -15,8 +15,8 @@ export function SSEProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const src = new EventSource(`${getAPI()}/events`)
-    src.onopen = () => setConnected(true)
-    src.onmessage = (e) => {
+    src.onopen = () => { setConnected(true); loadNotes() }
+    const handler = (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data)
         loadNotes()
@@ -25,6 +25,7 @@ export function SSEProvider({ children }: { children: React.ReactNode }) {
         // malformed SSE payload — ignore
       }
     }
+    src.addEventListener('note', handler)
     src.onerror = () => setConnected(false)
     return () => src.close()
   }, []) // connect once; EventSource handles native reconnect

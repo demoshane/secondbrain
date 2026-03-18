@@ -229,7 +229,21 @@ def read_note(note_path):
     if request.args.get("raw"):
         return jsonify({"content": raw, "path": str(p)})
     post = _fm.loads(raw)
-    return jsonify({"body": post.content, "path": str(p)})
+    meta = post.metadata or {}
+    tags = meta.get("tags", [])
+    if isinstance(tags, str):
+        import json as _json
+        try:
+            tags = _json.loads(tags)
+        except Exception:
+            tags = []
+    return jsonify({
+        "body": post.content,
+        "path": str(p),
+        "title": meta.get("title", p.stem),
+        "type": meta.get("type", "note"),
+        "tags": tags,
+    })
 
 
 @app.get("/actions")

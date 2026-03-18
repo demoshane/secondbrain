@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Edit, Paperclip } from 'lucide-react'
 import { useNoteContext } from '@/contexts/NoteContext'
 import { useSearchContext } from '@/contexts/SearchContext'
+import { useNoteActions } from '@/hooks/useNoteActions'
 import { NoteEditor } from './NoteEditor'
 import { getAPI } from '@/lib/utils'
 import type { Note, Attachment } from '@/types'
@@ -17,11 +18,16 @@ interface Props {
 export function NoteViewer({ note }: Props) {
   const [editing, setEditing] = useState(false)
   const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [localTags, setLocalTags] = useState<string[]>(note.tags ?? [])
+  const [editingTag, setEditingTag] = useState<string | null>(null)
   const { setIsDirty } = useNoteContext()
   const { setTagFilter } = useSearchContext()
+  const { saveNote } = useNoteActions()
 
   useEffect(() => {
     setEditing(false)
+    setLocalTags(note.tags ?? [])
+    setEditingTag(null)
     const encoded = encodeURIComponent(note.path)
     fetch(`${getAPI()}/notes/${encoded}/attachments`)
       .then(r => r.json())
@@ -46,18 +52,42 @@ export function NoteViewer({ note }: Props) {
           <Edit className="h-4 w-4" />
         </Button>
       </div>
-      {note.tags && note.tags.length > 0 && (
+      {localTags.length > 0 && (
         <div className="flex flex-wrap gap-1 px-4 py-1 border-b" data-testid="tag-chips">
-          {note.tags.map(tag => (
-            <Badge
-              key={tag}
-              variant="secondary"
-              className="cursor-pointer hover:bg-accent"
-              data-testid={`tag-${tag}`}
-              onClick={() => setTagFilter(tag)}
-            >
-              {tag}
-            </Badge>
+          {localTags.map(tag => (
+            editingTag === tag ? (
+              <input
+                key={tag}
+                className="tag-chip-input text-xs border rounded px-1"
+                autoFocus
+                defaultValue={tag}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const newTag = (e.target as HTMLInputElement).value.trim()
+                    const newTags = newTag && newTag !== tag
+                      ? localTags.map(t => t === tag ? newTag : t)
+                      : localTags
+                    setLocalTags(newTags)
+                    setEditingTag(null)
+                    const content = `---\ntitle: ${note.title}\ntags: ${JSON.stringify(newTags)}\ntype: ${note.type}\n---\n\n${note.body ?? ''}\n`
+                    saveNote(note.path, content)
+                  } else if (e.key === 'Escape') {
+                    setEditingTag(null)
+                  }
+                }}
+              />
+            ) : (
+              <Badge
+                key={tag}
+                variant="secondary"
+                className="cursor-pointer hover:bg-accent"
+                data-testid={`tag-${tag}`}
+                onClick={() => setTagFilter(tag)}
+                onDoubleClick={() => setEditingTag(tag)}
+              >
+                {tag}
+              </Badge>
+            )
           ))}
         </div>
       )}

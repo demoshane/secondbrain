@@ -49,11 +49,11 @@ export function Sidebar() {
       )}
       <ScrollArea className="flex-1">
         {Array.from(grouped.entries()).map(([folder, byType]) => (
-          <div key={folder} data-testid={`folder-${folder}`}>
+          <div key={folder} data-testid={`folder-section-${folder}`} data-collapsed={!!prefs[`folder:${folder}`]}>
             <button
               className="w-full flex items-center gap-1 px-2 py-1 text-xs font-semibold uppercase text-muted-foreground hover:bg-muted"
               onClick={() => toggle(`folder:${folder}`)}
-              data-testid={`collapse-folder-${folder}`}
+              data-testid={`folder-header-${folder}`}
             >
               {prefs[`folder:${folder}`]
                 ? <ChevronRight className="h-3 w-3" />
