@@ -144,19 +144,23 @@ def extract_action_items(note_path: Path, body_or_conn=None, sensitivity: str = 
         pass  # Best-effort — never blocks capture
 
 
-def list_actions(conn, done: bool = False, assignee: str | None = None) -> list[dict]:
+def list_actions(conn, done: bool = False, assignee: str | None = None, note_path: str | None = None) -> list[dict]:
     """Return action items as a list of dicts. done=False returns open items only.
 
     Args:
         conn: SQLite connection (must have row_factory=sqlite3.Row for dict() to work).
         done: If True, return completed items; False returns open items (default).
         assignee: If set, filter to items where assignee_path matches this value.
+        note_path: If set, filter to items where note_path matches this value.
     """
     sql = "SELECT id, text, note_path, created_at, assignee_path, done FROM action_items WHERE done=?"
     params: list = [1 if done else 0]
     if assignee is not None:
         sql += " AND assignee_path=?"
         params.append(assignee)
+    if note_path is not None:
+        sql += " AND note_path=?"
+        params.append(note_path)
     sql += " ORDER BY created_at DESC"
     rows = conn.execute(sql, params).fetchall()
     return [dict(r) for r in rows]

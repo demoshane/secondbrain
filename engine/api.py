@@ -250,25 +250,83 @@ def read_note(note_path):
 def list_people():
     conn = get_connection()
     conn.row_factory = sqlite3.Row
-    brain_root = Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))).resolve()
-    people_prefix = str(brain_root / "people") + "/"
     rows = conn.execute(
-        "SELECT n.path, n.title, n.updated_at, "
+        "SELECT n.path, n.title, substr(n.updated_at, 1, 10) AS updated_at, "
         "  (SELECT COUNT(*) FROM action_items a WHERE a.assignee_path=n.path AND a.done=0) AS open_actions "
-        "FROM notes n WHERE n.path LIKE ? ORDER BY n.title",
-        (people_prefix + "%",)
+        "FROM notes n WHERE n.type = 'person' ORDER BY n.title",
     ).fetchall()
     conn.close()
     return jsonify({"people": [dict(r) for r in rows]})
+
+
+@app.get("/meetings")
+def list_meetings():
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT n.path, n.title, substr(n.created_at,1,10) AS meeting_date, n.people, "
+        "  (SELECT COUNT(*) FROM action_items a WHERE a.note_path=n.path AND a.done=0) AS open_actions "
+        "FROM notes n WHERE n.type = 'meeting' ORDER BY n.created_at DESC"
+    ).fetchall()
+    conn.close()
+    result = []
+    for r in rows:
+        try:
+            participants = json.loads(r["people"] or "[]")
+        except Exception:
+            participants = []
+        result.append({
+            "path": r["path"],
+            "title": r["title"] or "",
+            "meeting_date": r["meeting_date"] or "",
+            "participant_count": len(participants),
+            "open_actions": r["open_actions"] or 0,
+        })
+    return jsonify({"meetings": result})
+
+
+@app.get("/meetings/<path:note_path>")
+def get_meeting(note_path):
+    try:
+        abs_path, _brain_root = _resolve_note_path(note_path)
+    except ValueError:
+        return jsonify({"error": "forbidden"}), 403
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT path, title, body, people, substr(created_at,1,10) AS meeting_date FROM notes WHERE path=?",
+        (str(abs_path),)
+    ).fetchone()
+    if row is None:
+        conn.close()
+        return jsonify({"error": "not found"}), 404
+    try:
+        participants = json.loads(row["people"] or "[]")
+    except Exception:
+        participants = []
+    open_actions = conn.execute(
+        "SELECT COUNT(*) FROM action_items WHERE note_path=? AND done=0",
+        (str(abs_path),)
+    ).fetchone()[0]
+    conn.close()
+    return jsonify({
+        "path": row["path"],
+        "title": row["title"] or "",
+        "body": row["body"] or "",
+        "meeting_date": row["meeting_date"] or "",
+        "participants": participants,
+        "open_actions": open_actions,
+    })
 
 
 @app.get("/actions")
 def get_actions():
     done = request.args.get("done", "0") == "1"
     assignee = request.args.get("assignee") or None
+    note_path = request.args.get("note_path") or None
     conn = get_connection()
     conn.row_factory = sqlite3.Row
-    actions = list_actions(conn, done=done, assignee=assignee)
+    actions = list_actions(conn, done=done, assignee=assignee, note_path=note_path)
     conn.close()
     return jsonify({"actions": actions})
 
