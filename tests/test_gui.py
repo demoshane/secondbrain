@@ -328,3 +328,25 @@ def test_meetings_page_row_click(page, live_server_url):
     row.click()
     # Participants section must appear in detail panel
     page.locator('[data-testid="participants-section"]').wait_for(state='visible')
+
+
+def test_projects_tab(page, live_server_url):
+    """Projects tab is visible and switches to projects view."""
+    page.goto("/ui")
+    page.locator('[data-testid="tab-bar"]').wait_for(state='visible')
+    projects_tab = page.locator('[data-testid="tab-projects"]')
+    projects_tab.wait_for(state='visible')
+    projects_tab.click()
+    page.locator('[data-testid="projects-page"]').wait_for(state='visible')
+
+
+def test_projects_page_row_click(page, live_server_url):
+    """Clicking a project row shows the detail panel."""
+    page.goto("/ui")
+    page.locator('[data-testid="tab-bar"]').wait_for(state='visible')
+    page.locator('[data-testid="tab-projects"]').click()
+    page.locator('[data-testid="projects-page"]').wait_for(state='visible')
+    row = page.locator('tr', has_text='Test Project').first
+    row.wait_for(state='visible')
+    row.click()
+    page.locator('[data-testid="project-actions-section"]').wait_for(state='visible')

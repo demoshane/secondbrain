@@ -238,6 +238,22 @@ def gui_brain(tmp_path_factory):
     )
     conn3.commit()
     conn3.close()
+    # Seed a project note so Projects page tests have data to click
+    project_path = brain / "projects" / "test-project.md"
+    project_path.parent.mkdir(parents=True, exist_ok=True)
+    project_path.write_text(
+        "---\ntitle: Test Project\ntype: projects\ntags: []\n---\n\n# Test Project\n\nActive development.\n",
+        encoding="utf-8",
+    )
+    conn4 = get_connection()
+    conn4.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?)",
+        (str(project_path), "Test Project", "projects", "Active development.", "[]",
+         "2026-03-01 09:00:00", "2026-03-01 09:00:00"),
+    )
+    conn4.commit()
+    conn4.close()
     return brain
 
 
