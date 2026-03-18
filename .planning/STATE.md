@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27.2-04-PLAN.md (Phase 27.2 complete)
-last_updated: "2026-03-18T06:38:25.020Z"
+stopped_at: Completed 27.3-01-PLAN.md
+last_updated: "2026-03-18T11:23:49.753Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
-  total_phases: 11
+  total_phases: 12
   completed_phases: 10
-  total_plans: 45
-  completed_plans: 45
+  total_plans: 50
+  completed_plans: 46
   percent: 99
 ---
 
@@ -88,6 +88,7 @@ Progress: [██████████] 99%
 | Phase 27.2-action-items-page-nav-scaffold P02 | 6 | 2 tasks | 3 files |
 | Phase 27.2-action-items-page-nav-scaffold P03 | 5 | 2 tasks | 3 files |
 | Phase 27.2-action-items-page-nav-scaffold P04 | 8 | 2 tasks | 2 files |
+| Phase 27.3-ui-ux-overhaul P01 | 25 | 2 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -188,6 +189,9 @@ Recent decisions affecting current work:
 - [Phase 27.2-action-items-page-nav-scaffold]: [27.2-04] PUT /actions/<id> extended to accept done field — done checkbox change handler checks cb.checked to reopen or close
 - [Phase 27.2-action-items-page-nav-scaffold]: [27.2-04] openAssigneePicker() fetches GET /notes fresh for people list — avoids stale _allNotes cache causing missing people in picker
 - [Phase 27.2-action-items-page-nav-scaffold]: [27.2-04] sel.showPicker() with try/catch fallback auto-opens native select on first click; degrades to focus() gracefully
+- [Phase 27.3-01]: vitest/config defineConfig used instead of vite's — required for TypeScript to accept test: block
+- [Phase 27.3-01]: shadcn init is interactive-only; components.json created manually + Radix UI installed directly
+- [Phase 27.3-01]: Playwright test_gui.py failures expected after frontend replacement — deferred to plan 27.3-05
 
 ### Roadmap Evolution
 
@@ -211,8 +215,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-17T20:29:59.518Z
-Stopped at: Completed 27.2-04-PLAN.md (Phase 27.2 complete)
+Last session: 2026-03-18T11:23:49.744Z
+Stopped at: Completed 27.3-01-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)

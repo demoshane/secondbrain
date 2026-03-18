@@ -263,7 +263,14 @@ Plans:
 4. All existing backend tests pass; no API contract regressions
 
 **Requirements**: UIUX-01, UIUX-02, UIUX-03, UIUX-04
-**Plans:** 0 plans
+**Plans:** 1/5 plans executed
+
+Plans:
+- [ ] 27.3-01-PLAN.md — Vite + React + shadcn/ui scaffold, types, Vitest stubs
+- [ ] 27.3-02-PLAN.md — React Contexts (Note, Search, UI, SSE) + hooks
+- [ ] 27.3-03-PLAN.md — App shell, Topbar, TabBar, Sidebar
+- [ ] 27.3-04-PLAN.md — NoteViewer, NoteEditor, RightPanel, ActionsPage, modals
+- [ ] 27.3-05-PLAN.md — Playwright selector update + human verify
 
 ## Progress
 
