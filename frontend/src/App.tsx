@@ -8,6 +8,7 @@ import { ActionsPage } from './components/ActionsPage'
 import { PeoplePage } from './components/PeoplePage'
 import { MeetingsPage } from './components/MeetingsPage'
 import { ProjectsPage } from './components/ProjectsPage'
+import { IntelligencePage } from './components/IntelligencePage'
 import { NewNoteModal } from './components/NewNoteModal'
 import { DeleteNoteModal } from './components/DeleteNoteModal'
 import { FileUploadModal } from './components/FileUploadModal'
@@ -74,8 +75,10 @@ export default function App() {
             <PeoplePage />
           ) : currentView === 'meetings' ? (
             <MeetingsPage />
-          ) : (
+          ) : currentView === 'projects' ? (
             <ProjectsPage />
+          ) : (
+            <IntelligencePage />
           )}
         </div>
         {currentView === 'notes' && <RightPanel />}

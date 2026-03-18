@@ -52,3 +52,16 @@ export interface ProjectSummary {
   updated_at: string
   open_actions: number
 }
+
+export interface BrainHealth {
+  score: number
+  total_notes: number
+  orphan_count: number
+  orphans: { path: string; title: string }[]
+  empty_count: number
+  empty_notes: { path: string; title: string }[]
+  broken_link_count: number
+  broken_links: { source: string; target: string }[]
+  duplicate_count: number
+  duplicate_candidates: { a: string; b: string; similarity: number }[]
+}
