@@ -207,6 +207,21 @@ def gui_brain(tmp_path_factory):
     conn = get_connection()
     init_schema(conn)
     conn.close()
+    # Seed a person note so People page tests have data to click
+    person_file = brain / "people" / "test-person.md"
+    now = datetime.datetime.utcnow().isoformat()
+    person_file.write_text(
+        "---\ntitle: Test Person\ntype: person\ntags: []\n---\n\n# Test Person\n\nA test person note.\n",
+        encoding="utf-8",
+    )
+    conn2 = get_connection()
+    conn2.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?)",
+        (str(person_file), "Test Person", "person", "A test person note.", "[]", now, now),
+    )
+    conn2.commit()
+    conn2.close()
     return brain
 
 

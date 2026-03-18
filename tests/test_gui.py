@@ -241,30 +241,39 @@ def test_collapsible_sections(page, live_server_url, gui_brain, seed_note_fn):
     assert after_second_click == initial_collapsed, "collapsed state did not toggle back"
 
 
-@pytest.mark.xfail(strict=False, reason="People page not yet implemented")
 def test_people_tab_visible(page, live_server_url, gui_brain):
-    """SC-PP-1: People tab button is visible in the tab bar."""
+    """SC-PP-1: People tab button is visible in the tab bar and navigates to people-page."""
     page.goto("/ui")
-    page.wait_for_selector("[data-testid='tab-bar']", timeout=5000)
-    assert page.locator("button", has_text="People").count() > 0
+    page.locator("button", has_text="People").first.wait_for(state="visible", timeout=5000)
+    page.locator("button", has_text="People").first.click()
+    page.wait_for_selector("[data-testid='people-page']", timeout=5000)
 
 
-@pytest.mark.xfail(strict=False, reason="People page not yet implemented")
 def test_people_detail_opens(page, live_server_url, gui_brain):
-    """SC-PP-2: clicking People tab shows people-page element."""
+    """SC-PP-2: clicking a person row shows the detail panel with note-body-section."""
     page.goto("/ui")
-    page.locator("button", has_text="People").click()
+    page.locator("button", has_text="People").first.wait_for(state="visible", timeout=5000)
+    page.locator("button", has_text="People").first.click()
     page.wait_for_selector("[data-testid='people-page']", timeout=5000)
-    # Will need at least one person in test brain; xfail for now
+    # Click the first person row in the table
+    page.locator("[data-testid='people-page'] tbody tr").first.wait_for(state="visible", timeout=5000)
+    page.locator("[data-testid='people-page'] tbody tr").first.click()
+    # Detail panel should show note body section
+    page.wait_for_selector("[data-testid='note-body-section']", timeout=5000)
 
 
-@pytest.mark.xfail(strict=False, reason="People page not yet implemented")
 def test_people_detail_sections(page, live_server_url, gui_brain):
-    """SC-PP-3: people detail panel contains expected section testids."""
+    """SC-PP-3: people detail panel contains all four collapsible sections."""
     page.goto("/ui")
-    page.locator("button", has_text="People").click()
+    page.locator("button", has_text="People").first.wait_for(state="visible", timeout=5000)
+    page.locator("button", has_text="People").first.click()
     page.wait_for_selector("[data-testid='people-page']", timeout=5000)
-    # Sections: note-body-section, meetings-section, backlinks-section, actions-section
+    page.locator("[data-testid='people-page'] tbody tr").first.wait_for(state="visible", timeout=5000)
+    page.locator("[data-testid='people-page'] tbody tr").first.click()
+    page.wait_for_selector("[data-testid='note-body-section']", timeout=5000)
+    assert page.locator("[data-testid='meetings-section']").count() > 0
+    assert page.locator("[data-testid='backlinks-section']").count() > 0
+    assert page.locator("[data-testid='actions-section']").count() > 0
 
 
 def test_path_traversal_guard(page, live_server_url):
