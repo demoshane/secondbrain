@@ -306,13 +306,18 @@ Plans:
 | 27. Search Quality Tuning | 7/7 | Complete    | 2026-03-17 | - |
 | 27.1. Smart Capture & Proactive Brain | 5/5 | Complete    | 2026-03-18 | - |
 | 27.2. Action Items Page + Nav Scaffold | 4/4 | Complete    | 2026-03-18 | - |
-| 28. TODO & Gap Resolution | v3.0 | 0/? | Not started | - |
+| 28. TODO & Gap Resolution | v3.0 | 0/6 | Not started | - |
 
 ### Phase 28: TODO & Gap Resolution
 
 **Goal:** All open TODOs, known gaps, and deferred issues identified at phase start are resolved before the milestone is closed
 **Depends on:** Phase 27
-**Plans:** 0 plans
+**Plans:** 6 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 28 to break down)
+- [ ] 28-01-PLAN.md — Title-only dedup for long captures (fix MCP timeout on large bodies)
+- [ ] 28-02-PLAN.md — `sb_capture_smart`: split raw content into typed note suggestions (people, meeting, project) before batch capture
+- [ ] 28-03-PLAN.md — `sb_tag`: add/remove tags with existing-tag fuzzy matching; confirm-token gate for new tags
+- [ ] 28-04-PLAN.md — `sb_link` / `sb_unlink`: explicit directional relationships between notes (DB-only, no body edit)
+- [ ] 28-05-PLAN.md — `sb_remind`: set due date + snooze on action items; overdue surfacing in recap + GUI
+- [ ] 28-06-PLAN.md — `sb_person_context`: one-call full context dump (note + meetings + actions + mentions) for a person
