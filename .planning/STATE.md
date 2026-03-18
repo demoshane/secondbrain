@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27.6-02-PLAN.md
-last_updated: "2026-03-18T18:16:50.419Z"
+stopped_at: "Checkpoint: 27.6-03 Task 2 — awaiting human verify of Projects page in live GUI"
+last_updated: "2026-03-18T18:26:03.428Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 15
-  completed_phases: 13
+  completed_phases: 14
   total_plans: 66
-  completed_plans: 59
+  completed_plans: 60
   percent: 99
 ---
 
@@ -102,6 +102,7 @@ Progress: [██████████] 99%
 | Phase 27.5-meetings-page P02 | 8 | 2 tasks | 8 files |
 | Phase 27.5-meetings-page P03 | 8 | 1 tasks | 2 files |
 | Phase 27.6-projects-page P02 | 525583 | 2 tasks | 8 files |
+| Phase 27.6-projects-page P03 | 8 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -234,6 +235,7 @@ Recent decisions affecting current work:
 - [Phase 27.6-projects-page]: [27.6-01] test_project_detail_not_found uses absolute brain-rooted path so _resolve_note_path succeeds and returns 404 (not 403)
 - [Phase 27.6-projects-page]: [27.6-02] Tasks 1+2 committed together — App.tsx imports ProjectsPage so both must exist before build verifies
 - [Phase 27.6-projects-page]: [27.6-02] .secrets.baseline updated to new vite asset filename; hashed_secret unchanged (same minified keyword pattern)
+- [Phase 27.6-projects-page]: gui_brain fixture extended with project seed (Test Project, type=projects) using conn4 pattern consistent with person/meeting seeds
 
 ### Roadmap Evolution
 
@@ -257,8 +259,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-18T18:16:50.409Z
-Stopped at: Completed 27.6-02-PLAN.md
+Last session: 2026-03-18T18:26:03.417Z
+Stopped at: Checkpoint: 27.6-03 Task 2 — awaiting human verify of Projects page in live GUI
 Resume file: None
 
 ## TODOs (for Phase 27)
