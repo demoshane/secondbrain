@@ -296,6 +296,17 @@ Plans:
 - [ ] 27.5-02-PLAN.md — Frontend: Meetings page + meeting detail view
 - [ ] 27.5-03-PLAN.md — Integration, Playwright tests, sign-off
 
+### Phase 27.6: Projects Page
+
+**Goal:** A dedicated Projects page in the tab bar that shows all project notes with their status, related notes, and open action items per project
+**Depends on:** Phase 27.5
+**Requirements**: 27.6-PROJ-01, 27.6-PROJ-02, 27.6-PROJ-03, 27.6-PROJ-04
+
+Plans:
+- [ ] 27.6-01-PLAN.md — Backend: projects API endpoints
+- [ ] 27.6-02-PLAN.md — Frontend: Projects page + project detail view
+- [ ] 27.6-03-PLAN.md — Integration, Playwright tests, sign-off
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
