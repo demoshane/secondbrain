@@ -222,6 +222,22 @@ def gui_brain(tmp_path_factory):
     )
     conn2.commit()
     conn2.close()
+    # Seed a meeting note so Meetings page tests have data to click
+    meeting_path = brain / "meetings" / "q1-kickoff.md"
+    meeting_path.parent.mkdir(parents=True, exist_ok=True)
+    meeting_path.write_text(
+        '---\ntitle: Q1 Kickoff\ntype: meeting\npeople: ["Alice"]\n---\n# Q1 Kickoff\nNotes here.\n',
+        encoding="utf-8",
+    )
+    conn3 = get_connection()
+    conn3.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, people, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?)",
+        (str(meeting_path), "Q1 Kickoff", "meeting", "Notes here.", '["Alice"]',
+         "2026-03-01 09:00:00", "2026-03-01 09:00:00"),
+    )
+    conn3.commit()
+    conn3.close()
     return brain
 
 

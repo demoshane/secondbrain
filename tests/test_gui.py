@@ -300,3 +300,31 @@ def test_path_traversal_guard(page, live_server_url):
     assert status != 200, f"Expected 403/404 for traversal attempt, got {status}"
     # Prefer 403 — assert it explicitly if the implementation catches it
     # If Flask normalizes to 404 before reaching our guard, that is also secure behavior
+
+
+def test_meetings_tab(page, live_server_url):
+    """Meetings tab is visible and switches to meetings view."""
+    page.goto("/ui")
+    # Wait for app to load
+    page.locator('[data-testid="tab-bar"]').wait_for(state='visible')
+    # Meetings tab must be present
+    meetings_tab = page.locator('[data-testid="tab-meetings"]')
+    meetings_tab.wait_for(state='visible')
+    # Click it
+    meetings_tab.click()
+    # Meetings page root must appear
+    page.locator('[data-testid="meetings-page"]').wait_for(state='visible')
+
+
+def test_meetings_page_row_click(page, live_server_url):
+    """Clicking a meeting row shows the detail panel."""
+    page.goto("/ui")
+    page.locator('[data-testid="tab-bar"]').wait_for(state='visible')
+    page.locator('[data-testid="tab-meetings"]').click()
+    page.locator('[data-testid="meetings-page"]').wait_for(state='visible')
+    # Meeting row "Q1 Kickoff" must appear (seeded in gui_brain)
+    row = page.locator('tr', has_text='Q1 Kickoff').first
+    row.wait_for(state='visible')
+    row.click()
+    # Participants section must appear in detail panel
+    page.locator('[data-testid="participants-section"]').wait_for(state='visible')
