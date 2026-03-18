@@ -45,3 +45,10 @@ export interface MeetingSummary {
   participant_count: number
   open_actions: number
 }
+
+export interface ProjectSummary {
+  path: string
+  title: string
+  updated_at: string
+  open_actions: number
+}

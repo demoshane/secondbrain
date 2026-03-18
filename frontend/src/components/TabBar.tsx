@@ -7,6 +7,7 @@ const TABS = [
   { id: 'actions' as const, label: 'Action Items' },
   { id: 'people' as const, label: 'People' },
   { id: 'meetings' as const, label: 'Meetings' },
+  { id: 'projects' as const, label: 'Projects' },
 ]
 
 export function TabBar() {
