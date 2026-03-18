@@ -25,6 +25,22 @@ def get_orphan_notes(conn: sqlite3.Connection) -> list[dict]:
     return [{"path": row[0], "title": row[1]} for row in rows]
 
 
+def get_empty_notes(conn: sqlite3.Connection) -> list[dict]:
+    """Return notes with no meaningful body content.
+
+    Empty = body IS NULL, empty string, or only whitespace.
+    Returns at most 20 results, consistent with orphan cap.
+    """
+    rows = conn.execute(
+        """
+        SELECT path, title FROM notes
+        WHERE (body IS NULL OR TRIM(body) = '')
+        LIMIT 20
+        """
+    ).fetchall()
+    return [{"path": row[0], "title": row[1]} for row in rows]
+
+
 def get_duplicate_candidates(
     conn: sqlite3.Connection, threshold: float = 0.92
 ) -> list[dict]:
