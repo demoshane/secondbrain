@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Phase 27.4 context gathered
-last_updated: "2026-03-18T14:35:56.888Z"
+stopped_at: Completed 27.4-01-PLAN.md
+last_updated: "2026-03-18T15:08:13.279Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 13
   completed_phases: 11
-  total_plans: 56
-  completed_plans: 50
+  total_plans: 60
+  completed_plans: 51
   percent: 99
 ---
 
@@ -94,6 +94,7 @@ Progress: [██████████] 99%
 | Phase 27.3-ui-ux-overhaul P04 | 12 | 2 tasks | 13 files |
 | Phase 27.3-ui-ux-overhaul P05 | 11 | 1 tasks | 1 files |
 | Phase 27.3-05 P05 | 25 | 2 tasks | 9 files |
+| Phase 27.4-people-page P01 | 12 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -207,6 +208,8 @@ Recent decisions affecting current work:
 - [Phase 27.3-05]: vite base '/ui/' required — base './' produces relative asset paths that 404 when Flask serves app under /ui/ URL prefix
 - [Phase 27.3-05]: SSEContext must use addEventListener('note', handler) not onmessage — Flask _broadcast() emits named 'note' events; onmessage only catches unnamed message events
 - [Phase 27.3-05]: GET /notes/<path> extended to return title/type/tags — NoteViewer inline tag editing requires these fields to reconstruct frontmatter without extra fetch
+- [Phase 27.4-01]: xfail(strict=False) for Wave 0 people stubs — auto-promotes to PASS once Wave 1 ships /people endpoint
+- [Phase 27.4-01]: client fixture in test_people.py patches both engine.db.DB_PATH and engine.paths.DB_PATH + BRAIN_PATH env var for full isolation
 
 ### Roadmap Evolution
 
@@ -230,9 +233,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-18T14:35:56.878Z
-Stopped at: Phase 27.4 context gathered
-Resume file: .planning/phases/27.4-people-page/27.4-CONTEXT.md
+Last session: 2026-03-18T15:08:13.270Z
+Stopped at: Completed 27.4-01-PLAN.md
+Resume file: None
 
 ## TODOs (for Phase 27)
 - **Tag management UI**: Global tab/panel listing all tags with usage counts; rename tag across all notes; delete tag globally. (Per-note chip editing already shipped in Phase 23.)
