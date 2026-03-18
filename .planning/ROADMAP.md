@@ -253,6 +253,18 @@ Plans:
 - [x] 27.2-03-PLAN.md — Wave 2: frontend tab bar, Actions page, assignee picker, My Actions section
 - [x] 27.2-04-PLAN.md — Wave 3: full suite sign-off + human verify + bug fixes
 
+### Phase 27.3: React + Shadcn/UI Migration
+**Goal**: Migrate the entire GUI frontend from vanilla JS to React + Vite + shadcn/ui + Tailwind CSS, with full feature parity, automatic dark mode via prefers-color-scheme, and React Context for state management
+**Depends on:** Phase 27.2
+**Success criteria**:
+1. Frontend is a Vite-built React app served by Flask — `npm run build` outputs to `engine/gui/static/`
+2. All existing features work: sidebar, note viewer, markdown editor, tab bar, actions page, file upload, batch capture, SSE live refresh, intelligence panel
+3. shadcn/ui components installed via CLI; Tailwind CSS in use; dark mode auto-detects prefers-color-scheme
+4. All existing backend tests pass; no API contract regressions
+
+**Requirements**: UIUX-01, UIUX-02, UIUX-03, UIUX-04
+**Plans:** 0 plans
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
