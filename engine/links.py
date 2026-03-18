@@ -1,7 +1,46 @@
 """Backlink maintenance and orphan checker (PEOPLE-03, PEOPLE-04, SEARCH-03)."""
 from pathlib import Path
+import re
 import sqlite3
 import datetime
+
+_WIKI_LINK_RE = re.compile(r"\[\[([^\[\]]+)\]\]")
+
+
+def extract_wiki_links(body: str) -> list[str]:
+    """Return list of paths found inside [[...]] patterns in body.
+
+    Handles both absolute paths ([[/path/to/note.md]]) and relative forms.
+    Strips leading/trailing whitespace from each match.
+    """
+    return [m.strip() for m in _WIKI_LINK_RE.findall(body)]
+
+
+def update_wiki_link_relationships(
+    conn: sqlite3.Connection, source_path: str, body: str
+) -> None:
+    """Parse wiki-links in body and upsert them into relationships table.
+
+    Deletes all existing wiki-link rows for source_path first (clean-before-insert),
+    then inserts a row for each target path found in [[...]] patterns.
+    Never raises — DB errors are silently swallowed (best-effort).
+    """
+    try:
+        conn.execute(
+            "DELETE FROM relationships WHERE source_path = ? AND rel_type = 'wiki-link'",
+            (source_path,),
+        )
+        targets = extract_wiki_links(body)
+        now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        for target in targets:
+            conn.execute(
+                "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type, created_at)"
+                " VALUES (?, ?, ?, ?)",
+                (source_path, target, "wiki-link", now),
+            )
+        conn.commit()
+    except Exception:
+        pass  # best-effort; never blocks capture or reindex
 
 
 def ensure_person_profile(slug: str, brain_root: Path) -> Path:

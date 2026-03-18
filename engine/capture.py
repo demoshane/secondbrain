@@ -344,6 +344,10 @@ def capture_note(
         from engine.links import add_backlinks
         add_backlinks(target, people, brain_root, conn)
 
+    # Wiki-link relationships: parse [[...]] links from body
+    from engine.links import update_wiki_link_relationships
+    update_wiki_link_relationships(conn, str(target.resolve()), body)
+
     # Phase 15: best-effort intelligence hooks — run in background, never block capture
     import threading
     _target_str = str(target)

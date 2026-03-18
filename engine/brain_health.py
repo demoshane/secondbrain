@@ -16,9 +16,14 @@ def get_orphan_notes(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute(
         """
         SELECT n.path, n.title FROM notes n
-        LEFT JOIN relationships r ON n.path = r.target_path
-        WHERE r.target_path IS NULL
-          AND n.type NOT IN ('digest', 'memory')
+        WHERE n.type NOT IN ('digest', 'memory')
+          AND n.path NOT IN (
+              SELECT source_path FROM relationships
+              UNION
+              SELECT target_path FROM relationships
+          )
+          AND (n.people IS NULL OR n.people = '[]' OR n.people = 'null')
+          AND (n.tags IS NULL OR n.tags = '[]' OR n.tags = 'null')
         ORDER BY n.created_at DESC
         """
     ).fetchall()
@@ -95,5 +100,7 @@ def compute_health_score(
     orphan_ratio = orphans / total_notes
     broken_ratio = broken / max(total_notes, 1)
     dup_ratio = duplicates / max(total_notes, 1)
+    # Each ratio is in [0,1]; weights are points deducted (max penalty = 90pts).
+    # Do NOT multiply by 100 — ratios scaled by weights already yield a 0-100 score.
     penalty = (orphan_ratio * 30) + (broken_ratio * 40) + (dup_ratio * 20)
-    return max(0, round(100 - penalty * 100))
+    return max(0, round(100 - penalty))

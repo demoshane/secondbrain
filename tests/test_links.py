@@ -219,6 +219,122 @@ def test_cli_no_orphans(tmp_path, monkeypatch, capsys):
     assert "No orphaned links" in captured.out
 
 
+def test_extract_wiki_links_absolute_paths():
+    """extract_wiki_links returns list of absolute paths from [[...]] patterns."""
+    from engine.links import extract_wiki_links
+
+    body = "See [[/Users/brain/people/alice.md]] and [[/Users/brain/meetings/standup.md]]."
+    result = extract_wiki_links(body)
+    assert result == ["/Users/brain/people/alice.md", "/Users/brain/meetings/standup.md"]
+
+
+def test_extract_wiki_links_empty_body():
+    """extract_wiki_links returns [] for body with no wiki-links."""
+    from engine.links import extract_wiki_links
+    assert extract_wiki_links("No links here.") == []
+
+
+def test_extract_wiki_links_strips_whitespace():
+    """extract_wiki_links strips whitespace from matched paths."""
+    from engine.links import extract_wiki_links
+    assert extract_wiki_links("[[ /path/note.md ]]") == ["/path/note.md"]
+
+
+def test_update_wiki_link_relationships_inserts_rows(tmp_path):
+    """update_wiki_link_relationships writes one row per wiki-link target."""
+    import sqlite3
+    from engine.db import init_schema
+    from engine.links import update_wiki_link_relationships
+
+    conn = sqlite3.connect(":memory:")
+    init_schema(conn)
+
+    source = str(tmp_path / "note.md")
+    body = "Links: [[/brain/people/alice.md]] and [[/brain/coding/project.md]]"
+    update_wiki_link_relationships(conn, source, body)
+
+    rows = conn.execute(
+        "SELECT source_path, target_path, rel_type FROM relationships ORDER BY target_path"
+    ).fetchall()
+    assert len(rows) == 2
+    assert rows[0] == (source, "/brain/coding/project.md", "wiki-link")
+    assert rows[1] == (source, "/brain/people/alice.md", "wiki-link")
+
+
+def test_update_wiki_link_relationships_cleans_stale(tmp_path):
+    """update_wiki_link_relationships removes old wiki-link rows before inserting new ones."""
+    import sqlite3
+    from engine.db import init_schema
+    from engine.links import update_wiki_link_relationships
+
+    conn = sqlite3.connect(":memory:")
+    init_schema(conn)
+
+    source = str(tmp_path / "note.md")
+    # First call with two targets
+    update_wiki_link_relationships(conn, source, "[[/brain/a.md]] [[/brain/b.md]]")
+    count_before = conn.execute("SELECT COUNT(*) FROM relationships").fetchone()[0]
+    assert count_before == 2
+
+    # Second call with only one target — stale /brain/b.md row must be removed
+    update_wiki_link_relationships(conn, source, "[[/brain/a.md]]")
+    rows = conn.execute(
+        "SELECT target_path FROM relationships WHERE source_path = ?", (source,)
+    ).fetchall()
+    assert len(rows) == 1
+    assert rows[0][0] == "/brain/a.md"
+
+
+def test_update_wiki_link_relationships_idempotent(tmp_path):
+    """Calling update_wiki_link_relationships twice produces only one row per target."""
+    import sqlite3
+    from engine.db import init_schema
+    from engine.links import update_wiki_link_relationships
+
+    conn = sqlite3.connect(":memory:")
+    init_schema(conn)
+
+    source = str(tmp_path / "note.md")
+    body = "[[/brain/people/alice.md]]"
+    update_wiki_link_relationships(conn, source, body)
+    update_wiki_link_relationships(conn, source, body)
+
+    count = conn.execute("SELECT COUNT(*) FROM relationships").fetchone()[0]
+    assert count == 1
+
+
+def test_reindex_populates_wiki_link_relationships(tmp_path):
+    """reindex_brain creates wiki-link relationship rows for notes with [[...]] links."""
+    import sqlite3
+    from engine.db import init_schema
+    from engine.reindex import reindex_brain
+
+    brain_root = tmp_path / "brain"
+    brain_root.mkdir()
+
+    target_note = brain_root / "people" / "alice.md"
+    target_note.parent.mkdir()
+    target_note.write_text("---\ntype: people\ntitle: Alice\n---\nAlice Smith.", encoding="utf-8")
+
+    source_note = brain_root / "meetings" / "standup.md"
+    source_note.parent.mkdir()
+    target_str = str(target_note.resolve())
+    source_note.write_text(
+        f"---\ntype: meeting\ntitle: Standup\n---\nSee [[{target_str}]].",
+        encoding="utf-8",
+    )
+
+    conn = sqlite3.connect(":memory:")
+    init_schema(conn)
+    reindex_brain(brain_root, conn)
+
+    rows = conn.execute(
+        "SELECT rel_type, target_path FROM relationships WHERE rel_type = 'wiki-link'"
+    ).fetchall()
+    assert len(rows) == 1
+    assert rows[0][1] == target_str
+
+
 @pytest.mark.xfail(strict=False, reason="templates created in plan 04-03")
 def test_work_templates_exist():
     """Work templates exist with correct section headers."""

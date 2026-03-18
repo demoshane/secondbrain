@@ -149,6 +149,12 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False) -> dict:
     conn.execute("INSERT INTO notes_fts(notes_fts) VALUES('rebuild')")
     conn.commit()
 
+    # Build wiki-link relationships from note bodies
+    from engine.links import update_wiki_link_relationships
+    all_notes = conn.execute("SELECT path, body FROM notes").fetchall()
+    for note_path, body in all_notes:
+        update_wiki_link_relationships(conn, note_path, body)
+
     # --- Embedding second pass ---
     from engine.config_loader import load_config
     config = load_config(BRAIN_ROOT / ".meta" / "config.toml")
