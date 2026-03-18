@@ -1,0 +1,45 @@
+import { createContext, useContext, useState, useCallback } from 'react'
+import { getAPI } from '@/lib/utils'
+import type { Note } from '@/types'
+
+interface SearchContextValue {
+  query: string
+  mode: 'hybrid' | 'bm25' | 'semantic'
+  results: Note[] | null
+  tagFilter: string | null
+  setQuery: (q: string) => void
+  setMode: (m: 'hybrid' | 'bm25' | 'semantic') => void
+  setTagFilter: (t: string | null) => void
+  search: (q: string, mode?: 'hybrid' | 'bm25' | 'semantic', tag?: string | null) => Promise<void>
+  clearSearch: () => void
+}
+
+const SearchContext = createContext<SearchContextValue>(null!)
+export const useSearchContext = () => useContext(SearchContext)
+
+export function SearchProvider({ children }: { children: React.ReactNode }) {
+  const [query, setQuery] = useState('')
+  const [mode, setMode] = useState<'hybrid' | 'bm25' | 'semantic'>('hybrid')
+  const [results, setResults] = useState<Note[] | null>(null)
+  const [tagFilter, setTagFilter] = useState<string | null>(null)
+
+  const search = useCallback(async (q: string, m = mode, tag = tagFilter) => {
+    const params = new URLSearchParams({ q, mode: m })
+    if (tag) params.set('tags', tag)
+    const res = await fetch(`${getAPI()}/search?${params}`)
+    const data = await res.json()
+    setResults(data.results ?? [])
+  }, [mode, tagFilter])
+
+  const clearSearch = useCallback(() => {
+    setQuery('')
+    setResults(null)
+    setTagFilter(null)
+  }, [])
+
+  return (
+    <SearchContext.Provider value={{ query, mode, results, tagFilter, setQuery, setMode, setTagFilter, search, clearSearch }}>
+      {children}
+    </SearchContext.Provider>
+  )
+}
