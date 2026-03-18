@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27.4-03-PLAN.md
-last_updated: "2026-03-18T15:24:23.309Z"
+stopped_at: Completed 27.4-04-PLAN.md (checkpoint:human-verify pending)
+last_updated: "2026-03-18T15:45:00.000Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 13
@@ -97,6 +97,7 @@ Progress: [██████████] 99%
 | Phase 27.4-people-page P01 | 12 | 2 tasks | 3 files |
 | Phase 27.4-people-page P02 | 5 | 1 tasks | 1 files |
 | Phase 27.4-people-page P03 | 6 | 2 tasks | 7 files |
+| Phase 27.4-people-page P04 | 10 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -216,6 +217,8 @@ Recent decisions affecting current work:
 - [Phase 27.4-02]: [27.4-02] Correlated subquery used for open_actions count — avoids GROUP BY complexity
 - [Phase 27.4-people-page]: Tasks 1+2 committed together — App.tsx imports PeoplePage so both must exist before build verifies
 - [Phase 27.4-people-page]: .secrets.baseline updated to new vite asset filename; hashed_secret unchanged (same minified keyword pattern)
+- [Phase 27.4-04]: test bodies use live_server_url (not gui_app) to match existing test_gui.py pattern — no new fixture needed
+- [Phase 27.4-04]: gui_brain seeds test-person.md + SQLite row at session scope so people table is non-empty for row-click tests
 
 ### Roadmap Evolution
 
@@ -239,8 +242,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-18T15:24:23.298Z
-Stopped at: Completed 27.4-03-PLAN.md
+Last session: 2026-03-18T15:45:00.000Z
+Stopped at: Completed 27.4-04-PLAN.md (checkpoint:human-verify pending)
 Resume file: None
 
 ## TODOs (for Phase 27)
