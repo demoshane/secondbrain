@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27.5-02-PLAN.md
-last_updated: "2026-03-18T16:55:54.699Z"
+stopped_at: "Completed 27.5-03-PLAN.md (awaiting checkpoint:human-verify)"
+last_updated: "2026-03-18T17:07:56.002Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 14
-  completed_phases: 12
+  completed_phases: 13
   total_plans: 63
-  completed_plans: 56
+  completed_plans: 57
   percent: 99
 ---
 
@@ -100,6 +100,7 @@ Progress: [██████████] 99%
 | Phase 27.4-people-page P04 | 10 | 1 tasks | 2 files |
 | Phase 27.5-meetings-page P01 | 8 | 2 tasks | 3 files |
 | Phase 27.5-meetings-page P02 | 8 | 2 tasks | 8 files |
+| Phase 27.5-meetings-page P03 | 8 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -226,6 +227,8 @@ Recent decisions affecting current work:
 - [Phase 27.5-01]: list_actions() extended with note_path param; exposed as ?note_path= on GET /actions
 - [Phase 27.5-meetings-page]: [27.5-02] Tasks 1+2 committed together — App.tsx imports MeetingsPage so both must exist before build verifies
 - [Phase 27.5-meetings-page]: [27.5-02] Action items fetched via GET /actions?note_path=<enc>, not ?assignee= — meetings own actions, not people
+- [Phase 27.5-03]: page.goto('/ui') used in new tests — not bare live_server_url — matching all existing test_gui.py conventions
+- [Phase 27.5-03]: Meeting seed uses INSERT OR REPLACE with people column (not tags) to match meetings schema
 
 ### Roadmap Evolution
 
@@ -249,8 +252,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-18T16:55:54.689Z
-Stopped at: Completed 27.5-02-PLAN.md
+Last session: 2026-03-18T17:07:55.993Z
+Stopped at: Completed 27.5-03-PLAN.md (awaiting checkpoint:human-verify)
 Resume file: None
 
 ## TODOs (for Phase 27)

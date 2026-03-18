@@ -54,7 +54,7 @@
 - [x] **Phase 27.2: Action Items Page + Nav Scaffold** — Top tab bar (extensible), dedicated Action Items page, assignee picker with autocomplete, assignee_path on action_items, person note "My Actions" section (completed 2026-03-17)
 - [x] **Phase 27.3: UI/UX Overhaul** — Design system (typography, spacing, color tokens), visual consistency across all panels, dark mode polish (completed 2026-03-18)
 - [x] **Phase 27.4: People Page** — People directory, per-person view with meetings, action items, and backlinks (completed 2026-03-18)
-- [ ] **Phase 27.5: Meetings Page** — Chronological meeting log, participants, outcomes, linked action items
+- [x] **Phase 27.5: Meetings Page** — Chronological meeting log, participants, outcomes, linked action items (completed 2026-03-18)
 - [ ] **Phase 27.6: Projects Page** — Project status tracking, related notes, open action items per project
 - [ ] **Phase 27.7: Intelligence Page** — Promote recap, brain health, digest from sidebar panel to full dedicated page
 - [ ] **Phase 27.8: Inbox Page** — Review queue: empty notes, unprocessed captures, unassigned action items
@@ -336,7 +336,7 @@ Plans:
 
 **Goal:** All open TODOs, known gaps, and deferred issues identified at phase start are resolved before the milestone is closed
 **Depends on:** Phase 27
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 28-01-PLAN.md — Title-only dedup for long captures (fix MCP timeout on large bodies)
