@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: "Completed 27.3-05-PLAN.md (checkpoint: awaiting human verify)"
-last_updated: "2026-03-18T12:13:45.083Z"
+stopped_at: Completed 27.3-05-PLAN.md (human verified, all 9 Playwright tests pass)
+last_updated: "2026-03-18T14:00:04.348Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 12
@@ -93,6 +93,7 @@ Progress: [██████████] 99%
 | Phase 27.3-ui-ux-overhaul P03 | 12 | 2 tasks | 10 files |
 | Phase 27.3-ui-ux-overhaul P04 | 12 | 2 tasks | 13 files |
 | Phase 27.3-ui-ux-overhaul P05 | 11 | 1 tasks | 1 files |
+| Phase 27.3-05 P05 | 25 | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -203,6 +204,9 @@ Recent decisions affecting current work:
 - [Phase 27.3-04]: NoteViewer uses Attachment.file_path (not .url) matching types.ts; RightPanel catches all fetch errors silently; modal state owned by App.tsx; TDD: test RED before GREEN
 - [Phase 27.3-05]: [27.3-05] [data-testid='note-body'] targets the scrollable content div inside NoteViewer — correct target for scroll tests replacing #viewer
 - [Phase 27.3-05]: [27.3-05] Playwright sidebar-loading wait removed — React renders sidebar inline without dedicated loading indicator; wait for first note-item instead
+- [Phase 27.3-05]: vite base '/ui/' required — base './' produces relative asset paths that 404 when Flask serves app under /ui/ URL prefix
+- [Phase 27.3-05]: SSEContext must use addEventListener('note', handler) not onmessage — Flask _broadcast() emits named 'note' events; onmessage only catches unnamed message events
+- [Phase 27.3-05]: GET /notes/<path> extended to return title/type/tags — NoteViewer inline tag editing requires these fields to reconstruct frontmatter without extra fetch
 
 ### Roadmap Evolution
 
@@ -226,8 +230,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-18T12:13:39.972Z
-Stopped at: Completed 27.3-05-PLAN.md (checkpoint: awaiting human verify)
+Last session: 2026-03-18T13:59:54.108Z
+Stopped at: Completed 27.3-05-PLAN.md (human verified, all 9 Playwright tests pass)
 Resume file: None
 
 ## TODOs (for Phase 27)
