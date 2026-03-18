@@ -285,6 +285,17 @@ Plans:
 - [ ] 27.4-03-PLAN.md — Frontend: People page + person detail view
 - [ ] 27.4-04-PLAN.md — Integration, Playwright tests, sign-off
 
+### Phase 27.5: Meetings Page
+
+**Goal:** A dedicated Meetings page in the tab bar showing chronological meeting log with participants, outcomes, and linked action items
+**Depends on:** Phase 27.4
+**Requirements**: 27.5-MP-01, 27.5-MP-02, 27.5-MP-03, 27.5-MP-04
+
+Plans:
+- [ ] 27.5-01-PLAN.md — Backend: meetings API endpoints
+- [ ] 27.5-02-PLAN.md — Frontend: Meetings page + meeting detail view
+- [ ] 27.5-03-PLAN.md — Integration, Playwright tests, sign-off
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
