@@ -30,3 +30,10 @@ export interface Attachment {
 export interface CollapsePrefs {
   [key: string]: boolean
 }
+
+export interface PersonSummary {
+  path: string
+  title: string
+  updated_at: string
+  open_actions: number
+}

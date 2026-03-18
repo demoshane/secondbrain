@@ -241,6 +241,32 @@ def test_collapsible_sections(page, live_server_url, gui_brain, seed_note_fn):
     assert after_second_click == initial_collapsed, "collapsed state did not toggle back"
 
 
+@pytest.mark.xfail(strict=False, reason="People page not yet implemented")
+def test_people_tab_visible(page, live_server_url, gui_brain):
+    """SC-PP-1: People tab button is visible in the tab bar."""
+    page.goto("/ui")
+    page.wait_for_selector("[data-testid='tab-bar']", timeout=5000)
+    assert page.locator("button", has_text="People").count() > 0
+
+
+@pytest.mark.xfail(strict=False, reason="People page not yet implemented")
+def test_people_detail_opens(page, live_server_url, gui_brain):
+    """SC-PP-2: clicking People tab shows people-page element."""
+    page.goto("/ui")
+    page.locator("button", has_text="People").click()
+    page.wait_for_selector("[data-testid='people-page']", timeout=5000)
+    # Will need at least one person in test brain; xfail for now
+
+
+@pytest.mark.xfail(strict=False, reason="People page not yet implemented")
+def test_people_detail_sections(page, live_server_url, gui_brain):
+    """SC-PP-3: people detail panel contains expected section testids."""
+    page.goto("/ui")
+    page.locator("button", has_text="People").click()
+    page.wait_for_selector("[data-testid='people-page']", timeout=5000)
+    # Sections: note-body-section, meetings-section, backlinks-section, actions-section
+
+
 def test_path_traversal_guard(page, live_server_url):
     """SC-10: fetch('/api/notes/../../../etc/passwd') from page context returns 403."""
     # Navigate to UI first — same origin as the Flask server
