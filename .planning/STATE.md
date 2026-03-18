@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27.3-02-PLAN.md
-last_updated: "2026-03-18T11:35:06.472Z"
+stopped_at: Completed 27.3-03-PLAN.md
+last_updated: "2026-03-18T11:50:16.431Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 12
   completed_phases: 10
   total_plans: 50
-  completed_plans: 47
+  completed_plans: 48
   percent: 99
 ---
 
@@ -90,6 +90,7 @@ Progress: [██████████] 99%
 | Phase 27.2-action-items-page-nav-scaffold P04 | 8 | 2 tasks | 2 files |
 | Phase 27.3-ui-ux-overhaul P01 | 25 | 2 tasks | 20 files |
 | Phase 27.3-ui-ux-overhaul P02 | 9 | 2 tasks | 9 files |
+| Phase 27.3-ui-ux-overhaul P03 | 12 | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -195,6 +196,8 @@ Recent decisions affecting current work:
 - [Phase 27.3-01]: Playwright test_gui.py failures expected after frontend replacement — deferred to plan 27.3-05
 - [Phase 27.3-ui-ux-overhaul]: [27.3-02] SearchContext.search() interface uses 'hybrid'|'bm25'|'semantic' union (not string) to match implementation
 - [Phase 27.3-ui-ux-overhaul]: [27.3-02] vi.fn arrow function non-constructible — EventSource mock uses regular function() not arrow fn
+- [Phase 27.3-03]: [27.3-03] shadcn npx add installed Radix packages but did not generate component source files; hand-crafted from standard shadcn templates
+- [Phase 27.3-03]: [27.3-03] groupNotes() uses Map<folder, Map<type, Note[]>> for two-level hierarchy — pure function with no side effects
 
 ### Roadmap Evolution
 
@@ -218,8 +221,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-18T11:35:06.464Z
-Stopped at: Completed 27.3-02-PLAN.md
+Last session: 2026-03-18T11:50:10.562Z
+Stopped at: Completed 27.3-03-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
