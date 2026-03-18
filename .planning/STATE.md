@@ -4,13 +4,13 @@ milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
 stopped_at: "Completed 27.5-03-PLAN.md (awaiting checkpoint:human-verify)"
-last_updated: "2026-03-18T17:39:29.960Z"
+last_updated: "2026-03-18T18:06:32.804Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
-  total_phases: 14
+  total_phases: 15
   completed_phases: 13
-  total_plans: 63
-  completed_plans: 57
+  total_plans: 66
+  completed_plans: 58
   percent: 99
 ---
 
@@ -229,6 +229,8 @@ Recent decisions affecting current work:
 - [Phase 27.5-meetings-page]: [27.5-02] Action items fetched via GET /actions?note_path=<enc>, not ?assignee= — meetings own actions, not people
 - [Phase 27.5-03]: page.goto('/ui') used in new tests — not bare live_server_url — matching all existing test_gui.py conventions
 - [Phase 27.5-03]: Meeting seed uses INSERT OR REPLACE with people column (not tags) to match meetings schema
+- [Phase 27.6-projects-page]: type='projects' (plural) used in SQL — matches actual note type stored in DB
+- [Phase 27.6-projects-page]: [27.6-01] test_project_detail_not_found uses absolute brain-rooted path so _resolve_note_path succeeds and returns 404 (not 403)
 
 ### Roadmap Evolution
 
