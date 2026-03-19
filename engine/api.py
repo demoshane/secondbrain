@@ -911,6 +911,127 @@ def intelligence_recap():
         conn.close()
 
 
+@app.get("/inbox")
+def get_inbox():
+    """Return inbox items: unassigned actions, unprocessed notes, empty notes."""
+    PAGE_SIZE = 20
+    actions_offset = int(request.args.get("actions_offset", 0))
+    source_note = request.args.get("source_note") or None
+
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    try:
+        # --- Unassigned actions ---
+        if source_note:
+            total_row = conn.execute(
+                "SELECT COUNT(*) FROM action_items a "
+                "LEFT JOIN dismissed_inbox_items d ON d.path=CAST(a.id AS TEXT) AND d.item_type='action' "
+                "WHERE a.done=0 AND a.assignee_path IS NULL AND d.path IS NULL AND a.note_path=?",
+                (source_note,),
+            ).fetchone()
+            action_rows = conn.execute(
+                "SELECT a.id, a.note_path, a.text, a.created_at FROM action_items a "
+                "LEFT JOIN dismissed_inbox_items d ON d.path=CAST(a.id AS TEXT) AND d.item_type='action' "
+                "WHERE a.done=0 AND a.assignee_path IS NULL AND d.path IS NULL AND a.note_path=? "
+                "ORDER BY a.created_at DESC LIMIT ? OFFSET ?",
+                (source_note, PAGE_SIZE, actions_offset),
+            ).fetchall()
+        else:
+            total_row = conn.execute(
+                "SELECT COUNT(*) FROM action_items a "
+                "LEFT JOIN dismissed_inbox_items d ON d.path=CAST(a.id AS TEXT) AND d.item_type='action' "
+                "WHERE a.done=0 AND a.assignee_path IS NULL AND d.path IS NULL",
+            ).fetchone()
+            action_rows = conn.execute(
+                "SELECT a.id, a.note_path, a.text, a.created_at FROM action_items a "
+                "LEFT JOIN dismissed_inbox_items d ON d.path=CAST(a.id AS TEXT) AND d.item_type='action' "
+                "WHERE a.done=0 AND a.assignee_path IS NULL AND d.path IS NULL "
+                "ORDER BY a.created_at DESC LIMIT ? OFFSET ?",
+                (PAGE_SIZE, actions_offset),
+            ).fetchall()
+        unassigned_actions_total = total_row[0] if total_row else 0
+        unassigned_actions = [dict(r) for r in action_rows]
+
+        # --- Unprocessed notes (14-day window, no tags, no relationships, structured types only) ---
+        PROCESSABLE_TYPES = ('idea', 'ideas', 'coding', 'strategy', 'personal', 'projects')
+        type_placeholders = ",".join("?" * len(PROCESSABLE_TYPES))
+        unprocessed_rows = conn.execute(
+            f"SELECT n.path, n.title, n.type, n.created_at FROM notes n "
+            "LEFT JOIN relationships r ON r.source_path=n.path OR r.target_path=n.path "
+            "LEFT JOIN dismissed_inbox_items d ON d.path=n.path AND d.item_type='note' "
+            f"WHERE n.type IN ({type_placeholders}) "
+            "AND (n.tags IS NULL OR n.tags='[]' OR n.tags='null' OR n.tags='') "
+            "AND n.created_at >= datetime('now','-14 days') "
+            "AND r.source_path IS NULL "
+            "AND d.path IS NULL "
+            "ORDER BY n.created_at DESC LIMIT 50",
+            PROCESSABLE_TYPES,
+        ).fetchall()
+        unprocessed_notes = [dict(r) for r in unprocessed_rows]
+
+        # --- Empty notes (body null or blank, not dismissed) ---
+        empty_rows = conn.execute(
+            "SELECT n.path, n.title FROM notes n "
+            "LEFT JOIN dismissed_inbox_items d ON d.path=n.path AND d.item_type='note' "
+            "WHERE (n.body IS NULL OR TRIM(n.body)='') "
+            "AND d.path IS NULL "
+            "LIMIT 20"
+        ).fetchall()
+        empty_notes = [dict(r) for r in empty_rows]
+
+        total_count = len(unassigned_actions) + len(unprocessed_notes) + len(empty_notes)
+
+        return jsonify({
+            "unassigned_actions": unassigned_actions,
+            "unassigned_actions_total": unassigned_actions_total,
+            "unprocessed_notes": unprocessed_notes,
+            "empty_notes": empty_notes,
+            "total_count": total_count,
+        })
+    finally:
+        conn.close()
+
+
+@app.post("/inbox/dismiss")
+def dismiss_inbox_item():
+    """Persist a dismissed inbox item so it won't reappear."""
+    data = request.get_json(force=True) or {}
+    path = data.get("path", "")
+    item_type = data.get("item_type", "")
+    if not path or not item_type:
+        return jsonify({"error": "path and item_type required"}), 400
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO dismissed_inbox_items (path, item_type) VALUES (?, ?)",
+            (path, item_type),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"dismissed": True})
+
+
+@app.post("/relationships")
+def create_relationship():
+    """Insert a link relationship between two notes."""
+    data = request.get_json(force=True) or {}
+    source = data.get("source_path", "")
+    target = data.get("target_path", "")
+    if not source or not target:
+        return jsonify({"error": "source_path and target_path required"}), 400
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?, ?, 'link')",
+            (source, target),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"created": True})
+
+
 @app.get("/brain-health")
 def brain_health_endpoint():
     """Brain content health dashboard: orphans, broken links, duplicates, score."""

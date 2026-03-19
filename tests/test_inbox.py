@@ -1,7 +1,4 @@
-"""Phase 27.9: Unit test scaffold for Inbox backend endpoints.
-
-All tests are xfail(strict=False) — Wave 1 RED baseline.
-Wave 1 (plan 27.9-01 Task 2) will build the endpoints and make these green.
+"""Phase 27.9: Unit tests for Inbox backend endpoints.
 
 Run: uv run pytest tests/test_inbox.py -v
 """
@@ -65,36 +62,120 @@ def client(monkeypatch, tmp_path):
         yield c, brain, unprocessed_path, empty_path
 
 
-@pytest.mark.xfail(strict=False, reason="Wave 1 not yet shipped")
 def test_inbox_endpoint(client):
     """GET /inbox returns 200 with keys: unassigned_actions, unprocessed_notes, empty_notes, total_count."""
     c, _brain, _up, _ep = client
-    raise AssertionError("endpoint not yet implemented")
+    resp = c.get("/inbox")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert "unassigned_actions" in data
+    assert "unprocessed_notes" in data
+    assert "empty_notes" in data
+    assert "total_count" in data
+    assert isinstance(data["unassigned_actions"], list)
+    assert isinstance(data["unprocessed_notes"], list)
+    assert isinstance(data["empty_notes"], list)
+    assert isinstance(data["total_count"], int)
 
 
-@pytest.mark.xfail(strict=False, reason="Wave 1 not yet shipped")
 def test_unprocessed_excludes_structured_types(client):
     """Notes with type 'meeting' or 'people' do NOT appear in unprocessed_notes."""
+    from engine.db import get_connection
     c, brain, _up, _ep = client
-    raise AssertionError("endpoint not yet implemented")
+
+    now = datetime.datetime.utcnow().isoformat()
+    conn = get_connection()
+    meeting_path = str(brain / "meetings" / "weekly.md")
+    people_path = str(brain / "people" / "alice.md")
+    conn.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (meeting_path, "Weekly Meeting", "meeting", "Discussion notes.", "[]", now, now),
+    )
+    conn.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (people_path, "Alice", "people", "Alice info.", "[]", now, now),
+    )
+    conn.commit()
+    conn.close()
+
+    resp = c.get("/inbox")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    paths = [n["path"] for n in data["unprocessed_notes"]]
+    assert meeting_path not in paths
+    assert people_path not in paths
 
 
-@pytest.mark.xfail(strict=False, reason="Wave 1 not yet shipped")
 def test_unprocessed_excludes_old_notes(client):
     """A note created 15 days ago does NOT appear in unprocessed_notes."""
+    from engine.db import get_connection
     c, brain, _up, _ep = client
-    raise AssertionError("endpoint not yet implemented")
+
+    old_ts = (datetime.datetime.utcnow() - datetime.timedelta(days=15)).isoformat()
+    old_path = str(brain / "ideas" / "old-note.md")
+    conn = get_connection()
+    conn.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (old_path, "Old Note", "ideas", "Old content.", "[]", old_ts, old_ts),
+    )
+    conn.commit()
+    conn.close()
+
+    resp = c.get("/inbox")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    paths = [n["path"] for n in data["unprocessed_notes"]]
+    assert old_path not in paths
 
 
-@pytest.mark.xfail(strict=False, reason="Wave 1 not yet shipped")
 def test_dismiss_persists(client):
     """POST /inbox/dismiss then GET /inbox — dismissed item absent from response."""
     c, _brain, _up, empty_path = client
-    raise AssertionError("endpoint not yet implemented")
+
+    # Empty note should appear before dismiss
+    resp = c.get("/inbox")
+    data = json.loads(resp.data)
+    empty_paths = [n["path"] for n in data["empty_notes"]]
+    assert empty_path in empty_paths
+
+    # Dismiss it
+    resp2 = c.post(
+        "/inbox/dismiss",
+        data=json.dumps({"path": empty_path, "item_type": "note"}),
+        content_type="application/json",
+    )
+    assert resp2.status_code == 200
+    assert json.loads(resp2.data) == {"dismissed": True}
+
+    # Should not appear after dismiss
+    resp3 = c.get("/inbox")
+    data3 = json.loads(resp3.data)
+    empty_paths3 = [n["path"] for n in data3["empty_notes"]]
+    assert empty_path not in empty_paths3
 
 
-@pytest.mark.xfail(strict=False, reason="Wave 1 not yet shipped")
 def test_relationships_create(client):
     """POST /relationships returns 200 {"created": true}; row exists in relationships table."""
+    from engine.db import get_connection
     c, brain, unprocessed_path, _ep = client
-    raise AssertionError("endpoint not yet implemented")
+
+    target_path = str(brain / "ideas" / "target-note.md")
+    resp = c.post(
+        "/relationships",
+        data=json.dumps({"source_path": unprocessed_path, "target_path": target_path}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    assert json.loads(resp.data) == {"created": True}
+
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT source_path, target_path, rel_type FROM relationships WHERE source_path=? AND target_path=?",
+        (unprocessed_path, target_path),
+    ).fetchone()
+    conn.close()
+    assert row is not None
+    assert row[2] == "link"
