@@ -100,3 +100,102 @@ def test_brain_health_api_returns_score_and_checks(client):
     assert "duplicate_candidates" in data
     assert isinstance(data["score"], int)
     assert 0 <= data["score"] <= 100
+
+
+# ---------------------------------------------------------------------------
+# Orphan detection correctness spec (Phase 27.7)
+# ---------------------------------------------------------------------------
+
+def test_orphan_is_note_with_no_relationships(tmp_path):
+    """QA-03: A note with no relationships (neither source nor target) is an orphan.
+
+    Spec: get_orphan_notes() must include notes absent from both
+    relationships.source_path and relationships.target_path.
+    """
+    from engine.db import init_schema, get_connection
+    from engine.brain_health import get_orphan_notes
+    import engine.db as _db
+    import engine.paths as _paths
+
+    db_path = tmp_path / "orphan_spec.db"
+    _db.DB_PATH = db_path
+    _paths.DB_PATH = db_path
+    conn = get_connection()
+    init_schema(conn)
+    conn.execute(
+        "INSERT INTO notes (path, title, type, body, sensitivity) VALUES (?,?,?,?,?)",
+        ("ideas/orphan.md", "Orphan Note", "idea", "no links", "public"),
+    )
+    conn.commit()
+    result = get_orphan_notes(conn)
+    conn.close()
+    assert any(r["path"] == "ideas/orphan.md" for r in result), \
+        "Note with no relationships must be classified as orphan"
+
+
+def test_note_with_outbound_link_is_not_orphan(tmp_path):
+    """QA-03: A note that has an outbound link (source_path) is NOT an orphan.
+
+    Spec: having any entry in relationships as source_path removes the note from orphan set.
+    """
+    from engine.db import init_schema, get_connection
+    from engine.brain_health import get_orphan_notes
+    import engine.db as _db
+    import engine.paths as _paths
+
+    db_path = tmp_path / "outbound_spec.db"
+    _db.DB_PATH = db_path
+    _paths.DB_PATH = db_path
+    conn = get_connection()
+    init_schema(conn)
+    conn.execute(
+        "INSERT INTO notes (path, title, type, body, sensitivity) VALUES (?,?,?,?,?)",
+        ("ideas/linked.md", "Linked Note", "idea", "links out", "public"),
+    )
+    conn.execute(
+        "INSERT INTO notes (path, title, type, body, sensitivity) VALUES (?,?,?,?,?)",
+        ("ideas/target.md", "Target Note", "idea", "target", "public"),
+    )
+    conn.execute(
+        "INSERT INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+        ("ideas/linked.md", "ideas/target.md", "reference"),
+    )
+    conn.commit()
+    result = get_orphan_notes(conn)
+    conn.close()
+    assert not any(r["path"] == "ideas/linked.md" for r in result), \
+        "Note with outbound link must NOT be an orphan"
+
+
+def test_note_with_inbound_link_is_not_orphan(tmp_path):
+    """QA-03: A note that has an inbound link (target_path) is NOT an orphan.
+
+    Spec: having any entry in relationships as target_path removes the note from orphan set.
+    """
+    from engine.db import init_schema, get_connection
+    from engine.brain_health import get_orphan_notes
+    import engine.db as _db
+    import engine.paths as _paths
+
+    db_path = tmp_path / "inbound_spec.db"
+    _db.DB_PATH = db_path
+    _paths.DB_PATH = db_path
+    conn = get_connection()
+    init_schema(conn)
+    conn.execute(
+        "INSERT INTO notes (path, title, type, body, sensitivity) VALUES (?,?,?,?,?)",
+        ("ideas/source.md", "Source Note", "idea", "links to target", "public"),
+    )
+    conn.execute(
+        "INSERT INTO notes (path, title, type, body, sensitivity) VALUES (?,?,?,?,?)",
+        ("ideas/pointed-to.md", "Pointed To Note", "idea", "has inbound", "public"),
+    )
+    conn.execute(
+        "INSERT INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+        ("ideas/source.md", "ideas/pointed-to.md", "reference"),
+    )
+    conn.commit()
+    result = get_orphan_notes(conn)
+    conn.close()
+    assert not any(r["path"] == "ideas/pointed-to.md" for r in result), \
+        "Note with inbound link must NOT be an orphan"
