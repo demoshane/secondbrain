@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 28-06-PLAN.md
-last_updated: "2026-03-19T13:13:17.973Z"
+stopped_at: Completed 28-04-PLAN.md
+last_updated: "2026-03-19T13:14:00.468Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 25
@@ -118,6 +118,7 @@ Progress: [██████████] 99%
 | Phase 28 P02 | 18 | 1 tasks | 2 files |
 | Phase 28 P03 | 19 | 1 tasks | 2 files |
 | Phase 28 P06 | 20 | 1 tasks | 2 files |
+| Phase 28 P04 | 8 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -276,6 +277,7 @@ Recent decisions affecting current work:
 - [Phase 28]: [28-03] sb_tag: fuzzy match (cutoff 0.8) applies existing tag; confirm-token gate for new tags; remove is unconditional
 - [Phase 28]: [28-06] sb_person_context sets conn.row_factory=sqlite3.Row locally — get_connection() does not set it globally; named column access requires explicit row_factory per connection
 - [Phase 28]: [28-06] meetings detection uses body-only scan (person_title in body) — consistent with note_meta() body-mention pattern; mentions excludes type IN (person, people)
+- [Phase 28]: [28-04] sb_link INSERT OR IGNORE for idempotency; sb_unlink optional rel_type filter; absent pair is no-op
 
 ### Roadmap Evolution
 
@@ -300,8 +302,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-19T13:13:17.893Z
-Stopped at: Completed 28-06-PLAN.md
+Last session: 2026-03-19T13:13:50.535Z
+Stopped at: Completed 28-04-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
