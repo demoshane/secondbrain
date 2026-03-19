@@ -18,7 +18,7 @@ from engine.db import get_connection
 from engine.digest import generate_digest
 from engine.forget import forget_person
 from engine.anonymize import anonymize_note
-from engine.intelligence import find_similar, list_actions, recap_entity
+from engine.intelligence import find_similar, get_overdue_actions, list_actions, recap_entity
 from engine.paths import BRAIN_ROOT, CONFIG_PATH
 from engine.router import get_adapter
 from engine.search import search_hybrid, search_notes, search_semantic
@@ -429,6 +429,198 @@ def sb_anonymize(path: str, tokens: list[str] | None = None, confirm_token: str 
 
 
 @mcp.tool()
+def sb_capture_smart(content: str) -> dict:
+    """Classify freeform text into 1-N typed note suggestions without saving anything.
+
+    Returns suggestions with title, type, body, and cross-links inferred from the
+    content. Pass the suggestions list to sb_capture_batch to commit them.
+
+    Args:
+        content: Freeform text to classify and segment.
+
+    Returns:
+        {"suggestions": [{"title": str, "type": str, "body": str, "links": [str]}, ...],
+         "confirm_token": str,
+         "hint": str}
+    """
+    import re as _re
+
+    def _classify_segment(segment: str) -> str:
+        low = segment.lower()
+        if _re.search(r"meeting|discussed|attendees|agenda", low):
+            return "meeting"
+        # Person: Name-like pattern + contact/role signal in first 200 chars
+        if _re.search(r"[A-Z][a-z]+ [A-Z][a-z]+", segment[:200]) and \
+                _re.search(r"role|contact|email|phone|linkedin", low):
+            return "person"
+        if _re.search(r"project|milestone|deadline|sprint|roadmap", low):
+            return "project"
+        if _re.search(r"idea|what if|maybe|consider|brainstorm", low):
+            return "idea"
+        return "note"
+
+    def _derive_title(segment: str) -> str:
+        for line in segment.splitlines():
+            stripped = line.strip().lstrip("#").strip()
+            if stripped:
+                return stripped[:80]
+        return "Untitled"
+
+    def _slugify(title: str) -> str:
+        import re as _re2
+        return _re2.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+
+    # Segment: split by double newline if content is >= 500 chars, else single segment
+    if len(content) < 500:
+        raw_segments = [content]
+    else:
+        raw_segments = [s.strip() for s in content.split("\n\n") if s.strip()]
+        if not raw_segments:
+            raw_segments = [content]
+
+    suggestions = []
+    for seg in raw_segments:
+        note_type = _classify_segment(seg)
+        title = _derive_title(seg)
+        suggestions.append({
+            "title": title,
+            "type": note_type,
+            "body": seg,
+            "links": [],
+        })
+
+    # Infer cross-links: if meeting + person both present, link person slugs into meeting
+    if len(suggestions) > 1:
+        person_slugs = [
+            _slugify(s["title"]) for s in suggestions if s["type"] == "person"
+        ]
+        for s in suggestions:
+            if s["type"] == "meeting" and person_slugs:
+                s["links"] = person_slugs
+
+    confirm_token = _issue_token()
+    return {
+        "suggestions": suggestions,
+        "confirm_token": confirm_token,
+        "hint": "Call sb_capture_batch with suggestions to save.",
+    }
+
+
+
+@mcp.tool()
+def sb_remind(action_id: int, due_date: str | None = None) -> dict:
+    """Set or clear a due date on an action item. due_date format: YYYY-MM-DD. Pass None to clear."""
+    conn = get_connection()
+    try:
+        conn.execute("UPDATE action_items SET due_date=? WHERE id=?", (due_date, action_id))
+        conn.commit()
+        return {"updated": True, "action_id": action_id, "due_date": due_date}
+    finally:
+        conn.close()
+
+
+def _save_tags(note_path, new_tags: list, abs_path: str, conn) -> None:
+    """Write tags to frontmatter on disk (atomic) and update notes.tags in DB."""
+    import json
+    import tempfile
+    import os
+    import frontmatter as _fm
+
+    post = _fm.load(str(note_path))
+    post["tags"] = new_tags
+    with tempfile.NamedTemporaryFile(
+        mode="wb",
+        dir=str(note_path.parent),
+        delete=False,
+        suffix=".tmp",
+    ) as tmp:
+        tmp.write(_fm.dumps(post).encode("utf-8"))
+        tmp_name = tmp.name
+    os.replace(tmp_name, str(note_path))
+    conn.execute("UPDATE notes SET tags=? WHERE path=?", (json.dumps(new_tags), abs_path))
+
+
+@mcp.tool()
+def sb_tag(path: str, action: str, tag: str, confirm_token: str = "") -> dict:
+    """Add or remove a tag on a note with fuzzy matching and confirm-token gate for new tags.
+
+    action must be "add" or "remove".
+
+    For "add":
+    - If the tag fuzzy-matches an existing tag (cutoff 0.8), the existing tag is used immediately.
+    - If the tag is brand-new and no confirm_token provided, returns {confirm_token: ..., message: ...}.
+    - If confirm_token is provided, validates it and saves the new tag.
+
+    For "remove":
+    - Removes the tag (case-insensitive). No confirm-token needed.
+    """
+    import difflib
+    import json
+
+    if action not in ("add", "remove"):
+        raise ValueError(f"INVALID_ACTION: action must be 'add' or 'remove', got {action!r}")
+
+    p = _safe_path(path)
+    if not p.exists():
+        raise ValueError(f"NOTE_NOT_FOUND: {path!r} does not exist.")
+
+    conn = get_connection()
+    try:
+        if action == "remove":
+            row = conn.execute("SELECT tags FROM notes WHERE path=?", (str(p),)).fetchone()
+            current_tags = json.loads((row[0] if row else None) or "[]")
+            new_tags = [t for t in current_tags if t.lower() != tag.lower()]
+            final_tag = tag
+            _save_tags(p, new_tags, str(p), conn)
+            conn.commit()
+            _log_mcp_audit("mcp_tag_remove", str(p))
+            return {"path": str(p), "action": action, "tag": final_tag, "tags": new_tags}
+
+        # "add" path -- gather all existing tags from DB
+        rows = conn.execute(
+            "SELECT DISTINCT j.value FROM notes, json_each(notes.tags) AS j WHERE notes.tags IS NOT NULL"
+        ).fetchall()
+        all_existing = [r[0] for r in rows if r[0]]
+
+        matches = difflib.get_close_matches(tag, all_existing, n=1, cutoff=0.8)
+
+        if matches:
+            # Fuzzy match found -- use existing tag immediately, no confirm needed
+            final_tag = matches[0]
+            row = conn.execute("SELECT tags FROM notes WHERE path=?", (str(p),)).fetchone()
+            current_tags = json.loads((row[0] if row else None) or "[]")
+            new_tags = list(dict.fromkeys(current_tags + [final_tag]))
+            _save_tags(p, new_tags, str(p), conn)
+            conn.commit()
+            _log_mcp_audit("mcp_tag_add", str(p))
+            return {
+                "path": str(p), "action": action, "tag": final_tag, "tags": new_tags,
+                "matched": final_tag, "applied": True,
+            }
+
+        # Brand-new tag -- gate with confirm-token
+        if not confirm_token:
+            tok = _issue_token()
+            return {
+                "confirm_token": tok,
+                "message": f"'{tag}' is a new tag. Call again with confirm_token to create.",
+            }
+        if not _consume_token(confirm_token):
+            raise ValueError("TOKEN_EXPIRED: confirm_token is invalid or has expired.")
+
+        final_tag = tag
+        row = conn.execute("SELECT tags FROM notes WHERE path=?", (str(p),)).fetchone()
+        current_tags = json.loads((row[0] if row else None) or "[]")
+        new_tags = list(dict.fromkeys(current_tags + [final_tag]))
+        _save_tags(p, new_tags, str(p), conn)
+        conn.commit()
+        _log_mcp_audit("mcp_tag_add", str(p))
+        return {"path": str(p), "action": action, "tag": final_tag, "tags": new_tags}
+    finally:
+        conn.close()
+
+
+@mcp.tool()
 def sb_tools() -> list[dict]:
     """List all available MCP tools with their input schemas.
 
@@ -455,6 +647,137 @@ def sb_tools() -> list[dict]:
         ]
     except AttributeError:
         return [{"name": "sb_tools", "description": "Tool introspection unavailable", "parameters": {}}]
+
+
+@mcp.tool()
+def sb_link(source_path: str, target_path: str, rel_type: str = "link") -> dict:
+    """Create a directional relationship between two notes. DB-only — does not edit note bodies.
+
+    rel_type: arbitrary string label, default 'link'.
+    Common values: 'link', 'references', 'similar', 'part-of'.
+    Idempotent — calling with the same (source, target, rel_type) twice inserts only one row.
+    """
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+            (source_path, target_path, rel_type),
+        )
+        conn.commit()
+        return {"linked": True, "source": source_path, "target": target_path, "rel_type": rel_type}
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def sb_unlink(source_path: str, target_path: str, rel_type: str | None = None) -> dict:
+    """Remove a directional relationship between two notes. DB-only — does not edit note bodies.
+
+    If rel_type is None, removes all relationships between source and target regardless of type.
+    Absent pair is a no-op — returns success without raising an error.
+    """
+    conn = get_connection()
+    try:
+        if rel_type is not None:
+            conn.execute(
+                "DELETE FROM relationships WHERE source_path=? AND target_path=? AND rel_type=?",
+                (source_path, target_path, rel_type),
+            )
+        else:
+            conn.execute(
+                "DELETE FROM relationships WHERE source_path=? AND target_path=?",
+                (source_path, target_path),
+            )
+        conn.commit()
+        return {"unlinked": True, "source": source_path, "target": target_path}
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def sb_person_context(path: str) -> dict:
+    """Return full context for a person in one call: note body, meetings, actions, mentions.
+
+    Aggregates all available data about a person without requiring multiple MCP calls.
+
+    Args:
+        path: Absolute or brain-relative path to the person note (e.g. /brain/people/alice.md)
+
+    Returns:
+        {path, note: {title, body}, meetings: [{path, title}], actions: [{...}], mentions: [{path, title}]}
+        Or {error: "not found", path: str} if the path is not indexed.
+    """
+    import sqlite3 as _sqlite3
+    from engine.db import get_connection as _get_connection
+
+    conn = _get_connection()
+    conn.row_factory = _sqlite3.Row
+    try:
+        row = conn.execute(
+            "SELECT title, body, type FROM notes WHERE path=?", (path,)
+        ).fetchone()
+        if row is None:
+            return {"error": "not found", "path": path}
+
+        person_title = row["title"]
+
+        # Meetings: type='meeting' notes where person_title appears in body (case-insensitive)
+        meeting_rows = conn.execute(
+            "SELECT path, title, body FROM notes WHERE type='meeting'"
+        ).fetchall()
+        meetings = []
+        for r in meeting_rows:
+            body = r["body"] or ""
+            if person_title.lower() in body.lower():
+                meetings.append({"path": r["path"], "title": r["title"]})
+
+        # Actions assigned directly to this person path
+        assigned_rows = conn.execute(
+            "SELECT id, text, done, due_date, note_path FROM action_items WHERE assignee_path=?",
+            (path,),
+        ).fetchall()
+        seen_ids: set = {r["id"] for r in assigned_rows}
+
+        # Actions mentioning person by name in text
+        mentioned_rows = conn.execute(
+            "SELECT id, text, done, due_date, note_path FROM action_items WHERE text LIKE ?",
+            (f"%{person_title}%",),
+        ).fetchall()
+
+        def _row_to_action(r) -> dict:
+            keys = r.keys()
+            return {
+                "id": r["id"],
+                "text": r["text"],
+                "done": r["done"],
+                "due_date": r["due_date"] if "due_date" in keys else None,
+                "note_path": r["note_path"] if "note_path" in keys else None,
+            }
+
+        actions = [_row_to_action(r) for r in assigned_rows]
+        for r in mentioned_rows:
+            if r["id"] not in seen_ids:
+                actions.append(_row_to_action(r))
+                seen_ids.add(r["id"])
+
+        # Mentions: non-person/people notes where person_title appears in body
+        mention_rows = conn.execute(
+            "SELECT path, title FROM notes WHERE body LIKE ? AND path != ? "
+            "AND type NOT IN ('person', 'people')",
+            (f"%{person_title}%", path),
+        ).fetchall()
+        mentions = [{"path": r["path"], "title": r["title"]} for r in mention_rows]
+
+        return {
+            "path": path,
+            "note": {"title": person_title, "body": row["body"]},
+            "meetings": meetings,
+            "actions": actions,
+            "mentions": mentions,
+        }
+    finally:
+        conn.close()
+
 
 
 def main() -> None:
