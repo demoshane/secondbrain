@@ -5,3 +5,13 @@ repos:
       - id: detect-secrets
         args: ['--baseline', '.secrets.baseline']
         exclude: .env.host.example
+
+  - repo: local
+    hooks:
+      - id: semgrep
+        name: semgrep security scan (non-blocking)
+        language: system
+        entry: bash -c 'semgrep scan --config p/python --config p/security-audit --quiet "$@" || true'
+        types: [python]
+        files: ^engine/
+        verbose: true
