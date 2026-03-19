@@ -10,6 +10,7 @@ import { MeetingsPage } from './components/MeetingsPage'
 import { ProjectsPage } from './components/ProjectsPage'
 import { IntelligencePage } from './components/IntelligencePage'
 import { InboxPage } from './components/InboxPage'
+import { LinksPage } from './components/LinksPage'
 import { NewNoteModal } from './components/NewNoteModal'
 import { DeleteNoteModal } from './components/DeleteNoteModal'
 import { FileUploadModal } from './components/FileUploadModal'
@@ -82,6 +83,8 @@ export default function App() {
             <IntelligencePage />
           ) : currentView === 'inbox' ? (
             <InboxPage />
+          ) : currentView === 'links' ? (
+            <LinksPage />
           ) : null}
         </div>
         {currentView === 'notes' && <RightPanel />}
