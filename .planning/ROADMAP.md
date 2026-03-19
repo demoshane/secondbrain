@@ -332,6 +332,28 @@ Plans:
 - [ ] 27.8-02-PLAN.md — Frontend: Intelligence page + tab bar wiring
 - [ ] 27.8-03-PLAN.md — Integration, Playwright tests, sign-off
 
+### Phase 27.9: Inbox Page
+
+**Goal:** Add a dedicated Inbox tab showing a review queue of empty notes, unprocessed captures, and unassigned action items so the user can triage and act on them without hunting through the note list
+**Depends on:** Phase 27.8
+**Requirements**: 27.9-INBOX-01, 27.9-INBOX-02, 27.9-INBOX-03, 27.9-INBOX-04
+
+Plans:
+- [ ] 27.9-01-PLAN.md — Backend: inbox API endpoint
+- [ ] 27.9-02-PLAN.md — Frontend: Inbox page + tab bar wiring
+- [ ] 27.9-03-PLAN.md — Integration, Playwright tests, sign-off
+
+### Phase 27.10: Graph View
+
+**Goal:** Render a visual knowledge map where nodes are notes and edges are relationships (backlinks, people mentions, action item links), zoomable and filterable
+**Depends on:** Phase 27.9
+**Requirements**: 27.10-GRAPH-01, 27.10-GRAPH-02, 27.10-GRAPH-03, 27.10-GRAPH-04
+
+Plans:
+- [ ] 27.10-01-PLAN.md — Backend: graph data API endpoint
+- [ ] 27.10-02-PLAN.md — Frontend: Graph page + tab bar wiring
+- [ ] 27.10-03-PLAN.md — Integration, Playwright tests, sign-off
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -368,13 +390,13 @@ Plans:
 | 27.2. Action Items Page + Nav Scaffold | 4/4 | Complete    | 2026-03-18 | - |
 | 27.7. Playwright Coverage & Regression Baseline | 4/4 | Complete    | 2026-03-19 | - |
 | 27.8. Intelligence Page | v3.0 | 3/3 | Complete | 2026-03-18 |
-| 28. TODO & Gap Resolution | v3.0 | 0/6 | Not started | - |
+| 28. TODO & Gap Resolution | v3.0 | 0/7 | Not started | - |
 
 ### Phase 28: TODO & Gap Resolution
 
 **Goal:** All open TODOs, known gaps, and deferred issues identified at phase start are resolved before the milestone is closed
 **Depends on:** Phase 27
-**Plans:** 3/3 plans complete
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 28-01-PLAN.md — Title-only dedup for long captures (fix MCP timeout on large bodies)
@@ -383,3 +405,14 @@ Plans:
 - [ ] 28-04-PLAN.md — `sb_link` / `sb_unlink`: explicit directional relationships between notes (DB-only, no body edit)
 - [ ] 28-05-PLAN.md — `sb_remind`: set due date + snooze on action items; overdue surfacing in recap + GUI
 - [ ] 28-06-PLAN.md — `sb_person_context`: one-call full context dump (note + meetings + actions + mentions) for a person
+- [ ] 28-07-PLAN.md — Fix 9 pre-existing Playwright GUI failures (People/Meetings/Projects pages empty, detail panels, right panel people badge)
+
+### Phase 29: Add link capture
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 28
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 29 to break down)
