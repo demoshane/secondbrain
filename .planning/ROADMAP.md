@@ -313,7 +313,7 @@ Plans:
 **Goal:** Expand Playwright test coverage to all existing GUI features so regressions are caught automatically before reaching the user. Add pre-flight smoke test, fix test isolation gaps, establish baseline.
 **Depends on:** Phase 27.6
 **Requirements**: 27.7-QA-01, 27.7-QA-02, 27.7-QA-03, 27.7-QA-04
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 - [ ] 27.7-01-PLAN.md — Wave 1: conftest gui_brain extension (type='people' + mention seeds) + right panel tests (QA-02)
@@ -366,7 +366,7 @@ Plans:
 | 27. Search Quality Tuning | 7/7 | Complete    | 2026-03-17 | - |
 | 27.1. Smart Capture & Proactive Brain | 5/5 | Complete    | 2026-03-18 | - |
 | 27.2. Action Items Page + Nav Scaffold | 4/4 | Complete    | 2026-03-18 | - |
-| 27.7. Playwright Coverage & Regression Baseline | 2/4 | In Progress|  | - |
+| 27.7. Playwright Coverage & Regression Baseline | 3/4 | In Progress|  | - |
 | 27.8. Intelligence Page | v3.0 | 3/3 | Complete | 2026-03-18 |
 | 28. TODO & Gap Resolution | v3.0 | 0/6 | Not started | - |
 

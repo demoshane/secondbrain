@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27.7-01-PLAN.md
-last_updated: "2026-03-19T07:43:48.470Z"
+stopped_at: Completed 27.7-03-PLAN.md
+last_updated: "2026-03-19T07:44:17.516Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 17
   completed_phases: 15
   total_plans: 73
-  completed_plans: 65
+  completed_plans: 66
   percent: 99
 ---
 
@@ -108,6 +108,7 @@ Progress: [██████████] 99%
 | Phase 27.8-intelligence-page P03 | 5 | 1 tasks | 1 files |
 | Phase 27.7 P02 | 2 | 1 tasks | 1 files |
 | Phase 27.7 P01 | 5 | 2 tasks | 2 files |
+| Phase 27.7 P03 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -247,6 +248,7 @@ Recent decisions affecting current work:
 - [Phase 27.8-03]: Intelligence page tests use bare page+live_server_url fixtures — no seeded data needed since empty DB yields valid score/recap placeholder
 - [Phase 27.7]: gui_brain seeds Test Group (type='people') and Test Mention Note (body mentions 'Test Person') to exercise right panel body-mention detection
 - [Phase 27.7]: test_right_panel_people_mention uses gui_brain directly (no seed_note_fn) — relies on session-scoped Test Mention Note seed for deterministic note identity
+- [Phase 27.7]: [27.7-03] xfail not needed for orphan spec tests — get_orphan_notes() already implements correct bidirectional NOT IN exclusion
 
 ### Roadmap Evolution
 
@@ -270,8 +272,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-19T07:43:48.457Z
-Stopped at: Completed 27.7-01-PLAN.md
+Last session: 2026-03-19T07:44:17.504Z
+Stopped at: Completed 27.7-03-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
