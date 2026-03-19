@@ -4,7 +4,8 @@
 
 - ✅ **v1.5 Second Brain MVP** — Phases 1–13 (shipped 2026-03-15)
 - ✅ **v2.0 Intelligence + GUI Hub** — Phases 14–19 (shipped 2026-03-16)
-- 🔄 **v3.0 GUI Overhaul & Polish** — Phases 20–26 (in progress)
+- 🔄 **v3.0 GUI Overhaul & Polish** — Phases 20–29 (in progress)
+- 📋 **v4.0 Memory & Reliability** — Phases 30–34 (planned)
 
 ## Phases
 
@@ -391,12 +392,18 @@ Plans:
 | 27.7. Playwright Coverage & Regression Baseline | 4/4 | Complete    | 2026-03-19 | - |
 | 27.8. Intelligence Page | v3.0 | 3/3 | Complete | 2026-03-18 |
 | 28. TODO & Gap Resolution | v3.0 | 0/7 | Not started | - |
+| 29. Add link capture | v3.0 | 0/0 | Not started | - |
+| 30. People Graph Hardening | v4.0 | 0/4 | Not started | - |
+| 31. Smart Capture & Multi-Context Intelligence | v4.0 | 0/4 | Not started | - |
+| 32. Architecture Hardening | v4.0 | 0/4 | Not started | - |
+| 33. Performance & Scale Hardening | v4.0 | 0/3 | Not started | - |
+| 34. GUI Management Productivity | v4.0 | 0/4 | Not started | - |
 
 ### Phase 28: TODO & Gap Resolution
 
 **Goal:** All open TODOs, known gaps, and deferred issues identified at phase start are resolved before the milestone is closed
 **Depends on:** Phase 27
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 28-01-PLAN.md — Title-only dedup for long captures (fix MCP timeout on large bodies)
@@ -415,4 +422,121 @@ Plans:
 **Plans:** 0 plans
 
 Plans:
+
+---
+
+## v4.0 Memory & Reliability (Phases 30–33)
+
+### Phase 30: People Graph Hardening
+
+**Goal:** Make the people graph accurate and complete — fix entity extraction for non-ASCII names, consolidate to a single source of truth for who appears in a note, and ship `sb_person_context` as the primary MCP tool for person lookup
+**Depends on:** Phase 29
+**Milestone:** v4.0
+**Requirements**: PEO-01, PEO-02, PEO-03, PEO-04
+**Plans:** 0 plans
+
+Requirements detail:
+- **PEO-01** — Entity extraction recognises non-ASCII/Finnish names (replace `[A-Z][a-z]+` with Unicode-aware pattern)
+- **PEO-02** — Captured note's `people` frontmatter column is populated from entity extraction at write time; body-mention fallback in `note_meta()` removed
+- **PEO-03** — `sb_person_context` MCP tool returns in one call: person note body, all meetings they appear in, all action items assigned to or mentioning them, and all notes that mention them by name (chronological)
+- **PEO-04** — People page and right panel reflect PEO-01/02 correctly; person type isolation regression tests pass
+
+Plans:
+- [ ] 30-01-PLAN.md — Unicode entity extraction + write-back to `people` column at capture (PEO-01, PEO-02)
+- [ ] 30-02-PLAN.md — Consolidate `note_meta()`: remove body-mention fallback, single source of truth (PEO-02)
+- [ ] 30-03-PLAN.md — `sb_person_context` MCP tool: full person context in one call (PEO-03)
+- [ ] 30-04-PLAN.md — Regression tests + Playwright people panel sign-off (PEO-04)
+
+---
+
+### Phase 31: Smart Capture & Multi-Context Intelligence
+
+**Goal:** Capture a raw blob of text in one MCP call and have the brain intelligently split it into multiple typed, linked notes; resurface dormant related knowledge after every capture; deduplicate by auto-linking near-duplicates rather than blocking
+**Depends on:** Phase 30
+**Milestone:** v4.0
+**Requirements**: CAP-01, CAP-02, CAP-03, CAP-04, CAP-05
+**Plans:** 0 plans
+
+Requirements detail:
+- **CAP-01** — `sb_capture_smart` accepts raw freeform text and returns N typed note suggestions (person / meeting / project / idea / note) with inferred titles, types, and cross-links; user confirms or edits before saving
+- **CAP-02** — Multi-context parsing: a single large input (e.g. meeting transcript, conversation dump) is segmented into distinct notes — one meeting note, participant person notes, extracted action items — all linked to each other atomically
+- **CAP-03** — `sb_capture_smart` is dedup-aware: before proposing new notes, it checks for near-duplicates and either merges the suggestion into the existing note or proposes a link
+- **CAP-04** — After every `sb_capture` or `sb_capture_smart` call, the MCP response includes up to 3 semantically related notes last accessed > 30 days ago ("you wrote something related: …") — dormant knowledge resurfacing
+- **CAP-05** — When a near-duplicate is confirmed saved anyway, a `similar` relationship is automatically created between the two notes
+
+Plans:
+- [ ] 31-01-PLAN.md — `sb_capture_smart`: AI content parser → typed note suggestion list (CAP-01)
+- [ ] 31-02-PLAN.md — Multi-context segmentation: one input → N linked notes atomically (CAP-02, CAP-03)
+- [ ] 31-03-PLAN.md — Dormant resurfacing in MCP capture response + auto-link near-duplicates (CAP-04, CAP-05)
+- [ ] 31-04-PLAN.md — MCP integration tests + overdue action surfacing in recap + sign-off
+
+---
+
+### Phase 32: Architecture Hardening
+
+**Goal:** Fix the structural issues that will cause data loss or pain as the brain grows — relative path storage, FK cascade, connection leak safety, tags as a proper indexed structure, and action item lifecycle management
+**Depends on:** Phase 29
+**Milestone:** v4.0
+**Requirements**: ARCH-01, ARCH-02, ARCH-03, ARCH-04, ARCH-05, ARCH-06
+**Plans:** 0 plans
+
+Requirements detail:
+- **ARCH-01** — Notes DB stores paths relative to `BRAIN_ROOT`; absolute path resolution happens at query time; migration script converts existing rows
+- **ARCH-02** — SQLite `PRAGMA foreign_keys = ON` enabled on every connection; all child tables (`action_items`, `relationships`, `note_embeddings`, `attachments`, `audit_log`) have `ON DELETE CASCADE` referencing `notes(path)`
+- **ARCH-03** — All `get_connection()` / `conn.close()` pairs in `api.py` are wrapped in `try/finally`; `suppress_next_delete` uses a thread-safe `threading.Event` keyed by path
+- **ARCH-04** — File upload endpoint enforces 50 MB size cap; `_SlashNormMiddleware` removed (test fixtures fixed to not produce double-slash paths)
+- **ARCH-05** — `tags` column replaced by `note_tags(note_path, tag)` junction table; migration converts existing JSON-encoded tags; all tag filter queries use the indexed table
+- **ARCH-06** — Completed `action_items` older than 90 days are moved to `action_items_archive` table; `audit_log` has index on `(created_at, note_path)`; `sb-health` reports archive counts
+
+Plans:
+- [ ] 32-01-PLAN.md — Relative path migration: DB schema change + migration script + all read/write path resolution (ARCH-01)
+- [ ] 32-02-PLAN.md — FK cascade + connection safety + upload cap + thread-safe suppress_next_delete (ARCH-02, ARCH-03, ARCH-04)
+- [ ] 32-03-PLAN.md — Tags junction table migration + remove `_SlashNormMiddleware` (ARCH-05)
+- [ ] 32-04-PLAN.md — Action item archiving + audit_log index + regression tests + sign-off (ARCH-06)
+
+---
+
+### Phase 33: Performance & Scale Hardening
+
+**Goal:** Ensure the system stays fast and responsive as the brain grows to thousands of notes — paginate all list endpoints, gate expensive O(n) operations, optimise reindex, and cap LLM context for recap/digest
+**Depends on:** Phase 32
+**Milestone:** v4.0
+**Requirements**: PERF-01, PERF-02, PERF-03, PERF-04, PERF-05
+**Plans:** 0 plans
+
+Requirements detail:
+- **PERF-01** — All list endpoints (`/people`, `/meetings`, `/projects`, `/actions`, and MCP equivalents) support `limit`/`offset` pagination; default limit 50; MCP tools expose `page` parameter
+- **PERF-02** — `check_connections()` skips KNN pass when brain has < 200 notes (configurable); above threshold uses HNSW approximate search if sqlite-vec supports it, otherwise limits to top-50 candidates
+- **PERF-03** — `sb-reindex --fast` rebuilds FTS5 in one `INSERT INTO notes_fts(notes_fts) VALUES ('rebuild')` pass rather than per-row triggers; total reindex time < 5s for 5k notes
+- **PERF-04** — `generate_recap_on_demand()` and `generate_digest()` enforce a token budget (default 4000 tokens of note content); oldest/shortest notes truncated first; budget configurable in `~/.config/second-brain/config.toml`
+- **PERF-05** — Embedding computation runs in a queue-based background worker (batch every 10s) rather than inline per capture; embedding staleness is visible in `sb-health` output
+
+Plans:
+- [ ] 33-01-PLAN.md — Pagination on all list endpoints + MCP page param (PERF-01)
+- [ ] 33-02-PLAN.md — `check_connections` gate + fast reindex mode (PERF-02, PERF-03)
+- [ ] 33-03-PLAN.md — Recap/digest token budget + batched embedding worker + health visibility (PERF-04, PERF-05)
+
+---
+
+### Phase 34: GUI Management Productivity
+
+**Goal:** Make the management GUI genuinely productive — actions completable everywhere, entity pages self-sufficient with create/delete, a command palette for keyboard-first navigation, and Intelligence page items that are actionable not just informational
+**Depends on:** Phase 30 (people graph needed for correct participant links)
+**Milestone:** v4.0
+**Requirements**: GUI-01, GUI-02, GUI-03, GUI-04, GUI-05, GUI-06
+**Plans:** 0 plans
+
+Requirements detail:
+- **GUI-01** — Action item checkboxes are interactive in ALL context panels (People detail, Meetings detail, Projects detail); checking one immediately marks it done via `PUT /actions/:id/done`
+- **GUI-02** — Actions page shows a clickable source note title per action; clicking opens that note in the Notes tab
+- **GUI-03** — Cmd+K command palette: fuzzy search across all notes, people, meetings, projects; keyboard-navigable; opens selected item in its context tab
+- **GUI-04** — Each entity page has a context-appropriate create button ("+ Add Person", "+ New Meeting", "+ New Project"); entity pages also expose delete from the detail panel
+- **GUI-05** — Meeting detail participants are clickable and navigate to the person's page; Intelligence page orphans, empty notes, and stale nudges are clickable and individually deletable/linkable; last recap timestamp shown + 5 most recent recaps browseable; digest output surfaced in Intelligence page
+- **GUI-06** — Tag autocomplete in NoteViewer and NewNoteModal (suggests existing tags); project status field (active/on-hold/complete) settable from Projects detail panel; toast feedback on save, delete, and mark-done; "Open in Notes" button in Inbox preview panel; delete action in Inbox triage
+
+Plans:
+- [ ] 34-01-PLAN.md — Interactive action items everywhere + Actions page source note link (GUI-01, GUI-02)
+- [ ] 34-02-PLAN.md — Cmd+K command palette (GUI-03)
+- [ ] 34-03-PLAN.md — Entity page create/delete + meeting participant links + project status field (GUI-04)
+- [ ] 34-04-PLAN.md — Intelligence page actionable items + recap history + digest surface + tag autocomplete + toasts + Inbox polish (GUI-05, GUI-06)
 - [ ] TBD (run /gsd:plan-phase 29 to break down)

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27.9-01-PLAN.md
-last_updated: "2026-03-19T09:50:08.193Z"
+stopped_at: Completed 27.9-02-PLAN.md
+last_updated: "2026-03-19T10:08:02.630Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
-  total_phases: 20
+  total_phases: 25
   completed_phases: 16
-  total_plans: 77
-  completed_plans: 68
+  total_plans: 87
+  completed_plans: 69
   percent: 99
 ---
 
@@ -111,6 +111,7 @@ Progress: [██████████] 99%
 | Phase 27.7 P03 | 2 | 2 tasks | 2 files |
 | Phase 27.7 P04 | 12 | 2 tasks | 2 files |
 | Phase 27.9-inbox-page P01 | 15 | 2 tasks | 3 files |
+| Phase 27.9-inbox-page P02 | 15 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -256,6 +257,8 @@ Recent decisions affecting current work:
 - [Phase 27.7]: [27.7-04] health score numeric assertion: float(score_text.replace('%','').strip()) handles both bare integer and percentage-suffix display formats
 - [Phase 27.9-inbox-page]: dismissed_inbox_items uses (path, item_type) composite PK for idempotent dismiss via INSERT OR IGNORE
 - [Phase 27.9-inbox-page]: GET /inbox empty_notes uses inline SQL with LEFT JOIN dismissed filter rather than get_empty_notes() to avoid list truncation before dismiss filter
+- [Phase 27.9-inbox-page]: Tasks 1+2 committed separately: stub first to unblock build, full implementation second
+- [Phase 27.9-inbox-page]: BacklinkPicker uses GET /search not POST /search — GET is actual API endpoint
 
 ### Roadmap Evolution
 
@@ -280,8 +283,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-19T09:50:08.181Z
-Stopped at: Completed 27.9-01-PLAN.md
+Last session: 2026-03-19T10:08:02.611Z
+Stopped at: Completed 27.9-02-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
