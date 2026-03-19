@@ -65,3 +65,17 @@ export interface BrainHealth {
   duplicate_count: number
   duplicate_candidates: { a: string; b: string; similarity: number }[]
 }
+
+export interface NoteSummary {
+  path: string
+  title: string
+  created_at: string
+}
+
+export interface InboxData {
+  unassigned_actions: ActionItem[]
+  unassigned_actions_total: number
+  unprocessed_notes: NoteSummary[]
+  empty_notes: NoteSummary[]
+  total_count: number
+}
