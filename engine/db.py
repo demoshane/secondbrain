@@ -152,6 +152,19 @@ def migrate_add_due_date(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
+def migrate_add_dismissed_inbox_items_table(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: create dismissed_inbox_items table if absent."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS dismissed_inbox_items (
+            path         TEXT NOT NULL,
+            item_type    TEXT NOT NULL,
+            dismissed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+            PRIMARY KEY (path, item_type)
+        )
+    """)
+    conn.commit()
+
+
 def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     """Create (or optionally recreate) the full schema.
 
@@ -168,3 +181,4 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     migrate_add_attachments_table(conn)
     migrate_add_assignee_path(conn)
     migrate_add_due_date(conn)
+    migrate_add_dismissed_inbox_items_table(conn)
