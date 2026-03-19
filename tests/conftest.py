@@ -304,6 +304,37 @@ def gui_brain(tmp_path_factory):
     )
     conn4.commit()
     conn4.close()
+    # Seed a type='people' (plural) note — distinct from type='person'; regression guard for alice-smith-style type confusion
+    people_group_path = brain / "people" / "test-group.md"
+    people_group_path.write_text(
+        "---\ntitle: Test Group\ntype: people\ntags: []\n---\n\n# Test Group\n\nA people-type group note.\n",
+        encoding="utf-8",
+    )
+    conn5 = get_connection()
+    conn5.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?)",
+        (str(people_group_path), "Test Group", "people", "A people-type group note.", "[]",
+         "2026-03-01 09:00:00", "2026-03-01 09:00:00"),
+    )
+    conn5.commit()
+    conn5.close()
+    # Seed a note whose body mentions "Test Person" — used to exercise right panel people badge detection
+    mention_path = brain / "ideas" / "test-mention-note.md"
+    mention_path.write_text(
+        "---\ntitle: Test Mention Note\ntype: idea\ntags: []\n---\n\n# Test Mention Note\n\nThis note mentions Test Person in the body.\n",
+        encoding="utf-8",
+    )
+    conn6 = get_connection()
+    conn6.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?)",
+        (str(mention_path), "Test Mention Note", "idea",
+         "This note mentions Test Person in the body.", "[]",
+         "2026-03-01 09:00:00", "2026-03-01 09:00:00"),
+    )
+    conn6.commit()
+    conn6.close()
     return brain
 
 
