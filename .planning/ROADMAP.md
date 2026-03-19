@@ -313,14 +313,13 @@ Plans:
 **Goal:** Expand Playwright test coverage to all existing GUI features so regressions are caught automatically before reaching the user. Add pre-flight smoke test, fix test isolation gaps, establish baseline.
 **Depends on:** Phase 27.6
 **Requirements**: 27.7-QA-01, 27.7-QA-02, 27.7-QA-03, 27.7-QA-04
-
-**Context for discuss-phase:** ⚠️ QUALITY DISCUSSION REQUIRED — Before planning, discuss: (1) agents fixing out-of-scope bugs causing cascading failures, (2) Playwright suite too shallow to catch right panel / people / brain health regressions, (3) pre-existing silent bugs surfacing when adjacent code changes. Agree on scope discipline rules and coverage targets before creating plans.
+**Plans:** 1/4 plans executed
 
 Plans:
-- [ ] 27.7-01-PLAN.md — Playwright: right panel (backlinks, people, clickability)
-- [ ] 27.7-02-PLAN.md — Playwright: Intelligence page, brain health, recap
-- [ ] 27.7-03-PLAN.md — Playwright: Notes, People, Meetings, Projects tabs smoke tests
-- [ ] 27.7-04-PLAN.md — Pre-flight smoke test + test isolation hardening
+- [ ] 27.7-01-PLAN.md — Wave 1: conftest gui_brain extension (type='people' + mention seeds) + right panel tests (QA-02)
+- [ ] 27.7-02-PLAN.md — Wave 1: pre-flight smoke test — tests/test_preflight.py, all endpoints + /ui (QA-01)
+- [ ] 27.7-03-PLAN.md — Wave 1: tab data-correctness tests + orphan spec tests in test_brain_health.py (QA-03, QA-04)
+- [ ] 27.7-04-PLAN.md — Wave 2: people/person type isolation regression test + intelligence data assertion + full suite baseline (QA-03, QA-04)
 
 ### Phase 27.8: Intelligence Page
 
@@ -367,7 +366,7 @@ Plans:
 | 27. Search Quality Tuning | 7/7 | Complete    | 2026-03-17 | - |
 | 27.1. Smart Capture & Proactive Brain | 5/5 | Complete    | 2026-03-18 | - |
 | 27.2. Action Items Page + Nav Scaffold | 4/4 | Complete    | 2026-03-18 | - |
-| 27.7. Playwright Coverage & Regression Baseline | v3.0 | 0/4 | Not started | - |
+| 27.7. Playwright Coverage & Regression Baseline | 1/4 | In Progress|  | - |
 | 27.8. Intelligence Page | v3.0 | 3/3 | Complete | 2026-03-18 |
 | 28. TODO & Gap Resolution | v3.0 | 0/6 | Not started | - |
 
