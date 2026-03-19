@@ -7,6 +7,14 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 import pytest
 
+# ---------------------------------------------------------------------------
+# Module-level sentinel: set by gui_brain fixture once the GUI test DB is ready.
+# Used by _restore_gui_db autouse fixture to re-anchor DB_PATH after each test
+# so that other test files' function-scoped monkeypatches cannot permanently
+# restore the original (real) DB_PATH mid-session.
+# ---------------------------------------------------------------------------
+_GUI_DB_PATH = None
+
 
 # ---------------------------------------------------------------------------
 # Real-brain write guard — fails loudly if any test writes to ~/SecondBrain
@@ -56,6 +64,38 @@ def _guard_real_brain():
             + "\n".join(f"  {'NEW' if f in new_files else 'MODIFIED'}: {f}" for f in problems)
         )
         pytest.fail(msg, pytrace=False)
+
+
+# ---------------------------------------------------------------------------
+# GUI DB re-anchor — prevents other tests' monkeypatches from restoring the
+# original DB_PATH mid-session and breaking the Flask server's data access.
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def _restore_gui_db():
+    """Re-anchor DB_PATH to the GUI test DB before and after every test.
+
+    Other test files use function-scoped monkeypatch fixtures that set and then
+    restore engine.db.DB_PATH / engine.paths.DB_PATH.  When monkeypatch.undo()
+    runs during teardown, it restores the attribute to the value it captured at
+    setup time.  If monkeypatch captured the value BEFORE gui_brain ran
+    (session fixture ordering is not guaranteed across files), the restore puts
+    back the real ~/SecondBrain DB path, leaving the Flask server pointing at
+    the wrong DB for all subsequent Playwright tests.
+
+    This fixture runs before setup AND after teardown of every test.  It
+    re-asserts the correct path after each test's teardown so that any
+    monkeypatch restore is immediately overwritten.
+    """
+    import engine.db as _db
+    import engine.paths as _paths
+    if _GUI_DB_PATH is not None:
+        _db.DB_PATH = _GUI_DB_PATH
+        _paths.DB_PATH = _GUI_DB_PATH
+    yield
+    if _GUI_DB_PATH is not None:
+        _db.DB_PATH = _GUI_DB_PATH
+        _paths.DB_PATH = _GUI_DB_PATH
 
 
 # ---------------------------------------------------------------------------
@@ -252,6 +292,9 @@ def gui_brain(tmp_path_factory):
     tmp_db = _Path(str(brain / "index.db"))
     _paths.DB_PATH = tmp_db
     _db.DB_PATH = tmp_db
+    # Set module-level sentinel so _restore_gui_db can re-anchor after each test
+    global _GUI_DB_PATH
+    _GUI_DB_PATH = tmp_db
     # Init schema so the DB is ready before Flask starts
     from engine.db import init_schema, get_connection
     conn = get_connection()
