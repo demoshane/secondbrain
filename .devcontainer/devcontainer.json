@@ -45,14 +45,9 @@
   },
   // Runs on HOST before container starts — extracts Keychain credentials
   "initializeCommand": ".devcontainer/extract-claude-auth.sh",
-  // GSD parallel agents + pytest need plenty of RAM. Default Docker allocation
-  // is often too low (8GB). If you get OOM kills, increase Docker/OrbStack memory
-  // to at least 16GB in its settings.
-  "runArgs": [
-    "--env-file", "${localEnv:HOME}/.config/second-brain/.env.host",
-    "--memory=12g",
-    "--memory-swap=16g"
-  ],
+  // OrbStack auto-scales memory from host RAM — no hard limits needed.
+  // If OOM kills occur, check OrbStack resource settings.
+  "runArgs": ["--env-file", "${localEnv:HOME}/.config/second-brain/.env.host"],
   "postCreateCommand": ".devcontainer/post-create.sh",
   "postStartCommand": ".devcontainer/post-start.sh",
   "remoteUser": "vscode"
