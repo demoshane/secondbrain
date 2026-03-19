@@ -361,6 +361,67 @@ def get_project(note_path):
     })
 
 
+@app.get("/links")
+def list_links():
+    from urllib.parse import urlparse
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT path, title, url, substr(created_at,1,10) AS date, tags, "
+        "  substr(body,1,200) AS description "
+        "FROM notes WHERE type='link' ORDER BY created_at DESC"
+    ).fetchall()
+    conn.close()
+    result = []
+    for r in rows:
+        domain = ""
+        if r["url"]:
+            parsed = urlparse(r["url"])
+            domain = parsed.hostname or ""
+        result.append({
+            "path": r["path"],
+            "title": r["title"] or "",
+            "url": r["url"] or "",
+            "domain": domain,
+            "date": r["date"] or "",
+            "tags": r["tags"] or "[]",
+            "description": r["description"] or "",
+        })
+    return jsonify({"links": result})
+
+
+@app.get("/links/<path:note_path>")
+def get_link(note_path):
+    from urllib.parse import urlparse
+    try:
+        abs_path, _brain_root = _resolve_note_path(note_path)
+    except ValueError:
+        return jsonify({"error": "forbidden"}), 403
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT path, title, url, body, substr(created_at,1,10) AS date, tags "
+        "FROM notes WHERE path=? AND type='link'",
+        (str(abs_path),)
+    ).fetchone()
+    conn.close()
+    if row is None:
+        return jsonify({"error": "not found"}), 404
+    domain = ""
+    if row["url"]:
+        parsed = urlparse(row["url"])
+        domain = parsed.hostname or ""
+    return jsonify({
+        "path": row["path"],
+        "title": row["title"] or "",
+        "url": row["url"] or "",
+        "domain": domain,
+        "body": row["body"] or "",
+        "date": row["date"] or "",
+        "tags": row["tags"] or "[]",
+    })
+
+
 @app.get("/actions")
 def get_actions():
     done = request.args.get("done", "0") == "1"
