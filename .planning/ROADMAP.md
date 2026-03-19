@@ -392,7 +392,7 @@ Plans:
 | 27.7. Playwright Coverage & Regression Baseline | 4/4 | Complete    | 2026-03-19 | - |
 | 27.8. Intelligence Page | v3.0 | 3/3 | Complete | 2026-03-18 |
 | 28. TODO & Gap Resolution | 8/8 | Complete    | 2026-03-19 | - |
-| 29. Add link capture | 3/4 | In Progress|  | - |
+| 29. Add link capture | 4/4 | Complete   | 2026-03-19 | - |
 | 30. People Graph Hardening | v4.0 | 0/4 | Not started | - |
 | 31. Smart Capture & Multi-Context Intelligence | v4.0 | 0/4 | Not started | - |
 | 32. Architecture Hardening | v4.0 | 0/4 | Not started | - |
@@ -419,7 +419,7 @@ Plans:
 **Goal:** [To be planned]
 **Requirements**: TBD
 **Depends on:** Phase 28
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 
@@ -540,4 +540,4 @@ Plans:
 - [ ] 34-02-PLAN.md — Cmd+K command palette (GUI-03)
 - [ ] 34-03-PLAN.md — Entity page create/delete + meeting participant links + project status field (GUI-04)
 - [ ] 34-04-PLAN.md — Intelligence page actionable items + recap history + digest surface + tag autocomplete + toasts + Inbox polish (GUI-05, GUI-06)
-- [ ] TBD (run /gsd:plan-phase 29 to break down)
+- [x] TBD (run /gsd:plan-phase 29 to break down) (completed 2026-03-19)
