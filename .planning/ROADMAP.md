@@ -392,7 +392,7 @@ Plans:
 | 27.7. Playwright Coverage & Regression Baseline | 4/4 | Complete    | 2026-03-19 | - |
 | 27.8. Intelligence Page | v3.0 | 3/3 | Complete | 2026-03-18 |
 | 28. TODO & Gap Resolution | 8/8 | Complete    | 2026-03-19 | - |
-| 29. Add link capture | 2/4 | In Progress|  | - |
+| 29. Add link capture | 3/4 | In Progress|  | - |
 | 30. People Graph Hardening | v4.0 | 0/4 | Not started | - |
 | 31. Smart Capture & Multi-Context Intelligence | v4.0 | 0/4 | Not started | - |
 | 32. Architecture Hardening | v4.0 | 0/4 | Not started | - |
@@ -419,7 +419,7 @@ Plans:
 **Goal:** [To be planned]
 **Requirements**: TBD
 **Depends on:** Phase 28
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 

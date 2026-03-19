@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 29-02-PLAN.md
-last_updated: "2026-03-19T19:23:34.638Z"
+stopped_at: Completed 29-03-PLAN.md
+last_updated: "2026-03-19T20:24:30.179Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 25
   completed_phases: 18
   total_plans: 96
-  completed_plans: 81
+  completed_plans: 82
   percent: 99
 ---
 
@@ -124,6 +124,7 @@ Progress: [██████████] 99%
 | Phase 28 P08 | 6 | 2 tasks | 2 files |
 | Phase 29-add-link-capture P01 | 3 | 1 tasks | 1 files |
 | Phase 29 P02 | 21 | 2 tasks | 4 files |
+| Phase 29 P03 | 8 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -291,6 +292,9 @@ Recent decisions affecting current work:
 - [Phase 29-02]: Use urllib.request module ref (not direct import) in link_capture.py so tests can monkeypatch urllib.request.urlopen
 - [Phase 29-02]: url param is keyword-only in capture_note() and write_note_atomic() to prevent accidental positional arg breakage for existing callers
 - [Phase 29-02]: migrate_add_url_column uses try/except OperationalError for idempotent ALTER TABLE — consistent with plan spec
+- [Phase 29]: [29-03] sb_capture_link uses fetch_link_metadata then capture_note(note_type='link', url=url) — url is keyword-only per Phase 29-02 decision
+- [Phase 29]: [29-03] Duplicate URL check queries notes WHERE url=? BEFORE capture; saves anyway and returns duplicate_url_warning — no blocking on re-capture
+- [Phase 29]: [29-03] GET /links/<path> returns 403 for path-traversal attempts and 404 when path not found as type='link'
 
 ### Roadmap Evolution
 
@@ -315,8 +319,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-19T19:23:34.598Z
-Stopped at: Completed 29-02-PLAN.md
+Last session: 2026-03-19T20:24:30.155Z
+Stopped at: Completed 29-03-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
