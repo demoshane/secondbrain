@@ -391,7 +391,7 @@ Plans:
 | 27.2. Action Items Page + Nav Scaffold | 4/4 | Complete    | 2026-03-18 | - |
 | 27.7. Playwright Coverage & Regression Baseline | 4/4 | Complete    | 2026-03-19 | - |
 | 27.8. Intelligence Page | v3.0 | 3/3 | Complete | 2026-03-18 |
-| 28. TODO & Gap Resolution | 8/8 | Complete   | 2026-03-19 | - |
+| 28. TODO & Gap Resolution | 8/8 | Complete    | 2026-03-19 | - |
 | 29. Add link capture | v3.0 | 0/0 | Not started | - |
 | 30. People Graph Hardening | v4.0 | 0/4 | Not started | - |
 | 31. Smart Capture & Multi-Context Intelligence | v4.0 | 0/4 | Not started | - |
