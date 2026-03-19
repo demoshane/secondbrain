@@ -435,3 +435,30 @@ def test_projects_tab_shows_real_content(page, live_server_url, gui_brain):
     page.locator('[data-testid="projects-page"]').wait_for(state="visible", timeout=5000)
     # Real data: Test Project must appear in the projects table
     page.locator("tr", has_text="Test Project").first.wait_for(state="visible", timeout=5000)
+
+
+def test_right_panel_renders(page, live_server_url, gui_brain, seed_note_fn):
+    """QA-02: right panel container is visible when a note is open."""
+    seed_note_fn(gui_brain, "Right Panel Test Note", "some body content for panel test")
+    page.goto("/ui")
+    page.locator('[data-testid="note-item"]').first.wait_for(state="visible", timeout=5000)
+    page.locator('[data-testid="note-item"]', has_text="Right Panel Test Note").first.click()
+    page.locator('[data-testid="note-viewer"]').wait_for(state="visible", timeout=5000)
+    page.locator('[data-testid="right-panel"]').wait_for(state="visible", timeout=3000)
+
+
+def test_right_panel_people_mention(page, live_server_url, gui_brain):
+    """QA-02: opening 'Test Mention Note' (body mentions 'Test Person') shows people badge in right panel.
+
+    Regression guard: people mention detection via /notes/<path>/meta body-scan must surface
+    correctly seeded type='person' notes as badges. Guards the alice-smith style people detection bug.
+    """
+    page.goto("/ui")
+    page.locator('[data-testid="note-item"]').first.wait_for(state="visible", timeout=5000)
+    # Test Mention Note is seeded in gui_brain with "Test Person" in body
+    page.locator('[data-testid="note-item"]', has_text="Test Mention Note").first.click()
+    page.locator('[data-testid="note-viewer"]').wait_for(state="visible", timeout=5000)
+    page.locator('[data-testid="right-panel"]').wait_for(state="visible", timeout=3000)
+    # People badge for "Test Person" must appear — /notes/<path>/meta detects body mentions
+    people_badge = page.locator('[data-testid="people-badge"]', has_text="Test Person")
+    people_badge.first.wait_for(state="visible", timeout=5000)
