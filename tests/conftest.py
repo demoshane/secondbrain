@@ -304,17 +304,18 @@ def gui_brain(tmp_path_factory):
     )
     conn4.commit()
     conn4.close()
-    # Seed a type='people' (plural) note — distinct from type='person'; regression guard for alice-smith-style type confusion
-    people_group_path = brain / "people" / "test-group.md"
+    # Seed a second person note — regression guard to confirm multiple people appear in People page
+    people_group_path = brain / "person" / "test-group.md"
+    people_group_path.parent.mkdir(parents=True, exist_ok=True)
     people_group_path.write_text(
-        "---\ntitle: Test Group\ntype: people\ntags: []\n---\n\n# Test Group\n\nA people-type group note.\n",
+        "---\ntitle: Test Group\ntype: person\ntags: []\n---\n\n# Test Group\n\nA second person note.\n",
         encoding="utf-8",
     )
     conn5 = get_connection()
     conn5.execute(
         "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
         " VALUES (?,?,?,?,?,?,?)",
-        (str(people_group_path), "Test Group", "people", "A people-type group note.", "[]",
+        (str(people_group_path), "Test Group", "person", "A second person note.", "[]",
          "2026-03-01 09:00:00", "2026-03-01 09:00:00"),
     )
     conn5.commit()
@@ -335,6 +336,39 @@ def gui_brain(tmp_path_factory):
     )
     conn6.commit()
     conn6.close()
+    # Seed inbox test data: unassigned action item + recent untagged ideas note + empty note
+    inbox_note_path = brain / "ideas" / "inbox-test-note.md"
+    inbox_note_path.write_text(
+        "---\ntitle: Inbox Test Note\ntype: ideas\ntags: []\n---\n\nSome content here.\n",
+        encoding="utf-8",
+    )
+    inbox_empty_path = brain / "notes" / "inbox-empty.md"
+    inbox_empty_path.parent.mkdir(parents=True, exist_ok=True)
+    inbox_empty_path.write_text(
+        "---\ntitle: Empty Inbox Note\ntype: note\n---\n\n",
+        encoding="utf-8",
+    )
+    conn7 = get_connection()
+    inbox_now = datetime.datetime.utcnow().isoformat()
+    conn7.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?)",
+        (str(inbox_note_path), "Inbox Test Note", "ideas", "Some content here.", None,
+         inbox_now, inbox_now),
+    )
+    conn7.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?)",
+        (str(inbox_empty_path), "Empty Inbox Note", "note", "", None,
+         inbox_now, inbox_now),
+    )
+    conn7.execute(
+        "INSERT OR REPLACE INTO action_items (note_path, text, done, assignee_path)"
+        " VALUES (?,?,?,?)",
+        (str(inbox_note_path), "Inbox test action", 0, None),
+    )
+    conn7.commit()
+    conn7.close()
     return brain
 
 

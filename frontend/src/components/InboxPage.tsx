@@ -130,7 +130,7 @@ function DetailPane({
       : body
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden" data-testid="inbox-detail">
       <div className="flex items-center justify-between px-4 py-2 border-b">
         <h2 className="text-sm font-semibold truncate">{item.title}</h2>
         <button

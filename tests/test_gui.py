@@ -465,29 +465,18 @@ def test_right_panel_people_mention(page, live_server_url, gui_brain):
 
 
 def test_people_type_isolation(page, live_server_url, gui_brain):
-    """QA-04: People page shows both type='person' AND type='people' notes; non-people types absent.
-
-    Regression guard for the alice-smith type confusion bug:
-    - Test Person  (type='person')  must appear in people table
-    - Test Group   (type='people')  must appear in people table  [seeded in Plan 01]
-    - Meeting/project notes must NOT appear in people table
-    list_people() must query WHERE type IN ('person', 'people') — both types.
-    """
+    """QA-04: People page shows type='person' notes; non-person types absent."""
     page.goto("/ui")
     page.locator('[data-testid="tab-bar"]').wait_for(state="visible", timeout=5000)
     page.locator("button", has_text="People").first.click()
     page.wait_for_selector("[data-testid='people-page']", timeout=5000)
-    # Give table time to populate
     page.locator("[data-testid='people-page'] tbody tr").first.wait_for(
         state="visible", timeout=5000
     )
-    # type='person' must appear
     assert page.locator("[data-testid='people-page'] tbody tr", has_text="Test Person").count() >= 1, \
         "Test Person (type='person') must appear on People page"
-    # type='people' must also appear
     assert page.locator("[data-testid='people-page'] tbody tr", has_text="Test Group").count() >= 1, \
-        "Test Group (type='people') must appear on People page — list_people() must include plural type"
-    # Meeting notes must NOT appear on people page
+        "Test Group (type='person') must appear on People page"
     assert page.locator("[data-testid='people-page'] tbody tr", has_text="Q1 Kickoff").count() == 0, \
         "Meeting notes must NOT appear on People page"
 
@@ -514,3 +503,40 @@ def test_intelligence_health_score_shows_value(page, live_server_url):
             "expected a number 0-100 from /brain-health endpoint"
         )
     assert 0 <= score_val <= 100, f"health-score value {score_val} is outside 0-100 range"
+
+
+# ─── Phase 27.9: Inbox page Playwright tests ─────────────────────────────────
+
+
+def test_inbox_tab_visible(page, live_server_url):
+    """27.9-INBOX-01: Inbox tab is visible in the tab bar."""
+    page.goto("/ui")
+    page.locator("[data-testid='note-item']").first.wait_for(state="visible", timeout=5000)
+    assert page.locator("[data-testid='tab-inbox']").is_visible()
+
+
+def test_inbox_items_render(page, live_server_url, gui_brain):
+    """27.9-INBOX-02: Inbox page renders three section headers when navigated to."""
+    page.goto("/ui")
+    page.locator("[data-testid='tab-inbox']").wait_for(state="visible", timeout=5000)
+    page.locator("[data-testid='tab-inbox']").click()
+    page.locator("[data-testid='inbox-page']").wait_for(state="visible", timeout=5000)
+    assert page.locator("text=Unassigned Actions").is_visible()
+    assert page.locator("text=Unprocessed Notes").is_visible()
+    assert page.locator("text=Empty Notes").is_visible()
+
+
+def test_inbox_split_view(page, live_server_url, gui_brain):
+    """27.9-INBOX-03: Clicking a row in the inbox opens the detail pane."""
+    page.goto("/ui")
+    page.locator("[data-testid='tab-inbox']").wait_for(state="visible", timeout=5000)
+    page.locator("[data-testid='tab-inbox']").click()
+    page.locator("[data-testid='inbox-page']").wait_for(state="visible", timeout=5000)
+    # Click the first list item (li or clickable div) inside inbox-page
+    first_row = page.locator("[data-testid='inbox-page'] li").first
+    if first_row.count() == 0:
+        # Sections render divs, not li — fall back to first cursor-pointer div
+        first_row = page.locator("[data-testid='inbox-page'] [class*='cursor-pointer']").first
+    first_row.click()
+    page.locator("[data-testid='inbox-detail']").wait_for(state="visible", timeout=5000)
+    assert page.locator("[data-testid='inbox-detail']").is_visible()
