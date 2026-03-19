@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import struct
 import subprocess
@@ -6,6 +7,11 @@ import types
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 import pytest
+
+# ---------------------------------------------------------------------------
+# Environment detection — used to skip tests that can't run in containers
+# ---------------------------------------------------------------------------
+IN_DEVCONTAINER = Path("/workspace").exists() and os.environ.get("UV_PROJECT_ENVIRONMENT", "") != ""
 
 # ---------------------------------------------------------------------------
 # Module-level sentinel: set by gui_brain fixture once the GUI test DB is ready.
@@ -28,8 +34,11 @@ def _guard_real_brain():
     new files appear, so regressions are caught immediately rather than silently
     polluting Drive-synced brain data.
     """
+    # Check both host path and container bind-mount path
     real_brain = Path.home() / "SecondBrain"
-    if not real_brain.exists():
+    container_brain = Path("/workspace/brain")
+    brain_dirs = [d for d in (real_brain, container_brain) if d.exists()]
+    if not brain_dirs:
         yield
         return
 
@@ -48,9 +57,13 @@ def _guard_real_brain():
             pass
         return result
 
-    before = _snapshot(real_brain)
+    before = {}
+    for d in brain_dirs:
+        before.update(_snapshot(d))
     yield
-    after = _snapshot(real_brain)
+    after = {}
+    for d in brain_dirs:
+        after.update(_snapshot(d))
 
     new_files = sorted(k for k in after if k not in before)
     modified = sorted(
@@ -60,7 +73,7 @@ def _guard_real_brain():
     problems = new_files + modified
     if problems:
         msg = (
-            "ISOLATION FAILURE: test suite wrote to the real ~/SecondBrain!\n"
+            "ISOLATION FAILURE: test suite wrote to real brain data!\n"
             + "\n".join(f"  {'NEW' if f in new_files else 'MODIFIED'}: {f}" for f in problems)
         )
         pytest.fail(msg, pytrace=False)

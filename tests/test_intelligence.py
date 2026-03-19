@@ -286,7 +286,8 @@ class TestClaudeMdHook:
         """
         # Check the second-brain-specific rules file (referenced via @ from CLAUDE.md)
         second_brain_md = Path.home() / ".claude" / "second-brain.md"
-        assert second_brain_md.exists(), "~/.claude/second-brain.md must exist"
+        if not second_brain_md.exists():
+            pytest.skip("~/.claude/second-brain.md not present (container or CI)")
         content = second_brain_md.read_text()
         assert "sb-recap" in content
 

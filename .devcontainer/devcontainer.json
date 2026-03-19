@@ -1,14 +1,14 @@
 {
   "name": "second-brain",
-  // Windows users: if brain mount fails, ${localEnv:HOME} may resolve to
-  // Windows path. See README for WSL2 workaround.
-  //
   // Prerequisites: ~/.config/second-brain/.env.host must exist before opening
   // this devcontainer — runArgs --env-file will hard-fail if the file is missing.
   // Copy .env.host.example to that path and fill in your secrets.
   "build": {
     "dockerfile": "Dockerfile"
   },
+  // Mount repo at /workspace so engine/paths.py auto-detection works
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
   "features": {},
   "customizations": {
     "vscode": {
@@ -16,7 +16,11 @@
         "ms-python.python",
         "ms-python.vscode-pylance",
         "DavidAnson.vscode-markdownlint"
-      ]
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.cwd": "/workspace"
+      }
     }
   },
   "mounts": [
@@ -26,15 +30,23 @@
     "source=${localEnv:HOME}/SecondBrain,target=/workspace/brain,type=bind,consistency=cached",
     // .env.host injected from outside the Drive-synced folder
     "source=${localEnv:HOME}/.config/second-brain/.env.host,target=/workspace/.env.host,type=bind,consistency=cached",
-    // Claude config and auth across rebuilds
+    // Claude OAuth credentials extracted from Keychain (by initializeCommand)
+    "source=${localEnv:HOME}/.config/second-brain/claude-oauth.json,target=/home/vscode/.claude-oauth.json,type=bind,consistency=cached",
+    // Claude Code state (onboarding flag etc)
+    "source=${localEnv:HOME}/.claude.json,target=/home/vscode/.claude-auth-host/.claude.json,type=bind,consistency=cached",
+    // Claude config — plugins, GSD, settings, commands, memory
     "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.config/claude,target=/home/vscode/.config/claude,type=bind,consistency=cached",
     // Git identity from host
     "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,consistency=cached"
   ],
+  "containerEnv": {
+    // Container venv lives outside the bind-mounted workspace — keeps host .venv untouched
+    "UV_PROJECT_ENVIRONMENT": "/home/vscode/.venv/second-brain"
+  },
+  // Runs on HOST before container starts — extracts Keychain credentials
+  "initializeCommand": ".devcontainer/extract-claude-auth.sh",
   "runArgs": ["--env-file", "${localEnv:HOME}/.config/second-brain/.env.host"],
-  // Note: .git/hooks/ is bypassed — core.hooksPath points to .githooks/ instead.
-  "postCreateCommand": "sudo npm install -g @anthropic-ai/claude-code && uv pip install -e '.[dev]' && git config core.hooksPath .githooks",
-  "postStartCommand": "sudo chown vscode:vscode /workspace/brain-index",
+  "postCreateCommand": ".devcontainer/post-create.sh",
+  "postStartCommand": ".devcontainer/post-start.sh",
   "remoteUser": "vscode"
 }

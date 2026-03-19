@@ -1,6 +1,6 @@
-FROM python:3.12-slim
+FROM python:3.13-slim
 
-# System deps: git, sqlite, build tools
+# System deps: git, sqlite, build tools, Playwright system deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     sqlite3 \
@@ -8,9 +8,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
     sudo \
+    build-essential \
+    # Playwright browser deps (Chromium)
+    libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
+    libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 \
+    libpango-1.0-0 libcairo2 libasound2t64 libxshmfence1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Node.js 22 (required for Claude Code)
+# Node.js 22 (required for Claude Code + frontend build)
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
@@ -29,5 +34,8 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
 USER $USERNAME
+
+# Ensure ~/.local/bin is on PATH for uv tool installs
+ENV PATH="/home/$USERNAME/.local/bin:$PATH"
 
 WORKDIR /workspace
