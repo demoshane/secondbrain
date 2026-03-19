@@ -12,6 +12,7 @@ import frontmatter
 # Maps CLI --type value to brain subdirectory name where types differ
 TYPE_TO_DIR: dict[str, str] = {
     "idea": "ideas",
+    "link": "links",
 }
 
 _MEETING_KEYWORDS = {"meeting", "standup", "sync", "retro", "review", "1:1"}
@@ -149,6 +150,8 @@ def write_note_atomic(
     post: frontmatter.Post,
     conn: sqlite3.Connection,
     update: bool = False,
+    *,
+    url: str | None = None,
 ) -> None:
     """Write a note file atomically with DB indexing in a single transaction.
 
@@ -167,6 +170,7 @@ def write_note_atomic(
         conn: Open SQLite connection with schema initialized.
         update: When True, uses INSERT OR REPLACE (upsert) to overwrite existing row.
                 When False (default), uses INSERT — preserves backward compatibility.
+        url: Optional URL to store in the notes.url column (link captures only).
     """
     tmp_path = None
     tmp_fd = None
@@ -188,8 +192,8 @@ def write_note_atomic(
         resolved_path = str(target.resolve())
         sql_verb = "INSERT OR REPLACE" if update else "INSERT"
         conn.execute(
-            f"{sql_verb} INTO notes (path, type, title, body, tags, people, created_at, updated_at, sensitivity)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            f"{sql_verb} INTO notes (path, type, title, body, tags, people, created_at, updated_at, sensitivity, url)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 resolved_path,
                 post.get("type", "note"),
@@ -200,6 +204,7 @@ def write_note_atomic(
                 created_at,
                 updated_at,
                 sensitivity,
+                str(url) if url else None,
             ),
         )
         log_audit(conn, "update" if update else "create", resolved_path)
@@ -309,6 +314,8 @@ def capture_note(
     content_sensitivity: str,
     brain_root: Path,
     conn: sqlite3.Connection,
+    *,
+    url: str | None = None,
 ) -> Path:
     """Build and atomically write a note, returning its final path.
 
@@ -321,6 +328,7 @@ def capture_note(
         content_sensitivity: Sensitivity level.
         brain_root: Root path of the brain directory.
         conn: Open SQLite connection.
+        url: Optional URL for link captures — written into frontmatter and DB.
 
     Returns:
         Path to the written note file.
@@ -339,6 +347,8 @@ def capture_note(
         counter += 1
 
     post = build_post(note_type, title, body, tags, people, content_sensitivity)
+    if url:
+        post["url"] = url
     # Entity enrichment: best-effort, never blocks capture
     try:
         from engine.entities import extract_entities
@@ -346,7 +356,7 @@ def capture_note(
         post["entities"] = entities
     except Exception:
         post["entities"] = {"people": [], "places": [], "topics": []}
-    write_note_atomic(target, post, conn)
+    write_note_atomic(target, post, conn, url=url)
 
     # Auto-backlink: update referenced people's profiles
     if people:

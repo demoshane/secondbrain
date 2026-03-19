@@ -165,6 +165,15 @@ def migrate_add_dismissed_inbox_items_table(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def migrate_add_url_column(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: add 'url' TEXT column to notes if absent."""
+    try:
+        conn.execute("ALTER TABLE notes ADD COLUMN url TEXT NULL")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # column already exists
+
+
 def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     """Create (or optionally recreate) the full schema.
 
@@ -182,3 +191,4 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     migrate_add_assignee_path(conn)
     migrate_add_due_date(conn)
     migrate_add_dismissed_inbox_items_table(conn)
+    migrate_add_url_column(conn)
