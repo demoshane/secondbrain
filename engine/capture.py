@@ -24,21 +24,28 @@ def _suggest_note_type_from_title(title: str) -> str | None:
 
     Rules (in priority order):
     1. If title contains a meeting/sync keyword → suggest 'meeting'
-    2. If title matches 'Firstname Lastname' (two capitalized words) → suggest 'people'
+    2. If title matches 'Firstname Lastname' (two capitalized words) → suggest 'person'
 
     Returns:
-        'meeting', 'people', or None.
+        'meeting', 'person', or None.
     """
     title_lower = title.lower()
     if any(kw in title_lower for kw in _MEETING_KEYWORDS):
         return "meeting"
     if re.match(r"^[A-Z][a-z]+ [A-Z][a-z]+$", title.strip()):
-        return "people"
+        return "person"
     return None
 
 
+def _embed_texts_for_dedup(texts: list[str]) -> list:
+    """Thin wrapper around embed_texts for monkeypatching in tests."""
+    from engine.embeddings import embed_texts
+    return embed_texts(texts)
+
+
 def check_capture_dedup(
-    title: str, body: str, conn: sqlite3.Connection, threshold: float = 0.92
+    title: str, body: str, conn: sqlite3.Connection, threshold: float = 0.92,
+    max_body_len: int = 2000,
 ) -> list[dict]:
     """Return similar notes if embedding cosine similarity >= threshold.
 
@@ -51,6 +58,8 @@ def check_capture_dedup(
         conn: Open SQLite connection with note_embeddings table.
         threshold: Minimum similarity to report (0.0-1.0). Default 0.92 is intentionally
                    higher than find_similar()'s 0.8 to avoid false positives at capture time.
+        max_body_len: If body exceeds this length, embed title only (avoids embedding
+                      thousands of tokens for large inputs). Default 2000.
 
     Returns:
         List of {"path": str, "similarity": float} dicts, most similar first.
@@ -59,8 +68,8 @@ def check_capture_dedup(
     from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 
     def _run_dedup():
-        from engine.embeddings import embed_texts
-        blobs = embed_texts([f"{title}\n{body}"])
+        text_to_embed = title if len(body) > max_body_len else f"{title}\n{body}"
+        blobs = _embed_texts_for_dedup([text_to_embed])
         if not blobs:
             return []
         query_blob = blobs[0]
@@ -231,7 +240,7 @@ def main(argv=None) -> None:
     parser.add_argument(
         "--type",
         required=True,
-        choices=["note", "meeting", "people", "coding", "strategy", "idea", "projects", "personal"],
+        choices=["note", "meeting", "person", "coding", "strategy", "idea", "projects", "personal"],
         dest="note_type",
     )
     parser.add_argument("--title", required=True)
@@ -316,7 +325,7 @@ def capture_note(
     Returns:
         Path to the written note file.
     """
-    if note_type == "people":
+    if note_type == "person":
         slug = title[:40].replace(" ", "-").lower()
     else:
         slug = datetime.date.today().isoformat() + "-" + title[:40].replace(" ", "-").lower()

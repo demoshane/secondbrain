@@ -253,3 +253,51 @@ def test_dedup_returns_similar(tmp_path):
     result = check_capture_dedup("Meeting Notes Q1", "Discussed Q1 roadmap and priorities", conn)
     # Best-effort: if embeddings not loaded, result is [] and test still xfails gracefully
     assert isinstance(result, list)
+
+
+# ---------------------------------------------------------------------------
+# Phase 28-01: title-only fast-path for large bodies
+# ---------------------------------------------------------------------------
+
+def test_dedup_title_only_large_body(tmp_path, monkeypatch):
+    """When body > 2000 chars, embed_texts is called with [title] only."""
+    import sqlite3
+    import engine.capture as cap_mod
+
+    captured_texts = []
+
+    def fake_embed_texts(texts):
+        captured_texts.extend(texts)
+        return []  # returning [] triggers early return in _run_dedup → []
+
+    monkeypatch.setattr(cap_mod, "_embed_texts_for_dedup", fake_embed_texts)
+
+    conn = sqlite3.connect(":memory:")
+    large_body = "x" * 2001
+    cap_mod.check_capture_dedup("My Title", large_body, conn)
+
+    assert captured_texts == ["My Title"], (
+        f"Expected embed_texts called with ['My Title'] for large body, got {captured_texts}"
+    )
+
+
+def test_dedup_short_body_uses_full_text(tmp_path, monkeypatch):
+    """When body <= 2000 chars, embed_texts is called with [f'{title}\\n{body}']."""
+    import sqlite3
+    import engine.capture as cap_mod
+
+    captured_texts = []
+
+    def fake_embed_texts(texts):
+        captured_texts.extend(texts)
+        return []
+
+    monkeypatch.setattr(cap_mod, "_embed_texts_for_dedup", fake_embed_texts)
+
+    conn = sqlite3.connect(":memory:")
+    short_body = "short body"
+    cap_mod.check_capture_dedup("My Title", short_body, conn)
+
+    assert captured_texts == [f"My Title\n{short_body}"], (
+        f"Expected embed_texts called with full text for short body, got {captured_texts}"
+    )
