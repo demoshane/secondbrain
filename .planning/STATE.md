@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Phase 29 context gathered
-last_updated: "2026-03-19T14:46:41.040Z"
+stopped_at: Completed 29-add-link-capture/29-01-PLAN.md
+last_updated: "2026-03-19T19:16:11.568Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 25
   completed_phases: 18
-  total_plans: 92
-  completed_plans: 79
+  total_plans: 96
+  completed_plans: 80
   percent: 99
 ---
 
@@ -122,6 +122,7 @@ Progress: [██████████] 99%
 | Phase 28 P05 | 15 | 1 tasks | 5 files |
 | Phase 28 P07 | 12 | 1 tasks | 1 files |
 | Phase 28 P08 | 6 | 2 tasks | 2 files |
+| Phase 29-add-link-capture P01 | 3 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -284,6 +285,8 @@ Recent decisions affecting current work:
 - [Phase 28]: list_actions() and get_overdue_actions() set conn.row_factory=sqlite3.Row internally — callers don't need to set it; due_date column already existed from Phase 27.2, no migration needed
 - [Phase 28]: [28-07] _restore_gui_db autouse function-scoped fixture re-anchors DB_PATH after every test; _GUI_DB_PATH sentinel is None until gui_brain runs so non-GUI tests are unaffected
 - [Phase 28]: [28-08] generate_recap_on_demand calls get_overdue_actions(conn) at top of try block; overdue_section prepended to both early-return and final return paths; empty string when no overdue items
+- [Phase 29-01]: xfail(strict=False) used for Phase 29 stubs — auto-promotes to PASS once Wave 1 ships engine/link_capture.py, url column, sb_capture_link, and /links API
+- [Phase 29-01]: fetch_link_metadata imported from engine.link_capture module; client fixture patches both engine.db.DB_PATH and engine.paths.DB_PATH + BRAIN_PATH env var
 
 ### Roadmap Evolution
 
@@ -308,9 +311,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-19T14:46:41.028Z
-Stopped at: Phase 29 context gathered
-Resume file: .planning/phases/29-add-link-capture/29-CONTEXT.md
+Last session: 2026-03-19T19:16:11.518Z
+Stopped at: Completed 29-add-link-capture/29-01-PLAN.md
+Resume file: None
 
 ## TODOs (for Phase 27)
 - **Tag management UI**: Global tab/panel listing all tags with usage counts; rename tag across all notes; delete tag globally. (Per-note chip editing already shipped in Phase 23.)

@@ -392,7 +392,7 @@ Plans:
 | 27.7. Playwright Coverage & Regression Baseline | 4/4 | Complete    | 2026-03-19 | - |
 | 27.8. Intelligence Page | v3.0 | 3/3 | Complete | 2026-03-18 |
 | 28. TODO & Gap Resolution | 8/8 | Complete    | 2026-03-19 | - |
-| 29. Add link capture | v3.0 | 0/0 | Not started | - |
+| 29. Add link capture | 1/4 | In Progress|  | - |
 | 30. People Graph Hardening | v4.0 | 0/4 | Not started | - |
 | 31. Smart Capture & Multi-Context Intelligence | v4.0 | 0/4 | Not started | - |
 | 32. Architecture Hardening | v4.0 | 0/4 | Not started | - |
@@ -419,7 +419,7 @@ Plans:
 **Goal:** [To be planned]
 **Requirements**: TBD
 **Depends on:** Phase 28
-**Plans:** 0 plans
+**Plans:** 1/4 plans executed
 
 Plans:
 
@@ -468,7 +468,8 @@ Plans:
 - [ ] 31-01-PLAN.md — `sb_capture_smart`: AI content parser → typed note suggestion list (CAP-01)
 - [ ] 31-02-PLAN.md — Multi-context segmentation: one input → N linked notes atomically (CAP-02, CAP-03)
 - [ ] 31-03-PLAN.md — Dormant resurfacing in MCP capture response + auto-link near-duplicates (CAP-04, CAP-05)
-- [ ] 31-04-PLAN.md — MCP integration tests + overdue action surfacing in recap + sign-off
+- [ ] 31-04-PLAN.md — GUI Smart Capture button: top nav bar button opens modal with paste area → calls `sb_capture_smart` → shows typed note suggestions → user confirms → saves (GUI-01)
+- [ ] 31-05-PLAN.md — MCP integration tests + overdue action surfacing in recap + sign-off
 
 ---
 
