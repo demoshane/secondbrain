@@ -540,3 +540,35 @@ def test_inbox_split_view(page, live_server_url, gui_brain):
     first_row.click()
     page.locator("[data-testid='inbox-detail']").wait_for(state="visible", timeout=5000)
     assert page.locator("[data-testid='inbox-detail']").is_visible()
+
+
+def test_inbox_backlink_picker(page, live_server_url, gui_brain):
+    """BacklinkPicker must call POST /search (not GET) — regression for 27.9 gap."""
+    page.goto("/ui")
+    page.locator("[data-testid='tab-inbox']").wait_for(state="visible", timeout=5000)
+    page.locator("[data-testid='tab-inbox']").click()
+    page.locator("[data-testid='inbox-page']").wait_for(state="visible", timeout=5000)
+
+    # Click "Add Backlink" on the first unprocessed note row
+    add_backlink_btn = page.locator("button", has_text="Add Backlink").first
+    add_backlink_btn.wait_for(state="visible", timeout=5000)
+    add_backlink_btn.click()
+
+    # Type into the search input that appears
+    search_input = page.locator("[data-testid='inbox-page'] input[placeholder*='Search']").first
+    search_input.wait_for(state="visible", timeout=3000)
+    search_input.fill("Inb")  # 3 chars — triggers debounce; matches "Inbox Test Note"
+
+    # Wait for debounce + network round-trip
+    page.wait_for_timeout(600)
+
+    # Primary assertion: page must not contain "405" (which would appear if GET was used)
+    assert "405" not in page.content(), "BacklinkPicker returned 405 — fetch method is still GET"
+
+    # Secondary assertion: results container should have appeared
+    # The BacklinkPicker renders results as buttons inside a div (no data-testid)
+    # Look for any button inside the inbox-page that is NOT "Add Backlink" / "Cancel" / "Dismiss"
+    result_btns = page.locator(
+        "[data-testid='inbox-page'] button:not(:has-text('Add Backlink')):not(:has-text('Cancel')):not(:has-text('Dismiss'))"
+    )
+    assert result_btns.count() >= 1, "BacklinkPicker returned no results — POST /search may have failed silently"
