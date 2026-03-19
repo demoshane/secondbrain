@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27.7-03-PLAN.md
-last_updated: "2026-03-19T07:44:17.516Z"
+stopped_at: Completed 27.7-04-PLAN.md
+last_updated: "2026-03-19T07:48:34.989Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 17
-  completed_phases: 15
+  completed_phases: 16
   total_plans: 73
-  completed_plans: 66
+  completed_plans: 67
   percent: 99
 ---
 
@@ -109,6 +109,7 @@ Progress: [██████████] 99%
 | Phase 27.7 P02 | 2 | 1 tasks | 1 files |
 | Phase 27.7 P01 | 5 | 2 tasks | 2 files |
 | Phase 27.7 P03 | 2 | 2 tasks | 2 files |
+| Phase 27.7 P04 | 12 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -249,6 +250,8 @@ Recent decisions affecting current work:
 - [Phase 27.7]: gui_brain seeds Test Group (type='people') and Test Mention Note (body mentions 'Test Person') to exercise right panel body-mention detection
 - [Phase 27.7]: test_right_panel_people_mention uses gui_brain directly (no seed_note_fn) — relies on session-scoped Test Mention Note seed for deterministic note identity
 - [Phase 27.7]: [27.7-03] xfail not needed for orphan spec tests — get_orphan_notes() already implements correct bidirectional NOT IN exclusion
+- [Phase 27.7]: [27.7-04] list_people() WHERE type IN ('person', 'people') — plural type notes must appear on People page; was silently excluded by type='person' only query
+- [Phase 27.7]: [27.7-04] health score numeric assertion: float(score_text.replace('%','').strip()) handles both bare integer and percentage-suffix display formats
 
 ### Roadmap Evolution
 
@@ -272,8 +275,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-19T07:44:17.504Z
-Stopped at: Completed 27.7-03-PLAN.md
+Last session: 2026-03-19T07:48:29.932Z
+Stopped at: Completed 27.7-04-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
