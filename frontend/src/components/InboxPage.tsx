@@ -63,7 +63,11 @@ function BacklinkPicker({
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`${getAPI()}/search?q=${encodeURIComponent(query)}`)
+        const res = await fetch(`${getAPI()}/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query }),
+        })
         const data = await res.json()
         setResults((data.results ?? []).slice(0, 10))
       } catch {
