@@ -15,7 +15,8 @@
       "extensions": [
         "ms-python.python",
         "ms-python.vscode-pylance",
-        "DavidAnson.vscode-markdownlint"
+        "DavidAnson.vscode-markdownlint",
+        "doonfrs.terminal-paste-image"
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
@@ -26,6 +27,8 @@
   "mounts": [
     // Named volume for SQLite index — never Drive-synced, rebuildable
     "source=brain-index-data,target=/workspace/brain-index,type=volume",
+    // Isolate node_modules — host needs macOS binaries, container needs Linux
+    "source=frontend-node-modules,target=/workspace/frontend/node_modules,type=volume",
     // Brain notes bind mount from ~/SecondBrain
     "source=${localEnv:HOME}/SecondBrain,target=/workspace/brain,type=bind,consistency=cached",
     // .env.host injected from outside the Drive-synced folder

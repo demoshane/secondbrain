@@ -364,12 +364,19 @@ def get_project(note_path):
 @app.get("/links")
 def list_links():
     from urllib.parse import urlparse
+    limit = min(int(request.args.get("limit", 50)), 200)
+    offset = int(request.args.get("offset", 0))
     conn = get_connection()
     conn.row_factory = sqlite3.Row
+    total_count = conn.execute(
+        "SELECT COUNT(*) FROM notes WHERE type='link'"
+    ).fetchone()[0]
     rows = conn.execute(
         "SELECT path, title, url, substr(created_at,1,10) AS date, tags, "
         "  substr(body,1,200) AS description "
-        "FROM notes WHERE type='link' ORDER BY created_at DESC"
+        "FROM notes WHERE type='link' ORDER BY created_at DESC "
+        "LIMIT ? OFFSET ?",
+        (limit, offset),
     ).fetchall()
     conn.close()
     result = []
@@ -384,10 +391,10 @@ def list_links():
             "url": r["url"] or "",
             "domain": domain,
             "date": r["date"] or "",
-            "tags": r["tags"] or "[]",
+            "tags": json.loads(r["tags"] or "[]"),
             "description": r["description"] or "",
         })
-    return jsonify({"links": result})
+    return jsonify({"links": result, "total": total_count})
 
 
 @app.get("/links/<path:note_path>")
@@ -418,7 +425,7 @@ def get_link(note_path):
         "domain": domain,
         "body": row["body"] or "",
         "date": row["date"] or "",
-        "tags": row["tags"] or "[]",
+        "tags": json.loads(row["tags"] or "[]"),
     })
 
 
@@ -490,6 +497,50 @@ def save_note(note_path):
         return jsonify({"error": "Not found"}), 404
     body = request.get_json(force=True) or {}
 
+    # Title-only branch: when "title" present and "content"/"tags" absent
+    title_val = body.get("title")
+    if title_val is not None and "content" not in body and "tags" not in body:
+        raw = p.read_text(encoding="utf-8")
+        post = _fm.loads(raw)
+        post.metadata["title"] = title_val
+        updated_text = _fm.dumps(post)
+        with tempfile.NamedTemporaryFile("w", dir=p.parent, delete=False, suffix=".tmp", encoding="utf-8") as f:
+            f.write(updated_text)
+            tmp = f.name
+        suppress_next_delete(str(p))
+        os.replace(tmp, p)
+        now = datetime.datetime.utcnow().isoformat()
+        conn = get_connection()
+        conn.execute(
+            "UPDATE notes SET title=?, updated_at=? WHERE path=?",
+            (title_val, now, str(p.resolve()))
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({"saved": True, "path": str(p)})
+
+    # Body-only branch: when "body" present and "content"/"tags"/"title" absent
+    body_val = body.get("body")
+    if body_val is not None and "content" not in body and "tags" not in body and "title" not in body:
+        raw = p.read_text(encoding="utf-8")
+        post = _fm.loads(raw)
+        post.content = body_val
+        updated_text = _fm.dumps(post)
+        with tempfile.NamedTemporaryFile("w", dir=p.parent, delete=False, suffix=".tmp", encoding="utf-8") as f:
+            f.write(updated_text)
+            tmp = f.name
+        suppress_next_delete(str(p))
+        os.replace(tmp, p)
+        now = datetime.datetime.utcnow().isoformat()
+        conn = get_connection()
+        conn.execute(
+            "UPDATE notes SET body=?, updated_at=? WHERE path=?",
+            (body_val, now, str(p.resolve()))
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({"saved": True, "path": str(p)})
+
     # Tags-only branch: when "tags" present and "content" absent, update frontmatter + DB only
     tags_val = body.get("tags")
     if tags_val is not None and "content" not in body:
@@ -532,6 +583,12 @@ def save_note(note_path):
     return jsonify({"saved": True, "path": str(p)})
 
 
+VALID_NOTE_TYPES = {
+    "note", "meeting", "person", "people", "idea", "link",
+    "project", "coding", "strategy", "personal", "files",
+}
+
+
 @app.post("/notes")
 def create_note():
     body = request.get_json(force=True) or {}
@@ -541,16 +598,22 @@ def create_note():
     brain_path = body.get("brain_path", "")
     if not brain_path:
         return jsonify({"error": "brain_path required"}), 400
+    if note_type not in VALID_NOTE_TYPES:
+        return jsonify({"error": f"invalid note type: {note_type!r}"}), 400
     import datetime
     slug = datetime.date.today().isoformat() + "-" + title[:40].replace(" ", "-").lower()
     subdir = "ideas" if note_type == "idea" else note_type
-    target = _Path(brain_path) / subdir / f"{slug}.md"
+    brain_root = _Path(brain_path).resolve()
+    target = brain_root / subdir / f"{slug}.md"
     # Resolve slug collision: append a counter if the target already exists
     if target.exists():
         counter = 1
         while target.exists():
-            target = _Path(brain_path) / subdir / f"{slug}-{counter}.md"
+            target = brain_root / subdir / f"{slug}-{counter}.md"
             counter += 1
+    # Path-confinement check: ensure target is inside the declared brain directory
+    if not target.resolve().is_relative_to(brain_root):
+        return jsonify({"error": "Forbidden"}), 403
     target.parent.mkdir(parents=True, exist_ok=True)
     now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     today = datetime.date.today().isoformat()
@@ -860,8 +923,8 @@ def batch_capture():
         failed = []
 
         for md_file in brain_root.rglob("*.md"):
-            # Skip hidden directories (any path segment starting with '.')
-            if any(part.startswith(".") for part in md_file.parts):
+            # Skip hidden directories (any path segment relative to brain_root starting with '.')
+            if any(part.startswith(".") for part in md_file.relative_to(brain_root).parts):
                 continue
 
             abs_str = str(md_file.resolve())

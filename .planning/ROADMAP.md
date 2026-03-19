@@ -398,6 +398,7 @@ Plans:
 | 32. Architecture Hardening | v4.0 | 0/4 | Not started | - |
 | 33. Performance & Scale Hardening | v4.0 | 0/3 | Not started | - |
 | 34. GUI Management Productivity | v4.0 | 0/4 | Not started | - |
+| 35. Full Codebase Review & Remediation | v4.0 | 0/0 | Not started | - |
 
 ### Phase 28: TODO & Gap Resolution
 
