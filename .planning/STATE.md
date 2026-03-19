@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 28-08-PLAN.md
-last_updated: "2026-03-19T14:07:11.193Z"
+stopped_at: Phase 29 context gathered
+last_updated: "2026-03-19T14:46:41.040Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 25
@@ -308,9 +308,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-19T14:04:26.221Z
-Stopped at: Completed 28-08-PLAN.md
-Resume file: None
+Last session: 2026-03-19T14:46:41.028Z
+Stopped at: Phase 29 context gathered
+Resume file: .planning/phases/29-add-link-capture/29-CONTEXT.md
 
 ## TODOs (for Phase 27)
 - **Tag management UI**: Global tab/panel listing all tags with usage counts; rename tag across all notes; delete tag globally. (Per-note chip editing already shipped in Phase 23.)
