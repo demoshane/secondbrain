@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 29-add-link-capture/29-01-PLAN.md
-last_updated: "2026-03-19T19:16:11.568Z"
+stopped_at: Completed 29-02-PLAN.md
+last_updated: "2026-03-19T19:23:34.638Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 25
   completed_phases: 18
   total_plans: 96
-  completed_plans: 80
+  completed_plans: 81
   percent: 99
 ---
 
@@ -123,6 +123,7 @@ Progress: [██████████] 99%
 | Phase 28 P07 | 12 | 1 tasks | 1 files |
 | Phase 28 P08 | 6 | 2 tasks | 2 files |
 | Phase 29-add-link-capture P01 | 3 | 1 tasks | 1 files |
+| Phase 29 P02 | 21 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -287,6 +288,9 @@ Recent decisions affecting current work:
 - [Phase 28]: [28-08] generate_recap_on_demand calls get_overdue_actions(conn) at top of try block; overdue_section prepended to both early-return and final return paths; empty string when no overdue items
 - [Phase 29-01]: xfail(strict=False) used for Phase 29 stubs — auto-promotes to PASS once Wave 1 ships engine/link_capture.py, url column, sb_capture_link, and /links API
 - [Phase 29-01]: fetch_link_metadata imported from engine.link_capture module; client fixture patches both engine.db.DB_PATH and engine.paths.DB_PATH + BRAIN_PATH env var
+- [Phase 29-02]: Use urllib.request module ref (not direct import) in link_capture.py so tests can monkeypatch urllib.request.urlopen
+- [Phase 29-02]: url param is keyword-only in capture_note() and write_note_atomic() to prevent accidental positional arg breakage for existing callers
+- [Phase 29-02]: migrate_add_url_column uses try/except OperationalError for idempotent ALTER TABLE — consistent with plan spec
 
 ### Roadmap Evolution
 
@@ -311,8 +315,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-19T19:16:11.518Z
-Stopped at: Completed 29-add-link-capture/29-01-PLAN.md
+Last session: 2026-03-19T19:23:34.598Z
+Stopped at: Completed 29-02-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
