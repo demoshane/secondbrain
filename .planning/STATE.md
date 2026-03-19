@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 28-07-PLAN.md
-last_updated: "2026-03-19T13:34:29.535Z"
+stopped_at: Completed 28-08-PLAN.md
+last_updated: "2026-03-19T14:04:26.234Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 25
   completed_phases: 18
-  total_plans: 91
-  completed_plans: 78
+  total_plans: 92
+  completed_plans: 79
   percent: 99
 ---
 
@@ -121,6 +121,7 @@ Progress: [██████████] 99%
 | Phase 28 P04 | 8 | 1 tasks | 2 files |
 | Phase 28 P05 | 15 | 1 tasks | 5 files |
 | Phase 28 P07 | 12 | 1 tasks | 1 files |
+| Phase 28 P08 | 6 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -282,6 +283,7 @@ Recent decisions affecting current work:
 - [Phase 28]: [28-04] sb_link INSERT OR IGNORE for idempotency; sb_unlink optional rel_type filter; absent pair is no-op
 - [Phase 28]: list_actions() and get_overdue_actions() set conn.row_factory=sqlite3.Row internally — callers don't need to set it; due_date column already existed from Phase 27.2, no migration needed
 - [Phase 28]: [28-07] _restore_gui_db autouse function-scoped fixture re-anchors DB_PATH after every test; _GUI_DB_PATH sentinel is None until gui_brain runs so non-GUI tests are unaffected
+- [Phase 28]: [28-08] generate_recap_on_demand calls get_overdue_actions(conn) at top of try block; overdue_section prepended to both early-return and final return paths; empty string when no overdue items
 
 ### Roadmap Evolution
 
@@ -306,8 +308,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-19T13:34:29.511Z
-Stopped at: Completed 28-07-PLAN.md
+Last session: 2026-03-19T14:04:26.221Z
+Stopped at: Completed 28-08-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
