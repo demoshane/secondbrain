@@ -59,7 +59,7 @@
 - [x] **Phase 27.6: Projects Page** — Project status tracking, related notes, open action items per project (completed 2026-03-18)
 - [x] **Phase 27.7: Playwright Coverage & Regression Baseline** — Expand Playwright suite to cover all existing features; enforce test isolation; add pre-flight smoke test (completed 2026-03-19)
 - [x] **Phase 27.8: Intelligence Page** — Promote recap, brain health, digest from sidebar panel to full dedicated page (completed 2026-03-18)
-- [ ] **Phase 27.9: Inbox Page** — Review queue: empty notes, unprocessed captures, unassigned action items
+- [x] **Phase 27.9: Inbox Page** — Review queue: empty notes, unprocessed captures, unassigned action items (completed 2026-03-19)
 - [ ] **Phase 27.10: Graph View** — Visual knowledge map, nodes = notes, edges = relationships, zoomable/filterable
 
 ### Phase Details
@@ -403,7 +403,7 @@ Plans:
 
 **Goal:** All open TODOs, known gaps, and deferred issues identified at phase start are resolved before the milestone is closed
 **Depends on:** Phase 27
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 28-01-PLAN.md — Title-only dedup for long captures (fix MCP timeout on large bodies)

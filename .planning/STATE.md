@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27.9-02-PLAN.md
-last_updated: "2026-03-19T10:08:02.630Z"
+stopped_at: Completed 27.9-03-PLAN.md
+last_updated: "2026-03-19T10:30:49.682Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 25
-  completed_phases: 16
-  total_plans: 87
-  completed_plans: 69
+  completed_phases: 17
+  total_plans: 90
+  completed_plans: 70
   percent: 99
 ---
 
@@ -112,6 +112,7 @@ Progress: [██████████] 99%
 | Phase 27.7 P04 | 12 | 2 tasks | 2 files |
 | Phase 27.9-inbox-page P01 | 15 | 2 tasks | 3 files |
 | Phase 27.9-inbox-page P02 | 15 | 2 tasks | 6 files |
+| Phase 27.9-inbox-page P03 | 20 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -259,6 +260,8 @@ Recent decisions affecting current work:
 - [Phase 27.9-inbox-page]: GET /inbox empty_notes uses inline SQL with LEFT JOIN dismissed filter rather than get_empty_notes() to avoid list truncation before dismiss filter
 - [Phase 27.9-inbox-page]: Tasks 1+2 committed separately: stub first to unblock build, full implementation second
 - [Phase 27.9-inbox-page]: BacklinkPicker uses GET /search not POST /search — GET is actual API endpoint
+- [Phase 27.9-inbox-page]: data-testid='inbox-detail' added to DetailPane outer div to enable reliable Playwright split-view assertion
+- [Phase 27.9-inbox-page]: test_inbox_split_view falls back from li to [class*='cursor-pointer'] — InboxPage uses divs not li for rows
 
 ### Roadmap Evolution
 
@@ -283,8 +286,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-19T10:08:02.611Z
-Stopped at: Completed 27.9-02-PLAN.md
+Last session: 2026-03-19T10:30:49.668Z
+Stopped at: Completed 27.9-03-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
