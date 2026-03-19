@@ -462,3 +462,55 @@ def test_right_panel_people_mention(page, live_server_url, gui_brain):
     # People badge for "Test Person" must appear — /notes/<path>/meta detects body mentions
     people_badge = page.locator('[data-testid="people-badge"]', has_text="Test Person")
     people_badge.first.wait_for(state="visible", timeout=5000)
+
+
+def test_people_type_isolation(page, live_server_url, gui_brain):
+    """QA-04: People page shows both type='person' AND type='people' notes; non-people types absent.
+
+    Regression guard for the alice-smith type confusion bug:
+    - Test Person  (type='person')  must appear in people table
+    - Test Group   (type='people')  must appear in people table  [seeded in Plan 01]
+    - Meeting/project notes must NOT appear in people table
+    list_people() must query WHERE type IN ('person', 'people') — both types.
+    """
+    page.goto("/ui")
+    page.locator('[data-testid="tab-bar"]').wait_for(state="visible", timeout=5000)
+    page.locator("button", has_text="People").first.click()
+    page.wait_for_selector("[data-testid='people-page']", timeout=5000)
+    # Give table time to populate
+    page.locator("[data-testid='people-page'] tbody tr").first.wait_for(
+        state="visible", timeout=5000
+    )
+    # type='person' must appear
+    assert page.locator("[data-testid='people-page'] tbody tr", has_text="Test Person").count() >= 1, \
+        "Test Person (type='person') must appear on People page"
+    # type='people' must also appear
+    assert page.locator("[data-testid='people-page'] tbody tr", has_text="Test Group").count() >= 1, \
+        "Test Group (type='people') must appear on People page — list_people() must include plural type"
+    # Meeting notes must NOT appear on people page
+    assert page.locator("[data-testid='people-page'] tbody tr", has_text="Q1 Kickoff").count() == 0, \
+        "Meeting notes must NOT appear on People page"
+
+
+def test_intelligence_health_score_shows_value(page, live_server_url):
+    """QA-03: Intelligence page health-score element contains a numeric value, not empty/placeholder.
+
+    Upgrades the existence-only test_intelligence_health_score to a data correctness check.
+    /brain-health returns {score: 0-100}; the UI must render that value in the health-score span.
+    """
+    page.goto("/ui")
+    page.locator('[data-testid="tab-intelligence"]').wait_for(state="visible", timeout=5000)
+    page.locator('[data-testid="tab-intelligence"]').click()
+    page.locator('[data-testid="intelligence-page"]').wait_for(state="visible", timeout=5000)
+    page.locator('[data-testid="health-score"]').wait_for(state="visible", timeout=5000)
+    score_text = page.locator('[data-testid="health-score"]').inner_text().strip()
+    assert len(score_text) > 0, "health-score element must not be empty"
+    # Score must be parseable as a number (int or float)
+    try:
+        score_val = float(score_text.replace("%", "").strip())
+    except ValueError:
+        pytest.fail(
+            f"health-score element contains non-numeric text: '{score_text}' — "
+            "expected a number 0-100 from /brain-health endpoint"
+        )
+    assert 0 <= score_val <= 100, f"health-score value {score_val} is outside 0-100 range"

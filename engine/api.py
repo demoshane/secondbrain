@@ -253,7 +253,7 @@ def list_people():
     rows = conn.execute(
         "SELECT n.path, n.title, substr(n.updated_at, 1, 10) AS updated_at, "
         "  (SELECT COUNT(*) FROM action_items a WHERE a.assignee_path=n.path AND a.done=0) AS open_actions "
-        "FROM notes n WHERE n.type = 'person' ORDER BY n.title",
+        "FROM notes n WHERE n.type IN ('person', 'people') ORDER BY n.title",
     ).fetchall()
     conn.close()
     return jsonify({"people": [dict(r) for r in rows]})
