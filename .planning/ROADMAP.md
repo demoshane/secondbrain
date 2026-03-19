@@ -391,7 +391,7 @@ Plans:
 | 27.2. Action Items Page + Nav Scaffold | 4/4 | Complete    | 2026-03-18 | - |
 | 27.7. Playwright Coverage & Regression Baseline | 4/4 | Complete    | 2026-03-19 | - |
 | 27.8. Intelligence Page | v3.0 | 3/3 | Complete | 2026-03-18 |
-| 28. TODO & Gap Resolution | 6/7 | In Progress|  | - |
+| 28. TODO & Gap Resolution | 7/7 | Complete   | 2026-03-19 | - |
 | 29. Add link capture | v3.0 | 0/0 | Not started | - |
 | 30. People Graph Hardening | v4.0 | 0/4 | Not started | - |
 | 31. Smart Capture & Multi-Context Intelligence | v4.0 | 0/4 | Not started | - |
@@ -403,7 +403,7 @@ Plans:
 
 **Goal:** All open TODOs, known gaps, and deferred issues identified at phase start are resolved before the milestone is closed
 **Depends on:** Phase 27
-**Plans:** 6/7 plans executed
+**Plans:** 7/7 plans complete
 
 Plans:
 - [ ] 28-01-PLAN.md — Title-only dedup for long captures (fix MCP timeout on large bodies)
