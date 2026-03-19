@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 27.9-04-PLAN.md
-last_updated: "2026-03-19T11:53:17.435Z"
+stopped_at: Completed 28-01-PLAN.md
+last_updated: "2026-03-19T12:49:33.345Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 25
   completed_phases: 17
   total_plans: 91
-  completed_plans: 71
+  completed_plans: 72
   percent: 99
 ---
 
@@ -114,6 +114,7 @@ Progress: [██████████] 99%
 | Phase 27.9-inbox-page P02 | 15 | 2 tasks | 6 files |
 | Phase 27.9-inbox-page P03 | 20 | 2 tasks | 4 files |
 | Phase 27.9-inbox-page P04 | 48 | 2 tasks | 4 files |
+| Phase 28 P01 | 1 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -264,6 +265,8 @@ Recent decisions affecting current work:
 - [Phase 27.9-inbox-page]: data-testid='inbox-detail' added to DetailPane outer div to enable reliable Playwright split-view assertion
 - [Phase 27.9-inbox-page]: test_inbox_split_view falls back from li to [class*='cursor-pointer'] — InboxPage uses divs not li for rows
 - [Phase 27.9-04]: BacklinkPicker uses POST /search with JSON body {query}; STATE.md had incorrect decision logged from prior session
+- [Phase 28]: [28-01] check_capture_dedup max_body_len=2000: body > 2000 chars embeds title only; body <= 2000 embeds full title+body (unchanged)
+- [Phase 28]: [28-01] _embed_texts_for_dedup() extracted as module-level helper to enable monkeypatching without patching inside a closure
 
 ### Roadmap Evolution
 
@@ -288,8 +291,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-19T11:49:44.450Z
-Stopped at: Completed 27.9-04-PLAN.md
+Last session: 2026-03-19T12:49:27.760Z
+Stopped at: Completed 28-01-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
