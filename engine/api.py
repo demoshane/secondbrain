@@ -878,6 +878,11 @@ def update_action(action_id):
             "UPDATE action_items SET done=? WHERE id=?",
             (1 if data["done"] else 0, action_id),
         )
+    if "due_date" in data:
+        conn.execute(
+            "UPDATE action_items SET due_date=? WHERE id=?",
+            (data["due_date"], action_id),
+        )
     conn.commit()
     conn.close()
     return jsonify({"updated": True, "id": action_id})

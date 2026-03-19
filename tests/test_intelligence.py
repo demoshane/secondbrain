@@ -410,10 +410,10 @@ def test_capture_suggest_meeting_type_from_title():
 
 
 def test_capture_suggest_people_type_from_title():
-    """capture main() heuristics suggest type=people for 'Firstname Lastname' pattern."""
+    """capture main() heuristics suggest type=person for 'Firstname Lastname' pattern."""
     from engine.capture import _suggest_note_type_from_title
-    assert _suggest_note_type_from_title("Alice Johnson") == "people"
-    assert _suggest_note_type_from_title("Bob Smith") == "people"
+    assert _suggest_note_type_from_title("Alice Johnson") == "person"
+    assert _suggest_note_type_from_title("Bob Smith") == "person"
 
 
 def test_capture_suggest_none_for_generic_title():
@@ -421,3 +421,106 @@ def test_capture_suggest_none_for_generic_title():
     from engine.capture import _suggest_note_type_from_title
     assert _suggest_note_type_from_title("Random idea about stuff") is None
     assert _suggest_note_type_from_title("Tech notes") is None
+
+
+# ---------------------------------------------------------------------------
+# Phase 28-05: PUT /actions due_date + overdue recap + list_actions due_date
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def api_client_actions(tmp_path, monkeypatch):
+    """Flask test client with isolated DB for action items tests."""
+    import engine.db as _db
+    import engine.paths as _paths
+    from engine.db import init_schema
+    import engine.api as _api
+
+    brain = tmp_path / "brain"
+    brain.mkdir()
+    tmp_db = brain / "test.db"
+
+    monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    monkeypatch.setenv("BRAIN_PATH", str(brain))
+
+    conn = _db.get_connection()
+    init_schema(conn)
+    conn.execute(
+        "INSERT INTO action_items (id, note_path, text, done) "
+        "VALUES (1, '/brain/note/test.md', 'Test action', 0)"
+    )
+    conn.commit()
+    conn.close()
+
+    _api.app.config["TESTING"] = True
+    with _api.app.test_client() as client:
+        yield client
+
+
+def test_put_action_due_date(api_client_actions):
+    """PUT /actions/1 with body {'due_date': '2026-04-01'} returns 200 and persists due_date."""
+    import engine.db as _db
+    resp = api_client_actions.put(
+        "/actions/1",
+        json={"due_date": "2026-04-01"},
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    conn = _db.get_connection()
+    row = conn.execute("SELECT due_date FROM action_items WHERE id=1").fetchone()
+    conn.close()
+    assert row is not None
+    assert row[0] == "2026-04-01"
+
+
+def test_overdue_in_recap():
+    """get_overdue_actions() returns action items with due_date < today and done=0."""
+    from engine.intelligence import get_overdue_actions
+    import sqlite3
+    from engine.db import init_schema
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    init_schema(conn)
+
+    yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+
+    conn.execute(
+        "INSERT INTO action_items (note_path, text, done, due_date) VALUES (?, ?, 0, ?)",
+        ("/brain/note/overdue.md", "Overdue task", yesterday),
+    )
+    conn.execute(
+        "INSERT INTO action_items (note_path, text, done, due_date) VALUES (?, ?, 0, ?)",
+        ("/brain/note/future.md", "Future task", tomorrow),
+    )
+    conn.execute(
+        "INSERT INTO action_items (note_path, text, done, due_date) VALUES (?, ?, 1, ?)",
+        ("/brain/note/done.md", "Done overdue task", yesterday),
+    )
+    conn.commit()
+
+    overdue = get_overdue_actions(conn)
+    assert len(overdue) == 1
+    assert overdue[0]["text"] == "Overdue task"
+
+
+def test_list_actions_includes_due_date():
+    """list_actions() returns dicts that include the 'due_date' key."""
+    from engine.intelligence import list_actions
+    import sqlite3
+    from engine.db import init_schema
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    init_schema(conn)
+    conn.execute(
+        "INSERT INTO action_items (note_path, text, done, due_date) VALUES (?, ?, 0, ?)",
+        ("/brain/note/test.md", "Test task", "2026-04-01"),
+    )
+    conn.commit()
+
+    results = list_actions(conn, done=False)
+    assert len(results) >= 1
+    assert "due_date" in results[0]
+    assert results[0]["due_date"] == "2026-04-01"

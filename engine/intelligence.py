@@ -153,7 +153,9 @@ def list_actions(conn, done: bool = False, assignee: str | None = None, note_pat
         assignee: If set, filter to items where assignee_path matches this value.
         note_path: If set, filter to items where note_path matches this value.
     """
-    sql = "SELECT id, text, note_path, created_at, assignee_path, done FROM action_items WHERE done=?"
+    import sqlite3 as _sqlite3
+    conn.row_factory = _sqlite3.Row
+    sql = "SELECT id, text, note_path, created_at, assignee_path, done, due_date FROM action_items WHERE done=?"
     params: list = [1 if done else 0]
     if assignee is not None:
         sql += " AND assignee_path=?"
@@ -163,6 +165,19 @@ def list_actions(conn, done: bool = False, assignee: str | None = None, note_pat
         params.append(note_path)
     sql += " ORDER BY created_at DESC"
     rows = conn.execute(sql, params).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_overdue_actions(conn) -> list[dict]:
+    """Return open action items whose due_date is in the past (due_date < today)."""
+    import sqlite3 as _sqlite3
+    conn.row_factory = _sqlite3.Row
+    rows = conn.execute(
+        "SELECT id, text, note_path, created_at, assignee_path, done, due_date "
+        "FROM action_items "
+        "WHERE due_date IS NOT NULL AND due_date < date('now') AND done=0 "
+        "ORDER BY due_date",
+    ).fetchall()
     return [dict(r) for r in rows]
 
 
