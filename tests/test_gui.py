@@ -377,3 +377,61 @@ def test_intelligence_health_score(page, live_server_url):
     page.locator('[data-testid="tab-intelligence"]').click()
     page.locator('[data-testid="intelligence-page"]').wait_for(state='visible')
     page.locator('[data-testid="health-score"]').wait_for(state='visible')
+
+
+def test_notes_tab_shows_real_content(page, live_server_url, gui_brain, seed_note_fn):
+    """QA-04: Notes tab (default view) shows at least one real note item with a title.
+
+    Guards against sidebar rendering an empty list when notes exist in the DB.
+    """
+    seed_note_fn(gui_brain, "Notes Smoke Note", "data correctness smoke test body")
+    page.goto("/ui")
+    page.locator('[data-testid="sidebar"]').wait_for(state="visible", timeout=5000)
+    page.locator('[data-testid="note-item"]').first.wait_for(state="visible", timeout=5000)
+    # At least one note item must have non-empty text content
+    first_item_text = page.locator('[data-testid="note-item"]').first.inner_text()
+    assert len(first_item_text.strip()) > 0, "Note item rendered with empty text"
+
+
+def test_people_tab_shows_real_content(page, live_server_url, gui_brain):
+    """QA-04: People tab shows Test Person row with real name — not just empty table.
+
+    Guards against people page rendering but showing no rows when people notes exist.
+    Test Person (type='person') is seeded in gui_brain; must appear in table.
+    """
+    page.goto("/ui")
+    page.locator('[data-testid="tab-bar"]').wait_for(state="visible", timeout=5000)
+    page.locator("button", has_text="People").first.click()
+    page.wait_for_selector("[data-testid='people-page']", timeout=5000)
+    # Real data: Test Person must appear in the table body
+    page.locator("[data-testid='people-page'] tbody tr", has_text="Test Person").first.wait_for(
+        state="visible", timeout=5000
+    )
+
+
+def test_meetings_tab_shows_real_content(page, live_server_url, gui_brain):
+    """QA-04: Meetings tab shows Q1 Kickoff row with real title — not just empty table.
+
+    Guards against meetings page rendering but showing no rows when meetings exist.
+    Q1 Kickoff (type='meeting') is seeded in gui_brain; must appear in the list.
+    """
+    page.goto("/ui")
+    page.locator('[data-testid="tab-bar"]').wait_for(state="visible", timeout=5000)
+    page.locator('[data-testid="tab-meetings"]').click()
+    page.locator('[data-testid="meetings-page"]').wait_for(state="visible", timeout=5000)
+    # Real data: Q1 Kickoff must appear in the meetings table
+    page.locator("tr", has_text="Q1 Kickoff").first.wait_for(state="visible", timeout=5000)
+
+
+def test_projects_tab_shows_real_content(page, live_server_url, gui_brain):
+    """QA-04: Projects tab shows Test Project row with real title — not just empty table.
+
+    Guards against projects page rendering but showing no rows when projects exist.
+    Test Project (type='projects') is seeded in gui_brain; must appear in the list.
+    """
+    page.goto("/ui")
+    page.locator('[data-testid="tab-bar"]').wait_for(state="visible", timeout=5000)
+    page.locator('[data-testid="tab-projects"]').click()
+    page.locator('[data-testid="projects-page"]').wait_for(state="visible", timeout=5000)
+    # Real data: Test Project must appear in the projects table
+    page.locator("tr", has_text="Test Project").first.wait_for(state="visible", timeout=5000)
