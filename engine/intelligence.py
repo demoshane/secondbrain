@@ -469,13 +469,23 @@ def generate_recap_on_demand(conn) -> str:
     """Generate recap from last 7 days of notes. Always regenerates (no idempotency guard).
     Returns the summary string. Returns fallback string on error or empty DB."""
     try:
+        # Overdue actions — always prepend if any exist, regardless of recent notes
+        overdue = get_overdue_actions(conn)
+        overdue_section = ""
+        if overdue:
+            lines = ["## Overdue Actions"]
+            for item in overdue:
+                due = item["due_date"]
+                lines.append(f"- {item['text']} (due {due})")
+            overdue_section = "\n".join(lines) + "\n\n"
+
         rows = conn.execute(
             "SELECT title, body, sensitivity FROM notes "
             "WHERE created_at >= datetime('now', '-7 days') "
             "ORDER BY created_at DESC LIMIT 30"
         ).fetchall()
         if not rows:
-            return "No notes captured in the last 7 days."
+            return overdue_section + "No notes captured in the last 7 days."
         # Separate PII from public
         pii_parts = []
         public_parts = []
@@ -499,7 +509,7 @@ def generate_recap_on_demand(conn) -> str:
             result = adapter.generate(user_content=text, system_prompt=RECAP_SYSTEM_PROMPT)
             if result:
                 parts.append(result)
-        return "\n\n".join(parts) if parts else "Recap generation unavailable (AI adapter not responding)."
+        return overdue_section + ("\n\n".join(parts) if parts else "Recap generation unavailable (AI adapter not responding).")
     except Exception as exc:
         return f"Error generating recap: {exc}"
 

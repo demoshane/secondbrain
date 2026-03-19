@@ -474,8 +474,8 @@ def test_put_action_due_date(api_client_actions):
 
 
 def test_overdue_in_recap():
-    """get_overdue_actions() returns action items with due_date < today and done=0."""
-    from engine.intelligence import get_overdue_actions
+    """generate_recap_on_demand() prepends ## Overdue Actions when overdue items exist."""
+    from engine.intelligence import generate_recap_on_demand
     import sqlite3
     from engine.db import init_schema
 
@@ -500,9 +500,30 @@ def test_overdue_in_recap():
     )
     conn.commit()
 
-    overdue = get_overdue_actions(conn)
-    assert len(overdue) == 1
-    assert overdue[0]["text"] == "Overdue task"
+    recap = generate_recap_on_demand(conn)
+    assert "## Overdue Actions" in recap
+    assert "Overdue task" in recap
+
+
+def test_overdue_not_in_recap_when_none():
+    """generate_recap_on_demand() does not emit ## Overdue Actions when no items are overdue."""
+    from engine.intelligence import generate_recap_on_demand
+    import sqlite3
+    from engine.db import init_schema
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    init_schema(conn)
+
+    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    conn.execute(
+        "INSERT INTO action_items (note_path, text, done, due_date) VALUES (?, ?, 0, ?)",
+        ("/brain/note/future.md", "Future task", tomorrow),
+    )
+    conn.commit()
+
+    recap = generate_recap_on_demand(conn)
+    assert "## Overdue Actions" not in recap
 
 
 def test_list_actions_includes_due_date():
