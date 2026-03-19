@@ -19,6 +19,7 @@ from engine.digest import generate_digest
 from engine.forget import forget_person
 from engine.anonymize import anonymize_note
 from engine.intelligence import find_similar, get_overdue_actions, list_actions, recap_entity
+from engine.link_capture import fetch_link_metadata
 from engine.paths import BRAIN_ROOT, CONFIG_PATH
 from engine.router import get_adapter
 from engine.search import search_hybrid, search_notes, search_semantic
@@ -234,6 +235,69 @@ def sb_capture_batch(notes: list[dict]) -> dict:
 
     conn.close()
     return {"succeeded": succeeded, "failed": failed}
+
+
+@mcp.tool()
+def sb_capture_link(
+    url: str,
+    tags: list[str] | None = None,
+    people: list[str] | None = None,
+    notes: str = "",
+) -> dict:
+    """Capture a URL as a link note. Fetches og:title and og:description automatically.
+    Returns rich confirmation with fetched title and domain.
+    If this URL was captured before, saves a new copy and warns via duplicate_url_warning status.
+    """
+    _ensure_ready()
+    from urllib.parse import urlparse
+    hostname = urlparse(url).hostname or url
+    meta = fetch_link_metadata(url)
+    title = meta["title"] or hostname
+    description = meta["description"]
+    body_parts = [description] if description else []
+    if notes.strip():
+        body_parts.append(notes.strip())
+    body = "\n\n".join(body_parts)
+
+    conn = get_connection()
+    try:
+        # Duplicate URL check
+        existing = conn.execute(
+            "SELECT path FROM notes WHERE url=? LIMIT 1", (url,)
+        ).fetchone()
+        existing_path = existing[0] if existing else None
+
+        path = capture_note(
+            note_type="link",
+            title=title,
+            body=body,
+            tags=tags or [],
+            people=people or [],
+            content_sensitivity="public",
+            brain_root=BRAIN_ROOT,
+            conn=conn,
+            url=url,
+        )
+        conn.commit()
+        _log_mcp_audit("mcp_capture_link", str(path))
+
+        rel_path = str(path).replace(str(BRAIN_ROOT) + "/", "")
+        if existing_path:
+            return {
+                "status": "duplicate_url_warning",
+                "existing_path": existing_path,
+                "path": str(path),
+                "message": f"Already captured this URL as {existing_path} — saving new copy",
+            }
+        return {
+            "status": "created",
+            "path": str(path),
+            "title": title,
+            "domain": hostname,
+            "message": f"Saved: '{title}' ({hostname}) → {rel_path}",
+        }
+    finally:
+        conn.close()
 
 
 @mcp.tool()
