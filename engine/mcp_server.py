@@ -918,5 +918,54 @@ def sb_person_context(name_or_path: str) -> dict:
 
 
 
+@mcp.tool()
+def sb_list_people() -> dict:
+    """List all person notes with relationship metrics: open actions, org, last interaction, mention count.
+
+    Returns:
+        {people: [{path, title, open_actions, org, last_interaction, total_meetings, total_mentions}]}
+        Ordered alphabetically by title.
+    """
+    import json as _json
+
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute("""
+            SELECT n.path, n.title, n.entities,
+                (SELECT COUNT(*) FROM action_items a
+                 WHERE a.assignee_path = n.path AND a.done = 0) AS open_actions,
+                (SELECT MAX(m.created_at)
+                 FROM notes m, json_each(COALESCE(m.people, '[]')) pe
+                 WHERE pe.value = n.path AND m.type = 'meeting') AS last_interaction,
+                (SELECT COUNT(*)
+                 FROM notes m, json_each(COALESCE(m.people, '[]')) pe
+                 WHERE pe.value = n.path AND m.type = 'meeting') AS total_meetings,
+                (SELECT COUNT(*)
+                 FROM notes m, json_each(COALESCE(m.people, '[]')) pe
+                 WHERE pe.value = n.path AND m.type NOT IN ('person', 'people')) AS total_mentions
+            FROM notes n
+            WHERE n.type IN ('person', 'people')
+            ORDER BY n.title
+        """).fetchall()
+
+        people = []
+        for r in rows:
+            ents = _json.loads(r["entities"] or "{}")
+            org = (ents.get("orgs") or [""])[0]
+            people.append({
+                "path": r["path"],
+                "title": r["title"],
+                "open_actions": r["open_actions"],
+                "org": org,
+                "last_interaction": r["last_interaction"],
+                "total_meetings": r["total_meetings"],
+                "total_mentions": r["total_mentions"],
+            })
+        return {"people": people}
+    finally:
+        conn.close()
+
+
 def main() -> None:
     mcp.run(transport="stdio")

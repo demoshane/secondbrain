@@ -943,3 +943,119 @@ def test_person_context_chronological(mcp_person_brain_v2):
     # meeting1 (2026-02-10) must come before meeting2 (2026-01-05)
     paths = [m["path"] for m in meetings]
     assert paths.index(d["meeting1_path"]) < paths.index(d["meeting2_path"])
+
+
+# ---------------------------------------------------------------------------
+# Phase 30-03 Task 2 — sb_list_people
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def mcp_list_people_brain(tmp_path, monkeypatch):
+    """Isolated brain for sb_list_people tests.
+
+    Seeds:
+    - 2 person notes (Alice, Bob) with action items
+    - 1 meeting with Alice in people column
+    """
+    import json
+    import engine.db as _db
+    import engine.paths as _paths
+    from engine.db import get_connection as _get_conn, init_schema as _init
+
+    brain = tmp_path / "brain"
+    for d in ["note", "meetings", "people"]:
+        (brain / d).mkdir(parents=True)
+
+    tmp_db = brain / "test.db"
+    monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "BRAIN_ROOT", brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", brain)
+    monkeypatch.setenv("BRAIN_PATH", str(brain))
+
+    conn = _get_conn(str(tmp_db))
+    _init(conn)
+
+    alice_path = str(brain / "people" / "alice.md")
+    bob_path = str(brain / "people" / "bob.md")
+    meeting_path = str(brain / "meetings" / "standup.md")
+
+    conn.execute(
+        "INSERT INTO notes (path, title, body, type, entities) VALUES (?, ?, ?, ?, ?)",
+        (alice_path, "Alice", "Alice is a designer.", "person",
+         json.dumps({"orgs": ["Acme Ltd"]})),
+    )
+    conn.execute(
+        "INSERT INTO notes (path, title, body, type, entities) VALUES (?, ?, ?, ?, ?)",
+        (bob_path, "Bob", "Bob is an engineer.", "people", json.dumps({})),
+    )
+    conn.execute(
+        "INSERT INTO notes (path, title, body, type, people, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (meeting_path, "Standup", "Daily standup.", "meeting",
+         json.dumps([alice_path]), "2026-02-01T09:00:00"),
+    )
+    # One open action for Alice
+    conn.execute(
+        "INSERT INTO action_items (text, done, assignee_path, note_path) VALUES (?, 0, ?, ?)",
+        ("Alice review docs", alice_path, meeting_path),
+    )
+    conn.commit()
+    conn.close()
+
+    return {"brain": brain, "alice_path": alice_path, "bob_path": bob_path}
+
+
+def test_sb_list_people(mcp_list_people_brain):
+    """sb_list_people returns all person/people notes with metrics."""
+    result = mcp_mod.sb_list_people()
+    assert "people" in result
+    people = result["people"]
+    assert len(people) == 2
+    paths = [p["path"] for p in people]
+    assert mcp_list_people_brain["alice_path"] in paths
+    assert mcp_list_people_brain["bob_path"] in paths
+
+    # Check required fields exist on each person
+    for p in people:
+        assert "path" in p
+        assert "title" in p
+        assert "open_actions" in p
+        assert "org" in p
+        assert "last_interaction" in p
+        assert "total_meetings" in p
+        assert "total_mentions" in p
+
+    # Alice should have 1 open action and 1 meeting
+    alice = next(p for p in people if p["path"] == mcp_list_people_brain["alice_path"])
+    assert alice["open_actions"] == 1
+    assert alice["total_meetings"] == 1
+    assert alice["org"] == "Acme Ltd"
+    assert alice["last_interaction"] is not None
+
+    # Bob should have 0 actions, 0 meetings
+    bob = next(p for p in people if p["path"] == mcp_list_people_brain["bob_path"])
+    assert bob["open_actions"] == 0
+    assert bob["total_meetings"] == 0
+
+
+def test_sb_list_people_empty(tmp_path, monkeypatch):
+    """sb_list_people returns empty list on empty DB with no error."""
+    import engine.db as _db
+    import engine.paths as _paths
+    from engine.db import get_connection as _get_conn, init_schema as _init
+
+    brain = tmp_path / "brain"
+    brain.mkdir()
+    tmp_db = brain / "test.db"
+    monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "BRAIN_ROOT", brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", brain)
+
+    conn = _get_conn(str(tmp_db))
+    _init(conn)
+    conn.close()
+
+    result = mcp_mod.sb_list_people()
+    assert "people" in result
+    assert result["people"] == []
