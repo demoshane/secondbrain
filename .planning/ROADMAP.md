@@ -415,14 +415,19 @@ Plans:
 - [ ] 28-06-PLAN.md — `sb_person_context`: one-call full context dump (note + meetings + actions + mentions) for a person
 - [ ] 28-07-PLAN.md — Fix 9 pre-existing Playwright GUI failures (People/Meetings/Projects pages empty, detail panels, right panel people badge)
 
-### Phase 29: Add link capture
+### Phase 29: Add link capture ✓ (completed 2026-03-19)
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Capture URLs as link notes with metadata fetch, MCP tool, Flask API, and GUI page
+**Requirements**: LINK-01 through LINK-07
 **Depends on:** Phase 28
 **Plans:** 4/4 plans complete
+**Status:** Complete
 
 Plans:
+- [x] 29-01-PLAN.md — xfail test stubs (completed 2026-03-19)
+- [x] 29-02-PLAN.md — Engine foundation: metadata fetch, DB migration, capture integration (completed 2026-03-19)
+- [x] 29-03-PLAN.md — MCP tool sb_capture_link + Flask /links endpoints (completed 2026-03-19)
+- [x] 29-04-PLAN.md — LinksPage React component with inline editing (completed 2026-03-19)
 
 ---
 
@@ -434,7 +439,7 @@ Plans:
 **Depends on:** Phase 29
 **Milestone:** v4.0
 **Requirements**: PEO-01, PEO-02, PEO-03, PEO-04
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 Requirements detail:
 - **PEO-01** — Entity extraction recognises non-ASCII/Finnish names (replace `[A-Z][a-z]+` with Unicode-aware pattern)
@@ -443,10 +448,10 @@ Requirements detail:
 - **PEO-04** — People page and right panel reflect PEO-01/02 correctly; person type isolation regression tests pass
 
 Plans:
-- [ ] 30-01-PLAN.md — Unicode entity extraction + write-back to `people` column at capture (PEO-01, PEO-02)
-- [ ] 30-02-PLAN.md — Consolidate `note_meta()`: remove body-mention fallback, single source of truth (PEO-02)
-- [ ] 30-03-PLAN.md — `sb_person_context` MCP tool: full person context in one call (PEO-03)
-- [ ] 30-04-PLAN.md — Regression tests + Playwright people panel sign-off (PEO-04)
+- [ ] 30-01-PLAN.md — Unicode entity extraction + org extraction + people write-back at capture (PEO-01, PEO-02)
+- [ ] 30-02-PLAN.md — Remove body-mention fallback from note_meta() + sb-reindex --entities flag (PEO-02)
+- [ ] 30-03-PLAN.md — Enhance sb_person_context (column-based lookup, metrics) + new sb_list_people tool (PEO-03)
+- [ ] 30-04-PLAN.md — Enrich /people API + PeoplePage columns + regression tests (PEO-04)
 
 ---
 
@@ -456,7 +461,7 @@ Plans:
 **Depends on:** Phase 30
 **Milestone:** v4.0
 **Requirements**: CAP-01, CAP-02, CAP-03, CAP-04, CAP-05
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 Requirements detail:
 - **CAP-01** — `sb_capture_smart` accepts raw freeform text and returns N typed note suggestions (person / meeting / project / idea / note) with inferred titles, types, and cross-links; user confirms or edits before saving
@@ -480,7 +485,7 @@ Plans:
 **Depends on:** Phase 29
 **Milestone:** v4.0
 **Requirements**: ARCH-01, ARCH-02, ARCH-03, ARCH-04, ARCH-05, ARCH-06
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 Requirements detail:
 - **ARCH-01** — Notes DB stores paths relative to `BRAIN_ROOT`; absolute path resolution happens at query time; migration script converts existing rows
@@ -504,7 +509,7 @@ Plans:
 **Depends on:** Phase 32
 **Milestone:** v4.0
 **Requirements**: PERF-01, PERF-02, PERF-03, PERF-04, PERF-05
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 Requirements detail:
 - **PERF-01** — All list endpoints (`/people`, `/meetings`, `/projects`, `/actions`, and MCP equivalents) support `limit`/`offset` pagination; default limit 50; MCP tools expose `page` parameter
@@ -526,7 +531,7 @@ Plans:
 **Depends on:** Phase 30 (people graph needed for correct participant links)
 **Milestone:** v4.0
 **Requirements**: GUI-01, GUI-02, GUI-03, GUI-04, GUI-05, GUI-06
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 Requirements detail:
 - **GUI-01** — Action item checkboxes are interactive in ALL context panels (People detail, Meetings detail, Projects detail); checking one immediately marks it done via `PUT /actions/:id/done`
