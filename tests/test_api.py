@@ -426,6 +426,120 @@ class TestNoteMeta:
         )
 
 
+class TestNoteMetaPeopleColumn:
+    """Regression tests: people comes only from people column, not body-mention scanning."""
+
+    @pytest.fixture
+    def meta_env(self, tmp_path, monkeypatch):
+        """Isolated DB + BRAIN_PATH for note_meta people tests."""
+        import engine.db as _db
+        import engine.paths as _paths
+        from engine.db import init_schema
+
+        tmp_db = tmp_path / "test.db"
+        monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+        monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+        monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+
+        conn = get_connection()
+        init_schema(conn)
+        conn.commit()
+        conn.close()
+        return tmp_path
+
+    def test_note_meta_no_body_fallback(self, client, meta_env):
+        """Body mentions a person name, but people column is empty — person must NOT appear."""
+        tmp_path = meta_env
+
+        # Create a person note
+        person_dir = tmp_path / "person"
+        person_dir.mkdir()
+        person_note = person_dir / "john-doe.md"
+        person_note.write_text(
+            "---\ntitle: John Doe\ntype: person\npeople: []\n---\nProfile of John Doe.\n",
+            encoding="utf-8",
+        )
+
+        # Create a content note whose body mentions "John Doe" but people column is empty
+        content_note = tmp_path / "meeting-notes.md"
+        content_note.write_text(
+            "---\ntitle: Meeting Notes\ntype: note\npeople: []\n---\nWe met with John Doe today.\n",
+            encoding="utf-8",
+        )
+
+        # Insert both notes into SQLite
+        conn = get_connection()
+        conn.execute(
+            "INSERT INTO notes (path, title, type, body, people, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+            (str(person_note.resolve()), "John Doe", "person", "Profile of John Doe.", "[]"),
+        )
+        conn.execute(
+            "INSERT INTO notes (path, title, type, body, people, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+            (str(content_note.resolve()), "Meeting Notes", "note",
+             "We met with John Doe today.", "[]"),
+        )
+        conn.commit()
+        conn.close()
+
+        response = client.get(f"/notes/{content_note.resolve()}/meta")
+        assert response.status_code == 200
+        data = response.get_json()
+        people_titles = [p["title"] for p in data["people"]]
+        assert "John Doe" not in people_titles, (
+            f"Body-mention fallback must be gone — 'John Doe' should not appear when "
+            f"people column is empty. Got: {people_titles}"
+        )
+
+    def test_note_meta_people_from_column(self, client, meta_env):
+        """People column contains a person path — must resolve to {{path, title}}."""
+        tmp_path = meta_env
+
+        person_dir = tmp_path / "person"
+        person_dir.mkdir()
+        person_note = person_dir / "jane-smith.md"
+        person_note.write_text(
+            "---\ntitle: Jane Smith\ntype: person\n---\nProfile.\n",
+            encoding="utf-8",
+        )
+
+        person_path = str(person_note.resolve())
+        import json as _json
+        content_note = tmp_path / "project-note.md"
+        content_note.write_text(
+            f"---\ntitle: Project Note\ntype: note\npeople:\n  - {person_path}\n---\nDetails.\n",
+            encoding="utf-8",
+        )
+
+        conn = get_connection()
+        conn.execute(
+            "INSERT INTO notes (path, title, type, body, people, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+            (person_path, "Jane Smith", "person", "Profile.", "[]"),
+        )
+        conn.execute(
+            "INSERT INTO notes (path, title, type, body, people, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+            (str(content_note.resolve()), "Project Note", "note", "Details.",
+             _json.dumps([person_path])),
+        )
+        conn.commit()
+        conn.close()
+
+        response = client.get(f"/notes/{content_note.resolve()}/meta")
+        assert response.status_code == 200
+        data = response.get_json()
+        people_paths = [p["path"] for p in data["people"]]
+        people_titles = [p["title"] for p in data["people"]]
+        assert person_path in people_paths, (
+            f"Person from people column must appear. Got paths: {people_paths}"
+        )
+        assert "Jane Smith" in people_titles, (
+            f"Person title must be resolved. Got titles: {people_titles}"
+        )
+
+
 class TestTabBar:
     @pytest.mark.xfail(strict=False, reason="GPAG-01: tab bar not yet implemented")
     def test_tab_bar_html(self, client):

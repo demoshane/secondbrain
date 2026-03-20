@@ -726,19 +726,6 @@ def note_meta(note_path):
                     seen_paths.add(str(item))
                     people.append({"path": None, "title": str(item)})
 
-    # Body-mention detection: find person notes whose title appears in this note's body.
-    # This catches notes where people: [] in frontmatter but names appear in the body text
-    # (e.g. Finnish names missed by ASCII-only entity extraction regex).
-    if note_body:
-        person_rows = conn.execute(
-            "SELECT path, title FROM notes WHERE type IN ('person', 'people')"
-        ).fetchall()
-        body_lower = note_body.lower()
-        for pr in person_rows:
-            if pr["path"] not in seen_paths and pr["title"] and pr["title"].lower() in body_lower:
-                seen_paths.add(pr["path"])
-                people.append({"path": pr["path"], "title": pr["title"]})
-
     conn.close()
     return jsonify({"backlinks": backlinks, "related": related, "people": people})
 
