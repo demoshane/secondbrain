@@ -303,7 +303,9 @@ class TestClassifySmart:
 @pytest.mark.xfail(strict=False, reason="CAP-01: sb_capture_smart returns suggestions — Phase 31-01")
 def test_capture_smart_returns_suggestions(isolated_brain, monkeypatch):
     import engine.mcp_server as mcp_mod
+    import engine.paths
     monkeypatch.setattr(engine.paths, "BRAIN_ROOT", isolated_brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", isolated_brain)
     result = mcp_mod.sb_capture_smart("# Meeting\nDiscussed Q1.\n---\n# Alice\nRole: CTO")
     assert result["status"] == "created"
     assert len(result["notes"]) >= 2
@@ -316,6 +318,7 @@ def test_multi_context_atomic_save(isolated_brain, monkeypatch):
     import engine.mcp_server as mcp_mod
     import engine.paths
     monkeypatch.setattr(engine.paths, "BRAIN_ROOT", isolated_brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", isolated_brain)
     content = "# Project X\nMilestone: ship by April.\n\n# Idea\nWould be cool to add AI."
     result = mcp_mod.sb_capture_smart(content)
     assert result["status"] == "created"
@@ -327,6 +330,7 @@ def test_dedup_three_path(isolated_brain, monkeypatch):
     import engine.mcp_server as mcp_mod
     import engine.paths
     monkeypatch.setattr(engine.paths, "BRAIN_ROOT", isolated_brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", isolated_brain)
     content = "# Exact Duplicate Note\nThis is unique content that will be duplicated."
     mcp_mod.sb_capture_smart(content)
     result2 = mcp_mod.sb_capture_smart(content)
@@ -340,6 +344,7 @@ def test_dormant_resurfacing(isolated_brain, monkeypatch):
     import engine.mcp_server as mcp_mod
     import engine.paths
     monkeypatch.setattr(engine.paths, "BRAIN_ROOT", isolated_brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", isolated_brain)
     result = mcp_mod.sb_capture_smart("# Stale Topic\nThought about this a year ago.")
     # dormant hints in result
     assert "dormant" in str(result).lower() or "resurfaced" in str(result).lower()
@@ -350,6 +355,7 @@ def test_similar_relationship_created(isolated_brain, monkeypatch):
     import engine.mcp_server as mcp_mod
     import engine.paths
     monkeypatch.setattr(engine.paths, "BRAIN_ROOT", isolated_brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", isolated_brain)
     content1 = "# Alpha Project\nBuilding a search engine for brain notes."
     content2 = "# Beta Project\nSearch and indexing engine for personal notes."
     mcp_mod.sb_capture_smart(content1)
@@ -365,6 +371,7 @@ def test_async_hooks_nonblocking(isolated_brain, monkeypatch):
     import engine.mcp_server as mcp_mod
     import engine.paths
     monkeypatch.setattr(engine.paths, "BRAIN_ROOT", isolated_brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", isolated_brain)
     start = time.time()
     mcp_mod.sb_capture_smart("# Quick Note\nThis should return fast even with hooks.")
     elapsed = time.time() - start
@@ -376,6 +383,7 @@ def test_bidirectional_relationships(isolated_brain, monkeypatch):
     import engine.mcp_server as mcp_mod
     import engine.paths
     monkeypatch.setattr(engine.paths, "BRAIN_ROOT", isolated_brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", isolated_brain)
     content = "# Meeting with Alice\nDiscussed project.\n---\n# Alice Smith\nRole: CEO"
     result = mcp_mod.sb_capture_smart(content)
     # Both notes should reference each other in links
@@ -390,6 +398,7 @@ def test_entity_resolution_links_existing(isolated_brain, monkeypatch):
     import engine.mcp_server as mcp_mod
     import engine.paths
     monkeypatch.setattr(engine.paths, "BRAIN_ROOT", isolated_brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", isolated_brain)
     # Capture an existing person first
     mcp_mod.sb_capture("Alice Smith", "CTO at Acme", note_type="person")
     # Now capture a meeting that mentions Alice Smith
@@ -405,6 +414,7 @@ def test_batch_links_field(isolated_brain, monkeypatch):
     import engine.mcp_server as mcp_mod
     import engine.paths
     monkeypatch.setattr(engine.paths, "BRAIN_ROOT", isolated_brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", isolated_brain)
     content = "# Meeting with Alice\nDiscussed project.\n---\n# Alice Smith\nRole: Lead"
     result = mcp_mod.sb_capture_smart(content)
     notes = result.get("notes", [])
@@ -418,6 +428,7 @@ def test_sensitivity_classify_smart(isolated_brain, monkeypatch):
     import engine.mcp_server as mcp_mod
     import engine.paths
     monkeypatch.setattr(engine.paths, "BRAIN_ROOT", isolated_brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", isolated_brain)
     content = "# Contact\nEmail: secret@private.com Phone: +1 800 555 1234"
     result = mcp_mod.sb_capture_smart(content)
     notes = result.get("notes", [])
@@ -430,6 +441,7 @@ def test_batch_dedup_warnings(isolated_brain, monkeypatch):
     import engine.mcp_server as mcp_mod
     import engine.paths
     monkeypatch.setattr(engine.paths, "BRAIN_ROOT", isolated_brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", isolated_brain)
     content = "# Unique Note\nThis note is special and unique."
     mcp_mod.sb_capture_smart(content)
     result2 = mcp_mod.sb_capture_smart(content)
@@ -442,6 +454,7 @@ def test_smart_capture_performance(isolated_brain, monkeypatch):
     import engine.mcp_server as mcp_mod
     import engine.paths
     monkeypatch.setattr(engine.paths, "BRAIN_ROOT", isolated_brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", isolated_brain)
     content = "\n\n".join([
         f"# Section {i}\nContent for section {i} with reasonable body text for testing."
         for i in range(5)

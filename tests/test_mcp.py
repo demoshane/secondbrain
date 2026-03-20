@@ -246,37 +246,39 @@ def test_sb_tools():
 # ---------------------------------------------------------------------------
 
 def test_sb_capture_smart_returns_suggestions(isolated_mcp_brain):
-    """Raw text containing meeting keywords returns at least one suggestion with type='meeting'."""
+    """Raw text containing meeting keywords auto-saves and returns notes with type='meeting'."""
     result = mcp_mod.sb_capture_smart(
         "We had a meeting today and discussed the Q1 roadmap with attendees from engineering."
     )
-    assert "suggestions" in result
-    assert len(result["suggestions"]) >= 1
-    types = [s["type"] for s in result["suggestions"]]
+    assert result["status"] == "created"
+    assert "notes" in result
+    assert len(result["notes"]) >= 1
+    types = [s["type"] for s in result["notes"]]
     assert "meeting" in types
 
 
 def test_sb_capture_smart_project_hint(isolated_mcp_brain):
-    """Text containing project keywords returns a suggestion with type='project'."""
+    """Text containing project keywords auto-saves and returns notes with type='project'."""
     result = mcp_mod.sb_capture_smart(
         "The project milestone for Q2 is approaching. We have a deadline next sprint."
     )
-    assert "suggestions" in result
-    types = [s["type"] for s in result["suggestions"]]
+    assert result["status"] == "created"
+    assert "notes" in result
+    types = [s["type"] for s in result["notes"]]
     assert "project" in types
 
 
 def test_sb_capture_smart_default_note(isolated_mcp_brain):
-    """Plain text with no keywords returns suggestion with type 'note' or 'idea'."""
+    """Plain text with no keywords auto-saves and returns notes with type 'note' or 'idea'."""
     result = mcp_mod.sb_capture_smart("This is just some random text without any special keywords.")
-    assert "suggestions" in result
-    assert len(result["suggestions"]) >= 1
-    types = [s["type"] for s in result["suggestions"]]
+    assert result["status"] == "created"
+    assert len(result["notes"]) >= 1
+    types = [s["type"] for s in result["notes"]]
     assert any(t in ("note", "idea") for t in types)
 
 
-def test_sb_capture_smart_no_auto_save(isolated_mcp_brain):
-    """Calling sb_capture_smart must NOT insert anything into the notes table."""
+def test_sb_capture_smart_auto_saves(isolated_mcp_brain):
+    """Calling sb_capture_smart DOES insert notes into the notes table (auto-save, no confirm)."""
     import engine.db as _db
     conn = _db.get_connection()
     count_before = conn.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
@@ -288,17 +290,15 @@ def test_sb_capture_smart_no_auto_save(isolated_mcp_brain):
     count_after = conn.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
     conn.close()
 
-    assert count_after == count_before
+    assert count_after > count_before
 
 
-def test_sb_capture_smart_returns_confirm_token(isolated_mcp_brain):
-    """Response includes a non-empty confirm_token string and a hint."""
+def test_sb_capture_smart_no_confirm_token(isolated_mcp_brain):
+    """Response must NOT include confirm_token — auto-save, no confirm round-trip."""
     result = mcp_mod.sb_capture_smart("Some freeform capture text.")
-    assert "confirm_token" in result
-    assert isinstance(result["confirm_token"], str)
-    assert len(result["confirm_token"]) > 0
-    assert "hint" in result
-    assert "sb_capture_batch" in result["hint"]
+    assert "confirm_token" not in result
+    assert "capture_session" in result
+    assert result["status"] == "created"
 
 
 # ---------------------------------------------------------------------------

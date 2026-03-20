@@ -538,79 +538,104 @@ def sb_anonymize(path: str, tokens: list[str] | None = None, confirm_token: str 
 
 @mcp.tool()
 def sb_capture_smart(content: str) -> dict:
-    """Classify freeform text into 1-N typed note suggestions without saving anything.
+    """Segment freeform text into typed notes and save them atomically.
 
-    Returns suggestions with title, type, body, and cross-links inferred from the
-    content. Pass the suggestions list to sb_capture_batch to commit them.
+    Two-pass segmentation splits the blob on structural markers (headings, ---,
+    date stamps) and name-cluster shifts.  Each segment is classified, PII-scanned,
+    and saved immediately — no confirm round-trip required.
+
+    Co-captured notes are linked via 'co-captured' relationships and share a
+    capture_session UUID so they can be retrieved as a group.
 
     Args:
-        content: Freeform text to classify and segment.
+        content: Freeform text to classify, segment, and save.
 
     Returns:
-        {"suggestions": [{"title": str, "type": str, "body": str, "links": [str]}, ...],
-         "confirm_token": str,
-         "hint": str}
+        {"status": "created", "notes": [...], "capture_session": str, "count": int}
+        Each note dict contains: title, type, path, sensitivity, links, entities.
     """
+    import itertools
     import re as _re
+    import uuid
 
-    def _classify_segment(segment: str) -> str:
-        low = segment.lower()
-        if _re.search(r"meeting|discussed|attendees|agenda", low):
-            return "meeting"
-        # Person: Name-like pattern + contact/role signal in first 200 chars
-        if _re.search(r"[A-Z][a-z]+ [A-Z][a-z]+", segment[:200]) and \
-                _re.search(r"role|contact|email|phone|linkedin", low):
-            return "person"
-        if _re.search(r"project|milestone|deadline|sprint|roadmap", low):
-            return "project"
-        if _re.search(r"idea|what if|maybe|consider|brainstorm", low):
-            return "idea"
-        return "note"
+    from engine.segmenter import segment_blob
+    from engine.smart_classifier import classify_smart
 
-    def _derive_title(segment: str) -> str:
-        for line in segment.splitlines():
-            stripped = line.strip().lstrip("#").strip()
-            if stripped:
-                return stripped[:80]
-        return "Untitled"
+    _ensure_ready()
 
-    def _slugify(title: str) -> str:
-        import re as _re2
-        return _re2.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+    if not content or not content.strip():
+        return {"status": "created", "notes": [], "capture_session": str(uuid.uuid4()), "count": 0}
 
-    # Segment: split by double newline if content is >= 500 chars, else single segment
-    if len(content) < 500:
-        raw_segments = [content]
-    else:
-        raw_segments = [s.strip() for s in content.split("\n\n") if s.strip()]
-        if not raw_segments:
-            raw_segments = [content]
+    capture_session = str(uuid.uuid4())
+    segments = segment_blob(content)
 
-    suggestions = []
-    for seg in raw_segments:
-        note_type = _classify_segment(seg)
-        title = _derive_title(seg)
-        suggestions.append({
-            "title": title,
-            "type": note_type,
-            "body": seg,
-            "links": [],
-        })
+    conn = get_connection()
+    saved_notes: list[dict] = []
 
-    # Infer cross-links: if meeting + person both present, link person slugs into meeting
-    if len(suggestions) > 1:
-        person_slugs = [
-            _slugify(s["title"]) for s in suggestions if s["type"] == "person"
-        ]
-        for s in suggestions:
-            if s["type"] == "meeting" and person_slugs:
-                s["links"] = person_slugs
+    try:
+        for seg in segments:
+            title = seg["title"]
+            note_type = seg["type"]
+            body = seg["body"]
+            entities = seg.get("entities", {})
+            seg_links = seg.get("links", [])
 
-    confirm_token = _issue_token()
+            # PII classification — never downgrade
+            sensitivity, _reason = classify_smart(body)
+
+            # Entity resolution placeholder (CAP-08, implemented in plan 31-02):
+            # For now, pass extracted people directly to capture_note.
+            people = entities.get("people", [])
+
+            note_path = capture_note(
+                note_type=note_type,
+                title=title,
+                body=body,
+                tags=[],
+                people=people,
+                content_sensitivity=sensitivity,
+                brain_root=BRAIN_ROOT,
+                conn=conn,
+            )
+
+            saved_notes.append({
+                "title": title,
+                "type": note_type,
+                "path": str(note_path),
+                "sensitivity": sensitivity,
+                "links": seg_links,
+                "entities": entities,
+                "capture_session": capture_session,
+            })
+
+        # Create co-captured relationships between all saved notes
+        paths = [n["path"] for n in saved_notes]
+        for src_path, tgt_path in itertools.combinations(paths, 2):
+            try:
+                conn.execute(
+                    "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?, ?, ?)",
+                    (src_path, tgt_path, "co-captured"),
+                )
+            except Exception:
+                pass  # Relationship table missing or constraint — non-fatal
+
+        # Infer cross-links: meeting + person segments → add person slugs to meeting links
+        if len(saved_notes) > 1:
+            person_paths = [n["path"] for n in saved_notes if n["type"] in ("person", "people")]
+            for note in saved_notes:
+                if note["type"] == "meeting" and person_paths:
+                    note["links"] = person_paths
+
+        conn.commit()
+
+    finally:
+        conn.close()
+
     return {
-        "suggestions": suggestions,
-        "confirm_token": confirm_token,
-        "hint": "Call sb_capture_batch with suggestions to save.",
+        "status": "created",
+        "notes": saved_notes,
+        "capture_session": capture_session,
+        "count": len(saved_notes),
     }
 
 
