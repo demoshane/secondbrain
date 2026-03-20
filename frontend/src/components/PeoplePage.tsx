@@ -32,6 +32,7 @@ export function PeoplePage() {
   const [people, setPeople] = useState<PersonSummary[]>([])
   const [filter, setFilter] = useState('')
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
+  const [selectedPerson, setSelectedPerson] = useState<PersonSummary | null>(null)
   const [personNote, setPersonNote] = useState<{ body: string; title: string } | null>(null)
   const [meetings, setMeetings] = useState<{ path: string; title: string }[]>([])
   const [backlinks, setBacklinks] = useState<{ path: string; title: string }[]>([])
@@ -48,6 +49,8 @@ export function PeoplePage() {
   // Fetch person detail on selectedPath change
   useEffect(() => {
     if (!selectedPath) return
+    const person = people.find(p => p.path === selectedPath) ?? null
+    setSelectedPerson(person)
     const enc = encodeURIComponent(selectedPath)
     Promise.all([
       fetch(`${getAPI()}/notes/${enc}`).then(r => r.json()),
@@ -55,12 +58,21 @@ export function PeoplePage() {
       fetch(`${getAPI()}/actions?assignee=${enc}`).then(r => r.json()),
     ]).then(([note, meta, acts]) => {
       setPersonNote({ body: note.body ?? '', title: note.title ?? '' })
+      // Use meta.meetings if available (type='meeting' filtered server-side),
+      // otherwise fall back to filtering backlinks by type
+      const metaMeetings: { path: string; title: string }[] = meta.meetings ?? []
       const bl: { path: string; title: string }[] = meta.backlinks ?? []
-      setMeetings(bl.filter(b => b.path.includes('/meetings/')))
-      setBacklinks(bl.filter(b => !b.path.includes('/meetings/')))
+      if (metaMeetings.length > 0) {
+        setMeetings(metaMeetings)
+        setBacklinks(bl)
+      } else {
+        // Fallback: filter backlinks by type field if available, else path heuristic
+        setMeetings(bl.filter(b => (b as { path: string; title: string; type?: string }).type === 'meeting'))
+        setBacklinks(bl.filter(b => (b as { path: string; title: string; type?: string }).type !== 'meeting'))
+      }
       setActions(acts.actions ?? [])
     }).catch(() => {})
-  }, [selectedPath])
+  }, [selectedPath, people])
 
   async function handleOpenInNotes() {
     if (!selectedPath) return
@@ -88,8 +100,9 @@ export function PeoplePage() {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              <TableHead>Org</TableHead>
+              <TableHead className="w-24">Last Interaction</TableHead>
               <TableHead className="w-16 text-right">Actions</TableHead>
-              <TableHead className="w-24">Last Note</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -100,13 +113,22 @@ export function PeoplePage() {
                 onClick={() => setSelectedPath(p.path)}
               >
                 <TableCell className="font-medium">{p.title}</TableCell>
-                <TableCell className="text-right">{p.open_actions}</TableCell>
-                <TableCell className="text-muted-foreground">{p.updated_at.slice(0, 10)}</TableCell>
+                <TableCell className="text-muted-foreground">{p.org || '—'}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {p.last_interaction ? p.last_interaction.slice(0, 10) : '—'}
+                </TableCell>
+                <TableCell className="text-right">
+                  {p.open_actions > 0 ? (
+                    <span className="inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-xs w-5 h-5">
+                      {p.open_actions}
+                    </span>
+                  ) : '—'}
+                </TableCell>
               </TableRow>
             ))}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-muted-foreground py-4">
+                <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
                   No people found
                 </TableCell>
               </TableRow>
@@ -124,7 +146,27 @@ export function PeoplePage() {
         ) : (
           <div>
             <div className="flex items-center justify-between px-4 py-3 border-b">
-              <h2 className="text-lg font-semibold">{personNote?.title ?? ''}</h2>
+              <div>
+                <h2 className="text-lg font-semibold">{personNote?.title ?? ''}</h2>
+                <div className="flex gap-4 mt-1 text-sm text-muted-foreground">
+                  {selectedPerson?.org && (
+                    <span>
+                      <span className="font-medium">Organization:</span> {selectedPerson.org}
+                    </span>
+                  )}
+                  {selectedPerson?.last_interaction && (
+                    <span>
+                      <span className="font-medium">Last Interaction:</span>{' '}
+                      {selectedPerson.last_interaction.slice(0, 10)}
+                    </span>
+                  )}
+                  {selectedPerson !== null && (
+                    <span>
+                      <span className="font-medium">Mentions:</span> {selectedPerson.mention_count}
+                    </span>
+                  )}
+                </div>
+              </div>
               <Button size="sm" variant="outline" onClick={handleOpenInNotes}>
                 Open in Notes
               </Button>
