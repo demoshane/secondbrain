@@ -393,10 +393,10 @@ Plans:
 | 27.8. Intelligence Page | v3.0 | 3/3 | Complete | 2026-03-18 |
 | 28. TODO & Gap Resolution | 8/8 | Complete    | 2026-03-19 | - |
 | 29. Add link capture | 4/4 | Complete   | 2026-03-19 | - |
-| 30. People Graph Hardening | 3/4 | In Progress|  | - |
-| 31. Smart Capture & Multi-Context Intelligence | v4.0 | 0/4 | Not started | - |
-| 32. Architecture Hardening | v4.0 | 0/4 | Not started | - |
-| 33. Performance & Scale Hardening | v4.0 | 0/3 | Not started | - |
+| 30. People Graph Hardening | 4/4 | Complete | 2026-03-20 | - |
+| 31. Smart Capture & Multi-Context Intelligence | v4.0 | 0/6 | Not started | - |
+| 32. Architecture Hardening | v4.0 | 0/6 | Not started | - |
+| 33. Performance & Scale Hardening | v4.0 | 0/5 | Not started | - |
 | 34. GUI Management Productivity | v4.0 | 0/4 | Not started | - |
 | 35. Full Codebase Review & Remediation | v4.0 | 0/0 | Not started | - |
 
@@ -439,29 +439,30 @@ Plans:
 **Depends on:** Phase 29
 **Milestone:** v4.0
 **Requirements**: PEO-01, PEO-02, PEO-03, PEO-04
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
+**Status:** Complete (verified 2026-03-20)
 
 Requirements detail:
 - **PEO-01** — Entity extraction recognises non-ASCII/Finnish names (replace `[A-Z][a-z]+` with Unicode-aware pattern)
-- **PEO-02** — Captured note's `people` frontmatter column is populated from entity extraction at write time; body-mention fallback in `note_meta()` removed
+- **PEO-02** — Captured note's `people` frontmatter column is populated from entity extraction at write time; body-mention fallback in `note_meta()` removed; MCP `sb_capture` accepts optional `people` param and merges user-supplied + extracted (matching CLI behavior)
 - **PEO-03** — `sb_person_context` MCP tool returns in one call: person note body, all meetings they appear in, all action items assigned to or mentioning them, and all notes that mention them by name (chronological)
 - **PEO-04** — People page and right panel reflect PEO-01/02 correctly; person type isolation regression tests pass
 
 Plans:
-- [ ] 30-01-PLAN.md — Unicode entity extraction + org extraction + people write-back at capture (PEO-01, PEO-02)
-- [ ] 30-02-PLAN.md — Remove body-mention fallback from note_meta() + sb-reindex --entities flag (PEO-02)
-- [ ] 30-03-PLAN.md — Enhance sb_person_context (column-based lookup, metrics) + new sb_list_people tool (PEO-03)
-- [ ] 30-04-PLAN.md — Enrich /people API + PeoplePage columns + regression tests (PEO-04)
+- [x] 30-01-PLAN.md — Unicode entity extraction + org extraction + people write-back at capture (PEO-01, PEO-02) (completed 2026-03-20)
+- [x] 30-02-PLAN.md — Remove body-mention fallback from note_meta() + sb-reindex --entities flag (PEO-02) (completed 2026-03-20)
+- [x] 30-03-PLAN.md — Enhance sb_person_context (column-based lookup, metrics) + new sb_list_people tool (PEO-03) (completed 2026-03-20)
+- [x] 30-04-PLAN.md — Enrich /people API + PeoplePage columns + regression tests (PEO-04) (completed 2026-03-20)
 
 ---
 
 ### Phase 31: Smart Capture & Multi-Context Intelligence
 
-**Goal:** Capture a raw blob of text in one MCP call and have the brain intelligently split it into multiple typed, linked notes; resurface dormant related knowledge after every capture; deduplicate by auto-linking near-duplicates rather than blocking
+**Goal:** Capture a raw blob of text (e.g. meeting notes) in one MCP call and have the brain intelligently split it into multiple typed, linked notes with bidirectional backlinks; resolve existing people/projects instead of duplicating; create stubs for new entities; resurface dormant related knowledge after every capture; deduplicate by auto-linking near-duplicates rather than blocking
 **Depends on:** Phase 30
 **Milestone:** v4.0
-**Requirements**: CAP-01, CAP-02, CAP-03, CAP-04, CAP-05
-**Plans:** 4 plans
+**Requirements**: CAP-01, CAP-02, CAP-03, CAP-04, CAP-05, CAP-06, CAP-07, CAP-08, CAP-09, CAP-10, CAP-11
+**Plans:** 6 plans
 
 Requirements detail:
 - **CAP-01** — `sb_capture_smart` accepts raw freeform text and returns N typed note suggestions (person / meeting / project / idea / note) with inferred titles, types, and cross-links; user confirms or edits before saving
@@ -469,23 +470,30 @@ Requirements detail:
 - **CAP-03** — `sb_capture_smart` is dedup-aware: before proposing new notes, it checks for near-duplicates and either merges the suggestion into the existing note or proposes a link
 - **CAP-04** — After every `sb_capture` or `sb_capture_smart` call, the MCP response includes up to 3 semantically related notes last accessed > 30 days ago ("you wrote something related: …") — dormant knowledge resurfacing
 - **CAP-05** — When a near-duplicate is confirmed saved anyway, a `similar` relationship is automatically created between the two notes
+- **CAP-06** — After `sb_capture` and `sb_capture_batch`, intelligence hooks (action item extraction, connection detection) run asynchronously; results appear in next `sb_recap` or GUI inbox — no blocking of the capture response
+- **CAP-07** — Bidirectional relationship queries: all relationship lookups (backlinks panel, person context, connections) resolve both directions from a single row — if meeting→person exists, querying from person also finds the meeting. `sb_link` optionally accepts `bidirectional=True` to insert both directions explicitly
+- **CAP-08** — Existing note resolution: `sb_capture_smart` checks for existing person/project notes before suggesting new ones; matches by name (FTS5 + fuzzy); links to existing note instead of duplicating; creates minimal stub notes only for genuinely new entities (person stubs get `note_type: person` + name as title)
+- **CAP-09** — `sb_capture_batch` processes `links` field on each note dict: after all notes are saved, creates bidirectional relationships between notes using the links metadata (slug → path resolution)
+- **CAP-10** — MCP `sb_capture` and `sb_capture_batch` auto-classify sensitivity via the same `classify()` function used by CLI; user-supplied `sensitivity` param overrides but never downgrades (if classifier says "pii" and user says "public", "pii" wins)
+- **CAP-11** — `sb_capture_batch` runs dedup check per note (same logic as `sb_capture`); near-duplicates flagged in response with `dedup_warnings` per note index; batch still saves unless caller opts out
 
 Plans:
 - [ ] 31-01-PLAN.md — `sb_capture_smart`: AI content parser → typed note suggestion list (CAP-01)
-- [ ] 31-02-PLAN.md — Multi-context segmentation: one input → N linked notes atomically (CAP-02, CAP-03)
-- [ ] 31-03-PLAN.md — Dormant resurfacing in MCP capture response + auto-link near-duplicates (CAP-04, CAP-05)
-- [ ] 31-04-PLAN.md — GUI Smart Capture button: top nav bar button opens modal with paste area → calls `sb_capture_smart` → shows typed note suggestions → user confirms → saves (GUI-01)
-- [ ] 31-05-PLAN.md — MCP integration tests + overdue action surfacing in recap + sign-off
+- [ ] 31-02-PLAN.md — Multi-context segmentation: one input → N linked notes atomically + existing note resolution + auto-stubs (CAP-02, CAP-03, CAP-08)
+- [ ] 31-03-PLAN.md — Dormant resurfacing in MCP capture response + auto-link near-duplicates + async intelligence hooks on MCP captures (CAP-04, CAP-05, CAP-06)
+- [ ] 31-04-PLAN.md — Bidirectional backlinks + sb_capture_batch links + MCP sensitivity classification + batch dedup (CAP-07, CAP-09, CAP-10, CAP-11)
+- [ ] 31-05-PLAN.md — GUI Smart Capture button: top nav bar button opens modal with paste area → calls `sb_capture_smart` → shows typed note suggestions → user confirms → saves (GUI-01)
+- [ ] 31-06-PLAN.md — MCP integration tests + overdue action surfacing in recap + sign-off
 
 ---
 
 ### Phase 32: Architecture Hardening
 
-**Goal:** Fix the structural issues that will cause data loss or pain as the brain grows — relative path storage, FK cascade, connection leak safety, tags as a proper indexed structure, and action item lifecycle management
+**Goal:** Fix the structural issues that will cause data loss or pain as the brain grows — relative path storage, FK cascade, connection leak safety, tags as a proper indexed structure, action item lifecycle management, and security/consistency quick fixes
 **Depends on:** Phase 29
 **Milestone:** v4.0
-**Requirements**: ARCH-01, ARCH-02, ARCH-03, ARCH-04, ARCH-05, ARCH-06
-**Plans:** 4 plans
+**Requirements**: ARCH-01, ARCH-02, ARCH-03, ARCH-04, ARCH-05, ARCH-06, ARCH-07, ARCH-08, ARCH-09, ARCH-10, ARCH-11, ARCH-12, ARCH-13, ARCH-14, ARCH-15, ARCH-16
+**Plans:** 6 plans
 
 Requirements detail:
 - **ARCH-01** — Notes DB stores paths relative to `BRAIN_ROOT`; absolute path resolution happens at query time; migration script converts existing rows
@@ -494,12 +502,24 @@ Requirements detail:
 - **ARCH-04** — File upload endpoint enforces 50 MB size cap; `_SlashNormMiddleware` removed (test fixtures fixed to not produce double-slash paths)
 - **ARCH-05** — `tags` column replaced by `note_tags(note_path, tag)` junction table; migration converts existing JSON-encoded tags; all tag filter queries use the indexed table
 - **ARCH-06** — Completed `action_items` older than 90 days are moved to `action_items_archive` table; `audit_log` has index on `(created_at, note_path)`; `sb-health` reports archive counts
+- **ARCH-07** — `move_file()` API endpoint validates both src and dst are within `BRAIN_ROOT` (same path traversal guard as `delete_file()`); `note_meta()` removes redundant path re-resolution that shadows the validated path
+- **ARCH-08** — `forget_person()` wraps entire cascade in a single transaction; file removal AFTER DB commit; **also cleans forgotten person's name/path from `people` JSON column in all surviving notes + their frontmatter on disk** (Phase 30 review finding H1 — GDPR gap)
+- **ARCH-09** — Entity extraction in `capture.py` logs failures via `logging.warning()` instead of bare `except: pass`; `search_semantic()` uses `logging.warning()` instead of `print()`; `check_connections()` logs when skipping due to budget exhaustion
+- **ARCH-10** — Extract shared `list_people_with_metrics(conn)` service function into `engine/people.py`; both `/people` API and `sb_list_people` MCP call it; identical field names (`mention_count`, `last_interaction`, `org`, `open_actions`, `total_meetings`); test asserting field name parity (Phase 30 review finding H5)
+- **ARCH-11** — `sb_list_people` and `/people` API match people column entries by **both path AND exact title** (not path-only); fixes zero-metrics bug where name-based people column entries are invisible (Phase 30 review finding H2)
+- **ARCH-12** — `sb-reindex --entities` merges extracted people with existing frontmatter `people` field from the `.md` file on disk, instead of overwriting with extraction-only data; preserves user-supplied people entries (Phase 30 review finding H3)
+- **ARCH-13** — `sb_edit` and `update_note()` re-run `extract_entities()` on the new body and update the `people` + `entities` DB columns; same merge logic as `capture_note` (Phase 30 review finding H6)
+- **ARCH-14** — Add `_escape_like()` helper; all LIKE patterns using user-controlled strings (`sb_person_context` meetings/mentions/actions, `note_meta` backlinks) escape `%` and `_` wildcards; `sb_person_context` LIKE uses exact title match instead of substring (`pe.value = ?` not `LIKE %?%`) to prevent false positives like "Anna" matching "Johanna" (Phase 30 review findings M1, M2)
+- **ARCH-15** — Drop useless `idx_notes_people` index (B-tree on JSON text, never used by `json_each`); add `note_people(note_path, person_ref)` junction table with indexes on both columns; migrate from `json_each` queries to indexed joins; `capture_note` and `update_note` populate junction table alongside JSON column (Phase 30 review findings H4, M3)
+- **ARCH-16** — Define `PERSON_TYPES = ('person', 'people')` constant in `engine/db.py`; replace all hardcoded `type IN ('person', 'people')` across api.py, mcp_server.py, capture.py with the constant; add NULL/malformed entities JSON handling (`json.loads` wrapped in try/except with `{}` fallback) in `sb_person_context` and `sb_list_people` (Phase 30 review findings L2, M7)
 
 Plans:
 - [ ] 32-01-PLAN.md — Relative path migration: DB schema change + migration script + all read/write path resolution (ARCH-01)
 - [ ] 32-02-PLAN.md — FK cascade + connection safety + upload cap + thread-safe suppress_next_delete (ARCH-02, ARCH-03, ARCH-04)
-- [ ] 32-03-PLAN.md — Tags junction table migration + remove `_SlashNormMiddleware` (ARCH-05)
+- [ ] 32-03-PLAN.md — Tags junction table + `note_people` junction table + drop useless index + remove `_SlashNormMiddleware` (ARCH-05, ARCH-15)
 - [ ] 32-04-PLAN.md — Action item archiving + audit_log index + regression tests + sign-off (ARCH-06)
+- [ ] 32-05-PLAN.md — Security + consistency: move_file path guard, note_meta fix, LIKE escape helper, atomic forget_person with people column cleanup, silent failure logging, PERSON_TYPES constant, NULL entities handling (ARCH-07, ARCH-08, ARCH-09, ARCH-14, ARCH-16)
+- [ ] 32-06-PLAN.md — People graph correctness: shared service function, path+name matching, reindex merge, entity extraction on edit, field name unification + parity test + test hardening (exact compound name assertions, LIKE fallback test, NULL entities test, body-fallback regression guard, reindex self-reference test) (ARCH-10, ARCH-11, ARCH-12, ARCH-13)
 
 ---
 
@@ -508,20 +528,24 @@ Plans:
 **Goal:** Ensure the system stays fast and responsive as the brain grows to thousands of notes — paginate all list endpoints, gate expensive O(n) operations, optimise reindex, and cap LLM context for recap/digest
 **Depends on:** Phase 32
 **Milestone:** v4.0
-**Requirements**: PERF-01, PERF-02, PERF-03, PERF-04, PERF-05
+**Requirements**: PERF-01, PERF-02, PERF-03, PERF-04, PERF-05, PERF-06
 **Plans:** 4 plans
 
 Requirements detail:
-- **PERF-01** — All list endpoints (`/people`, `/meetings`, `/projects`, `/actions`, and MCP equivalents) support `limit`/`offset` pagination; default limit 50; MCP tools expose `page` parameter
+- **PERF-01** — All list endpoints (`/notes`, `/people`, `/meetings`, `/projects`, `/actions`, `/links`, and MCP equivalents) support `limit`/`offset` pagination; default limit 50; MCP tools expose `page` parameter. NOTE: `/notes` currently has NO pagination — this is the highest-impact fix
 - **PERF-02** — `check_connections()` skips KNN pass when brain has < 200 notes (configurable); above threshold uses HNSW approximate search if sqlite-vec supports it, otherwise limits to top-50 candidates
-- **PERF-03** — `sb-reindex --fast` rebuilds FTS5 in one `INSERT INTO notes_fts(notes_fts) VALUES ('rebuild')` pass rather than per-row triggers; total reindex time < 5s for 5k notes
+- **PERF-03** — `sb-reindex --fast` rebuilds FTS5 in one `INSERT INTO notes_fts(notes_fts) VALUES ('rebuild')` pass rather than per-row triggers; total reindex time < 5s for 5k notes; `--entities` pass caches frontmatter from first pass instead of re-reading every file from disk (Phase 30 review finding M5)
 - **PERF-04** — `generate_recap_on_demand()` and `generate_digest()` enforce a token budget (default 4000 tokens of note content); oldest/shortest notes truncated first; budget configurable in `~/.config/second-brain/config.toml`
 - **PERF-05** — Embedding computation runs in a queue-based background worker (batch every 10s) rather than inline per capture; embedding staleness is visible in `sb-health` output
+- **PERF-06** — Entity-based filtering: API and MCP support filtering notes by extracted entity (org, topic, place) via query param; entities stored in DB are queryable without full-text search
+- **PERF-07** — `sb_person_context` consolidates redundant full-table scans: meetings + mentions queries combined into a single `json_each` scan with application-level partitioning by type; reduces from 4 DB queries to 2 (Phase 30 review finding M4)
 
 Plans:
 - [ ] 33-01-PLAN.md — Pagination on all list endpoints + MCP page param (PERF-01)
 - [ ] 33-02-PLAN.md — `check_connections` gate + fast reindex mode (PERF-02, PERF-03)
 - [ ] 33-03-PLAN.md — Recap/digest token budget + batched embedding worker + health visibility (PERF-04, PERF-05)
+- [ ] 33-04-PLAN.md — Entity-based filtering API + MCP support (PERF-06)
+- [ ] 33-05-PLAN.md — sb_person_context query consolidation + reindex caching (PERF-07, PERF-03 entities pass)
 
 ---
 
@@ -530,7 +554,7 @@ Plans:
 **Goal:** Make the management GUI genuinely productive — actions completable everywhere, entity pages self-sufficient with create/delete, a command palette for keyboard-first navigation, and Intelligence page items that are actionable not just informational
 **Depends on:** Phase 30 (people graph needed for correct participant links)
 **Milestone:** v4.0
-**Requirements**: GUI-01, GUI-02, GUI-03, GUI-04, GUI-05, GUI-06
+**Requirements**: GUI-01, GUI-02, GUI-03, GUI-04, GUI-05, GUI-06, GUI-07
 **Plans:** 4 plans
 
 Requirements detail:
@@ -538,12 +562,34 @@ Requirements detail:
 - **GUI-02** — Actions page shows a clickable source note title per action; clicking opens that note in the Notes tab
 - **GUI-03** — Cmd+K command palette: fuzzy search across all notes, people, meetings, projects; keyboard-navigable; opens selected item in its context tab
 - **GUI-04** — Each entity page has a context-appropriate create button ("+ Add Person", "+ New Meeting", "+ New Project"); entity pages also expose delete from the detail panel
+- **GUI-07** — `sb_create_person` MCP tool: create a person note directly (title, org, role, tags) without needing to capture a note first; GUI "Add Person" button calls this; also available via MCP for pre-populating the people graph
 - **GUI-05** — Meeting detail participants are clickable and navigate to the person's page; Intelligence page orphans, empty notes, and stale nudges are clickable and individually deletable/linkable; last recap timestamp shown + 5 most recent recaps browseable; digest output surfaced in Intelligence page
-- **GUI-06** — Tag autocomplete in NoteViewer and NewNoteModal (suggests existing tags); project status field (active/on-hold/complete) settable from Projects detail panel; toast feedback on save, delete, and mark-done; "Open in Notes" button in Inbox preview panel; delete action in Inbox triage
+- **GUI-06** — Tag autocomplete in NoteViewer and NewNoteModal (suggests existing tags); NewNoteModal includes optional body textarea for immediate content capture; project status field (active/on-hold/complete) settable from Projects detail panel; toast feedback on save, delete, and mark-done; "Open in Notes" button in Inbox preview panel; delete action in Inbox triage
 
 Plans:
 - [ ] 34-01-PLAN.md — Interactive action items everywhere + Actions page source note link (GUI-01, GUI-02)
 - [ ] 34-02-PLAN.md — Cmd+K command palette (GUI-03)
-- [ ] 34-03-PLAN.md — Entity page create/delete + meeting participant links + project status field (GUI-04)
+- [ ] 34-03-PLAN.md — Entity page create/delete + meeting participant links + project status field + sb_create_person MCP tool (GUI-04, GUI-07)
 - [ ] 34-04-PLAN.md — Intelligence page actionable items + recap history + digest surface + tag autocomplete + toasts + Inbox polish (GUI-05, GUI-06)
 - [x] TBD (run /gsd:plan-phase 29 to break down) (completed 2026-03-19)
+
+---
+
+### Phase 35: Brain Consolidation & Knowledge Hygiene
+
+**Goal:** Ensure the brain stays coherent as it grows — periodic consolidation merges near-duplicate notes, enriches stubs, strengthens connections, prunes orphan relationships, and produces a health trend over time. Think of it as "brain sleep" — the system processes accumulated knowledge to keep retrieval quality high.
+**Depends on:** Phase 31, Phase 32
+**Milestone:** v4.0
+**Requirements**: CONS-01, CONS-02, CONS-03, CONS-04, CONS-05
+
+Requirements detail:
+- **CONS-01** — `sb-consolidate` CLI command (and `sb_consolidate` MCP tool): scans all notes for near-duplicate clusters (>0.85 similarity), presents merge candidates, auto-merges confirmed pairs with changelog, creates 'merged_from' relationships
+- **CONS-02** — Stub enrichment pass: finds person/project stubs (notes with empty body or <50 chars) and enriches them from accumulated context (mentions across other notes, action items, meeting references)
+- **CONS-03** — Connection graph cleanup: removes orphan relationships (where either note no longer exists), identifies frequently co-mentioned entities that lack explicit links, suggests new connections
+- **CONS-04** — Health trend tracking: `brain_health_history` table stores daily health scores; `sb-health --trend` shows score over time; consolidation runs improve the score
+- **CONS-05** — Scheduled consolidation: config option in `.meta/config.toml` for consolidation frequency (default: weekly); `sb-watch` daemon triggers consolidation on schedule; runs are idempotent
+
+Plans:
+- [ ] 35-01-PLAN.md — Near-duplicate cluster detection + merge workflow + changelog (CONS-01)
+- [ ] 35-02-PLAN.md — Stub enrichment + connection graph cleanup (CONS-02, CONS-03)
+- [ ] 35-03-PLAN.md — Health trend tracking + scheduled consolidation + MCP tool (CONS-04, CONS-05)
