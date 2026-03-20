@@ -291,3 +291,51 @@ browser_click(ref=...)
 **Rule:** Any test fixture that calls `get_connection()` without an explicit path MUST patch both `engine.db.DB_PATH` and `engine.paths.DB_PATH`. Any test that calls MCP capture functions MUST also patch `engine.paths.BRAIN_ROOT` (not just `mcp_mod.BRAIN_ROOT`), because those functions re-import `BRAIN_ROOT` from `engine.paths` at call time.
 
 ---
+
+## Bug: Container npm ci Corrupts Host node_modules — Cross-Platform Native Binaries
+
+**Symptom:** `npm run build` on host fails with `Cannot find native binding @rolldown/binding-darwin-x64` after running devcontainer.
+
+**Root cause:** `frontend/node_modules/` is shared via bind mount. Container runs `npm ci` which installs Linux native binaries (e.g. `@rolldown/binding-linux-x64`). These overwrite the macOS binaries the host needs. Next host build fails because darwin binaries are gone.
+
+**Fix:** Added a named Docker volume (`frontend-node-modules`) that shadows `/workspace/frontend/node_modules` inside the container. Container gets its own isolated Linux `node_modules`, host's macOS `node_modules` is never touched.
+
+**Rule:** Any platform-specific binary directory shared between host and container via bind mount MUST be isolated with a named volume. This applies to `node_modules` (native extensions) and `.venv` (Python, already isolated via `UV_PROJECT_ENVIRONMENT`).
+
+---
+
+## Bug: Entity Extraction Greedy Regex Consumes Stop-Word Pairs — Second Word Lost
+
+**Symptom:** "Met Anna Korhonen" extracts nothing for "Anna Korhonen" after "Met" is added to stop words.
+
+**Root cause:** `re.findall()` with a greedy two-word pattern consumes both words of a match before the stop-word filter runs. "Met Anna" is matched and filtered out, but "Anna" has already been consumed — the engine won't re-attempt from "Anna" to match "Anna Korhonen".
+
+**Fix:** Replace `re.findall()` with `re.finditer()` and manual position tracking. When the first word of a match is a stop word, set `pos = m.start(2)` (start of the second group) and `continue` — the engine retries from there, matching "Anna Korhonen" next.
+
+**Rule:** When filtering multi-word regex matches on the first token, use `re.finditer` with manual position retry on stop-word hits. `re.findall` does not allow partial consumption.
+
+---
+
+## Bug: ensure_person_profile() Fails When brain_root/person/ Missing
+
+**Symptom:** `capture_note()` raises `FileNotFoundError` on first capture to a fresh brain_root that doesn't have the `person/` subdirectory created yet.
+
+**Root cause:** `ensure_person_profile()` in `engine/links.py` calls `person_file.write_text()` without first creating the parent directory.
+
+**Fix:** Add `person_file.parent.mkdir(parents=True, exist_ok=True)` before `write_text()`.
+
+**Rule:** Always call `parent.mkdir(parents=True, exist_ok=True)` before writing a new file — never assume subdirectories exist in `brain_root`.
+
+---
+
+## Pattern: People Write-Back Requires Entity Extraction Before build_post()
+
+**Symptom:** `people` column in DB remains `[]` even though entity extraction runs at capture time.
+
+**Root cause:** The original capture order was `build_post(people=[]) → extract_entities() → write_note_atomic()`. The `post["people"]` field was already set to `[]` by `build_post()`; entity extraction only set `post["entities"]` and never updated `people`.
+
+**Fix:** New order: `extract_entities(title, body) → merge_people → build_post(merged_people) → write_note_atomic()`.
+
+**Rule:** Any field that must be populated from entity extraction MUST be computed BEFORE calling `build_post()`. The `people` parameter to `build_post()` is written verbatim to frontmatter and DB — it cannot be patched after the fact without a second UPDATE.
+
+---
