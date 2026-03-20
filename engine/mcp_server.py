@@ -18,7 +18,7 @@ from engine.db import get_connection
 from engine.digest import generate_digest
 from engine.forget import forget_person
 from engine.anonymize import anonymize_note
-from engine.intelligence import find_similar, get_overdue_actions, list_actions, recap_entity
+from engine.intelligence import find_dormant_related, find_similar, get_overdue_actions, list_actions, recap_entity
 from engine.link_capture import fetch_link_metadata
 from engine.paths import BRAIN_ROOT, CONFIG_PATH
 from engine.router import get_adapter
@@ -162,6 +162,7 @@ def sb_capture(
     conn = get_connection()
     try:
         # Dedup check: only when no confirm_token provided
+        similar_paths_for_link: list[str] = []
         if not confirm_token:
             similar = check_capture_dedup(title, body, conn)
             if similar:
@@ -172,8 +173,16 @@ def sb_capture(
                     "similar": similar,
                     "confirm_token": tok,
                 }
-        elif not _consume_token(confirm_token):
-            raise ValueError("TOKEN_EXPIRED: confirm_token is invalid or has expired (300s window)")
+        else:
+            if not _consume_token(confirm_token):
+                raise ValueError("TOKEN_EXPIRED: confirm_token is invalid or has expired (300s window)")
+            # Re-run dedup to find which notes to auto-link as 'similar'
+            similar_for_link = check_capture_dedup(title, body, conn)
+            similar_paths_for_link = [s["path"] for s in similar_for_link]
+
+        # Auto-classify sensitivity (never downgrade)
+        from engine.smart_classifier import classify_smart as _cs
+        effective_sensitivity, _sensitivity_reason = _cs(body, sensitivity)
 
         path = capture_note(
             note_type=note_type,
@@ -181,13 +190,36 @@ def sb_capture(
             body=body,
             tags=tags or [],
             people=[],
-            content_sensitivity=sensitivity,
+            content_sensitivity=effective_sensitivity,
             brain_root=BRAIN_ROOT,
             conn=conn,
         )
         conn.commit()
+
+        # Auto-link as 'similar' when user confirmed despite dedup warning
+        import datetime as _dt
+        now_ts = _dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        for similar_path in similar_paths_for_link:
+            try:
+                conn.execute(
+                    "INSERT OR IGNORE INTO relationships "
+                    "(source_path, target_path, rel_type, created_at) VALUES (?,?,?,?)",
+                    (str(path), similar_path, "similar", now_ts),
+                )
+            except Exception:
+                pass
+        if similar_paths_for_link:
+            conn.commit()
+
+        # Dormant resurfacing — best-effort, never blocks
+        dormant_notes: list[dict] = []
+        try:
+            dormant_notes = find_dormant_related(str(path), conn)
+        except Exception:
+            pass
+
         _log_mcp_audit("mcp_capture", str(path))
-        return {"status": "created", "path": str(path)}
+        return {"status": "created", "path": str(path), "dormant_notes": dormant_notes}
     finally:
         conn.close()
 
@@ -195,6 +227,10 @@ def sb_capture(
 @mcp.tool()
 def sb_capture_batch(notes: list[dict]) -> dict:
     """Capture multiple notes in a single call. Each note is processed independently.
+
+    After saving, intelligence hooks (check_connections + extract_action_items) run
+    asynchronously in a background daemon thread — the response returns immediately.
+    Hook errors are caught and logged to audit_log with action='intelligence_error'.
 
     Args:
         notes: List of note dicts. Each dict supports keys:
@@ -204,15 +240,20 @@ def sb_capture_batch(notes: list[dict]) -> dict:
         {"succeeded": [{"index": int, "path": str}, ...],
          "failed":    [{"index": int, "reason": str}, ...]}
     """
-    from engine.capture import capture_note as _capture_note
+    import datetime as _dt
+    import difflib as _difflib
+    from engine.capture import capture_note as _capture_note, check_capture_dedup as _check_dedup
     from engine.db import get_connection as _get_connection, init_schema as _init_schema
     from engine.paths import BRAIN_ROOT as _BRAIN_ROOT
+    from engine.smart_classifier import classify_smart as _classify_smart
 
     conn = _get_connection()
     _init_schema(conn)
 
     succeeded = []
     failed = []
+    dedup_warnings = []
+    seen_titles: list[str] = []
 
     for i, note in enumerate(notes or []):
         try:
@@ -227,15 +268,116 @@ def sb_capture_batch(notes: list[dict]) -> dict:
             people = [p.strip() for p in note.get("people", "").split(",") if p.strip()] \
                      if isinstance(note.get("people"), str) \
                      else list(note.get("people") or [])
-            sensitivity = note.get("sensitivity", "public")
+            user_sensitivity = note.get("sensitivity", "public")
 
-            path = _capture_note(note_type, title, body, tags, people, sensitivity, _BRAIN_ROOT, conn)
+            # Auto-classify sensitivity (never downgrade)
+            effective_sensitivity, _reason = _classify_smart(body, user_sensitivity)
+
+            # Per-note dedup check (informational, not blocking)
+            if len(body.strip()) >= 50:
+                try:
+                    similar = _check_dedup(title, body, conn)
+                    if similar:
+                        dedup_warnings.append({"index": i, "similar": similar})
+                except Exception:
+                    pass
+
+            # Intra-batch title dedup
+            matches = _difflib.get_close_matches(title, seen_titles, n=1, cutoff=0.85)
+            if matches:
+                dedup_warnings.append({"index": i, "intra_batch_match": matches[0]})
+
+            path = _capture_note(note_type, title, body, tags, people, effective_sensitivity, _BRAIN_ROOT, conn)
             succeeded.append({"index": i, "path": str(path)})
+            seen_titles.append(title)
         except Exception as e:
             failed.append({"index": i, "reason": str(e)})
 
+    # Post-save: process links field and create relationships
+    path_map = {s["index"]: s["path"] for s in succeeded}
+    for i, note in enumerate(notes or []):
+        if i not in path_map:
+            continue
+        links = note.get("links", [])
+        if not links:
+            continue
+        for slug in links:
+            row = conn.execute(
+                "SELECT path FROM notes WHERE LOWER(title) = LOWER(?) LIMIT 1",
+                (slug.replace("-", " "),)
+            ).fetchone()
+            if not row:
+                row = conn.execute(
+                    "SELECT path FROM notes WHERE path LIKE ? LIMIT 1",
+                    (f"%{slug}%",)
+                ).fetchone()
+            if row:
+                now = _dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+                conn.execute(
+                    "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+                    (path_map[i], row[0], "link"),
+                )
+                conn.execute(
+                    "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+                    (row[0], path_map[i], "link"),
+                )
+    conn.commit()
     conn.close()
-    return {"succeeded": succeeded, "failed": failed}
+
+    # Spawn background daemon thread for intelligence hooks — never blocks the response
+    _saved_paths = [s["path"] for s in succeeded]
+    _brain_root_for_hooks = _BRAIN_ROOT
+
+    def _run_batch_intelligence() -> None:
+        from engine.intelligence import (
+            check_connections as _check_connections,
+            extract_action_items as _extract_action_items,
+        )
+
+        def _log_intel_error(p: str, exc: Exception) -> None:
+            try:
+                _ec = _get_connection()
+                _ec.execute(
+                    "INSERT INTO audit_log (event_type, note_path, detail, created_at) VALUES (?,?,?,?)",
+                    (
+                        "intelligence_error",
+                        p,
+                        str(exc),
+                        _dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    ),
+                )
+                _ec.commit()
+                _ec.close()
+            except Exception:
+                pass
+
+        for p in _saved_paths:
+            # check_connections
+            try:
+                _c = _get_connection()
+                try:
+                    _check_connections(Path(p), _c, _brain_root_for_hooks)
+                    _c.commit()
+                finally:
+                    _c.close()
+            except Exception as exc:
+                _log_intel_error(p, exc)
+
+            # extract_action_items
+            try:
+                _c2 = _get_connection()
+                try:
+                    row = _c2.execute("SELECT body FROM notes WHERE path=?", (p,)).fetchone()
+                    if row and row[0]:
+                        _extract_action_items(Path(p), row[0], "public", _c2)
+                finally:
+                    _c2.close()
+            except Exception as exc:
+                _log_intel_error(p, exc)
+
+    threading.Thread(target=_run_batch_intelligence, daemon=True).start()
+
+    return {"succeeded": succeeded, "failed": failed, "dedup_warnings": dedup_warnings}
 
 
 @mcp.tool()
@@ -554,39 +696,169 @@ def sb_capture_smart(content: str) -> dict:
         {"status": "created", "notes": [...], "capture_session": str, "count": int}
         Each note dict contains: title, type, path, sensitivity, links, entities.
     """
+    import datetime as _dt
     import itertools
+    import json as _json
+    import pathlib as _pathlib
     import re as _re
     import uuid
 
-    from engine.segmenter import segment_blob
+    import frontmatter as _frontmatter
+
+    from engine.segmenter import dedup_segment, resolve_entities, segment_blob
     from engine.smart_classifier import classify_smart
 
     _ensure_ready()
 
     if not content or not content.strip():
-        return {"status": "created", "notes": [], "capture_session": str(uuid.uuid4()), "count": 0}
+        return {
+            "status": "created",
+            "notes": [],
+            "capture_session": str(uuid.uuid4()),
+            "count": 0,
+            "ambiguous_segments": [],
+            "dormant_notes": [],
+        }
 
     capture_session = str(uuid.uuid4())
     segments = segment_blob(content)
 
     conn = get_connection()
     saved_notes: list[dict] = []
+    ambiguous_segments: list[dict] = []
 
     try:
+        # Step 1: Resolve entity stubs BEFORE saving main segments so links can resolve.
+        stub_paths: dict[str, str] = {}  # name → path of created stub
+        for seg in segments:
+            entities = seg.get("entities", {})
+            resolution = resolve_entities(entities, conn, BRAIN_ROOT)
+            for stub in resolution["new_stubs"]:
+                stub_name = stub["name"]
+                if stub_name in stub_paths:
+                    continue
+                try:
+                    stub_path = capture_note(
+                        note_type=stub["type"],
+                        title=stub_name,
+                        body="",
+                        tags=[],
+                        people=[],
+                        content_sensitivity="public",
+                        brain_root=BRAIN_ROOT,
+                        conn=conn,
+                    )
+                    stub_paths[stub_name] = str(stub_path)
+                except Exception:
+                    pass  # Non-fatal
+
+            seg["_resolved_links"] = [
+                e["path"] for e in resolution["existing"] if e.get("path")
+            ] + list(stub_paths.values())
+
+        # Step 2: Save segments with dedup check
         for seg in segments:
             title = seg["title"]
             note_type = seg["type"]
             body = seg["body"]
             entities = seg.get("entities", {})
-            seg_links = seg.get("links", [])
+            seg_links = list(seg.get("links", []))
+            resolved_links = seg.get("_resolved_links", [])
 
-            # PII classification — never downgrade
             sensitivity, _reason = classify_smart(body)
-
-            # Entity resolution placeholder (CAP-08, implemented in plan 31-02):
-            # For now, pass extracted people directly to capture_note.
             people = entities.get("people", [])
 
+            dedup_result = dedup_segment(title, body, conn, BRAIN_ROOT)
+            action = dedup_result["action"]
+
+            if action == "ambiguous":
+                ambiguous_segments.append({
+                    "title": title,
+                    "type": note_type,
+                    "options": dedup_result.get("options", []),
+                })
+                continue
+
+            elif action == "update_existing":
+                existing_path = dedup_result["path"]
+                existing_body = dedup_result["existing_body"]
+                changelog_hash = dedup_result.get("changelog_hash", "")
+                _now = _dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+                updated_body = (
+                    f"{body}\n\n"
+                    f"## Changelog\n"
+                    f"Updated: {_now} — superseded previous version (hash: {changelog_hash})\n\n"
+                    f"### Previous content\n{existing_body}"
+                )
+                try:
+                    row = conn.execute(
+                        "SELECT type, title, tags, people, content_sensitivity FROM notes WHERE path=?",
+                        (existing_path,),
+                    ).fetchone()
+                    if row:
+                        existing_post = _frontmatter.Post(updated_body)
+                        existing_post["type"] = row[0]
+                        existing_post["title"] = row[1]
+                        existing_post["tags"] = _json.loads(row[2] or "[]")
+                        existing_post["people"] = _json.loads(row[3] or "[]")
+                        existing_post["content_sensitivity"] = row[4] or "public"
+                        existing_post["date"] = _dt.date.today().isoformat()
+                        existing_post["created_at"] = _dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+                        existing_post["updated_at"] = _now
+                        write_note_atomic(
+                            target=_pathlib.Path(existing_path),
+                            post=existing_post,
+                            conn=conn,
+                            update=True,
+                        )
+                        saved_notes.append({
+                            "title": title,
+                            "type": note_type,
+                            "path": existing_path,
+                            "sensitivity": sensitivity,
+                            "links": seg_links + resolved_links,
+                            "entities": entities,
+                            "capture_session": capture_session,
+                            "dedup_action": "updated_existing",
+                        })
+                        continue
+                except Exception:
+                    pass  # Fall through to save_new on error
+
+            elif action == "save_complementary":
+                similar_path = dedup_result.get("similar_path", "")
+                note_path = capture_note(
+                    note_type=note_type,
+                    title=title,
+                    body=body,
+                    tags=[],
+                    people=people,
+                    content_sensitivity=sensitivity,
+                    brain_root=BRAIN_ROOT,
+                    conn=conn,
+                )
+                if similar_path:
+                    try:
+                        conn.execute(
+                            "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?, ?, ?)",
+                            (str(note_path), similar_path, "similar"),
+                        )
+                    except Exception:
+                        pass
+                saved_notes.append({
+                    "title": title,
+                    "type": note_type,
+                    "path": str(note_path),
+                    "sensitivity": sensitivity,
+                    "links": seg_links + resolved_links,
+                    "entities": entities,
+                    "capture_session": capture_session,
+                    "dedup_action": "saved_complementary",
+                    "relationships": [{"type": "similar", "path": similar_path}] if similar_path else [],
+                })
+                continue
+
+            # Default: save_new
             note_path = capture_note(
                 note_type=note_type,
                 title=title,
@@ -603,7 +875,7 @@ def sb_capture_smart(content: str) -> dict:
                 "type": note_type,
                 "path": str(note_path),
                 "sensitivity": sensitivity,
-                "links": seg_links,
+                "links": seg_links + resolved_links,
                 "entities": entities,
                 "capture_session": capture_session,
             })
@@ -617,16 +889,24 @@ def sb_capture_smart(content: str) -> dict:
                     (src_path, tgt_path, "co-captured"),
                 )
             except Exception:
-                pass  # Relationship table missing or constraint — non-fatal
+                pass  # Non-fatal
 
         # Infer cross-links: meeting + person segments → add person slugs to meeting links
         if len(saved_notes) > 1:
             person_paths = [n["path"] for n in saved_notes if n["type"] in ("person", "people")]
             for note in saved_notes:
                 if note["type"] == "meeting" and person_paths:
-                    note["links"] = person_paths
+                    note["links"] = list(dict.fromkeys(note.get("links", []) + person_paths))
 
         conn.commit()
+
+        # Dormant resurfacing — use first saved note path, best-effort
+        dormant_notes: list[dict] = []
+        if saved_notes:
+            try:
+                dormant_notes = find_dormant_related(saved_notes[0]["path"], conn)
+            except Exception:
+                pass
 
     finally:
         conn.close()
@@ -636,6 +916,8 @@ def sb_capture_smart(content: str) -> dict:
         "notes": saved_notes,
         "capture_session": capture_session,
         "count": len(saved_notes),
+        "dormant_notes": dormant_notes,
+        "ambiguous_segments": ambiguous_segments,
     }
 
 
@@ -783,11 +1065,12 @@ def sb_tools() -> list[dict]:
 
 
 @mcp.tool()
-def sb_link(source_path: str, target_path: str, rel_type: str = "link") -> dict:
-    """Create a directional relationship between two notes. DB-only — does not edit note bodies.
+def sb_link(source_path: str, target_path: str, rel_type: str = "link", bidirectional: bool = False) -> dict:
+    """Create a relationship between two notes. DB-only — does not edit note bodies.
 
     rel_type: arbitrary string label, default 'link'.
     Common values: 'link', 'references', 'similar', 'part-of'.
+    bidirectional: when True, inserts both A->B and B->A rows.
     Idempotent — calling with the same (source, target, rel_type) twice inserts only one row.
     """
     conn = get_connection()
@@ -796,8 +1079,13 @@ def sb_link(source_path: str, target_path: str, rel_type: str = "link") -> dict:
             "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
             (source_path, target_path, rel_type),
         )
+        if bidirectional:
+            conn.execute(
+                "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+                (target_path, source_path, rel_type),
+            )
         conn.commit()
-        return {"linked": True, "source": source_path, "target": target_path, "rel_type": rel_type}
+        return {"linked": True, "source": source_path, "target": target_path, "rel_type": rel_type, "bidirectional": bidirectional}
     finally:
         conn.close()
 
