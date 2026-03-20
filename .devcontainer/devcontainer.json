@@ -48,9 +48,13 @@
   },
   // Runs on HOST before container starts — extracts Keychain credentials
   "initializeCommand": ".devcontainer/extract-claude-auth.sh",
-  // OrbStack auto-scales memory from host RAM — no hard limits needed.
-  // If OOM kills occur, check OrbStack resource settings.
-  "runArgs": ["--env-file", "${localEnv:HOME}/.config/second-brain/.env.host"],
+  // Hard 16GB memory limit — prevents OOM kills during parallel agent execution.
+  // --memory-swap equal to --memory disables swap, keeping performance stable.
+  "runArgs": [
+    "--memory=16g",
+    "--memory-swap=16g",
+    "--env-file", "${localEnv:HOME}/.config/second-brain/.env.host"
+  ],
   "postCreateCommand": ".devcontainer/post-create.sh",
   "postStartCommand": ".devcontainer/post-start.sh",
   "remoteUser": "vscode"

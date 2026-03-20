@@ -339,3 +339,23 @@ browser_click(ref=...)
 **Rule:** Any field that must be populated from entity extraction MUST be computed BEFORE calling `build_post()`. The `people` parameter to `build_post()` is written verbatim to frontmatter and DB — it cannot be patched after the fact without a second UPDATE.
 
 ---
+
+## BUG: sb_capture_link upsert wipes existing tags
+
+**Root cause:** `_to_list(None)` returns `[]`, erasing the distinction between "no tags provided" and "explicitly empty tags." On upsert, `update_note(tags=[])` overwrites existing tags with an empty list.
+
+**Fix:** Track `tags_provided = tags is not None` before `_to_list()` coercion. On upsert: if provided → merge new + existing (deduped via `dict.fromkeys`); if not provided → preserve existing tags unchanged.
+
+**Rule:** When coercing optional list params (tags, people) via helper functions like `_to_list()`, always capture the "was it provided?" signal BEFORE coercion. Upsert paths must merge, not replace, unless the caller explicitly wants a replacement.
+
+---
+
+## BUG: action_items table missing done_at column
+
+**Root cause:** `sb_actions_done` MCP tool used `UPDATE action_items SET done=1, done_at=CURRENT_TIMESTAMP` but the `action_items` schema and migration never defined a `done_at` column.
+
+**Fix:** Added `migrate_add_done_at()` idempotent migration in `db.py`, registered in `init_schema()`.
+
+**Rule:** When adding SQL columns to UPDATE/INSERT statements, always verify the column exists in both the CREATE TABLE schema AND the migration chain. Test with a fresh DB.
+
+---

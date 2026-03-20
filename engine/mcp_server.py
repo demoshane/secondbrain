@@ -271,6 +271,7 @@ def sb_capture_link(
             except (ValueError, TypeError):
                 pass
         return [t.strip() for t in val.split(",") if t.strip()]
+    tags_provided = tags is not None
     tags = _to_list(tags)
     people = _to_list(people)
     from urllib.parse import urlparse
@@ -287,16 +288,23 @@ def sb_capture_link(
     try:
         # Check if URL already captured — upsert if so
         existing = conn.execute(
-            "SELECT path, title FROM notes WHERE url=? LIMIT 1", (url,)
+            "SELECT path, title, tags FROM notes WHERE url=? LIMIT 1", (url,)
         ).fetchone()
 
         if existing:
             existing_path = existing[0]
+            # Merge tags: keep existing tags when caller didn't provide any
+            import json as _j
+            if tags_provided:
+                existing_tags = _j.loads(existing[2] or "[]") if existing[2] else []
+                merged_tags = list(dict.fromkeys(existing_tags + tags))
+            else:
+                merged_tags = _j.loads(existing[2] or "[]") if existing[2] else []
             update_note(
                 note_path=existing_path,
                 title=title,
                 body=body,
-                tags=tags,
+                tags=merged_tags,
                 conn=conn,
                 brain_root=BRAIN_ROOT,
             )

@@ -14,6 +14,9 @@ uv sync --dev
 echo "▶ Installing as uv tool (registers sb-* CLI commands)..."
 uv tool install --editable --force "$REPO"
 
+echo "▶ Fixing node_modules volume ownership..."
+sudo chown vscode:vscode "$REPO/frontend/node_modules"
+
 echo "▶ Installing frontend dependencies..."
 npm ci --prefix "$REPO/frontend"
 

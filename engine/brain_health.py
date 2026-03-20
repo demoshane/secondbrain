@@ -30,6 +30,13 @@ def get_orphan_notes(conn: sqlite3.Connection) -> list[dict]:
     return [{"path": row[0], "title": row[1]} for row in rows]
 
 
+def get_missing_file_notes(conn: sqlite3.Connection) -> list[dict]:
+    """Return DB rows whose file no longer exists on disk (disk orphans)."""
+    import os
+    rows = conn.execute("SELECT path, title FROM notes LIMIT 500").fetchall()
+    return [{"path": r[0], "title": r[1]} for r in rows if not os.path.exists(r[0])]
+
+
 def get_empty_notes(conn: sqlite3.Connection) -> list[dict]:
     """Return notes with no meaningful body content.
 

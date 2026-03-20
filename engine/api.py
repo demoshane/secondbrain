@@ -1177,6 +1177,7 @@ def brain_health_endpoint():
         from engine.brain_health import (
             get_orphan_notes,
             get_empty_notes,
+            get_missing_file_notes,
             get_duplicate_candidates,
             compute_health_score,
         )
@@ -1185,6 +1186,7 @@ def brain_health_endpoint():
         total = conn.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
         orphans = get_orphan_notes(conn)
         empty = get_empty_notes(conn)
+        missing_files = get_missing_file_notes(conn)
         broken = check_links(BRAIN_ROOT, conn)
         duplicates = get_duplicate_candidates(conn)
         score = compute_health_score(
@@ -1201,6 +1203,8 @@ def brain_health_endpoint():
                 "orphans": orphans[:20],
                 "empty_count": len(empty),
                 "empty_notes": empty[:20],
+                "missing_file_count": len(missing_files),
+                "missing_files": missing_files[:20],
                 "broken_link_count": len(broken),
                 "broken_links": broken[:20],
                 "duplicate_count": len(duplicates),

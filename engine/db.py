@@ -198,6 +198,7 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     migrate_add_attachments_table(conn)
     migrate_add_assignee_path(conn)
     migrate_add_due_date(conn)
+    migrate_add_done_at(conn)
     migrate_add_dismissed_inbox_items_table(conn)
     migrate_add_url_column(conn)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)")
