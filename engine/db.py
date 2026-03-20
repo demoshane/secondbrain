@@ -152,6 +152,14 @@ def migrate_add_due_date(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
+def migrate_add_done_at(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: add 'done_at' TEXT column to action_items if absent."""
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(action_items)").fetchall()}
+    if "done_at" not in cols:
+        conn.execute("ALTER TABLE action_items ADD COLUMN done_at TEXT NULL")
+        conn.commit()
+
+
 def migrate_add_dismissed_inbox_items_table(conn: sqlite3.Connection) -> None:
     """Idempotent migration: create dismissed_inbox_items table if absent."""
     conn.execute("""
@@ -192,3 +200,7 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     migrate_add_due_date(conn)
     migrate_add_dismissed_inbox_items_table(conn)
     migrate_add_url_column(conn)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_url ON notes(url)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_people ON notes(people)")
+    conn.commit()

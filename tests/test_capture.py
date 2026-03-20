@@ -301,3 +301,141 @@ def test_dedup_short_body_uses_full_text(tmp_path, monkeypatch):
     assert captured_texts == [f"My Title\n{short_body}"], (
         f"Expected embed_texts called with full text for short body, got {captured_texts}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 30-01: People write-back at capture time (PEO-02)
+# ---------------------------------------------------------------------------
+
+def test_capture_people_writeback(tmp_path, monkeypatch):
+    """capture_note() extracts people from body and writes them to the people column.
+
+    No explicit people param passed — extraction must populate the column.
+    """
+    import engine.db as db_mod
+    import engine.paths as paths_mod
+    from pathlib import Path
+
+    tmp_db = Path(str(tmp_path / "brain.db"))
+    monkeypatch.setattr(db_mod, "DB_PATH", tmp_db)
+    monkeypatch.setattr(paths_mod, "DB_PATH", tmp_db)
+    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+
+    from engine.db import get_connection, init_schema
+    from engine.capture import capture_note
+
+    conn = get_connection(str(tmp_db))
+    init_schema(conn)
+
+    brain_root = tmp_path / "brain"
+    brain_root.mkdir()
+
+    path = capture_note(
+        "note",
+        "Team Update",
+        "Met Anna Korhonen today to discuss the project",
+        [],          # no explicit people
+        [],
+        "public",
+        brain_root,
+        conn,
+    )
+    conn.commit()
+
+    row = conn.execute(
+        "SELECT people FROM notes WHERE path = ?", (str(path.resolve()),)
+    ).fetchone()
+    assert row is not None, "Note must exist in DB"
+    people_json = row[0]
+    people = json.loads(people_json)
+    assert any("Anna" in p and "Korhonen" in p for p in people), (
+        f"Expected 'Anna Korhonen' in people column, got: {people}"
+    )
+    conn.close()
+
+
+def test_capture_people_merge(tmp_path, monkeypatch):
+    """capture_note() merges explicit people param with body-extracted people.
+
+    Caller-supplied people come first; extracted people appended.
+    """
+    import engine.db as db_mod
+    import engine.paths as paths_mod
+    from pathlib import Path
+
+    tmp_db = Path(str(tmp_path / "brain.db"))
+    monkeypatch.setattr(db_mod, "DB_PATH", tmp_db)
+    monkeypatch.setattr(paths_mod, "DB_PATH", tmp_db)
+    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+
+    from engine.db import get_connection, init_schema
+    from engine.capture import capture_note
+
+    conn = get_connection(str(tmp_db))
+    init_schema(conn)
+
+    brain_root = tmp_path / "brain"
+    brain_root.mkdir()
+
+    path = capture_note(
+        "note",
+        "Meeting Summary",
+        "Jane Doe presented the quarterly results",
+        [],
+        ["Bob Smith"],   # explicit people
+        "public",
+        brain_root,
+        conn,
+    )
+    conn.commit()
+
+    row = conn.execute(
+        "SELECT people FROM notes WHERE path = ?", (str(path.resolve()),)
+    ).fetchone()
+    assert row is not None
+    people = json.loads(row[0])
+    # Both explicit and extracted must be present
+    assert any("Bob" in p and "Smith" in p for p in people), f"Bob Smith missing: {people}"
+    assert any("Jane" in p and "Doe" in p for p in people), f"Jane Doe missing: {people}"
+
+
+def test_capture_people_dedup(tmp_path, monkeypatch):
+    """capture_note() deduplicates people when explicit param overlaps with extraction."""
+    import engine.db as db_mod
+    import engine.paths as paths_mod
+    from pathlib import Path
+
+    tmp_db = Path(str(tmp_path / "brain.db"))
+    monkeypatch.setattr(db_mod, "DB_PATH", tmp_db)
+    monkeypatch.setattr(paths_mod, "DB_PATH", tmp_db)
+    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+
+    from engine.db import get_connection, init_schema
+    from engine.capture import capture_note
+
+    conn = get_connection(str(tmp_db))
+    init_schema(conn)
+
+    brain_root = tmp_path / "brain"
+    brain_root.mkdir()
+
+    path = capture_note(
+        "note",
+        "Status Update",
+        "Anna Korhonen reviewed the document",
+        [],
+        ["Anna Korhonen"],  # explicit — same as what extraction would produce
+        "public",
+        brain_root,
+        conn,
+    )
+    conn.commit()
+
+    row = conn.execute(
+        "SELECT people FROM notes WHERE path = ?", (str(path.resolve()),)
+    ).fetchone()
+    assert row is not None
+    people = json.loads(row[0])
+    anna_entries = [p for p in people if "Anna" in p and "Korhonen" in p]
+    assert len(anna_entries) == 1, f"Expected exactly 1 'Anna Korhonen' entry, got: {people}"
+    conn.close()

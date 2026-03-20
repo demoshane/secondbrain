@@ -236,6 +236,73 @@ def write_note_atomic(
         raise RuntimeError(f"Failed to write {target}: {type(e).__name__}") from e
 
 
+def update_note(
+    note_path: str,
+    title: str,
+    body: str,
+    tags: list,
+    conn: sqlite3.Connection,
+    brain_root: Path,
+) -> dict:
+    """Update an existing note's title, body, tags, and updated_at atomically.
+
+    Reads the existing frontmatter, patches only the changed fields, writes back
+    using the same atomic tempfile + os.replace pattern as write_note_atomic, and
+    updates the DB record in the same operation.
+
+    Args:
+        note_path: Absolute path string to the existing note file.
+        title: New title value.
+        body: New body content.
+        tags: New tags list.
+        conn: Open SQLite connection.
+        brain_root: Brain root Path (used only to verify the path is inside the brain).
+
+    Returns:
+        {"status": "updated", "path": note_path}
+    """
+    target = Path(note_path)
+    post = frontmatter.load(str(target))
+    now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    post["title"] = title
+    post["updated_at"] = now
+    post["tags"] = list(tags)
+    post.content = body
+
+    tmp_path = None
+    tmp_fd = None
+    try:
+        tmp_fd, tmp_name = tempfile.mkstemp(dir=target.parent)
+        tmp_path = Path(tmp_name)
+        with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
+            fh.write(frontmatter.dumps(post))
+        tmp_fd = None
+
+        tags_json = json.dumps(list(tags))
+        conn.execute(
+            "UPDATE notes SET title=?, body=?, tags=?, updated_at=? WHERE path=?",
+            (title, body, tags_json, now, note_path),
+        )
+        log_audit(conn, "update", note_path)
+        conn.commit()
+
+        os.replace(tmp_name, target)
+    except Exception as e:
+        if tmp_fd is not None:
+            try:
+                os.close(tmp_fd)
+            except OSError:
+                pass
+        if tmp_path is not None and tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+        raise RuntimeError(f"Failed to update {target}: {type(e).__name__}") from e
+
+    return {"status": "updated", "path": note_path}
+
+
 def main(argv=None) -> None:
     """CLI entry point for sb-capture."""
     import argparse
@@ -346,22 +413,29 @@ def capture_note(
         target = brain_root / subdir / f"{slug}-{counter}.md"
         counter += 1
 
-    post = build_post(note_type, title, body, tags, people, content_sensitivity)
-    if url:
-        post["url"] = url
-    # Entity enrichment: best-effort, never blocks capture
+    # Entity enrichment: best-effort, never blocks capture.
+    # CRITICAL ORDER: extract BEFORE build_post so merged_people is written into
+    # the people frontmatter field and the DB people column (PEO-02 write-back).
     try:
         from engine.entities import extract_entities
-        entities = extract_entities(post.get("title", ""), post.content)
-        post["entities"] = entities
+        entities = extract_entities(title, body)
     except Exception:
-        post["entities"] = {"people": [], "places": [], "topics": []}
+        entities = {"people": [], "places": [], "topics": [], "orgs": []}
+
+    # Merge caller-supplied people with extracted people (caller first, dedup preserve order)
+    extracted_people = entities.get("people", [])
+    merged_people = list(dict.fromkeys(people + extracted_people))
+
+    post = build_post(note_type, title, body, tags, merged_people, content_sensitivity)
+    if url:
+        post["url"] = url
+    post["entities"] = entities
     write_note_atomic(target, post, conn, url=url)
 
     # Auto-backlink: update referenced people's profiles
-    if people:
+    if merged_people:
         from engine.links import add_backlinks
-        add_backlinks(target, people, brain_root, conn)
+        add_backlinks(target, merged_people, brain_root, conn)
 
     # Wiki-link relationships: parse [[...]] links from body
     from engine.links import update_wiki_link_relationships

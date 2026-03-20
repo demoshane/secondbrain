@@ -50,8 +50,9 @@ def ensure_person_profile(slug: str, brain_root: Path) -> Path:
     - Skeleton format: "# {Display Name}\\n\\n## Backlinks\\n"
       where display_name = slug.replace('-', ' ').title()
     """
-    person_file = brain_root / "people" / f"{slug}.md"
+    person_file = brain_root / "person" / f"{slug}.md"
     if not person_file.exists():
+        person_file.parent.mkdir(parents=True, exist_ok=True)
         display_name = slug.replace("-", " ").title()
         person_file.write_text(
             f"# {display_name}\n\n## Backlinks\n", encoding="utf-8"
