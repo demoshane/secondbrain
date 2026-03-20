@@ -82,3 +82,68 @@ def test_reindex_preserves_people_column(tmp_path, db_conn):
     assert row is not None, "Note not indexed"
     people = json.loads(row[0])
     assert "alice" in people, f"people column lost after reindex: {row[0]}"
+
+
+# --- --entities flag tests ---
+
+def test_entities_flag_populates_people_column(brain_root, db_conn):
+    """--entities flag: note with empty people column gets people extracted from body."""
+    init_schema(db_conn)
+    # Note body mentions "Alice Smith" — extraction should pick her up
+    _make_note(
+        brain_root, "meeting.md",
+        "type: note\ntitle: Team Meeting\npeople: []",
+        "Spoke with Alice Smith about the project roadmap.",
+    )
+    # First reindex without --entities (people column stays [] from frontmatter)
+    reindex_brain(brain_root, db_conn)
+    row_before = db_conn.execute(
+        "SELECT people FROM notes WHERE title='Team Meeting'"
+    ).fetchone()
+    assert row_before is not None
+    people_before = json.loads(row_before[0])
+    assert people_before == [], f"Expected empty before --entities run, got: {people_before}"
+
+    # Now reindex WITH --entities
+    reindex_brain(brain_root, db_conn, entities=True)
+    row_after = db_conn.execute(
+        "SELECT people FROM notes WHERE title='Team Meeting'"
+    ).fetchone()
+    assert row_after is not None
+    people_after = json.loads(row_after[0])
+    assert len(people_after) > 0, (
+        f"--entities flag should have populated people column, got: {people_after}"
+    )
+    # At least one extracted name should be present (exact name depends on extraction)
+    assert any("Alice" in p for p in people_after), (
+        f"'Alice Smith' or 'Alice' not found in extracted people: {people_after}"
+    )
+
+
+def test_entities_flag_overwrites_people_column(brain_root, db_conn):
+    """--entities flag: replaces (not merges) existing people column content."""
+    init_schema(db_conn)
+    # Note has a stale/wrong entry in people column, body has "Bob Johnson"
+    _make_note(
+        brain_root, "note-with-stale.md",
+        "type: note\ntitle: Stale People Note\npeople:\n  - OldEntry",
+        "Met Bob Johnson this morning to discuss quarterly targets.",
+    )
+    reindex_brain(brain_root, db_conn)
+
+    # Confirm OldEntry is in DB after normal reindex (read from frontmatter)
+    row = db_conn.execute(
+        "SELECT people FROM notes WHERE title='Stale People Note'"
+    ).fetchone()
+    assert row is not None
+    assert "OldEntry" in json.loads(row[0]), "Precondition: OldEntry should be in people"
+
+    # Run with --entities: should overwrite, not merge
+    reindex_brain(brain_root, db_conn, entities=True)
+    row_after = db_conn.execute(
+        "SELECT people FROM notes WHERE title='Stale People Note'"
+    ).fetchone()
+    people_after = json.loads(row_after[0])
+    assert "OldEntry" not in people_after, (
+        f"--entities must REPLACE, not merge. OldEntry still present: {people_after}"
+    )

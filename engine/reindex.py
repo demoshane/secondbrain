@@ -75,13 +75,14 @@ def embed_pass(conn, provider: str, batch_size: int = 32, force: bool = False) -
     return {"updated": len(to_embed), "unchanged": unchanged}
 
 
-def reindex_brain(brain_root: Path, conn=None, full: bool = False) -> dict:
+def reindex_brain(brain_root: Path, conn=None, full: bool = False, entities: bool = False) -> dict:
     """Walk all .md files under brain_root and upsert them into notes + FTS5.
 
     Args:
         brain_root: Path to brain root directory (BRAIN_ROOT in production)
         conn: Optional sqlite3.Connection (for testing with in-memory DB)
         full: If True, force re-embedding of all notes regardless of hash state.
+        entities: If True, re-extract entities for all notes and overwrite people column.
 
     Returns dict with keys: indexed (int), errors (list of str),
                             embed_updated (int), embed_unchanged (int)
@@ -175,6 +176,23 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False) -> dict:
         purged = len(stale_paths)
         print(f"[sb-reindex] Purged {purged} stale entries no longer on disk")
 
+    # --- Entity re-extraction pass (--entities flag) ---
+    if entities:
+        from engine.entities import extract_entities
+        for md_path_str in disk_paths:
+            md_path_obj = Path(md_path_str)
+            try:
+                post = frontmatter.load(str(md_path_obj))
+                ents = extract_entities(post.get("title", ""), post.content)
+                extracted_people = ents.get("people", [])
+                conn.execute(
+                    "UPDATE notes SET people=?, entities=? WHERE path=?",
+                    (json.dumps(extracted_people), json.dumps(ents), md_path_str),
+                )
+            except Exception as e:
+                errors.append(f"entities:{md_path_str}: {e}")
+        conn.commit()
+
     # Build wiki-link relationships from note bodies
     from engine.links import update_wiki_link_relationships
     all_notes = conn.execute("SELECT path, body FROM notes").fetchall()
@@ -211,10 +229,11 @@ def main():
     import argparse
     ap = argparse.ArgumentParser(description="Rebuild SQLite index from brain markdown files")
     ap.add_argument("--full", action="store_true", help="Force full embedding rebuild")
+    ap.add_argument("--entities", action="store_true", help="Re-extract entities and rewrite people column")
     args = ap.parse_args()
 
     print("[sb-reindex] Starting full index rebuild...")
-    result = reindex_brain(BRAIN_ROOT, full=args.full)
+    result = reindex_brain(BRAIN_ROOT, full=args.full, entities=args.entities)
 
     print(f"  [OK] Indexed {result['indexed']} notes")
     if result["purged"]:
