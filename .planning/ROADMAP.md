@@ -394,7 +394,7 @@ Plans:
 | 28. TODO & Gap Resolution | 8/8 | Complete    | 2026-03-19 | - |
 | 29. Add link capture | 4/4 | Complete   | 2026-03-19 | - |
 | 30. People Graph Hardening | 4/4 | Complete | 2026-03-20 | - |
-| 31. Smart Capture & Multi-Context Intelligence | v4.0 | 0/6 | Not started | - |
+| 31. Smart Capture & Multi-Context Intelligence | 1/6 | In Progress|  | - |
 | 32. Architecture Hardening | v4.0 | 0/6 | Not started | - |
 | 33. Performance & Scale Hardening | v4.0 | 0/5 | Not started | - |
 | 34. GUI Management Productivity | v4.0 | 0/4 | Not started | - |
@@ -462,7 +462,7 @@ Plans:
 **Depends on:** Phase 30
 **Milestone:** v4.0
 **Requirements**: CAP-01, CAP-02, CAP-03, CAP-04, CAP-05, CAP-06, CAP-07, CAP-08, CAP-09, CAP-10, CAP-11
-**Plans:** 6 plans
+**Plans:** 1/6 plans executed
 
 Requirements detail:
 - **CAP-01** — `sb_capture_smart` accepts raw freeform text and returns N typed note suggestions (person / meeting / project / idea / note) with inferred titles, types, and cross-links; user confirms or edits before saving

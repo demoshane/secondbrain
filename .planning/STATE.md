@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Phase 31 context gathered
-last_updated: "2026-03-20T14:26:29.138Z"
+stopped_at: Completed 31-01-PLAN.md
+last_updated: "2026-03-20T19:19:20.181Z"
 last_activity: 2026-03-20 — Phase 30 complete; people graph hardening (4 plans)
 progress:
   total_phases: 26
   completed_phases: 20
   total_plans: 99
-  completed_plans: 87
+  completed_plans: 88
   percent: 99
 ---
 
@@ -129,6 +129,7 @@ Progress: [██████████] 99%
 | Phase 30-people-graph-hardening P01 | 25 | 2 tasks | 5 files |
 | Phase 30-people-graph-hardening P02 | 8 | 2 tasks | 4 files |
 | Phase 30 P03 | 25 | 2 tasks | 3 files |
+| Phase 31 P01 | 25 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -308,6 +309,8 @@ Recent decisions affecting current work:
 - [Phase 30-people-graph-hardening]: [Phase 30-02]: reindex_brain() entities=True pass overwrites people+entities columns from fresh extraction — replace not merge
 - [Phase 30]: sb_person_context uses json_each people column lookup — no body-scan; accepts name or path; returns found/org/last_interaction_date/total_meetings metrics
 - [Phase 30]: sb_list_people uses correlated subqueries for open_actions/last_interaction/total_meetings/total_mentions; ordered alphabetically
+- [Phase 31]: sb_capture_smart auto-saves (no confirm_token) — Phase 31 contract replaces Phase 28-02 stub
+- [Phase 31]: [31-01] xfail stubs must patch both engine.paths.BRAIN_ROOT and mcp_mod.BRAIN_ROOT — module-level import binding requires both
 
 ### Roadmap Evolution
 
@@ -332,9 +335,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-20T14:26:29.108Z
-Stopped at: Phase 31 context gathered
-Resume file: .planning/phases/31-smart-capture-multi-context-intelligence/31-CONTEXT.md
+Last session: 2026-03-20T19:19:20.169Z
+Stopped at: Completed 31-01-PLAN.md
+Resume file: None
 
 ## TODOs (for Phase 27)
 - **Tag management UI**: Global tab/panel listing all tags with usage counts; rename tag across all notes; delete tag globally. (Per-note chip editing already shipped in Phase 23.)
