@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 30-01-PLAN.md
-last_updated: "2026-03-20T09:07:06.895Z"
+stopped_at: Completed 30-02-PLAN.md
+last_updated: "2026-03-20T09:17:58.526Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 25
   completed_phases: 19
   total_plans: 96
-  completed_plans: 84
+  completed_plans: 85
   percent: 99
 ---
 
@@ -127,6 +127,7 @@ Progress: [██████████] 99%
 | Phase 29 P03 | 8 | 2 tasks | 2 files |
 | Phase 29 P04 | 6 | 2 tasks | 5 files |
 | Phase 30-people-graph-hardening P01 | 25 | 2 tasks | 5 files |
+| Phase 30-people-graph-hardening P02 | 8 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -302,6 +303,8 @@ Recent decisions affecting current work:
 - [Phase 30-01]: entity extraction order: extract → merge → build_post(merged) — was build_post → extract → write; critical for people write-back (Pitfall 3)
 - [Phase 30-01]: retry-on-stop-word in _extract_people: use re.finditer with pos=m.start(2) on stop hit — avoids consuming second word in stopped pair
 - [Phase 30-01]: org extraction suffix-based only (Ltd, Oy, GmbH etc) — no pure acronym matching to avoid API/MCP false positives
+- [Phase 30-people-graph-hardening]: [Phase 30-02]: Body-mention fallback removed entirely from note_meta() — people column is now the single source of truth (PEO-02 complete)
+- [Phase 30-people-graph-hardening]: [Phase 30-02]: reindex_brain() entities=True pass overwrites people+entities columns from fresh extraction — replace not merge
 
 ### Roadmap Evolution
 
@@ -326,8 +329,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-20T09:07:06.868Z
-Stopped at: Completed 30-01-PLAN.md
+Last session: 2026-03-20T09:17:58.477Z
+Stopped at: Completed 30-02-PLAN.md
 Resume file: None
 
 ## TODOs (for Phase 27)
