@@ -393,7 +393,7 @@ Plans:
 | 27.8. Intelligence Page | v3.0 | 3/3 | Complete | 2026-03-18 |
 | 28. TODO & Gap Resolution | 8/8 | Complete    | 2026-03-19 | - |
 | 29. Add link capture | 4/4 | Complete   | 2026-03-19 | - |
-| 30. People Graph Hardening | v4.0 | 0/4 | Not started | - |
+| 30. People Graph Hardening | 1/4 | In Progress|  | - |
 | 31. Smart Capture & Multi-Context Intelligence | v4.0 | 0/4 | Not started | - |
 | 32. Architecture Hardening | v4.0 | 0/4 | Not started | - |
 | 33. Performance & Scale Hardening | v4.0 | 0/3 | Not started | - |
@@ -439,7 +439,7 @@ Plans:
 **Depends on:** Phase 29
 **Milestone:** v4.0
 **Requirements**: PEO-01, PEO-02, PEO-03, PEO-04
-**Plans:** 4 plans
+**Plans:** 1/4 plans executed
 
 Requirements detail:
 - **PEO-01** — Entity extraction recognises non-ASCII/Finnish names (replace `[A-Z][a-z]+` with Unicode-aware pattern)

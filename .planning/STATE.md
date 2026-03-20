@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Phase 30 context gathered
-last_updated: "2026-03-20T07:35:21.332Z"
+stopped_at: Completed 30-01-PLAN.md
+last_updated: "2026-03-20T09:07:06.895Z"
 last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
 progress:
   total_phases: 25
   completed_phases: 19
   total_plans: 96
-  completed_plans: 83
+  completed_plans: 84
   percent: 99
 ---
 
@@ -126,6 +126,7 @@ Progress: [██████████] 99%
 | Phase 29 P02 | 21 | 2 tasks | 4 files |
 | Phase 29 P03 | 8 | 2 tasks | 2 files |
 | Phase 29 P04 | 6 | 2 tasks | 5 files |
+| Phase 30-people-graph-hardening P01 | 25 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -298,6 +299,9 @@ Recent decisions affecting current work:
 - [Phase 29]: [29-03] GET /links/<path> returns 403 for path-traversal attempts and 404 when path not found as type='link'
 - [Phase 29]: [29-04] LinksPage uses pre-wrap rendering for body; parseTags() handles JSON TEXT tags column; Visit Link button uses window.open noopener
 - [Phase 29]: [29-04] .secrets.baseline updated to include new vite bundle (index-DMTF-UMF.js) — same false-positive pattern as Phase 27.4/27.8
+- [Phase 30-01]: entity extraction order: extract → merge → build_post(merged) — was build_post → extract → write; critical for people write-back (Pitfall 3)
+- [Phase 30-01]: retry-on-stop-word in _extract_people: use re.finditer with pos=m.start(2) on stop hit — avoids consuming second word in stopped pair
+- [Phase 30-01]: org extraction suffix-based only (Ltd, Oy, GmbH etc) — no pure acronym matching to avoid API/MCP false positives
 
 ### Roadmap Evolution
 
@@ -322,9 +326,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-20T07:35:21.300Z
-Stopped at: Phase 30 context gathered
-Resume file: .planning/phases/30-people-graph-hardening/30-CONTEXT.md
+Last session: 2026-03-20T09:07:06.868Z
+Stopped at: Completed 30-01-PLAN.md
+Resume file: None
 
 ## TODOs (for Phase 27)
 - **Tag management UI**: Global tab/panel listing all tags with usage counts; rename tag across all notes; delete tag globally. (Per-note chip editing already shipped in Phase 23.)
