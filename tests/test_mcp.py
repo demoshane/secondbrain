@@ -710,17 +710,20 @@ def mcp_person_brain(tmp_path, monkeypatch):
     meeting_path = str(brain / "meetings" / "kickoff.md")
     mention_path = str(brain / "note" / "project-plan.md")
 
+    import json as _json
     conn.execute(
-        "INSERT INTO notes (path, title, body, type) VALUES (?, ?, ?, ?)",
-        (person_path, "Alice", "Alice is a designer.", "person"),
+        "INSERT INTO notes (path, title, body, type, people) VALUES (?, ?, ?, ?, ?)",
+        (person_path, "Alice", "Alice is a designer.", "person", _json.dumps([])),
     )
     conn.execute(
-        "INSERT INTO notes (path, title, body, type) VALUES (?, ?, ?, ?)",
-        (meeting_path, "Kickoff Meeting", "We discussed plans with Alice today.", "meeting"),
+        "INSERT INTO notes (path, title, body, type, people) VALUES (?, ?, ?, ?, ?)",
+        (meeting_path, "Kickoff Meeting", "We discussed plans with Alice today.", "meeting",
+         _json.dumps([person_path])),
     )
     conn.execute(
-        "INSERT INTO notes (path, title, body, type) VALUES (?, ?, ?, ?)",
-        (mention_path, "Project Plan", "Alice will lead the design phase.", "note"),
+        "INSERT INTO notes (path, title, body, type, people) VALUES (?, ?, ?, ?, ?)",
+        (mention_path, "Project Plan", "Alice will lead the design phase.", "note",
+         _json.dumps([person_path])),
     )
     conn.execute(
         "INSERT INTO action_items (text, done, assignee_path, note_path) VALUES (?, 0, ?, ?)",
@@ -771,6 +774,172 @@ def test_sb_person_context_returns_mentions(mcp_person_brain):
 
 
 def test_sb_person_context_unknown_path(mcp_person_brain):
-    """sb_person_context returns error dict for non-existent path (no exception)."""
+    """sb_person_context returns found=False for non-existent path (no exception)."""
     result = mcp_mod.sb_person_context(str(mcp_person_brain["brain"] / "people" / "nobody.md"))
-    assert result.get("error") == "not found"
+    assert result.get("found") is False
+    assert "error" in result
+
+
+# ---------------------------------------------------------------------------
+# Phase 30-03 — sb_person_context column-based lookup + metrics + sb_list_people
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def mcp_person_brain_v2(tmp_path, monkeypatch):
+    """Isolated brain for column-based person context tests.
+
+    Seeds:
+    - person note "Anna Korhonen" (type=person)
+    - meeting1 (people column contains anna path) — newer date
+    - meeting2 (people column contains anna path) — older date
+    - meeting_body_only (people=[] but body mentions Anna) — must NOT appear in column lookup
+    - note_mention (people column contains anna path) — non-meeting mention
+    - action item assigned to anna_path
+    """
+    import json
+    import engine.db as _db
+    import engine.paths as _paths
+    from engine.db import get_connection as _get_conn, init_schema as _init
+
+    brain = tmp_path / "brain"
+    for d in ["note", "meetings", "people", "projects"]:
+        (brain / d).mkdir(parents=True)
+
+    tmp_db = brain / "test.db"
+    monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "BRAIN_ROOT", brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", brain)
+    monkeypatch.setenv("BRAIN_PATH", str(brain))
+
+    conn = _get_conn(str(tmp_db))
+    _init(conn)
+
+    anna_path = str(brain / "people" / "anna-korhonen.md")
+    meeting1_path = str(brain / "meetings" / "sprint-review.md")
+    meeting2_path = str(brain / "meetings" / "quarterly.md")
+    meeting_body_only_path = str(brain / "meetings" / "body-only.md")
+    mention_path = str(brain / "note" / "project-alpha.md")
+
+    # Person note with entities JSON (org)
+    conn.execute(
+        "INSERT INTO notes (path, title, body, type, people, entities) VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            anna_path,
+            "Anna Korhonen",
+            "Anna is a senior engineer.",
+            "person",
+            json.dumps([]),
+            json.dumps({"orgs": ["Acme Ltd"]}),
+        ),
+    )
+    # Meeting 1 — newer — has anna_path in people column
+    conn.execute(
+        "INSERT INTO notes (path, title, body, type, people, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            meeting1_path,
+            "Sprint Review",
+            "Sprint review session.",
+            "meeting",
+            json.dumps([anna_path]),
+            "2026-02-10T10:00:00",
+        ),
+    )
+    # Meeting 2 — older — has anna_path in people column
+    conn.execute(
+        "INSERT INTO notes (path, title, body, type, people, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            meeting2_path,
+            "Quarterly Review",
+            "Quarterly review session.",
+            "meeting",
+            json.dumps([anna_path]),
+            "2026-01-05T10:00:00",
+        ),
+    )
+    # Meeting body-only — mentions "Anna Korhonen" in body but people column is []
+    conn.execute(
+        "INSERT INTO notes (path, title, body, type, people, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            meeting_body_only_path,
+            "Planning",
+            "Anna Korhonen was mentioned here.",
+            "meeting",
+            json.dumps([]),
+            "2026-01-20T10:00:00",
+        ),
+    )
+    # Mention note — non-meeting with anna_path in people column
+    conn.execute(
+        "INSERT INTO notes (path, title, body, type, people, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            mention_path,
+            "Project Alpha",
+            "Anna leads this project.",
+            "note",
+            json.dumps([anna_path]),
+            "2026-02-15T10:00:00",
+        ),
+    )
+    # Action item assigned to anna
+    conn.execute(
+        "INSERT INTO action_items (text, done, assignee_path, note_path) VALUES (?, 0, ?, ?)",
+        ("Anna to review architecture doc", anna_path, meeting1_path),
+    )
+    conn.commit()
+    conn.close()
+
+    return {
+        "brain": brain,
+        "anna_path": anna_path,
+        "meeting1_path": meeting1_path,
+        "meeting2_path": meeting2_path,
+        "meeting_body_only_path": meeting_body_only_path,
+        "mention_path": mention_path,
+    }
+
+
+def test_person_context_column_lookup(mcp_person_brain_v2):
+    """Column-based lookup returns meetings with people column match; body-only meeting excluded."""
+    d = mcp_person_brain_v2
+    result = mcp_mod.sb_person_context(d["anna_path"])
+    assert result.get("found") is True
+    meeting_paths = [m["path"] for m in result["meetings"]]
+    assert d["meeting1_path"] in meeting_paths
+    assert d["meeting2_path"] in meeting_paths
+    # body-only meeting must NOT appear (no people column match)
+    assert d["meeting_body_only_path"] not in meeting_paths
+
+
+def test_person_context_by_name(mcp_person_brain_v2):
+    """sb_person_context resolves 'Anna Korhonen' name string to the correct path."""
+    result = mcp_mod.sb_person_context("Anna Korhonen")
+    assert result.get("found") is True
+    assert result["path"] == mcp_person_brain_v2["anna_path"]
+
+
+def test_person_context_metrics(mcp_person_brain_v2):
+    """Response includes total_meetings=2, last_interaction_date is not null."""
+    d = mcp_person_brain_v2
+    result = mcp_mod.sb_person_context(d["anna_path"])
+    assert result.get("found") is True
+    assert result["total_meetings"] == 2
+    assert result["last_interaction_date"] is not None
+    assert result["total_mentions"] >= 1
+
+
+def test_person_context_not_found(mcp_person_brain_v2):
+    """sb_person_context returns found=False for nonexistent name."""
+    result = mcp_mod.sb_person_context("Nonexistent Person")
+    assert result.get("found") is False
+
+
+def test_person_context_chronological(mcp_person_brain_v2):
+    """Meetings are returned ordered newest-first (DESC by created_at)."""
+    d = mcp_person_brain_v2
+    result = mcp_mod.sb_person_context(d["anna_path"])
+    meetings = result["meetings"]
+    assert len(meetings) >= 2
+    # meeting1 (2026-02-10) must come before meeting2 (2026-01-05)
+    paths = [m["path"] for m in meetings]
+    assert paths.index(d["meeting1_path"]) < paths.index(d["meeting2_path"])

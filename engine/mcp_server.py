@@ -13,7 +13,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from engine.capture import build_post, capture_note, check_capture_dedup, log_audit, write_note_atomic
+from engine.capture import build_post, capture_note, check_capture_dedup, log_audit, update_note, write_note_atomic
 from engine.db import get_connection
 from engine.digest import generate_digest
 from engine.forget import forget_person
@@ -39,6 +39,7 @@ _pending_lock = threading.Lock()
 _MAX_QUERY_LEN = 500
 _MAX_TITLE_LEN = 200
 _MAX_BODY_LEN = 50_000
+_MAX_URL_LEN = 2048
 
 
 # ---------------------------------------------------------------------------
@@ -240,8 +241,8 @@ def sb_capture_batch(notes: list[dict]) -> dict:
 @mcp.tool()
 def sb_capture_link(
     url: str,
-    tags: list[str] | None = None,
-    people: list[str] | None = None,
+    tags: str | list[str] | None = None,
+    people: str | list[str] | None = None,
     notes: str = "",
 ) -> dict:
     """Capture a URL as a link note. Fetches og:title and og:description automatically.
@@ -249,6 +250,29 @@ def sb_capture_link(
     If this URL was captured before, saves a new copy and warns via duplicate_url_warning status.
     """
     _ensure_ready()
+    # URL validation: length and scheme checks (SSRF-01)
+    if len(url) > _MAX_URL_LEN:
+        raise ValueError("URL_TOO_LONG")
+    from urllib.parse import urlparse as _urlparse
+    _scheme = _urlparse(url).scheme
+    if _scheme not in ("http", "https"):
+        raise ValueError("INVALID_URL_SCHEME")
+    # Coerce tags/people from string to list (MCP transport may JSON-serialize lists)
+    import json as _json
+    def _to_list(val):
+        if val is None:
+            return []
+        if isinstance(val, list):
+            return val
+        val = val.strip()
+        if val.startswith("["):
+            try:
+                return _json.loads(val)
+            except (ValueError, TypeError):
+                pass
+        return [t.strip() for t in val.split(",") if t.strip()]
+    tags = _to_list(tags)
+    people = _to_list(people)
     from urllib.parse import urlparse
     hostname = urlparse(url).hostname or url
     meta = fetch_link_metadata(url)
@@ -261,11 +285,30 @@ def sb_capture_link(
 
     conn = get_connection()
     try:
-        # Duplicate URL check
+        # Check if URL already captured — upsert if so
         existing = conn.execute(
-            "SELECT path FROM notes WHERE url=? LIMIT 1", (url,)
+            "SELECT path, title FROM notes WHERE url=? LIMIT 1", (url,)
         ).fetchone()
-        existing_path = existing[0] if existing else None
+
+        if existing:
+            existing_path = existing[0]
+            update_note(
+                note_path=existing_path,
+                title=title,
+                body=body,
+                tags=tags,
+                conn=conn,
+                brain_root=BRAIN_ROOT,
+            )
+            _log_mcp_audit("mcp_update_link", existing_path)
+            rel_path = str(existing_path).replace(str(BRAIN_ROOT) + "/", "")
+            return {
+                "status": "updated",
+                "path": existing_path,
+                "title": title,
+                "domain": hostname,
+                "message": f"Updated: '{title}' ({hostname}) → {rel_path}",
+            }
 
         path = capture_note(
             note_type="link",
@@ -282,13 +325,6 @@ def sb_capture_link(
         _log_mcp_audit("mcp_capture_link", str(path))
 
         rel_path = str(path).replace(str(BRAIN_ROOT) + "/", "")
-        if existing_path:
-            return {
-                "status": "duplicate_url_warning",
-                "existing_path": existing_path,
-                "path": str(path),
-                "message": f"Already captured this URL as {existing_path} — saving new copy",
-            }
         return {
             "status": "created",
             "path": str(path),
@@ -759,52 +795,82 @@ def sb_unlink(source_path: str, target_path: str, rel_type: str | None = None) -
 
 
 @mcp.tool()
-def sb_person_context(path: str) -> dict:
-    """Return full context for a person in one call: note body, meetings, actions, mentions.
+def sb_person_context(name_or_path: str) -> dict:
+    """Return full context for a person: note body, meetings, actions, mentions, and relationship metrics.
 
-    Aggregates all available data about a person without requiring multiple MCP calls.
-
-    Args:
-        path: Absolute or brain-relative path to the person note (e.g. /brain/people/alice.md)
+    Accepts either a direct note path ("/brain/people/alice.md") or a person name ("Alice Smith").
+    Uses the people column (json_each) for lookups — not body text scan.
 
     Returns:
-        {path, note: {title, body}, meetings: [{path, title}], actions: [{...}], mentions: [{path, title}]}
-        Or {error: "not found", path: str} if the path is not indexed.
+        On success: {found, path, note, meetings, actions, mentions, org, last_interaction_date,
+                     total_meetings, total_mentions, total_actions}
+        On failure: {found: False, error: str}
     """
-    import sqlite3 as _sqlite3
-    from engine.db import get_connection as _get_connection
-
-    conn = _get_connection()
-    conn.row_factory = _sqlite3.Row
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
     try:
-        row = conn.execute(
-            "SELECT title, body, type FROM notes WHERE path=?", (path,)
-        ).fetchone()
+        # 1. Resolve person path from name or direct path
+        if "/" in name_or_path:
+            person_path = name_or_path
+            row = conn.execute(
+                "SELECT title, body, entities FROM notes WHERE path=? AND type IN ('person','people')",
+                (person_path,),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT path, title, body, entities FROM notes "
+                "WHERE LOWER(title)=LOWER(?) AND type IN ('person','people') LIMIT 1",
+                (name_or_path,),
+            ).fetchone()
+            if row is None:
+                return {"found": False, "error": f"Person not found: {name_or_path!r}"}
+            person_path = row["path"]
+
         if row is None:
-            return {"error": "not found", "path": path}
+            return {"found": False, "error": f"Person not found: {name_or_path!r}"}
 
         person_title = row["title"]
 
-        # Meetings: type='meeting' notes where person_title appears in body (case-insensitive)
+        # 2. Meetings via json_each people column (exact path OR name-like match)
         meeting_rows = conn.execute(
-            "SELECT path, title, body FROM notes WHERE type='meeting'"
+            """
+            SELECT DISTINCT n.path, n.title, n.created_at
+            FROM notes n, json_each(COALESCE(n.people, '[]')) pe
+            WHERE (pe.value = ? OR pe.value LIKE ?)
+              AND n.type = 'meeting'
+            ORDER BY n.created_at DESC
+            """,
+            (person_path, f"%{person_title}%"),
         ).fetchall()
-        meetings = []
-        for r in meeting_rows:
-            body = r["body"] or ""
-            if person_title.lower() in body.lower():
-                meetings.append({"path": r["path"], "title": r["title"]})
+        meetings = [
+            {"path": r["path"], "title": r["title"], "meeting_date": (r["created_at"] or "")[:10]}
+            for r in meeting_rows
+        ]
 
-        # Actions assigned directly to this person path
+        # 3. Mentions (non-person/meeting notes) via json_each people column
+        mention_rows = conn.execute(
+            """
+            SELECT DISTINCT n.path, n.title, n.created_at
+            FROM notes n, json_each(COALESCE(n.people, '[]')) pe
+            WHERE (pe.value = ? OR pe.value LIKE ?)
+              AND n.type NOT IN ('person', 'people', 'meeting')
+            ORDER BY n.created_at DESC
+            """,
+            (person_path, f"%{person_title}%"),
+        ).fetchall()
+        mentions = [{"path": r["path"], "title": r["title"]} for r in mention_rows]
+
+        # 4. Action items: assigned to person path or mentioning name; ordered by due_date then created_at
         assigned_rows = conn.execute(
-            "SELECT id, text, done, due_date, note_path FROM action_items WHERE assignee_path=?",
-            (path,),
+            "SELECT id, text, done, due_date, note_path FROM action_items "
+            "WHERE assignee_path=? ORDER BY due_date ASC, id ASC",
+            (person_path,),
         ).fetchall()
         seen_ids: set = {r["id"] for r in assigned_rows}
 
-        # Actions mentioning person by name in text
         mentioned_rows = conn.execute(
-            "SELECT id, text, done, due_date, note_path FROM action_items WHERE text LIKE ?",
+            "SELECT id, text, done, due_date, note_path FROM action_items "
+            "WHERE text LIKE ? ORDER BY due_date ASC, id ASC",
             (f"%{person_title}%",),
         ).fetchall()
 
@@ -824,20 +890,28 @@ def sb_person_context(path: str) -> dict:
                 actions.append(_row_to_action(r))
                 seen_ids.add(r["id"])
 
-        # Mentions: non-person/people notes where person_title appears in body
-        mention_rows = conn.execute(
-            "SELECT path, title FROM notes WHERE body LIKE ? AND path != ? "
-            "AND type NOT IN ('person', 'people')",
-            (f"%{person_title}%", path),
-        ).fetchall()
-        mentions = [{"path": r["path"], "title": r["title"]} for r in mention_rows]
+        # 5. Enrichment metrics
+        import json as _json
+        ents = _json.loads(row["entities"] or "{}")
+        org = (ents.get("orgs") or [""])[0]
+
+        all_dates = [r["created_at"] for r in meeting_rows] + [r["created_at"] for r in mention_rows]
+        last_interaction_date = max((d for d in all_dates if d), default=None)
+        if last_interaction_date:
+            last_interaction_date = last_interaction_date[:10]
 
         return {
-            "path": path,
+            "found": True,
+            "path": person_path,
             "note": {"title": person_title, "body": row["body"]},
             "meetings": meetings,
             "actions": actions,
             "mentions": mentions,
+            "org": org,
+            "last_interaction_date": last_interaction_date,
+            "total_meetings": len(meetings),
+            "total_mentions": len(mentions),
+            "total_actions": len(actions),
         }
     finally:
         conn.close()
