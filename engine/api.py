@@ -250,13 +250,32 @@ def read_note(note_path):
 def list_people():
     conn = get_connection()
     conn.row_factory = sqlite3.Row
-    rows = conn.execute(
-        "SELECT n.path, n.title, substr(n.updated_at, 1, 10) AS updated_at, "
-        "  (SELECT COUNT(*) FROM action_items a WHERE a.assignee_path=n.path AND a.done=0) AS open_actions "
-        "FROM notes n WHERE n.type IN ('person', 'people') ORDER BY n.title",
-    ).fetchall()
-    conn.close()
-    return jsonify({"people": [dict(r) for r in rows]})
+    try:
+        rows = conn.execute("""
+            SELECT n.path, n.title, n.entities, substr(n.updated_at, 1, 10) AS updated_at,
+                (SELECT COUNT(*) FROM action_items a WHERE a.assignee_path=n.path AND a.done=0) AS open_actions,
+                (SELECT MAX(m.created_at) FROM notes m, json_each(COALESCE(m.people, '[]')) pe
+                 WHERE pe.value=n.path AND m.type='meeting') AS last_interaction,
+                (SELECT COUNT(*) FROM notes m, json_each(COALESCE(m.people, '[]')) pe
+                 WHERE pe.value=n.path AND m.type NOT IN ('person','people')) AS mention_count
+            FROM notes n WHERE n.type IN ('person', 'people') ORDER BY n.title
+        """).fetchall()
+    finally:
+        conn.close()
+    result = []
+    for r in rows:
+        ents = json.loads(r["entities"] or "{}")
+        org = (ents.get("orgs") or [""])[0]
+        result.append({
+            "path": r["path"],
+            "title": r["title"],
+            "updated_at": r["updated_at"],
+            "open_actions": r["open_actions"],
+            "org": org,
+            "last_interaction": r["last_interaction"],
+            "mention_count": r["mention_count"] or 0,
+        })
+    return jsonify({"people": result})
 
 
 @app.get("/meetings")

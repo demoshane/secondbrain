@@ -36,6 +36,9 @@ export interface PersonSummary {
   title: string
   updated_at: string
   open_actions: number
+  org: string
+  last_interaction: string | null
+  mention_count: number
 }
 
 export interface MeetingSummary {

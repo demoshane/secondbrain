@@ -1,11 +1,12 @@
-"""Phase 27.4: Unit test scaffold for /api/people endpoint.
+"""Phase 27.4 + 30-04: Unit tests for /people endpoint.
 
-All tests are xfail(strict=False) — Wave 0 RED baseline.
-Wave 1 (plan 27.4-02) will build the endpoint and make these green.
-
-Run: uv run pytest tests/test_people.py -v
+Tests cover:
+  - Basic endpoint existence (from 27.4 stubs)
+  - Enriched fields: org, last_interaction, mention_count (Phase 30-04)
+  - Person type isolation: both 'person' and 'people' types appear; plain 'note' does not
 """
 import json
+import datetime
 import pytest
 
 
@@ -37,7 +38,6 @@ def client(monkeypatch, tmp_path):
         yield c, brain
 
 
-@pytest.mark.xfail(strict=False, reason="endpoint not yet implemented")
 def test_list_people_endpoint(client):
     """GET /people returns 200 with a people key."""
     c, _ = client
@@ -47,7 +47,6 @@ def test_list_people_endpoint(client):
     assert "people" in data
 
 
-@pytest.mark.xfail(strict=False, reason="endpoint not yet implemented")
 def test_list_people_empty(client):
     """GET /people with no people notes returns {"people": []}."""
     c, _ = client
@@ -57,15 +56,12 @@ def test_list_people_empty(client):
     assert data["people"] == []
 
 
-@pytest.mark.xfail(strict=False, reason="endpoint not yet implemented")
 def test_list_people_stats(client):
     """Note in people/ folder + 1 open action item -> open_actions=1, updated_at present."""
-    import datetime
     from engine.db import get_connection
 
     c, brain = client
 
-    # Insert a person note
     note_path = str(brain / "people" / "alice.md")
     now = datetime.datetime.utcnow().isoformat()
     conn = get_connection()
@@ -74,7 +70,6 @@ def test_list_people_stats(client):
         " VALUES (?,?,?,?,?,?,?)",
         (note_path, "Alice", "people", "Alice is a colleague.", "[]", now, now),
     )
-    # Insert an open action item assigned to that person note
     conn.execute(
         "INSERT INTO action_items (note_path, text, done, assignee_path)"
         " VALUES (?,?,?,?)",
@@ -91,3 +86,82 @@ def test_list_people_stats(client):
     person = data["people"][0]
     assert person["open_actions"] == 1
     assert person["updated_at"] is not None
+
+
+def test_list_people_enriched(client):
+    """Enriched fields: org extracted from entities JSON, last_interaction from meeting people
+    column, mention_count >= 1 for a person referenced in a non-person note."""
+    from engine.db import get_connection
+
+    c, brain = client
+
+    person_path = str(brain / "people" / "bob.md")
+    meeting_path = str(brain / "meetings" / "q1-review.md")
+    now = datetime.datetime.utcnow().isoformat()
+    entities_json = json.dumps({"orgs": ["Acme Corp"], "people": ["Bob"], "topics": []})
+
+    conn = get_connection()
+    # Person note with org in entities
+    conn.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, entities, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?,?)",
+        (person_path, "Bob", "person", "Bob works at Acme Corp.", "[]", entities_json, now, now),
+    )
+    # Meeting note that references bob via people column
+    people_json = json.dumps([person_path])
+    conn.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, people, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?,?)",
+        (meeting_path, "Q1 Review", "meeting", "Met with Bob.", "[]", people_json, now, now),
+    )
+    conn.commit()
+    conn.close()
+
+    resp = c.get("/people")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    people = data["people"]
+    assert len(people) == 1
+    person = people[0]
+    assert person["org"] == "Acme Corp"
+    assert person["last_interaction"] is not None
+    assert person["mention_count"] >= 1
+
+
+def test_person_type_isolation(client):
+    """Both type='person' and type='people' appear; plain type='note' does NOT."""
+    from engine.db import get_connection
+
+    c, brain = client
+
+    now = datetime.datetime.utcnow().isoformat()
+    person_path = str(brain / "people" / "carol.md")
+    people_path = str(brain / "people" / "group.md")
+    note_path = str(brain / "ideas" / "random.md")
+
+    conn = get_connection()
+    conn.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?)",
+        (person_path, "Carol", "person", "Carol is a person.", "[]", now, now),
+    )
+    conn.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?)",
+        (people_path, "Engineering Group", "people", "A group note.", "[]", now, now),
+    )
+    conn.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?)",
+        (note_path, "Random Idea", "note", "Just an idea.", "[]", now, now),
+    )
+    conn.commit()
+    conn.close()
+
+    resp = c.get("/people")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    paths = [p["path"] for p in data["people"]]
+    assert person_path in paths, "type='person' must appear"
+    assert people_path in paths, "type='people' must appear"
+    assert note_path not in paths, "type='note' must NOT appear"
