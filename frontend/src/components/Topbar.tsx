@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { Search, Plus, FolderSync } from 'lucide-react'
+import { Search, Plus, FolderSync, Sparkles } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -11,9 +11,10 @@ import { cn } from '@/lib/utils'
 interface Props {
   onNewNote: () => void
   onBatchCapture: () => void
+  onSmartCapture: () => void
 }
 
-export function Topbar({ onNewNote, onBatchCapture }: Props) {
+export function Topbar({ onNewNote, onBatchCapture, onSmartCapture }: Props) {
   const { query, setQuery, mode, setMode, search, clearSearch } = useSearchContext()
   const { connected } = useSSEContext()
   const { loadNotes } = useNoteContext()
@@ -60,6 +61,9 @@ export function Topbar({ onNewNote, onBatchCapture }: Props) {
       <Button size="sm" variant="outline" data-testid="new-note-btn" onClick={onNewNote}>
         <Plus className="h-4 w-4 mr-1" />
         New Note
+      </Button>
+      <Button size="sm" variant="ghost" data-testid="smart-capture-btn" onClick={onSmartCapture} title="Smart Capture">
+        <Sparkles className="h-4 w-4" />
       </Button>
       <Button size="sm" variant="ghost" data-testid="batch-capture-btn" onClick={onBatchCapture} title="Batch Capture">
         <FolderSync className="h-4 w-4" />

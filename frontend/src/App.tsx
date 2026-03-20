@@ -15,6 +15,7 @@ import { NewNoteModal } from './components/NewNoteModal'
 import { DeleteNoteModal } from './components/DeleteNoteModal'
 import { FileUploadModal } from './components/FileUploadModal'
 import { BatchCaptureModal } from './components/BatchCaptureModal'
+import { SmartCaptureModal } from './components/SmartCaptureModal'
 import { useNoteContext } from './contexts/NoteContext'
 import { useUIContext } from './contexts/UIContext'
 import { Button } from './components/ui/button'
@@ -27,6 +28,7 @@ export default function App() {
   const [showDelete, setShowDelete] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
   const [showBatch, setShowBatch] = useState(false)
+  const [showSmartCapture, setShowSmartCapture] = useState(false)
 
   useEffect(() => { loadNotes() }, [loadNotes])
 
@@ -35,6 +37,7 @@ export default function App() {
       <Topbar
         onNewNote={() => setShowNewNote(true)}
         onBatchCapture={() => setShowBatch(true)}
+        onSmartCapture={() => setShowSmartCapture(true)}
       />
       <TabBar />
       <div className="flex flex-1 overflow-hidden">
@@ -99,6 +102,7 @@ export default function App() {
       />
       <FileUploadModal open={showUpload} onClose={() => setShowUpload(false)} />
       <BatchCaptureModal open={showBatch} onClose={() => setShowBatch(false)} />
+      <SmartCaptureModal open={showSmartCapture} onClose={() => setShowSmartCapture(false)} />
     </div>
   )
 }

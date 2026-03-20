@@ -1167,6 +1167,51 @@ def create_relationship():
     return jsonify({"created": True})
 
 
+@app.post("/smart-capture")
+def smart_capture():
+    """Segment freeform text into typed notes and save atomically."""
+    import itertools
+    data = request.get_json() or {}
+    content = data.get("content", "").strip()
+    if not content:
+        return jsonify({"error": "content is required"}), 400
+
+    from engine.segmenter import segment_blob
+    from engine.capture import capture_note
+    from engine.paths import BRAIN_ROOT
+    import uuid
+
+    segments = segment_blob(content)
+    session_id = str(uuid.uuid4())
+    conn = get_connection()
+
+    saved = []
+    for seg in segments:
+        try:
+            path = capture_note(
+                note_type=seg["type"], title=seg["title"], body=seg["body"],
+                tags=[], people=seg.get("entities", {}).get("people", []),
+                content_sensitivity="public", brain_root=BRAIN_ROOT, conn=conn,
+            )
+            saved.append({"title": seg["title"], "type": seg["type"], "path": str(path)})
+        except Exception as e:
+            saved.append({"title": seg["title"], "type": seg["type"], "error": str(e)})
+
+    # Co-captured relationships
+    paths = [s["path"] for s in saved if "path" in s]
+    now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    for a, b in itertools.combinations(paths, 2):
+        conn.execute(
+            "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+            (a, b, "co-captured"),
+        )
+    conn.commit()
+    conn.close()
+
+    _broadcast({"type": "refresh"})
+    return jsonify({"notes": saved, "capture_session": session_id, "count": len(saved)})
+
+
 @app.get("/brain-health")
 def brain_health_endpoint():
     """Brain content health dashboard: orphans, broken links, duplicates, score."""
