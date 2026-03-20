@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 30-03-PLAN.md
-last_updated: "2026-03-20T09:39:28.576Z"
-last_activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
+stopped_at: Phase 31 context gathered
+last_updated: "2026-03-20T14:26:29.138Z"
+last_activity: 2026-03-20 — Phase 30 complete; people graph hardening (4 plans)
 progress:
-  total_phases: 25
-  completed_phases: 19
-  total_plans: 96
-  completed_plans: 86
+  total_phases: 26
+  completed_phases: 20
+  total_plans: 99
+  completed_plans: 87
   percent: 99
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-Phase: 23 of 26 (Navigation Polish)
-Plan: 0 of 0 — not yet planned
-Status: Phase 22 complete; Phase 23 next
-Last activity: 2026-03-16 — Phase 22 complete; note deletion + security hardening + 4 bonus bug fixes
+Phase: 30 of 35 (People Graph Hardening)
+Plan: 4 of 4 — complete, pending host UAT
+Status: Phase 30 complete; Phase 31 next
+Last activity: 2026-03-20 — Phase 30 complete; people graph hardening (4 plans)
 
 Progress: [██████████] 99%
 
@@ -332,9 +332,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-20T09:39:28.453Z
-Stopped at: Completed 30-03-PLAN.md
-Resume file: None
+Last session: 2026-03-20T14:26:29.108Z
+Stopped at: Phase 31 context gathered
+Resume file: .planning/phases/31-smart-capture-multi-context-intelligence/31-CONTEXT.md
 
 ## TODOs (for Phase 27)
 - **Tag management UI**: Global tab/panel listing all tags with usage counts; rename tag across all notes; delete tag globally. (Per-note chip editing already shipped in Phase 23.)
