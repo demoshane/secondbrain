@@ -1,0 +1,2 @@
+[   14371ms] [ERROR] Failed to load resource: the server responded with a status of 404 (NOT FOUND) @ http://localhost:37491/people:0
+[   37384ms] [ERROR] Failed to load resource: net::ERR_INCOMPLETE_CHUNKED_ENCODING @ http://localhost:37491/events:0

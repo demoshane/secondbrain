@@ -1,0 +1,27 @@
+#!/usr/bin/env sh
+# post-merge hook: reinstall global CLI if pyproject.toml changed.
+#
+# This ensures new entry points (sb-forget, sb-read, etc.) are registered
+# as shell commands immediately after pulling updates.
+#
+# Install per-project: git config core.hooksPath /path/to/brain/.githooks
+
+BRAIN_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Check if pyproject.toml was touched in the merge
+if git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD 2>/dev/null | grep -q "pyproject.toml"; then
+    echo "[second-brain] pyproject.toml changed — reinstalling CLI tools..."
+    if command -v uv >/dev/null 2>&1; then
+        uv tool install --editable --force "$BRAIN_DIR"
+        echo "[second-brain] CLI tools updated."
+    else
+        echo "[second-brain] WARNING: uv not found. Run: uv tool install --editable --force $BRAIN_DIR"
+    fi
+fi
+
+# Always restart sb-api after a merge — engine/ changes are common and
+# the running process won't hot-reload editable installs.
+echo "[second-brain] Restarting sb-api after merge..."
+launchctl kickstart -k "gui/$(id -u)/com.secondbrain.api" 2>/dev/null \
+    && echo "[second-brain] sb-api restarted." \
+    || echo "[second-brain] WARNING: could not restart sb-api"
