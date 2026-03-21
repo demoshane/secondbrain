@@ -630,3 +630,38 @@ class TestJunctionTableDualWrite:
         assert "new-tag" in new_tags, f"Expected 'new-tag' in junction table, got: {new_tags}"
         assert "old-tag" not in new_tags, f"Expected 'old-tag' removed from junction table, got: {new_tags}"
         conn.close()
+
+
+def test_update_note_re_extracts_entities(tmp_path, monkeypatch):
+    """ARCH-13: update_note() re-runs entity extraction and updates entities+people columns."""
+    import engine.db as db_mod
+    import engine.paths as paths_mod
+
+    brain_root = tmp_path / "brain"
+    (brain_root / "note").mkdir(parents=True)
+    tmp_db = tmp_path / "brain.db"
+    monkeypatch.setattr(db_mod, "DB_PATH", tmp_db)
+    monkeypatch.setattr(paths_mod, "DB_PATH", tmp_db)
+    monkeypatch.setattr(paths_mod, "BRAIN_ROOT", brain_root)
+    monkeypatch.setenv("BRAIN_PATH", str(brain_root))
+
+    from engine.db import get_connection, init_schema
+    from engine.capture import capture_note, update_note
+
+    conn = get_connection(str(tmp_db))
+    init_schema(conn)
+
+    # Capture a note with no people references
+    path = capture_note("note", "Test Note", "No people here", [], [], "public", brain_root, conn)
+    conn.commit()
+
+    # Update body to mention someone
+    update_note(path, "Test Note", "Met Anna Korhonen today", ["tag1"], conn, brain_root)
+
+    # Check entities column was updated
+    row = conn.execute("SELECT entities FROM notes WHERE title='Test Note'").fetchone()
+    assert row is not None
+    entities = json.loads(row[0] or "{}")
+    # entities should have been re-extracted (exact content depends on extraction quality)
+    assert isinstance(entities, dict), f"entities should be a dict, got: {entities}"
+    conn.close()

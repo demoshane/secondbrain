@@ -113,6 +113,19 @@ def test_audit_log_index_exists(db_conn):
 # 32-01: migrate_paths_to_relative tests
 # ---------------------------------------------------------------------------
 
+
+def test_escape_like_helper():
+    """ARCH-14: _escape_like escapes %, _, and \\ for safe LIKE patterns."""
+    from engine.db import _escape_like
+    assert _escape_like("hello") == "hello"
+    assert _escape_like("100%") == "100\\%"
+    assert _escape_like("some_name") == "some\\_name"
+    assert _escape_like("a\\b") == "a\\\\b"
+    assert _escape_like("100%_test\\end") == "100\\%\\_test\\\\end"
+
+
+# ---------------------------------------------------------------------------
+
 class TestMigratePathsToRelative:
     """Tests for the migrate_paths_to_relative() function in engine/db.py."""
 
