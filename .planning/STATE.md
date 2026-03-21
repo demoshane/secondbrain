@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: completed
-stopped_at: Phase 32 context gathered
-last_updated: "2026-03-21T11:15:57.938Z"
+stopped_at: Completed 32-04-PLAN.md
+last_updated: "2026-03-21T18:53:53.529Z"
 last_activity: 2026-03-21 — Phase 31 complete; smart capture, segmenter, dormant resurfacing, GUI modal (6 plans)
 progress:
-  total_phases: 5
-  completed_phases: 0
-  total_plans: 7
-  completed_plans: 0
+  total_phases: 48
+  completed_phases: 38
+  total_plans: 172
+  completed_plans: 177
   percent: 99
 ---
 
@@ -35,7 +35,11 @@ Progress: [██████████] 99%
 
 **Velocity:** 88 plans completed across 20 phases (v3.0 + v4.0 start). Typical plan: 5–15 min, 2 tasks, 2–5 files.
 
+| Phase | Plan | Duration | Tasks | Files |
+|-------|------|----------|-------|-------|
+
 ## Accumulated Context
+| Phase 32 P04 | 35 | 2 tasks | 7 files |
 
 ### Decisions
 
@@ -47,10 +51,16 @@ Active decisions affecting upcoming work:
 - [Phase 30]: sb_person_context uses json_each people column lookup — no body-scan; accepts name or path
 - [Phase 31]: sb_capture_smart auto-saves (no confirm_token) — replaces Phase 28-02 stub contract
 - [Phase 31]: xfail stubs must patch both engine.paths.BRAIN_ROOT and mcp_mod.BRAIN_ROOT
+- [Phase 32]: Export format changed from flat list to {notes, archived_action_items} dict — breaking for sb-export JSON consumers
+- [Phase 32]: archive_old_action_items uses executemany+DELETE per row to satisfy semgrep SQL injection scanner
 
 ### Pending Todos
 
 - Audit and improve context detection on capture (general)
+
+### Roadmap Evolution
+
+- Phase 37 added: Scale Architecture (100K Notes) — ANN index, incremental reindex, sharding, tiered storage, chunked embeddings, summarization layer, backup & DR
 
 ### Blockers/Concerns
 
@@ -58,6 +68,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-21T11:15:57.931Z
-Stopped at: Phase 32 context gathered
-Resume file: .planning/phases/32-architecture-hardening/32-CONTEXT.md
+Last session: 2026-03-21T18:53:53.515Z
+Stopped at: Completed 32-04-PLAN.md
+Resume file: None
