@@ -177,6 +177,7 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False, entities: boo
         print(f"[sb-reindex] Purged {purged} stale entries no longer on disk")
 
     # --- Entity re-extraction pass (--entities flag) ---
+    # ARCH-12: merge extracted people with existing frontmatter (not overwrite)
     if entities:
         from engine.entities import extract_entities
         for md_path_str in disk_paths:
@@ -185,10 +186,24 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False, entities: boo
                 post = frontmatter.load(str(md_path_obj))
                 ents = extract_entities(post.get("title", ""), post.content)
                 extracted_people = ents.get("people", [])
+                # Merge with existing frontmatter people field
+                frontmatter_people = post.get("people", [])
+                if not isinstance(frontmatter_people, list):
+                    frontmatter_people = []
+                merged_people = list(dict.fromkeys(
+                    [str(p) for p in frontmatter_people] + extracted_people
+                ))
                 conn.execute(
                     "UPDATE notes SET people=?, entities=? WHERE path=?",
-                    (json.dumps(extracted_people), json.dumps(ents), md_path_str),
+                    (json.dumps(merged_people), json.dumps(ents), md_path_str),
                 )
+                # Update note_people junction table
+                conn.execute("DELETE FROM note_people WHERE note_path=?", (md_path_str,))
+                for person in merged_people:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO note_people (note_path, person) VALUES (?, ?)",
+                        (md_path_str, person),
+                    )
             except Exception as e:
                 errors.append(f"entities:{md_path_str}: {e}")
         conn.commit()

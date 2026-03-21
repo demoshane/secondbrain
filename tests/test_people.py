@@ -114,6 +114,11 @@ def test_list_people_enriched(client):
         " VALUES (?,?,?,?,?,?,?,?)",
         (meeting_path, "Q1 Review", "meeting", "Met with Bob.", "[]", people_json, now, now),
     )
+    # Populate note_people junction table (ARCH-15)
+    conn.execute(
+        "INSERT OR IGNORE INTO note_people (note_path, person) VALUES (?, ?)",
+        (meeting_path, person_path),
+    )
     conn.commit()
     conn.close()
 

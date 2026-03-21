@@ -333,6 +333,30 @@ def update_note(
                     )
         except Exception:
             pass  # junction table may not exist on very old schemas
+        # ARCH-13: Re-extract entities on edit, merge with existing people
+        try:
+            from engine.entities import extract_entities
+            ents = extract_entities(title, body)
+            extracted_people = ents.get("people", [])
+            # Get existing people from DB or frontmatter
+            existing_row = conn.execute("SELECT people FROM notes WHERE path=?", (db_path,)).fetchone()
+            existing_people = json.loads(existing_row[0] or "[]") if existing_row else []
+            merged_people = list(dict.fromkeys(
+                [str(p) for p in existing_people] + extracted_people
+            ))
+            conn.execute(
+                "UPDATE notes SET people=?, entities=? WHERE path=?",
+                (json.dumps(merged_people), json.dumps(ents), db_path),
+            )
+            # Refresh note_people junction table
+            conn.execute("DELETE FROM note_people WHERE note_path=?", (db_path,))
+            for person in merged_people:
+                conn.execute(
+                    "INSERT OR IGNORE INTO note_people (note_path, person) VALUES (?, ?)",
+                    (db_path, person),
+                )
+        except Exception:
+            pass  # entity extraction is best-effort
         conn.commit()
 
         os.replace(tmp_name, target)

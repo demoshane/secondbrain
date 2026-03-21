@@ -1254,42 +1254,13 @@ def sb_list_people() -> dict:
         {people: [{path, title, open_actions, org, last_interaction, total_meetings, total_mentions}]}
         Ordered alphabetically by title.
     """
-    import json as _json
-
+    from engine.people import list_people_with_metrics
     conn = get_connection()
-    conn.row_factory = sqlite3.Row
     try:
-        rows = conn.execute("""
-            SELECT n.path, n.title, n.entities,
-                (SELECT COUNT(*) FROM action_items a
-                 WHERE a.assignee_path = n.path AND a.done = 0) AS open_actions,
-                (SELECT MAX(m.created_at)
-                 FROM notes m, json_each(COALESCE(m.people, '[]')) pe
-                 WHERE pe.value = n.path AND m.type = 'meeting') AS last_interaction,
-                (SELECT COUNT(*)
-                 FROM notes m, json_each(COALESCE(m.people, '[]')) pe
-                 WHERE pe.value = n.path AND m.type = 'meeting') AS total_meetings,
-                (SELECT COUNT(*)
-                 FROM notes m, json_each(COALESCE(m.people, '[]')) pe
-                 WHERE pe.value = n.path AND m.type NOT IN (?, ?)) AS total_mentions
-            FROM notes n
-            WHERE n.type IN (?, ?)
-            ORDER BY n.title
-        """, (*PERSON_TYPES, *PERSON_TYPES)).fetchall()
-
-        people = []
-        for r in rows:
-            ents = _json.loads(r["entities"] or "{}")
-            org = (ents.get("orgs") or [""])[0]
-            people.append({
-                "path": r["path"],
-                "title": r["title"],
-                "open_actions": r["open_actions"],
-                "org": org,
-                "last_interaction": r["last_interaction"],
-                "total_meetings": r["total_meetings"],
-                "total_mentions": r["total_mentions"],
-            })
+        people = list_people_with_metrics(conn)
+        # Rename mention_count → total_mentions for MCP backward compat
+        for p in people:
+            p["total_mentions"] = p.pop("mention_count", 0)
         return {"people": people}
     finally:
         conn.close()

@@ -78,7 +78,9 @@ class TestFilesList:
 
 
 class TestFilesMove:
-    def test_post_files_move(self, client, tmp_path):
+    def test_post_files_move(self, client, tmp_path, monkeypatch):
+        import engine.paths as paths_mod
+        monkeypatch.setattr(paths_mod, "BRAIN_ROOT", tmp_path)
         src = tmp_path / "a.pdf"
         src.write_bytes(b"data")
         dst = tmp_path / "sub" / "a.pdf"

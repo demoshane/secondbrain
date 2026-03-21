@@ -994,6 +994,11 @@ def mcp_list_people_brain(tmp_path, monkeypatch):
         (meeting_path, "Standup", "Daily standup.", "meeting",
          json.dumps([alice_path]), "2026-02-01T09:00:00"),
     )
+    # Populate note_people junction table (ARCH-15)
+    conn.execute(
+        "INSERT OR IGNORE INTO note_people (note_path, person) VALUES (?, ?)",
+        (meeting_path, alice_path),
+    )
     # One open action for Alice
     conn.execute(
         "INSERT INTO action_items (text, done, assignee_path, note_path) VALUES (?, 0, ?, ?)",

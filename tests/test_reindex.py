@@ -138,12 +138,13 @@ def test_entities_flag_overwrites_people_column(brain_root, db_conn):
     assert row is not None
     assert "OldEntry" in json.loads(row[0]), "Precondition: OldEntry should be in people"
 
-    # Run with --entities: should overwrite, not merge
+    # ARCH-12: Run with --entities: should MERGE extracted with frontmatter, not overwrite
     reindex_brain(brain_root, db_conn, entities=True)
     row_after = db_conn.execute(
         "SELECT people FROM notes WHERE title='Stale People Note'"
     ).fetchone()
     people_after = json.loads(row_after[0])
-    assert "OldEntry" not in people_after, (
-        f"--entities must REPLACE, not merge. OldEntry still present: {people_after}"
+    # OldEntry comes from frontmatter — ARCH-12 says preserve user-curated entries
+    assert "OldEntry" in people_after, (
+        f"--entities must MERGE with frontmatter. OldEntry missing: {people_after}"
     )
