@@ -166,6 +166,7 @@ def db_conn() -> sqlite3.Connection:
     """In-memory SQLite connection."""
     conn = sqlite3.connect(":memory:")
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys = ON")
     yield conn
     conn.close()
 

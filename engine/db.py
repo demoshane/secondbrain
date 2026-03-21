@@ -88,6 +88,7 @@ def get_connection(db_path: str | None = None) -> sqlite3.Connection:
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(path), timeout=5)
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 
@@ -182,6 +183,26 @@ def migrate_add_url_column(conn: sqlite3.Connection) -> None:
         pass  # column already exists
 
 
+def migrate_add_action_items_archive_table(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: create action_items_archive table if absent.
+
+    Archives completed action items older than 90 days for GDPR audit trail.
+    Columns mirror action_items plus archived_at and archived_reason.
+    """
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS action_items_archive (
+            id              INTEGER PRIMARY KEY,
+            note_path       TEXT NOT NULL,
+            text            TEXT NOT NULL,
+            done_at         TEXT,
+            created_at      TEXT NOT NULL,
+            archived_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+            archived_reason TEXT NOT NULL DEFAULT 'auto_90day'
+        )
+    """)
+    conn.commit()
+
+
 def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     """Create (or optionally recreate) the full schema.
 
@@ -201,7 +222,9 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     migrate_add_done_at(conn)
     migrate_add_dismissed_inbox_items_table(conn)
     migrate_add_url_column(conn)
+    migrate_add_action_items_archive_table(conn)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_url ON notes(url)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_people ON notes(people)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_created_path ON audit_log(created_at, note_path)")
     conn.commit()

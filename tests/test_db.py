@@ -34,6 +34,13 @@ def test_fts5_triggers_exist(db_conn):
         assert t in triggers, f"Trigger {t} missing"
 
 
+def test_foreign_keys_enabled(db_conn):
+    """get_connection() must enable PRAGMA foreign_keys on every connection."""
+    row = db_conn.execute("PRAGMA foreign_keys").fetchone()
+    assert row is not None
+    assert row[0] == 1, f"Expected foreign_keys=1, got {row[0]}"
+
+
 @pytest.mark.xfail(strict=False, reason="GPAG-03: assignee_path migration not yet implemented")
 def test_migrate_assignee_path(tmp_path):
     import sqlite3
@@ -64,3 +71,39 @@ def test_migrate_due_date(tmp_path):
     cols2 = {row[1] for row in conn.execute("PRAGMA table_info(action_items)").fetchall()}
     assert "due_date" in cols2
     conn.close()
+
+
+def test_action_items_archive_table_exists(db_conn):
+    """32-04: action_items_archive table must exist after init_schema()."""
+    from engine.db import init_schema
+    init_schema(db_conn)
+    tables = {r[0] for r in db_conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'"
+    ).fetchall()}
+    assert "action_items_archive" in tables
+
+
+def test_action_items_archive_columns(db_conn):
+    """32-04: action_items_archive must have the correct columns."""
+    from engine.db import init_schema
+    init_schema(db_conn)
+    cols = {row[1] for row in db_conn.execute("PRAGMA table_info(action_items_archive)").fetchall()}
+    expected = {"id", "note_path", "text", "done_at", "created_at", "archived_at", "archived_reason"}
+    assert expected.issubset(cols), f"Missing columns: {expected - cols}"
+
+
+def test_action_items_archive_idempotent(db_conn):
+    """32-04: init_schema() called twice must not raise."""
+    from engine.db import init_schema
+    init_schema(db_conn)
+    init_schema(db_conn)  # second call must not raise
+
+
+def test_audit_log_index_exists(db_conn):
+    """32-04: audit_log must have composite index on (created_at, note_path)."""
+    from engine.db import init_schema
+    init_schema(db_conn)
+    indexes = {r[1] for r in db_conn.execute(
+        "SELECT type, name FROM sqlite_master WHERE type='index'"
+    ).fetchall()}
+    assert "idx_audit_log_created_path" in indexes
