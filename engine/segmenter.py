@@ -13,6 +13,8 @@ import difflib
 import hashlib
 import re
 import sqlite3
+
+from engine.db import PERSON_TYPES
 from pathlib import Path
 from typing import Any
 
@@ -348,7 +350,7 @@ def resolve_entities(
 
     # Build lookup tables for fuzzy matching (all person + project titles in DB)
     _person_rows = conn.execute(
-        "SELECT path, title FROM notes WHERE type IN ('person', 'people')"
+        "SELECT path, title FROM notes WHERE type IN (?, ?)", PERSON_TYPES
     ).fetchall()
     _project_rows = conn.execute(
         "SELECT path, title FROM notes WHERE type IN ('project', 'projects')"

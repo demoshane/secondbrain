@@ -14,7 +14,7 @@ from tenacity import (
 )
 
 from engine.capture import build_post, capture_note, check_capture_dedup, log_audit, update_note, write_note_atomic
-from engine.db import get_connection
+from engine.db import get_connection, PERSON_TYPES, _escape_like
 from engine.digest import generate_digest
 from engine.forget import forget_person
 from engine.anonymize import anonymize_note
@@ -900,7 +900,7 @@ def sb_capture_smart(content: str) -> dict:
 
         # Infer cross-links: meeting + person segments → add person slugs to meeting links
         if len(saved_notes) > 1:
-            person_paths = [n["path"] for n in saved_notes if n["type"] in ("person", "people")]
+            person_paths = [n["path"] for n in saved_notes if n["type"] in PERSON_TYPES]
             for note in saved_notes:
                 if note["type"] == "meeting" and person_paths:
                     note["links"] = list(dict.fromkeys(note.get("links", []) + person_paths))
@@ -1141,14 +1141,14 @@ def sb_person_context(name_or_path: str) -> dict:
         if "/" in name_or_path:
             person_path = name_or_path
             row = conn.execute(
-                "SELECT title, body, entities FROM notes WHERE path=? AND type IN ('person','people')",
-                (person_path,),
+                "SELECT title, body, entities FROM notes WHERE path=? AND type IN (?, ?)",
+                (person_path, *PERSON_TYPES),
             ).fetchone()
         else:
             row = conn.execute(
                 "SELECT path, title, body, entities FROM notes "
-                "WHERE LOWER(title)=LOWER(?) AND type IN ('person','people') LIMIT 1",
-                (name_or_path,),
+                "WHERE LOWER(title)=LOWER(?) AND type IN (?, ?) LIMIT 1",
+                (name_or_path, *PERSON_TYPES),
             ).fetchone()
             if row is None:
                 return {"found": False, "error": f"Person not found: {name_or_path!r}"}
@@ -1271,11 +1271,11 @@ def sb_list_people() -> dict:
                  WHERE pe.value = n.path AND m.type = 'meeting') AS total_meetings,
                 (SELECT COUNT(*)
                  FROM notes m, json_each(COALESCE(m.people, '[]')) pe
-                 WHERE pe.value = n.path AND m.type NOT IN ('person', 'people')) AS total_mentions
+                 WHERE pe.value = n.path AND m.type NOT IN (?, ?)) AS total_mentions
             FROM notes n
-            WHERE n.type IN ('person', 'people')
+            WHERE n.type IN (?, ?)
             ORDER BY n.title
-        """).fetchall()
+        """, (*PERSON_TYPES, *PERSON_TYPES)).fetchall()
 
         people = []
         for r in rows:

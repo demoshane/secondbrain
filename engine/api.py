@@ -20,7 +20,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
-from engine.db import get_connection
+from engine.db import PERSON_TYPES, _escape_like, get_connection
 from engine.search import search_notes
 from engine.intelligence import list_actions
 from engine.watcher import suppress_next_delete
@@ -263,9 +263,9 @@ def list_people():
                 (SELECT MAX(m.created_at) FROM notes m, json_each(COALESCE(m.people, '[]')) pe
                  WHERE pe.value=n.path AND m.type='meeting') AS last_interaction,
                 (SELECT COUNT(*) FROM notes m, json_each(COALESCE(m.people, '[]')) pe
-                 WHERE pe.value=n.path AND m.type NOT IN ('person','people')) AS mention_count
-            FROM notes n WHERE n.type IN ('person', 'people') ORDER BY n.title
-        """).fetchall()
+                 WHERE pe.value=n.path AND m.type NOT IN (?, ?)) AS mention_count
+            FROM notes n WHERE n.type IN (?, ?) ORDER BY n.title
+        """, (*PERSON_TYPES, *PERSON_TYPES)).fetchall()
     finally:
         conn.close()
     result = []
@@ -761,9 +761,9 @@ def note_meta(note_path):
                 # Plain name string — look up by title in person/people notes
                 title_r = conn.execute(
                     "SELECT path, title FROM notes "
-                    "WHERE LOWER(title) = LOWER(?) AND type IN ('person', 'people') "
+                    "WHERE LOWER(title) = LOWER(?) AND type IN (?, ?) "
                     "LIMIT 1",
-                    (str(item),),
+                    (str(item), *PERSON_TYPES),
                 ).fetchone()
                 if title_r:
                     if title_r["path"] not in seen_paths:
@@ -860,8 +860,12 @@ def move_file():
     dst = body.get("dst", "")
     if not src or not dst:
         return jsonify({"error": "src and dst required"}), 400
-    src_p = _Path(src)
-    dst_p = _Path(dst)
+    src_p = _Path(src).resolve()
+    dst_p = _Path(dst).resolve()
+    # ARCH-07: path traversal guard — both src and dst must be within BRAIN_ROOT
+    from engine.paths import BRAIN_ROOT
+    if not src_p.is_relative_to(BRAIN_ROOT) or not dst_p.is_relative_to(BRAIN_ROOT):
+        return jsonify({"error": "Path outside brain directory"}), 403
     if not src_p.exists():
         return jsonify({"error": "src not found"}), 404
     dst_p.parent.mkdir(parents=True, exist_ok=True)

@@ -6,6 +6,15 @@ from engine.paths import DB_PATH
 
 logger = logging.getLogger(__name__)
 
+# ARCH-16: Canonical person type values used across engine modules
+PERSON_TYPES = ("person", "people")
+
+
+def _escape_like(s: str) -> str:
+    """ARCH-14: Escape LIKE wildcards in user-supplied strings."""
+    return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS notes (
     id          INTEGER PRIMARY KEY,
