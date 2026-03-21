@@ -223,6 +223,30 @@ def write_note_atomic(
                 "UPDATE notes SET entities = ? WHERE path = ?",
                 (json.dumps(entities_val), resolved_path),
             )
+        # ARCH-05/15: Dual-write to junction tables (note_tags, note_people) in same transaction.
+        # Junction tables exist after 32-03 migration — guard with try/except for backward compat.
+        try:
+            tags_list = post.get("tags", [])
+            conn.execute("DELETE FROM note_tags WHERE note_path=?", (resolved_path,))
+            for tag in (tags_list or []):
+                if tag:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO note_tags (note_path, tag) VALUES (?, ?)",
+                        (resolved_path, tag),
+                    )
+        except Exception:
+            pass  # junction table may not exist on very old schemas
+        try:
+            people_list = post.get("people", [])
+            conn.execute("DELETE FROM note_people WHERE note_path=?", (resolved_path,))
+            for person in (people_list or []):
+                if person:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO note_people (note_path, person) VALUES (?, ?)",
+                        (resolved_path, person),
+                    )
+        except Exception:
+            pass  # junction table may not exist on very old schemas
         conn.commit()
 
         # Phase 3: atomic rename — only after DB commit succeeds
@@ -298,6 +322,17 @@ def update_note(
             (title, body, tags_json, now, db_path),
         )
         log_audit(conn, "update", db_path)
+        # ARCH-05/15: Dual-write tags to note_tags junction table in same transaction.
+        try:
+            conn.execute("DELETE FROM note_tags WHERE note_path=?", (db_path,))
+            for tag in (tags or []):
+                if tag:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO note_tags (note_path, tag) VALUES (?, ?)",
+                        (db_path, tag),
+                    )
+        except Exception:
+            pass  # junction table may not exist on very old schemas
         conn.commit()
 
         os.replace(tmp_name, target)

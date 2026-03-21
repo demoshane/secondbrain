@@ -471,4 +471,162 @@ def test_capture_people_dedup(tmp_path, monkeypatch):
     people = json.loads(row[0])
     anna_entries = [p for p in people if "Anna" in p and "Korhonen" in p]
     assert len(anna_entries) == 1, f"Expected exactly 1 'Anna Korhonen' entry, got: {people}"
-    conn.close()
+
+
+# ---------------------------------------------------------------------------
+# 32-03: Dual-write tests for note_tags and note_people junction tables
+# ---------------------------------------------------------------------------
+
+class TestJunctionTableDualWrite:
+    """Verify capture_note and update_note dual-write to junction tables (32-03)."""
+
+    def test_capture_writes_to_note_tags_junction(self, tmp_path, monkeypatch):
+        """capture_note() must write tags to both JSON column AND note_tags junction table."""
+        import engine.db as _db
+        import engine.paths as _paths
+        from engine.db import init_schema
+        from engine.capture import capture_note
+
+        brain = tmp_path / "SecondBrain"
+        brain.mkdir()
+        (brain / "note").mkdir()
+        db_path = str(tmp_path / "test.db")
+        monkeypatch.setattr(_db, "DB_PATH", tmp_path / "test.db")
+        monkeypatch.setattr(_paths, "DB_PATH", tmp_path / "test.db")
+        monkeypatch.setattr(_paths, "BRAIN_ROOT", brain)
+
+        conn = _db.get_connection(db_path)
+        init_schema(conn)
+
+        capture_note(
+            note_type="note",
+            title="Dual Write Test",
+            body="testing junction table write",
+            tags=["python", "testing"],
+            people=[],
+            content_sensitivity="public",
+            brain_root=brain,
+            conn=conn,
+        )
+        conn.commit()
+
+        # Verify JSON column still written
+        row = conn.execute("SELECT tags FROM notes WHERE title='Dual Write Test'").fetchone()
+        assert row is not None
+        json_tags = json.loads(row[0])
+        assert "python" in json_tags
+        assert "testing" in json_tags
+
+        # Verify junction table populated
+        note_path_row = conn.execute("SELECT path FROM notes WHERE title='Dual Write Test'").fetchone()
+        assert note_path_row is not None
+        jt_rows = conn.execute(
+            "SELECT tag FROM note_tags WHERE note_path=? ORDER BY tag", (note_path_row[0],)
+        ).fetchall()
+        jt_tags = [r[0] for r in jt_rows]
+        assert "python" in jt_tags
+        assert "testing" in jt_tags
+        conn.close()
+
+    def test_capture_writes_to_note_people_junction(self, tmp_path, monkeypatch):
+        """capture_note() must write people to both JSON column AND note_people junction table."""
+        import engine.db as _db
+        import engine.paths as _paths
+        from engine.db import init_schema
+        from engine.capture import capture_note
+
+        brain = tmp_path / "SecondBrain"
+        brain.mkdir()
+        (brain / "meeting").mkdir()
+        db_path = str(tmp_path / "test.db")
+        monkeypatch.setattr(_db, "DB_PATH", tmp_path / "test.db")
+        monkeypatch.setattr(_paths, "DB_PATH", tmp_path / "test.db")
+        monkeypatch.setattr(_paths, "BRAIN_ROOT", brain)
+
+        conn = _db.get_connection(db_path)
+        init_schema(conn)
+
+        capture_note(
+            note_type="meeting",
+            title="People Junction Test",
+            body="meeting notes",
+            tags=[],
+            people=["people/alice.md"],
+            content_sensitivity="public",
+            brain_root=brain,
+            conn=conn,
+        )
+        conn.commit()
+
+        # Verify JSON column still written
+        row = conn.execute("SELECT people FROM notes WHERE title='People Junction Test'").fetchone()
+        assert row is not None
+        json_people = json.loads(row[0])
+        assert "people/alice.md" in json_people
+
+        # Verify junction table populated
+        note_path_row = conn.execute("SELECT path FROM notes WHERE title='People Junction Test'").fetchone()
+        assert note_path_row is not None
+        jt_rows = conn.execute(
+            "SELECT person FROM note_people WHERE note_path=?", (note_path_row[0],)
+        ).fetchall()
+        jt_people = [r[0] for r in jt_rows]
+        assert "people/alice.md" in jt_people
+        conn.close()
+
+    def test_update_note_refreshes_note_tags_junction(self, tmp_path, monkeypatch):
+        """update_note() must refresh note_tags junction rows when tags change."""
+        import engine.db as _db
+        import engine.paths as _paths
+        from engine.db import init_schema
+        from engine.capture import capture_note, update_note
+
+        brain = tmp_path / "SecondBrain"
+        brain.mkdir()
+        (brain / "note").mkdir()
+        db_path = str(tmp_path / "test.db")
+        monkeypatch.setattr(_db, "DB_PATH", tmp_path / "test.db")
+        monkeypatch.setattr(_paths, "DB_PATH", tmp_path / "test.db")
+        monkeypatch.setattr(_paths, "BRAIN_ROOT", brain)
+
+        conn = _db.get_connection(db_path)
+        init_schema(conn)
+
+        note_path = capture_note(
+            note_type="note",
+            title="Update Tag Test",
+            body="initial body",
+            tags=["old-tag"],
+            people=[],
+            content_sensitivity="public",
+            brain_root=brain,
+            conn=conn,
+        )
+        conn.commit()
+
+        # Verify old tag in junction table
+        note_path_row = conn.execute("SELECT path FROM notes WHERE title='Update Tag Test'").fetchone()
+        db_path_val = note_path_row[0]
+        old_jt = conn.execute(
+            "SELECT tag FROM note_tags WHERE note_path=?", (db_path_val,)
+        ).fetchall()
+        assert any(r[0] == "old-tag" for r in old_jt)
+
+        # Now update with new tags
+        update_note(
+            note_path=str(note_path),
+            title="Update Tag Test",
+            body="updated body",
+            tags=["new-tag"],
+            conn=conn,
+            brain_root=brain,
+        )
+        conn.commit()
+
+        new_jt = conn.execute(
+            "SELECT tag FROM note_tags WHERE note_path=?", (db_path_val,)
+        ).fetchall()
+        new_tags = [r[0] for r in new_jt]
+        assert "new-tag" in new_tags, f"Expected 'new-tag' in junction table, got: {new_tags}"
+        assert "old-tag" not in new_tags, f"Expected 'old-tag' removed from junction table, got: {new_tags}"
+        conn.close()

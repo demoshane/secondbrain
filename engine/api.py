@@ -162,33 +162,52 @@ def search():
     conn.row_factory = sqlite3.Row
     try:
         if tags_filter and not query:
-            # Tags-only filter: fetch all notes and filter by tags in Python
-            rows = conn.execute(
-                "SELECT path, type, title, created_at, tags FROM notes ORDER BY created_at DESC"
-            ).fetchall()
-            results = []
-            for r in rows:
-                note_tags = json.loads(r["tags"] or "[]")
-                if all(t in note_tags for t in tags_filter):
-                    results.append({
-                        "path": r["path"],
-                        "type": r["type"],
-                        "title": r["title"],
-                        "created_at": r["created_at"],
-                        "score": 0.0,
-                    })
+            # Tags-only filter: use note_tags junction table for indexed lookups.
+            # Strategy: fetch candidates matching first tag, then Python-filter for the rest.
+            # This avoids dynamic SQL (semgrep-safe) while still using the indexed junction table.
+            first_tag = tags_filter[0]
+            rest_tags = set(tags_filter[1:])
+            sql = """
+                SELECT n.path, n.type, n.title, n.created_at
+                FROM notes n
+                WHERE n.path IN (SELECT note_path FROM note_tags WHERE tag=?)
+                ORDER BY n.created_at DESC
+            """
+            rows = conn.execute(sql, (first_tag,)).fetchall()
+            if rest_tags:
+                # For each candidate, fetch its tags from junction table and check all required tags present
+                filtered_rows = []
+                for r in rows:
+                    note_tags_rows = conn.execute(
+                        "SELECT tag FROM note_tags WHERE note_path=?", (r["path"],)
+                    ).fetchall()
+                    note_tag_set = {nt["tag"] for nt in note_tags_rows}
+                    if rest_tags.issubset(note_tag_set):
+                        filtered_rows.append(r)
+                rows = filtered_rows
+            results = [
+                {
+                    "path": r["path"],
+                    "type": r["type"],
+                    "title": r["title"],
+                    "created_at": r["created_at"],
+                    "score": 0.0,
+                }
+                for r in rows
+            ]
         else:
             results = search_notes(conn, query)
             if tags_filter:
+                # Post-filter FTS results using note_tags junction table (semgrep-safe: no dynamic SQL)
+                tags_set = set(tags_filter)
                 filtered = []
                 for r in results:
-                    row = conn.execute(
-                        "SELECT tags FROM notes WHERE path=?", (r["path"],)
-                    ).fetchone()
-                    if row:
-                        note_tags = json.loads(row["tags"] or "[]")
-                        if all(t in note_tags for t in tags_filter):
-                            filtered.append(r)
+                    note_tags_rows = conn.execute(
+                        "SELECT tag FROM note_tags WHERE note_path=?", (r["path"],)
+                    ).fetchall()
+                    note_tag_set = {nt["tag"] for nt in note_tags_rows}
+                    if tags_set.issubset(note_tag_set):
+                        filtered.append(r)
                 results = filtered
     finally:
         conn.close()
