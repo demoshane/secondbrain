@@ -12,6 +12,9 @@
 #
 # Usage: .devcontainer/claude-dev.sh [any claude args...]
 
+# Increase Node.js heap to 8GB — prevents OOM kills during parallel agent execution
+export NODE_OPTIONS="--max-old-space-size=8192"
+
 exec claude \
     --dangerously-skip-permissions \
     --append-system-prompt "$(cat <<'GUARDRAILS'

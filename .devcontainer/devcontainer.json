@@ -48,11 +48,12 @@
   },
   // Runs on HOST before container starts — extracts Keychain credentials
   "initializeCommand": ".devcontainer/extract-claude-auth.sh",
-  // Hard 16GB memory limit — prevents OOM kills during parallel agent execution.
-  // --memory-swap equal to --memory disables swap, keeping performance stable.
+  // Memory: 16GB limit with 4GB swap headroom (20GB total).
+  // Swap prevents OOM kills when host RAM is under pressure.
+  // On a 32GB Mac with heavy host workload, actual available RAM may be <16GB.
   "runArgs": [
     "--memory=16g",
-    "--memory-swap=16g",
+    "--memory-swap=20g",
     "--env-file", "${localEnv:HOME}/.config/second-brain/.env.host"
   ],
   "postCreateCommand": ".devcontainer/post-create.sh",
