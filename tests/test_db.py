@@ -343,3 +343,156 @@ class TestMigratePathsToRelative:
         assert row is not None
         assert not row[0].startswith("/"), f"Expected relative path after init_schema, got: {row[0]}"
         conn.close()
+
+
+# ---------------------------------------------------------------------------
+# 32-03: note_tags and note_people junction table tests
+# ---------------------------------------------------------------------------
+
+class TestJunctionTables:
+    """Tests for note_tags and note_people junction tables (32-03)."""
+
+    def _insert_note(self, conn, path, tags="[]", people="[]", title="Test Note"):
+        conn.execute(
+            "INSERT INTO notes (path, type, title, body, tags, people) VALUES (?, 'note', ?, '', ?, ?)",
+            (path, title, tags, people),
+        )
+        conn.commit()
+
+    def test_note_tags_table_exists(self, db_conn):
+        """note_tags junction table must exist after init_schema()."""
+        from engine.db import init_schema
+        init_schema(db_conn)
+        tables = {r[0] for r in db_conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()}
+        assert "note_tags" in tables
+
+    def test_note_people_table_exists(self, db_conn):
+        """note_people junction table must exist after init_schema()."""
+        from engine.db import init_schema
+        init_schema(db_conn)
+        tables = {r[0] for r in db_conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()}
+        assert "note_people" in tables
+
+    def test_note_tags_columns(self, db_conn):
+        """note_tags must have (note_path, tag) columns."""
+        from engine.db import init_schema
+        init_schema(db_conn)
+        cols = {row[1] for row in db_conn.execute("PRAGMA table_info(note_tags)").fetchall()}
+        assert {"note_path", "tag"}.issubset(cols)
+
+    def test_note_people_columns(self, db_conn):
+        """note_people must have (note_path, person) columns."""
+        from engine.db import init_schema
+        init_schema(db_conn)
+        cols = {row[1] for row in db_conn.execute("PRAGMA table_info(note_people)").fetchall()}
+        assert {"note_path", "person"}.issubset(cols)
+
+    def test_note_tags_indexes_exist(self, db_conn):
+        """note_tags must have indexes on (tag) and (note_path)."""
+        from engine.db import init_schema
+        init_schema(db_conn)
+        indexes = {r[1] for r in db_conn.execute(
+            "SELECT type, name FROM sqlite_master WHERE type='index'"
+        ).fetchall()}
+        assert "idx_note_tags_tag" in indexes
+        assert "idx_note_tags_note_path" in indexes
+
+    def test_note_people_indexes_exist(self, db_conn):
+        """note_people must have indexes on (person) and (note_path)."""
+        from engine.db import init_schema
+        init_schema(db_conn)
+        indexes = {r[1] for r in db_conn.execute(
+            "SELECT type, name FROM sqlite_master WHERE type='index'"
+        ).fetchall()}
+        assert "idx_note_people_person" in indexes
+        assert "idx_note_people_note_path" in indexes
+
+    def test_migration_populates_note_tags_from_json(self, db_conn):
+        """migrate_add_note_tags_table() populates note_tags from existing JSON tags column."""
+        from engine.db import init_schema, migrate_add_note_tags_table
+        init_schema(db_conn)
+        self._insert_note(db_conn, "coding/note.md", tags='["python", "testing"]')
+
+        # Clear any auto-populated rows, then re-run migration
+        db_conn.execute("DELETE FROM note_tags")
+        db_conn.commit()
+        migrate_add_note_tags_table(db_conn)
+
+        rows = db_conn.execute(
+            "SELECT tag FROM note_tags WHERE note_path='coding/note.md' ORDER BY tag"
+        ).fetchall()
+        tags = [r[0] for r in rows]
+        assert tags == ["python", "testing"], f"Expected tags populated, got: {tags}"
+
+    def test_migration_populates_note_people_from_json(self, db_conn):
+        """migrate_add_note_people_table() populates note_people from existing JSON people column."""
+        from engine.db import init_schema, migrate_add_note_people_table
+        init_schema(db_conn)
+        self._insert_note(db_conn, "meetings/meeting.md", people='["people/alice.md", "people/bob.md"]')
+
+        # Clear any auto-populated rows, then re-run migration
+        db_conn.execute("DELETE FROM note_people")
+        db_conn.commit()
+        migrate_add_note_people_table(db_conn)
+
+        rows = db_conn.execute(
+            "SELECT person FROM note_people WHERE note_path='meetings/meeting.md' ORDER BY person"
+        ).fetchall()
+        people = [r[0] for r in rows]
+        assert people == ["people/alice.md", "people/bob.md"], f"Expected people populated, got: {people}"
+
+    def test_migration_idempotent_note_tags(self, db_conn):
+        """Running migrate_add_note_tags_table() twice must not duplicate rows."""
+        from engine.db import init_schema, migrate_add_note_tags_table
+        init_schema(db_conn)
+        self._insert_note(db_conn, "coding/note.md", tags='["python"]')
+
+        db_conn.execute("DELETE FROM note_tags")
+        db_conn.commit()
+        migrate_add_note_tags_table(db_conn)
+        migrate_add_note_tags_table(db_conn)  # second call must not duplicate
+
+        count = db_conn.execute(
+            "SELECT COUNT(*) FROM note_tags WHERE note_path='coding/note.md' AND tag='python'"
+        ).fetchone()[0]
+        assert count == 1, f"Expected 1 row, got {count} (duplicate inserted on second migration)"
+
+    def test_migration_idempotent_note_people(self, db_conn):
+        """Running migrate_add_note_people_table() twice must not duplicate rows."""
+        from engine.db import init_schema, migrate_add_note_people_table
+        init_schema(db_conn)
+        self._insert_note(db_conn, "meetings/meeting.md", people='["people/alice.md"]')
+
+        db_conn.execute("DELETE FROM note_people")
+        db_conn.commit()
+        migrate_add_note_people_table(db_conn)
+        migrate_add_note_people_table(db_conn)  # second call must not duplicate
+
+        count = db_conn.execute(
+            "SELECT COUNT(*) FROM note_people WHERE note_path='meetings/meeting.md'"
+        ).fetchone()[0]
+        assert count == 1, f"Expected 1 row, got {count} (duplicate inserted on second migration)"
+
+    def test_old_idx_notes_people_dropped(self, db_conn):
+        """idx_notes_people (the useless JSON text index) must be dropped by migration."""
+        from engine.db import init_schema, migrate_add_note_people_table
+        init_schema(db_conn)
+        migrate_add_note_people_table(db_conn)
+        indexes = {r[1] for r in db_conn.execute(
+            "SELECT type, name FROM sqlite_master WHERE type='index'"
+        ).fetchall()}
+        assert "idx_notes_people" not in indexes, "idx_notes_people JSON text index should be dropped"
+
+    def test_note_tags_in_init_schema(self, db_conn):
+        """init_schema() must auto-create note_tags table."""
+        from engine.db import init_schema
+        init_schema(db_conn)
+        tables = {r[0] for r in db_conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()}
+        assert "note_tags" in tables
+        assert "note_people" in tables

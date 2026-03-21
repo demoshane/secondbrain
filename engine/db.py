@@ -206,6 +206,93 @@ def migrate_add_action_items_archive_table(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def migrate_add_note_tags_table(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: create note_tags junction table and populate from JSON tags column.
+
+    Creates:
+        note_tags(note_path TEXT, tag TEXT, PRIMARY KEY (note_path, tag),
+                  FOREIGN KEY note_path REFERENCES notes(path) ON DELETE CASCADE)
+    Indexes: idx_note_tags_tag on (tag), idx_note_tags_note_path on (note_path).
+    Populates from existing notes.tags JSON column via INSERT OR IGNORE.
+    Migration is idempotent — running twice inserts no duplicates.
+    """
+    import json as _json
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS note_tags (
+            note_path TEXT NOT NULL,
+            tag       TEXT NOT NULL,
+            PRIMARY KEY (note_path, tag),
+            FOREIGN KEY (note_path) REFERENCES notes(path) ON DELETE CASCADE
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_note_tags_tag ON note_tags(tag)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_note_tags_note_path ON note_tags(note_path)")
+    conn.commit()
+
+    rows = conn.execute("SELECT path, tags FROM notes WHERE tags IS NOT NULL AND tags != '[]'").fetchall()
+    count = 0
+    for (note_path, tags_json) in rows:
+        try:
+            tags = _json.loads(tags_json or "[]")
+        except Exception:
+            continue
+        for tag in tags:
+            if tag:
+                conn.execute(
+                    "INSERT OR IGNORE INTO note_tags (note_path, tag) VALUES (?, ?)",
+                    (note_path, tag),
+                )
+                count += 1
+    conn.commit()
+    logger.info("migrate_add_note_tags_table: populated %d tag rows from JSON column", count)
+
+
+def migrate_add_note_people_table(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: create note_people junction table and populate from JSON people column.
+
+    Creates:
+        note_people(note_path TEXT, person TEXT, PRIMARY KEY (note_path, person),
+                    FOREIGN KEY note_path REFERENCES notes(path) ON DELETE CASCADE)
+    Indexes: idx_note_people_person on (person), idx_note_people_note_path on (note_path).
+    Populates from existing notes.people JSON column via INSERT OR IGNORE.
+    Drops the useless idx_notes_people index on the JSON text column.
+    Migration is idempotent — running twice inserts no duplicates.
+    """
+    import json as _json
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS note_people (
+            note_path TEXT NOT NULL,
+            person    TEXT NOT NULL,
+            PRIMARY KEY (note_path, person),
+            FOREIGN KEY (note_path) REFERENCES notes(path) ON DELETE CASCADE
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_note_people_person ON note_people(person)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_note_people_note_path ON note_people(note_path)")
+    # Drop the useless JSON text index — it does not help filter queries
+    conn.execute("DROP INDEX IF EXISTS idx_notes_people")
+    conn.commit()
+
+    rows = conn.execute(
+        "SELECT path, people FROM notes WHERE people IS NOT NULL AND people != '[]'"
+    ).fetchall()
+    count = 0
+    for (note_path, people_json) in rows:
+        try:
+            people = _json.loads(people_json or "[]")
+        except Exception:
+            continue
+        for person in people:
+            if person:
+                conn.execute(
+                    "INSERT OR IGNORE INTO note_people (note_path, person) VALUES (?, ?)",
+                    (note_path, person),
+                )
+                count += 1
+    conn.commit()
+    logger.info("migrate_add_note_people_table: populated %d person rows from JSON column", count)
+
+
 def migrate_paths_to_relative(conn: sqlite3.Connection, brain_root: Path | None = None) -> None:
     """Convert all absolute paths in DB tables to paths relative to brain_root.
 
@@ -330,8 +417,11 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     migrate_add_action_items_archive_table(conn)
     # ARCH-01: Convert absolute paths to relative — must run before junction table migrations
     migrate_paths_to_relative(conn)
+    # ARCH-05/15: Junction tables for indexed tag and people lookups (32-03)
+    migrate_add_note_tags_table(conn)
+    migrate_add_note_people_table(conn)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_url ON notes(url)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_people ON notes(people)")
+    # idx_notes_people is dropped by migrate_add_note_people_table — do not re-create
     conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_created_path ON audit_log(created_at, note_path)")
     conn.commit()
