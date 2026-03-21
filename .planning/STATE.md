@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: GUI Overhaul & Polish
 status: completed
-stopped_at: Completed 31-01-PLAN.md
-last_updated: "2026-03-20T19:19:20.181Z"
-last_activity: 2026-03-20 — Phase 30 complete; people graph hardening (4 plans)
+stopped_at: Phase 31 complete
+last_updated: "2026-03-21T12:45:00.000Z"
+last_activity: 2026-03-21 — Phase 31 complete; smart capture + multi-context intelligence (6 plans)
 progress:
   total_phases: 26
   completed_phases: 20
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-Phase: 30 of 35 (People Graph Hardening)
-Plan: 4 of 4 — complete, pending host UAT
-Status: Phase 30 complete; Phase 31 next
-Last activity: 2026-03-20 — Phase 30 complete; people graph hardening (4 plans)
+Phase: 31 of 35 (Smart Capture & Multi-Context Intelligence)
+Plan: 6 of 6 — complete, verified on host
+Status: Phase 31 complete; Phase 32 next
+Last activity: 2026-03-21 — Phase 31 complete; smart capture, segmenter, dormant resurfacing, GUI modal (6 plans)
 
 Progress: [██████████] 99%
 
@@ -335,8 +335,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-20T19:19:20.169Z
-Stopped at: Completed 31-01-PLAN.md
+Last session: 2026-03-21T12:45:00.000Z
+Stopped at: Phase 31 complete
 Resume file: None
 
 ## TODOs (for Phase 27)

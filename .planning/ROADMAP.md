@@ -394,7 +394,7 @@ Plans:
 | 28. TODO & Gap Resolution | 8/8 | Complete    | 2026-03-19 | - |
 | 29. Add link capture | 4/4 | Complete   | 2026-03-19 | - |
 | 30. People Graph Hardening | 4/4 | Complete | 2026-03-20 | - |
-| 31. Smart Capture & Multi-Context Intelligence | 1/6 | In Progress|  | - |
+| 31. Smart Capture & Multi-Context Intelligence | 6/6 | Complete | 2026-03-21 | - |
 | 32. Architecture Hardening | v4.0 | 0/6 | Not started | - |
 | 33. Performance & Scale Hardening | v4.0 | 0/5 | Not started | - |
 | 34. GUI Management Productivity | v4.0 | 0/4 | Not started | - |
@@ -462,7 +462,8 @@ Plans:
 **Depends on:** Phase 30
 **Milestone:** v4.0
 **Requirements**: CAP-01, CAP-02, CAP-03, CAP-04, CAP-05, CAP-06, CAP-07, CAP-08, CAP-09, CAP-10, CAP-11
-**Plans:** 1/6 plans executed
+**Plans:** 6/6 plans complete
+**Status:** Complete (verified 2026-03-21)
 
 Requirements detail:
 - **CAP-01** — `sb_capture_smart` accepts raw freeform text and returns N typed note suggestions (person / meeting / project / idea / note) with inferred titles, types, and cross-links; user confirms or edits before saving
@@ -478,12 +479,12 @@ Requirements detail:
 - **CAP-11** — `sb_capture_batch` runs dedup check per note (same logic as `sb_capture`); near-duplicates flagged in response with `dedup_warnings` per note index; batch still saves unless caller opts out
 
 Plans:
-- [ ] 31-01-PLAN.md — `sb_capture_smart`: AI content parser → typed note suggestion list (CAP-01)
-- [ ] 31-02-PLAN.md — Multi-context segmentation: one input → N linked notes atomically + existing note resolution + auto-stubs (CAP-02, CAP-03, CAP-08)
-- [ ] 31-03-PLAN.md — Dormant resurfacing in MCP capture response + auto-link near-duplicates + async intelligence hooks on MCP captures (CAP-04, CAP-05, CAP-06)
-- [ ] 31-04-PLAN.md — Bidirectional backlinks + sb_capture_batch links + MCP sensitivity classification + batch dedup (CAP-07, CAP-09, CAP-10, CAP-11)
-- [ ] 31-05-PLAN.md — GUI Smart Capture button: top nav bar button opens modal with paste area → calls `sb_capture_smart` → shows typed note suggestions → user confirms → saves (GUI-01)
-- [ ] 31-06-PLAN.md — MCP integration tests + overdue action surfacing in recap + sign-off
+- [x] 31-01-PLAN.md — `sb_capture_smart`: AI content parser → typed note suggestion list (CAP-01) (completed 2026-03-21)
+- [x] 31-02-PLAN.md — Multi-context segmentation: one input → N linked notes atomically + existing note resolution + auto-stubs (CAP-02, CAP-03, CAP-08) (completed 2026-03-21)
+- [x] 31-03-PLAN.md — Dormant resurfacing in MCP capture response + auto-link near-duplicates + async intelligence hooks on MCP captures (CAP-04, CAP-05, CAP-06) (completed 2026-03-21)
+- [x] 31-04-PLAN.md — Bidirectional backlinks + sb_capture_batch links + MCP sensitivity classification + batch dedup (CAP-07, CAP-09, CAP-10, CAP-11) (completed 2026-03-21)
+- [x] 31-05-PLAN.md — GUI Smart Capture button: top nav bar button opens modal with paste area → calls `sb_capture_smart` → shows typed note suggestions → user confirms → saves (GUI-01) (completed 2026-03-21)
+- [x] 31-06-PLAN.md — MCP integration tests + overdue action surfacing in recap + sign-off (completed 2026-03-21)
 
 ---
 
