@@ -1,10 +1,11 @@
 ---
 phase: 32
 slug: architecture-hardening
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-21
+validated: 2026-03-22
 ---
 
 # Phase 32 — Validation Strategy
@@ -88,4 +89,21 @@ created: 2026-03-21
 - [ ] Feedback latency < 15s
 - [ ] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-03-22
+
+---
+
+## Validation Audit 2026-03-22
+
+| Metric | Count |
+|--------|-------|
+| Requirements | 16 |
+| Gaps found | 3 |
+| Resolved (tests written) | 3 |
+| Escalated | 0 |
+| Manual-only | 1 (ARCH-16 — constant, not meaningfully testable) |
+
+### Gap Resolution
+- ARCH-13: Added `test_update_note_re_extracts_entities` in test_capture.py
+- ARCH-14: Added `test_escape_like_helper` in test_db.py
+- ARCH-09: Verified by existing `test_warns_when_too_many_unembed` (updated to use caplog)
