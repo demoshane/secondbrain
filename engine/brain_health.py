@@ -111,3 +111,71 @@ def compute_health_score(
     # Do NOT multiply by 100 — ratios scaled by weights already yield a 0-100 score.
     penalty = (orphan_ratio * 30) + (broken_ratio * 40) + (dup_ratio * 20)
     return max(0, round(100 - penalty))
+
+
+def archive_old_action_items(conn: sqlite3.Connection, days: int = 90) -> int:
+    """Move done action items older than `days` days into action_items_archive.
+
+    All inserts and deletes happen in a single transaction.
+    Returns count of archived items.
+    """
+    rows = conn.execute(
+        """
+        SELECT id, note_path, text, done_at, created_at
+        FROM action_items
+        WHERE done = 1
+          AND done_at IS NOT NULL
+          AND done_at < datetime('now', ?)
+        """,
+        (f"-{days} days",),
+    ).fetchall()
+
+    if not rows:
+        return 0
+
+    with conn:
+        conn.executemany(
+            """
+            INSERT INTO action_items_archive (note_path, text, done_at, created_at, archived_reason)
+            VALUES (?, ?, ?, ?, 'auto_90day')
+            """,
+            [(r[1], r[2], r[3], r[4]) for r in rows],
+        )
+        # Delete each archived row individually using a parameterized statement
+        # (avoids dynamic IN-clause construction flagged by SQL injection scanners)
+        conn.executemany(
+            "DELETE FROM action_items WHERE id = ?",
+            [(r[0],) for r in rows],
+        )
+
+    return len(rows)
+
+
+def get_brain_health_report(conn: sqlite3.Connection) -> dict:
+    """Run all health checks and return a summary dict.
+
+    Also triggers archival of old done action items as a side effect.
+    """
+    orphans = get_orphan_notes(conn)
+    broken = get_missing_file_notes(conn)
+    duplicates = get_duplicate_candidates(conn)
+    empty = get_empty_notes(conn)
+    total_notes = conn.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
+    archived_count = archive_old_action_items(conn)
+
+    score = compute_health_score(
+        total_notes=total_notes,
+        orphans=len(orphans),
+        broken=len(broken),
+        duplicates=len(duplicates),
+    )
+
+    return {
+        "score": score,
+        "total_notes": total_notes,
+        "orphans": orphans,
+        "broken_links": broken,
+        "duplicate_candidates": duplicates,
+        "empty_notes": empty,
+        "archived_action_items": archived_count,
+    }

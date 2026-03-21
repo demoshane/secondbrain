@@ -36,8 +36,10 @@ def test_export_json_contains_all_fields(brain_root, export_db):
     output_path = brain_root / "export.json"
     export_brain(brain_root, export_db, output_path)
     data = json.loads(output_path.read_text())
-    assert len(data) > 0
-    note = data[0]
+    # 32-04: export format is {"notes": [...], "archived_action_items": [...]}
+    notes = data["notes"] if isinstance(data, dict) else data
+    assert len(notes) > 0
+    note = notes[0]
     for field in ("path", "type", "title", "body", "tags", "people",
                   "created_at", "updated_at", "content_sensitivity"):
         assert field in note
@@ -49,8 +51,30 @@ def test_export_includes_pii_notes(brain_root, export_db):
     output_path = brain_root / "export.json"
     export_brain(brain_root, export_db, output_path)
     data = json.loads(output_path.read_text())
-    pii_notes = [n for n in data if n.get("content_sensitivity") == "pii"]
+    notes = data["notes"] if isinstance(data, dict) else data
+    pii_notes = [n for n in notes if n.get("content_sensitivity") == "pii"]
     assert len(pii_notes) > 0
+
+
+def test_export_includes_archived_action_items(brain_root, export_db):
+    """32-04: export must include archived_action_items for GDPR data portability."""
+    from engine.export import export_brain
+
+    export_db.execute(
+        "INSERT INTO action_items_archive (note_path, text, done_at, created_at) VALUES (?,?,?,?)",
+        ("notes/public.md", "Archived task", "2020-01-01T00:00:00Z", "2019-01-01T00:00:00Z"),
+    )
+    export_db.commit()
+
+    output_path = brain_root / "export.json"
+    export_brain(brain_root, export_db, output_path)
+    data = json.loads(output_path.read_text())
+    assert isinstance(data, dict), "Export should be a dict with 'notes' and 'archived_action_items' keys"
+    assert "archived_action_items" in data
+    assert len(data["archived_action_items"]) == 1
+    item = data["archived_action_items"][0]
+    assert item["text"] == "Archived task"
+    assert item["note_path"] == "notes/public.md"
 
 
 def test_export_audit_logged(brain_root, export_db):
@@ -69,14 +93,7 @@ def test_export_initialises_schema_on_fresh_db(tmp_path, monkeypatch):
     import sqlite3
     from engine.export import export_brain
     conn = sqlite3.connect(":memory:")
-    # Do NOT call init_schema — simulate fresh install
     output = tmp_path / "out.json"
-    # Current code: SELECT on notes without schema raises OperationalError
-    # After fix: init_schema(conn) called in main() before export_brain()
-    # Test the library function path: export_brain itself must handle uninitialised conn gracefully
-    # We test main() integration via the import path used in production:
-    # export_brain(brain_root, conn, output) — if no schema, OperationalError
-    # After fix, main() calls init_schema first; here we verify the guard is in main(), not export_brain()
     try:
         count = export_brain(tmp_path, conn, output)
         assert False, "Expected OperationalError on schema-less conn — fix not yet applied to main()"

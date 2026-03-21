@@ -107,3 +107,239 @@ def test_audit_log_index_exists(db_conn):
         "SELECT type, name FROM sqlite_master WHERE type='index'"
     ).fetchall()}
     assert "idx_audit_log_created_path" in indexes
+
+
+# ---------------------------------------------------------------------------
+# 32-01: migrate_paths_to_relative tests
+# ---------------------------------------------------------------------------
+
+class TestMigratePathsToRelative:
+    """Tests for the migrate_paths_to_relative() function in engine/db.py."""
+
+    def _insert_note(self, conn, path, title="Test Note"):
+        conn.execute(
+            "INSERT INTO notes (path, type, title, body, tags) VALUES (?, 'note', ?, '', '[]')",
+            (path, title),
+        )
+
+    def _insert_relationship(self, conn, source_path, target_path):
+        conn.execute(
+            "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?, ?, 'link')",
+            (source_path, target_path),
+        )
+
+    def _insert_action_item(self, conn, note_path):
+        conn.execute(
+            "INSERT INTO action_items (note_path, text) VALUES (?, 'test action')",
+            (note_path,),
+        )
+
+    def _insert_embedding(self, conn, note_path):
+        conn.execute(
+            "INSERT OR IGNORE INTO note_embeddings (note_path, content_hash) VALUES (?, 'abc123')",
+            (note_path,),
+        )
+
+    def _insert_audit_log(self, conn, note_path):
+        conn.execute(
+            "INSERT INTO audit_log (event_type, note_path) VALUES ('create', ?)",
+            (note_path,),
+        )
+
+    def _insert_attachment(self, conn, note_path):
+        conn.execute(
+            "INSERT INTO attachments (note_path, file_path, filename, size) VALUES (?, '/tmp/f.jpg', 'f.jpg', 100)",
+            (note_path,),
+        )
+
+    def test_absolute_paths_converted_to_relative(self, tmp_path, monkeypatch):
+        """After migrate_paths_to_relative(), notes with absolute paths become relative."""
+        import engine.paths as _paths
+        import engine.db as _db
+        from engine.db import migrate_paths_to_relative, init_schema
+        brain = tmp_path / "SecondBrain"
+        brain.mkdir()
+        monkeypatch.setattr(_paths, "BRAIN_ROOT", brain)
+
+        conn = _db.get_connection(str(tmp_path / "test.db"))
+        init_schema(conn)
+
+        abs_path = str(brain / "coding" / "note.md")
+        self._insert_note(conn, abs_path)
+        conn.commit()
+
+        migrate_paths_to_relative(conn, brain)
+
+        row = conn.execute("SELECT path FROM notes WHERE rowid=1").fetchone()
+        assert row is not None
+        assert not row[0].startswith("/"), f"Expected relative path, got: {row[0]}"
+        assert row[0] == "coding/note.md"
+        conn.close()
+
+    def test_relative_paths_untouched(self, tmp_path, monkeypatch):
+        """Already-relative paths are not modified by migration."""
+        import engine.paths as _paths
+        import engine.db as _db
+        from engine.db import migrate_paths_to_relative, init_schema
+        brain = tmp_path / "SecondBrain"
+        brain.mkdir()
+        monkeypatch.setattr(_paths, "BRAIN_ROOT", brain)
+
+        conn = _db.get_connection(str(tmp_path / "test.db"))
+        init_schema(conn)
+
+        self._insert_note(conn, "coding/note.md")
+        conn.commit()
+
+        migrate_paths_to_relative(conn, brain)
+
+        row = conn.execute("SELECT path FROM notes WHERE path='coding/note.md'").fetchone()
+        assert row is not None, "Relative path should still exist after migration"
+        conn.close()
+
+    def test_child_tables_migrated(self, tmp_path, monkeypatch):
+        """relationships, action_items, note_embeddings, audit_log, attachments all migrated."""
+        import engine.paths as _paths
+        import engine.db as _db
+        from engine.db import migrate_paths_to_relative, init_schema
+        brain = tmp_path / "SecondBrain"
+        brain.mkdir()
+        monkeypatch.setattr(_paths, "BRAIN_ROOT", brain)
+
+        conn = _db.get_connection(str(tmp_path / "test.db"))
+        init_schema(conn)
+
+        abs_note = str(brain / "meetings" / "meeting.md")
+        abs_target = str(brain / "people" / "alice.md")
+
+        self._insert_note(conn, abs_note)
+        self._insert_note(conn, abs_target, title="Alice")
+        self._insert_relationship(conn, abs_note, abs_target)
+        self._insert_action_item(conn, abs_note)
+        self._insert_embedding(conn, abs_note)
+        self._insert_audit_log(conn, abs_note)
+        self._insert_attachment(conn, abs_note)
+        conn.commit()
+
+        migrate_paths_to_relative(conn, brain)
+
+        # notes table
+        row = conn.execute("SELECT path FROM notes WHERE title='Test Note' OR title='Test Note'").fetchone()
+        # relationships
+        rel = conn.execute("SELECT source_path, target_path FROM relationships").fetchone()
+        assert rel is not None
+        assert not rel[0].startswith("/"), f"relationship source_path not migrated: {rel[0]}"
+        assert not rel[1].startswith("/"), f"relationship target_path not migrated: {rel[1]}"
+
+        # action_items
+        ai = conn.execute("SELECT note_path FROM action_items").fetchone()
+        assert ai is not None
+        assert not ai[0].startswith("/"), f"action_items.note_path not migrated: {ai[0]}"
+
+        # note_embeddings
+        emb = conn.execute("SELECT note_path FROM note_embeddings").fetchone()
+        assert emb is not None
+        assert not emb[0].startswith("/"), f"note_embeddings.note_path not migrated: {emb[0]}"
+
+        # audit_log
+        log = conn.execute("SELECT note_path FROM audit_log WHERE event_type='create'").fetchone()
+        assert log is not None
+        assert not log[0].startswith("/"), f"audit_log.note_path not migrated: {log[0]}"
+
+        # attachments
+        att = conn.execute("SELECT note_path FROM attachments").fetchone()
+        assert att is not None
+        assert not att[0].startswith("/"), f"attachments.note_path not migrated: {att[0]}"
+
+        conn.close()
+
+    def test_idempotent(self, tmp_path, monkeypatch):
+        """Running migrate_paths_to_relative twice produces the same result."""
+        import engine.paths as _paths
+        import engine.db as _db
+        from engine.db import migrate_paths_to_relative, init_schema
+        brain = tmp_path / "SecondBrain"
+        brain.mkdir()
+        monkeypatch.setattr(_paths, "BRAIN_ROOT", brain)
+
+        conn = _db.get_connection(str(tmp_path / "test.db"))
+        init_schema(conn)
+
+        abs_path = str(brain / "ideas" / "note.md")
+        self._insert_note(conn, abs_path)
+        conn.commit()
+
+        migrate_paths_to_relative(conn, brain)
+        conn.commit()
+        migrate_paths_to_relative(conn, brain)  # second call must not raise or change anything
+        conn.commit()
+
+        rows = conn.execute("SELECT path FROM notes WHERE path LIKE '/%'").fetchall()
+        assert rows == [], f"Absolute paths remain after second migration: {rows}"
+        conn.close()
+
+    def test_paths_outside_brain_root_skipped(self, tmp_path, monkeypatch):
+        """Paths outside BRAIN_ROOT are skipped (not crashed) with a warning."""
+        import logging
+        import engine.paths as _paths
+        import engine.db as _db
+        from engine.db import migrate_paths_to_relative, init_schema
+        brain = tmp_path / "SecondBrain"
+        brain.mkdir()
+        monkeypatch.setattr(_paths, "BRAIN_ROOT", brain)
+
+        conn = _db.get_connection(str(tmp_path / "test.db"))
+        init_schema(conn)
+
+        # Insert a note with a path inside the brain
+        abs_path = str(brain / "coding" / "good.md")
+        self._insert_note(conn, abs_path, title="Good Note")
+        # Insert a note with a path outside the brain
+        outside_path = "/tmp/outside-brain/note.md"
+        self._insert_note(conn, outside_path, title="Outside Note")
+        conn.commit()
+
+        # Should not raise
+        migrate_paths_to_relative(conn, brain)
+
+        # The inside note should be migrated
+        good = conn.execute("SELECT path FROM notes WHERE title='Good Note'").fetchone()
+        assert good is not None
+        assert good[0] == "coding/good.md"
+
+        # The outside note's path should remain unchanged (skipped)
+        outside = conn.execute("SELECT path FROM notes WHERE title='Outside Note'").fetchone()
+        assert outside is not None
+        assert outside[0] == outside_path  # unchanged
+        conn.close()
+
+    def test_migration_runs_in_init_schema(self, tmp_path, monkeypatch):
+        """init_schema() must call migrate_paths_to_relative() automatically."""
+        import engine.paths as _paths
+        import engine.db as _db
+        from engine.db import init_schema
+        brain = tmp_path / "SecondBrain"
+        brain.mkdir()
+        monkeypatch.setattr(_paths, "BRAIN_ROOT", brain)
+
+        conn = _db.get_connection(str(tmp_path / "test.db"))
+
+        # Initialize schema first, then inject an absolute path directly via SQL
+        # (simulating a pre-migration DB that already has schema but absolute paths)
+        init_schema(conn)
+        abs_path = str(brain / "note.md")
+        conn.execute("INSERT OR REPLACE INTO notes (path, title) VALUES (?, 'Test')", (abs_path,))
+        conn.commit()
+
+        # Verify the absolute path is stored
+        row = conn.execute("SELECT path FROM notes WHERE title='Test'").fetchone()
+        assert row is not None
+        assert row[0] == abs_path, f"Setup failed: expected absolute path, got: {row[0]}"
+
+        # Calling init_schema again (idempotent) should trigger migration
+        init_schema(conn)
+
+        row = conn.execute("SELECT path FROM notes WHERE title='Test'").fetchone()
+        assert row is not None
+        assert not row[0].startswith("/"), f"Expected relative path after init_schema, got: {row[0]}"
+        conn.close()

@@ -173,38 +173,38 @@ def search():
     tags_filter = body.get("tags")  # list[str] | None
     conn = get_connection()
     conn.row_factory = sqlite3.Row
-
-    if tags_filter and not query:
-        # Tags-only filter: fetch all notes and filter by tags in Python
-        rows = conn.execute(
-            "SELECT path, type, title, created_at, tags FROM notes ORDER BY created_at DESC"
-        ).fetchall()
-        results = []
-        for r in rows:
-            note_tags = json.loads(r["tags"] or "[]")
-            if all(t in note_tags for t in tags_filter):
-                results.append({
-                    "path": r["path"],
-                    "type": r["type"],
-                    "title": r["title"],
-                    "created_at": r["created_at"],
-                    "score": 0.0,
-                })
-    else:
-        results = search_notes(conn, query)
-        if tags_filter:
-            filtered = []
-            for r in results:
-                row = conn.execute(
-                    "SELECT tags FROM notes WHERE path=?", (r["path"],)
-                ).fetchone()
-                if row:
-                    note_tags = json.loads(row["tags"] or "[]")
-                    if all(t in note_tags for t in tags_filter):
-                        filtered.append(r)
-            results = filtered
-
-    conn.close()
+    try:
+        if tags_filter and not query:
+            # Tags-only filter: fetch all notes and filter by tags in Python
+            rows = conn.execute(
+                "SELECT path, type, title, created_at, tags FROM notes ORDER BY created_at DESC"
+            ).fetchall()
+            results = []
+            for r in rows:
+                note_tags = json.loads(r["tags"] or "[]")
+                if all(t in note_tags for t in tags_filter):
+                    results.append({
+                        "path": r["path"],
+                        "type": r["type"],
+                        "title": r["title"],
+                        "created_at": r["created_at"],
+                        "score": 0.0,
+                    })
+        else:
+            results = search_notes(conn, query)
+            if tags_filter:
+                filtered = []
+                for r in results:
+                    row = conn.execute(
+                        "SELECT tags FROM notes WHERE path=?", (r["path"],)
+                    ).fetchone()
+                    if row:
+                        note_tags = json.loads(row["tags"] or "[]")
+                        if all(t in note_tags for t in tags_filter):
+                            filtered.append(r)
+                results = filtered
+    finally:
+        conn.close()
     return jsonify({"results": results})
 
 
@@ -282,12 +282,14 @@ def list_people():
 def list_meetings():
     conn = get_connection()
     conn.row_factory = sqlite3.Row
-    rows = conn.execute(
-        "SELECT n.path, n.title, substr(n.created_at,1,10) AS meeting_date, n.people, "
-        "  (SELECT COUNT(*) FROM action_items a WHERE a.note_path=n.path AND a.done=0) AS open_actions "
-        "FROM notes n WHERE n.type = 'meeting' ORDER BY n.created_at DESC"
-    ).fetchall()
-    conn.close()
+    try:
+        rows = conn.execute(
+            "SELECT n.path, n.title, substr(n.created_at,1,10) AS meeting_date, n.people, "
+            "  (SELECT COUNT(*) FROM action_items a WHERE a.note_path=n.path AND a.done=0) AS open_actions "
+            "FROM notes n WHERE n.type = 'meeting' ORDER BY n.created_at DESC"
+        ).fetchall()
+    finally:
+        conn.close()
     result = []
     for r in rows:
         try:
@@ -312,22 +314,23 @@ def get_meeting(note_path):
         return jsonify({"error": "forbidden"}), 403
     conn = get_connection()
     conn.row_factory = sqlite3.Row
-    row = conn.execute(
-        "SELECT path, title, body, people, substr(created_at,1,10) AS meeting_date FROM notes WHERE path=?",
-        (str(abs_path),)
-    ).fetchone()
-    if row is None:
-        conn.close()
-        return jsonify({"error": "not found"}), 404
     try:
-        participants = json.loads(row["people"] or "[]")
-    except Exception:
-        participants = []
-    open_actions = conn.execute(
-        "SELECT COUNT(*) FROM action_items WHERE note_path=? AND done=0",
-        (str(abs_path),)
-    ).fetchone()[0]
-    conn.close()
+        row = conn.execute(
+            "SELECT path, title, body, people, substr(created_at,1,10) AS meeting_date FROM notes WHERE path=?",
+            (str(abs_path),)
+        ).fetchone()
+        if row is None:
+            return jsonify({"error": "not found"}), 404
+        try:
+            participants = json.loads(row["people"] or "[]")
+        except Exception:
+            participants = []
+        open_actions = conn.execute(
+            "SELECT COUNT(*) FROM action_items WHERE note_path=? AND done=0",
+            (str(abs_path),)
+        ).fetchone()[0]
+    finally:
+        conn.close()
     return jsonify({
         "path": row["path"],
         "title": row["title"] or "",
@@ -342,12 +345,14 @@ def get_meeting(note_path):
 def list_projects():
     conn = get_connection()
     conn.row_factory = sqlite3.Row
-    rows = conn.execute(
-        "SELECT n.path, n.title, substr(n.updated_at,1,10) AS updated_at, "
-        "  (SELECT COUNT(*) FROM action_items a WHERE a.note_path=n.path AND a.done=0) AS open_actions "
-        "FROM notes n WHERE n.type = 'projects' ORDER BY n.updated_at DESC"
-    ).fetchall()
-    conn.close()
+    try:
+        rows = conn.execute(
+            "SELECT n.path, n.title, substr(n.updated_at,1,10) AS updated_at, "
+            "  (SELECT COUNT(*) FROM action_items a WHERE a.note_path=n.path AND a.done=0) AS open_actions "
+            "FROM notes n WHERE n.type = 'projects' ORDER BY n.updated_at DESC"
+        ).fetchall()
+    finally:
+        conn.close()
     return jsonify({"projects": [dict(r) for r in rows]})
 
 
@@ -359,18 +364,19 @@ def get_project(note_path):
         return jsonify({"error": "forbidden"}), 403
     conn = get_connection()
     conn.row_factory = sqlite3.Row
-    row = conn.execute(
-        "SELECT path, title, body, substr(updated_at,1,10) AS updated_at FROM notes WHERE path=?",
-        (str(abs_path),)
-    ).fetchone()
-    if row is None:
+    try:
+        row = conn.execute(
+            "SELECT path, title, body, substr(updated_at,1,10) AS updated_at FROM notes WHERE path=?",
+            (str(abs_path),)
+        ).fetchone()
+        if row is None:
+            return jsonify({"error": "not found"}), 404
+        open_actions = conn.execute(
+            "SELECT COUNT(*) FROM action_items WHERE note_path=? AND done=0",
+            (str(abs_path),)
+        ).fetchone()[0]
+    finally:
         conn.close()
-        return jsonify({"error": "not found"}), 404
-    open_actions = conn.execute(
-        "SELECT COUNT(*) FROM action_items WHERE note_path=? AND done=0",
-        (str(abs_path),)
-    ).fetchone()[0]
-    conn.close()
     return jsonify({
         "path": row["path"],
         "title": row["title"] or "",
@@ -387,17 +393,19 @@ def list_links():
     offset = int(request.args.get("offset", 0))
     conn = get_connection()
     conn.row_factory = sqlite3.Row
-    total_count = conn.execute(
-        "SELECT COUNT(*) FROM notes WHERE type='link'"
-    ).fetchone()[0]
-    rows = conn.execute(
-        "SELECT path, title, url, substr(created_at,1,10) AS date, tags, "
-        "  substr(body,1,200) AS description "
-        "FROM notes WHERE type='link' ORDER BY created_at DESC "
-        "LIMIT ? OFFSET ?",
-        (limit, offset),
-    ).fetchall()
-    conn.close()
+    try:
+        total_count = conn.execute(
+            "SELECT COUNT(*) FROM notes WHERE type='link'"
+        ).fetchone()[0]
+        rows = conn.execute(
+            "SELECT path, title, url, substr(created_at,1,10) AS date, tags, "
+            "  substr(body,1,200) AS description "
+            "FROM notes WHERE type='link' ORDER BY created_at DESC "
+            "LIMIT ? OFFSET ?",
+            (limit, offset),
+        ).fetchall()
+    finally:
+        conn.close()
     result = []
     for r in rows:
         domain = ""
@@ -425,12 +433,14 @@ def get_link(note_path):
         return jsonify({"error": "forbidden"}), 403
     conn = get_connection()
     conn.row_factory = sqlite3.Row
-    row = conn.execute(
-        "SELECT path, title, url, body, substr(created_at,1,10) AS date, tags "
-        "FROM notes WHERE path=? AND type='link'",
-        (str(abs_path),)
-    ).fetchone()
-    conn.close()
+    try:
+        row = conn.execute(
+            "SELECT path, title, url, body, substr(created_at,1,10) AS date, tags "
+            "FROM notes WHERE path=? AND type='link'",
+            (str(abs_path),)
+        ).fetchone()
+    finally:
+        conn.close()
     if row is None:
         return jsonify({"error": "not found"}), 404
     domain = ""
@@ -455,8 +465,10 @@ def get_actions():
     note_path = request.args.get("note_path") or None
     conn = get_connection()
     conn.row_factory = sqlite3.Row
-    actions = list_actions(conn, done=done, assignee=assignee, note_path=note_path)
-    conn.close()
+    try:
+        actions = list_actions(conn, done=done, assignee=assignee, note_path=note_path)
+    finally:
+        conn.close()
     return jsonify({"actions": actions})
 
 
@@ -530,12 +542,14 @@ def save_note(note_path):
         os.replace(tmp, p)
         now = datetime.datetime.utcnow().isoformat()
         conn = get_connection()
-        conn.execute(
-            "UPDATE notes SET title=?, updated_at=? WHERE path=?",
-            (title_val, now, str(p.resolve()))
-        )
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute(
+                "UPDATE notes SET title=?, updated_at=? WHERE path=?",
+                (title_val, now, str(p.resolve()))
+            )
+            conn.commit()
+        finally:
+            conn.close()
         return jsonify({"saved": True, "path": str(p)})
 
     # Body-only branch: when "body" present and "content"/"tags"/"title" absent
@@ -552,12 +566,14 @@ def save_note(note_path):
         os.replace(tmp, p)
         now = datetime.datetime.utcnow().isoformat()
         conn = get_connection()
-        conn.execute(
-            "UPDATE notes SET body=?, updated_at=? WHERE path=?",
-            (body_val, now, str(p.resolve()))
-        )
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute(
+                "UPDATE notes SET body=?, updated_at=? WHERE path=?",
+                (body_val, now, str(p.resolve()))
+            )
+            conn.commit()
+        finally:
+            conn.close()
         return jsonify({"saved": True, "path": str(p)})
 
     # Tags-only branch: when "tags" present and "content" absent, update frontmatter + DB only
@@ -574,12 +590,14 @@ def save_note(note_path):
         os.replace(tmp, p)
         now = datetime.datetime.utcnow().isoformat()
         conn = get_connection()
-        conn.execute(
-            "UPDATE notes SET tags=?, updated_at=? WHERE path=?",
-            (json.dumps(tags_val), now, str(p.resolve()))
-        )
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute(
+                "UPDATE notes SET tags=?, updated_at=? WHERE path=?",
+                (json.dumps(tags_val), now, str(p.resolve()))
+            )
+            conn.commit()
+        finally:
+            conn.close()
         return jsonify({"saved": True, "path": str(p)})
 
     content = body.get("content", "")
@@ -593,12 +611,14 @@ def save_note(note_path):
     title = post.metadata.get("title", p.stem)
     now = datetime.datetime.utcnow().isoformat()
     conn = get_connection()
-    conn.execute(
-        "UPDATE notes SET title=?, updated_at=? WHERE path=?",
-        (title, now, str(p.resolve()))
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            "UPDATE notes SET title=?, updated_at=? WHERE path=?",
+            (title, now, str(p.resolve()))
+        )
+        conn.commit()
+    finally:
+        conn.close()
     return jsonify({"saved": True, "path": str(p)})
 
 
@@ -645,14 +665,17 @@ def create_note():
     # Index the new note into SQLite immediately so loadNotes() reflects it
     abs_path = str(target.resolve())
     conn = get_connection()
-    existing = conn.execute("SELECT path FROM notes WHERE path=?", (abs_path,)).fetchone()
-    if not existing:
-        conn.execute(
-            "INSERT INTO notes (path, title, type, body, tags, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
-            (abs_path, title, note_type, note_body, "[]", now, now),
-        )
-        conn.commit()
-    conn.close()
+    conn = get_connection()
+    try:
+        existing = conn.execute("SELECT path FROM notes WHERE path=?", (abs_path,)).fetchone()
+        if not existing:
+            conn.execute(
+                "INSERT INTO notes (path, title, type, body, tags, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
+                (abs_path, title, note_type, note_body, "[]", now, now),
+            )
+            conn.commit()
+    finally:
+        conn.close()
     return jsonify({"path": abs_path}), 201
 
 
@@ -664,14 +687,15 @@ def delete_note_endpoint(note_path):
         return jsonify({"error": "Forbidden"}), 403
     if not p.exists():
         return jsonify({"error": "Not found"}), 404
+    from engine.delete import delete_note  # lazy import
+    conn = get_connection()
     try:
-        from engine.delete import delete_note  # lazy import
-        conn = get_connection()
         result = delete_note(p, conn, brain_root)
-        conn.close()
-        return jsonify(result), 200
     except Exception as e:
         return jsonify({"error": type(e).__name__}), 500
+    finally:
+        conn.close()
+    return jsonify(result), 200
 
 
 @app.get("/notes/<path:note_path>/meta")
@@ -1225,6 +1249,7 @@ def brain_health_endpoint():
             get_missing_file_notes,
             get_duplicate_candidates,
             compute_health_score,
+            archive_old_action_items,
         )
         from engine.links import check_links
         from engine.paths import BRAIN_ROOT
@@ -1234,6 +1259,7 @@ def brain_health_endpoint():
         missing_files = get_missing_file_notes(conn)
         broken = check_links(BRAIN_ROOT, conn)
         duplicates = get_duplicate_candidates(conn)
+        archived_count = archive_old_action_items(conn)
         score = compute_health_score(
             total_notes=total,
             orphans=len(orphans),
@@ -1254,6 +1280,7 @@ def brain_health_endpoint():
                 "broken_links": broken[:20],
                 "duplicate_count": len(duplicates),
                 "duplicate_candidates": duplicates[:20],
+                "archived_action_items": archived_count,
             }
         )
     except Exception as exc:

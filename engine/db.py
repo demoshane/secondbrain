@@ -1,7 +1,10 @@
 """SQLite database layer — connection, schema init, FTS5 triggers."""
+import logging
 import sqlite3
 from pathlib import Path
 from engine.paths import DB_PATH
+
+logger = logging.getLogger(__name__)
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS notes (
@@ -203,6 +206,108 @@ def migrate_add_action_items_archive_table(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def migrate_paths_to_relative(conn: sqlite3.Connection, brain_root: Path | None = None) -> None:
+    """Convert all absolute paths in DB tables to paths relative to brain_root.
+
+    Migrates the following columns:
+    - notes.path
+    - relationships.source_path, relationships.target_path
+    - action_items.note_path, action_items.assignee_path
+    - note_embeddings.note_path
+    - audit_log.note_path
+    - attachments.note_path
+
+    Already-relative paths are untouched. Paths outside brain_root are skipped
+    with a warning. Migration runs in a single transaction. Idempotent — running
+    twice produces the same result.
+
+    Args:
+        conn: Open SQLite connection with schema initialized.
+        brain_root: Brain root path. Defaults to engine.paths.BRAIN_ROOT.
+    """
+    if brain_root is None:
+        # Import dynamically so monkeypatching engine.paths.BRAIN_ROOT works in tests
+        import engine.paths as _paths
+        brain_root = _paths.BRAIN_ROOT
+    brain_root = Path(brain_root)
+
+    # Check if there are any absolute paths to migrate
+    row = conn.execute("SELECT COUNT(*) FROM notes WHERE path LIKE '/%'").fetchone()
+    if row[0] == 0:
+        logger.debug("migrate_paths_to_relative: no absolute paths found — skipping")
+        return
+
+    count_total = row[0]
+    count_migrated = 0
+    count_skipped = 0
+
+    # Build a mapping of absolute path → relative path for all notes
+    abs_rows = conn.execute("SELECT path FROM notes WHERE path LIKE '/%'").fetchall()
+    path_map: dict[str, str] = {}
+    for (abs_path,) in abs_rows:
+        try:
+            rel = str(Path(abs_path).relative_to(brain_root))
+            path_map[abs_path] = rel
+            count_migrated += 1
+        except ValueError:
+            logger.warning(
+                "migrate_paths_to_relative: path outside BRAIN_ROOT, skipping: %s", abs_path
+            )
+            count_skipped += 1
+
+    if not path_map:
+        logger.info(
+            "migrate_paths_to_relative: all %d absolute paths outside BRAIN_ROOT — skipped",
+            count_skipped,
+        )
+        return
+
+    with conn:
+        for abs_path, rel_path in path_map.items():
+            conn.execute(
+                "UPDATE notes SET path=? WHERE path=?",
+                (rel_path, abs_path),
+            )
+            conn.execute(
+                "UPDATE relationships SET source_path=? WHERE source_path=?",
+                (rel_path, abs_path),
+            )
+            conn.execute(
+                "UPDATE relationships SET target_path=? WHERE target_path=?",
+                (rel_path, abs_path),
+            )
+            conn.execute(
+                "UPDATE action_items SET note_path=? WHERE note_path=?",
+                (rel_path, abs_path),
+            )
+            try:
+                # assignee_path may not exist on older schemas — guard idempotently
+                conn.execute(
+                    "UPDATE action_items SET assignee_path=? WHERE assignee_path=?",
+                    (rel_path, abs_path),
+                )
+            except sqlite3.OperationalError:
+                pass
+            conn.execute(
+                "UPDATE note_embeddings SET note_path=? WHERE note_path=?",
+                (rel_path, abs_path),
+            )
+            conn.execute(
+                "UPDATE audit_log SET note_path=? WHERE note_path=?",
+                (rel_path, abs_path),
+            )
+            conn.execute(
+                "UPDATE attachments SET note_path=? WHERE note_path=?",
+                (rel_path, abs_path),
+            )
+
+    logger.info(
+        "migrate_paths_to_relative: migrated %d paths to relative (%d skipped outside BRAIN_ROOT)",
+        count_migrated,
+        count_skipped,
+    )
+
+
 def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     """Create (or optionally recreate) the full schema.
 
@@ -223,6 +328,8 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     migrate_add_dismissed_inbox_items_table(conn)
     migrate_add_url_column(conn)
     migrate_add_action_items_archive_table(conn)
+    # ARCH-01: Convert absolute paths to relative — must run before junction table migrations
+    migrate_paths_to_relative(conn)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_url ON notes(url)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_people ON notes(people)")

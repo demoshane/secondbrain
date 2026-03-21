@@ -34,11 +34,30 @@ def export_brain(brain_root: Path, conn: sqlite3.Connection, output_path: Path, 
         for row in rows
     ]
 
+    # GDPR Article 20: include archived action items for full data portability
+    archive_rows = conn.execute(
+        "SELECT note_path, text, done_at, created_at, archived_at, archived_reason"
+        " FROM action_items_archive"
+    ).fetchall()
+
+    archived_items = [
+        {
+            "note_path": r[0],
+            "text": r[1],
+            "done_at": r[2],
+            "created_at": r[3],
+            "archived_at": r[4],
+            "archived_reason": r[5],
+        }
+        for r in archive_rows
+    ]
+
+    export_data = {"notes": notes, "archived_action_items": archived_items}
     count = len(notes)
 
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(notes, indent=2, ensure_ascii=False), encoding="utf-8")
+    output_path.write_text(json.dumps(export_data, indent=2, ensure_ascii=False), encoding="utf-8")
 
     now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     conn.execute(

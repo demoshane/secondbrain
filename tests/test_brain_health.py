@@ -199,3 +199,94 @@ def test_note_with_inbound_link_is_not_orphan(tmp_path):
     conn.close()
     assert not any(r["path"] == "ideas/pointed-to.md" for r in result), \
         "Note with inbound link must NOT be an orphan"
+
+
+# ---------------------------------------------------------------------------
+# Phase 32-04: action_items archival
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def archive_conn(tmp_path):
+    """Isolated SQLite DB with schema for archival tests."""
+    import engine.db as _db
+    import engine.paths as _paths
+    db_path = tmp_path / "archive_test.db"
+    _db.DB_PATH = db_path
+    _paths.DB_PATH = db_path
+    from engine.db import get_connection, init_schema
+    conn = get_connection()
+    init_schema(conn)
+    yield conn
+    conn.close()
+
+
+def _insert_action_item(conn, note_path, text, done, done_at, created_at=None):
+    """Helper: insert an action_item row with explicit done_at."""
+    ca = created_at or "2025-01-01T00:00:00Z"
+    conn.execute(
+        "INSERT INTO action_items (note_path, text, done, done_at, created_at) VALUES (?,?,?,?,?)",
+        (note_path, text, 1 if done else 0, done_at, ca),
+    )
+    conn.commit()
+
+
+def test_archive_old_done_items_are_moved(archive_conn):
+    """32-04: done items with done_at older than 90 days must be archived."""
+    from engine.brain_health import archive_old_action_items
+    _insert_action_item(archive_conn, "notes/a.md", "Old task", done=True, done_at="2020-01-01T00:00:00Z")
+    count = archive_old_action_items(archive_conn, days=90)
+    assert count == 1, f"Expected 1 archived, got {count}"
+    # Must be in archive
+    archived = archive_conn.execute("SELECT * FROM action_items_archive").fetchall()
+    assert len(archived) == 1
+    # Must be removed from action_items
+    remaining = archive_conn.execute(
+        "SELECT * FROM action_items WHERE note_path='notes/a.md'"
+    ).fetchall()
+    assert len(remaining) == 0
+
+
+def test_archive_recent_done_items_not_archived(archive_conn):
+    """32-04: done items with done_at less than 90 days ago must NOT be archived."""
+    from engine.brain_health import archive_old_action_items
+    import datetime
+    recent = (datetime.datetime.utcnow() - datetime.timedelta(days=10)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    _insert_action_item(archive_conn, "notes/b.md", "Recent task", done=True, done_at=recent)
+    count = archive_old_action_items(archive_conn, days=90)
+    assert count == 0, f"Expected 0 archived, got {count}"
+    remaining = archive_conn.execute(
+        "SELECT * FROM action_items WHERE note_path='notes/b.md'"
+    ).fetchall()
+    assert len(remaining) == 1
+
+
+def test_archive_undone_items_not_archived(archive_conn):
+    """32-04: non-done items must NOT be archived regardless of age."""
+    from engine.brain_health import archive_old_action_items
+    _insert_action_item(archive_conn, "notes/c.md", "Pending task", done=False, done_at=None)
+    count = archive_old_action_items(archive_conn, days=90)
+    assert count == 0, f"Expected 0 archived, got {count}"
+    remaining = archive_conn.execute(
+        "SELECT * FROM action_items WHERE note_path='notes/c.md'"
+    ).fetchall()
+    assert len(remaining) == 1
+
+
+def test_archive_count_matches_archived(archive_conn):
+    """32-04: return value of archive_old_action_items() must equal items moved."""
+    from engine.brain_health import archive_old_action_items
+    _insert_action_item(archive_conn, "notes/d.md", "Old 1", done=True, done_at="2019-01-01T00:00:00Z")
+    _insert_action_item(archive_conn, "notes/e.md", "Old 2", done=True, done_at="2019-06-01T00:00:00Z")
+    count = archive_old_action_items(archive_conn, days=90)
+    assert count == 2
+    archived = archive_conn.execute("SELECT * FROM action_items_archive").fetchall()
+    assert len(archived) == 2
+
+
+def test_health_report_includes_archived_count(archive_conn):
+    """32-04: brain health report dict must include archived_action_items count."""
+    from engine.brain_health import get_brain_health_report
+    _insert_action_item(archive_conn, "notes/f.md", "Old task", done=True, done_at="2020-01-01T00:00:00Z")
+    report = get_brain_health_report(archive_conn)
+    assert "archived_action_items" in report, f"archived_action_items missing from {list(report.keys())}"
+    assert report["archived_action_items"] >= 1
