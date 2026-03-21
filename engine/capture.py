@@ -9,6 +9,8 @@ from pathlib import Path
 
 import frontmatter
 
+from engine.paths import store_path as _store_path
+
 # Maps CLI --type value to brain subdirectory name where types differ
 TYPE_TO_DIR: dict[str, str] = {
     "idea": "ideas",
@@ -189,7 +191,13 @@ def write_note_atomic(
         updated_at = post.get("updated_at", created_at)
         sensitivity = post.get("content_sensitivity", "public")
 
-        resolved_path = str(target.resolve())
+        # ARCH-01: store relative path in DB for portability.
+        # Fall back to absolute resolved path if target is outside BRAIN_ROOT
+        # (e.g. test fixtures that write outside brain directory).
+        try:
+            resolved_path = _store_path(target.resolve())
+        except ValueError:
+            resolved_path = str(target.resolve())
         sql_verb = "INSERT OR REPLACE" if update else "INSERT"
         conn.execute(
             f"{sql_verb} INTO notes (path, type, title, body, tags, people, created_at, updated_at, sensitivity, url)"
@@ -269,6 +277,12 @@ def update_note(
     post["tags"] = list(tags)
     post.content = body
 
+    # ARCH-01: normalize to relative path for DB write boundary
+    try:
+        db_path = _store_path(target.resolve())
+    except ValueError:
+        db_path = note_path  # outside BRAIN_ROOT — keep as-is for backward compat
+
     tmp_path = None
     tmp_fd = None
     try:
@@ -281,9 +295,9 @@ def update_note(
         tags_json = json.dumps(list(tags))
         conn.execute(
             "UPDATE notes SET title=?, body=?, tags=?, updated_at=? WHERE path=?",
-            (title, body, tags_json, now, note_path),
+            (title, body, tags_json, now, db_path),
         )
-        log_audit(conn, "update", note_path)
+        log_audit(conn, "update", db_path)
         conn.commit()
 
         os.replace(tmp_name, target)
@@ -408,10 +422,25 @@ def capture_note(
     target = brain_root / subdir / f"{slug}.md"
     target.parent.mkdir(parents=True, exist_ok=True)
     # Resolve slug collisions: if path exists on disk or in DB, append -2, -3, …
+    # ARCH-01: check both relative path (new) and absolute path (backward compat) in DB
     counter = 2
-    while target.exists() or conn.execute("SELECT 1 FROM notes WHERE path=?", (str(target.resolve()),)).fetchone():
-        target = brain_root / subdir / f"{slug}-{counter}.md"
-        counter += 1
+    while True:
+        if target.exists():
+            target = brain_root / subdir / f"{slug}-{counter}.md"
+            counter += 1
+            continue
+        abs_str = str(target.resolve())
+        try:
+            rel_str = _store_path(target.resolve())
+        except ValueError:
+            rel_str = abs_str
+        if conn.execute(
+            "SELECT 1 FROM notes WHERE path=? OR path=?", (rel_str, abs_str)
+        ).fetchone():
+            target = brain_root / subdir / f"{slug}-{counter}.md"
+            counter += 1
+            continue
+        break
 
     # Entity enrichment: best-effort, never blocks capture.
     # CRITICAL ORDER: extract BEFORE build_post so merged_people is written into
@@ -438,8 +467,13 @@ def capture_note(
         add_backlinks(target, merged_people, brain_root, conn)
 
     # Wiki-link relationships: parse [[...]] links from body
+    # ARCH-01: use relative path for DB storage
     from engine.links import update_wiki_link_relationships
-    update_wiki_link_relationships(conn, str(target.resolve()), body)
+    try:
+        _wiki_source = _store_path(target.resolve())
+    except ValueError:
+        _wiki_source = str(target.resolve())
+    update_wiki_link_relationships(conn, _wiki_source, body)
 
     # Phase 15: best-effort intelligence hooks — run in background, never block capture
     import threading

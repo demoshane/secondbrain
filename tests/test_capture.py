@@ -174,51 +174,81 @@ def test_cap06_update_memory_skipped_for_pii(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Phase 7: Absolute path storage contract (SEARCH-01)
+# Phase 32-01: Relative path storage contract (ARCH-01)
+# Replaces Phase 7 absolute-path contract: capture_note() now stores relative paths.
 # ---------------------------------------------------------------------------
 
-def test_write_note_atomic_stores_absolute_path(tmp_path, initialized_db):
-    """DB path column must equal str(target.resolve()) — canonical symlink-free form."""
-    from engine.capture import write_note_atomic, build_post
+def test_capture_note_stores_relative_path(tmp_path, monkeypatch):
+    """capture_note() must store a relative path in DB, not an absolute path.
 
-    base = tmp_path.resolve()
-    target_dir = base / "notes"
-    target_dir.mkdir(parents=True, exist_ok=True)
-    target = target_dir / "2026-phase7-test.md"
+    ARCH-01: DB must not contain absolute paths for portability.
+    """
+    import engine.db as db_mod
+    import engine.paths as paths_mod
 
-    post = build_post("note", "Phase7 AbsPath Test", "body content", [], [], "public")
-    write_note_atomic(target, post, initialized_db)
+    brain = tmp_path / "SecondBrain"
+    brain.mkdir()
+    tmp_db = tmp_path / "brain.db"
+    monkeypatch.setattr(db_mod, "DB_PATH", tmp_db)
+    monkeypatch.setattr(paths_mod, "DB_PATH", tmp_db)
+    monkeypatch.setattr(paths_mod, "BRAIN_ROOT", brain)
+    monkeypatch.setenv("BRAIN_PATH", str(brain))
 
-    row = initialized_db.execute(
-        "SELECT path FROM notes WHERE title = ?", ("Phase7 AbsPath Test",)
+    from engine.db import get_connection, init_schema
+    from engine.capture import capture_note
+
+    conn = get_connection(str(tmp_db))
+    init_schema(conn)
+
+    capture_note("note", "Relative Path Test", "body", [], [], "public", brain, conn)
+    conn.commit()
+
+    row = conn.execute(
+        "SELECT path FROM notes WHERE title='Relative Path Test'"
     ).fetchone()
-    assert row is not None, "Row must exist in DB after write_note_atomic"
+    assert row is not None, "Note must exist in DB"
     stored_path = row[0]
-    assert stored_path == str(target.resolve()), (
-        f"Stored path {stored_path!r} must equal resolved target {str(target.resolve())!r}"
+    assert not stored_path.startswith("/"), (
+        f"DB path must be relative (not start with '/'), got: {stored_path!r}"
     )
+    conn.close()
 
 
-def test_write_note_atomic_path_is_absolute(tmp_path, initialized_db):
-    """Stored DB path must be absolute (starts with '/') — no relative paths allowed."""
-    from engine.capture import write_note_atomic, build_post
+def test_capture_note_stored_path_resolves_correctly(tmp_path, monkeypatch):
+    """The stored relative path, when resolved via resolve_path(), points to the actual file."""
+    import engine.db as db_mod
+    import engine.paths as paths_mod
 
-    base = tmp_path.resolve()
-    target_dir = base / "notes"
-    target_dir.mkdir(parents=True, exist_ok=True)
-    target = target_dir / "2026-phase7-abscheck.md"
+    brain = tmp_path / "SecondBrain"
+    brain.mkdir()
+    tmp_db = tmp_path / "brain.db"
+    monkeypatch.setattr(db_mod, "DB_PATH", tmp_db)
+    monkeypatch.setattr(paths_mod, "DB_PATH", tmp_db)
+    monkeypatch.setattr(paths_mod, "BRAIN_ROOT", brain)
+    monkeypatch.setenv("BRAIN_PATH", str(brain))
 
-    post = build_post("note", "Phase7 AbsCheck Test", "body content", [], [], "public")
-    write_note_atomic(target, post, initialized_db)
+    from engine.db import get_connection, init_schema
+    from engine.capture import capture_note
+    from engine.paths import resolve_path
 
-    row = initialized_db.execute(
-        "SELECT path FROM notes WHERE title = ?", ("Phase7 AbsCheck Test",)
+    conn = get_connection(str(tmp_db))
+    init_schema(conn)
+
+    note_path = capture_note("note", "Resolve Test Note", "content here", [], [], "public", brain, conn)
+    conn.commit()
+
+    row = conn.execute(
+        "SELECT path FROM notes WHERE title='Resolve Test Note'"
     ).fetchone()
     assert row is not None
-    stored_path = row[0]
-    assert stored_path.startswith("/"), (
-        f"DB path must start with '/' but got: {stored_path!r}"
+    stored_rel_path = row[0]
+
+    # resolve_path() must give back the actual file location
+    resolved = resolve_path(stored_rel_path)
+    assert resolved.exists(), (
+        f"resolve_path({stored_rel_path!r}) = {resolved} — file must exist on disk"
     )
+    conn.close()
 
 
 # ---------------------------------------------------------------------------
@@ -316,19 +346,19 @@ def test_capture_people_writeback(tmp_path, monkeypatch):
     import engine.paths as paths_mod
     from pathlib import Path
 
+    brain_root = tmp_path / "brain"
+    brain_root.mkdir()
     tmp_db = Path(str(tmp_path / "brain.db"))
     monkeypatch.setattr(db_mod, "DB_PATH", tmp_db)
     monkeypatch.setattr(paths_mod, "DB_PATH", tmp_db)
-    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+    monkeypatch.setattr(paths_mod, "BRAIN_ROOT", brain_root)
+    monkeypatch.setenv("BRAIN_PATH", str(brain_root))
 
     from engine.db import get_connection, init_schema
     from engine.capture import capture_note
 
     conn = get_connection(str(tmp_db))
     init_schema(conn)
-
-    brain_root = tmp_path / "brain"
-    brain_root.mkdir()
 
     path = capture_note(
         "note",
@@ -342,8 +372,9 @@ def test_capture_people_writeback(tmp_path, monkeypatch):
     )
     conn.commit()
 
+    # ARCH-01: DB now stores relative paths — search by title
     row = conn.execute(
-        "SELECT people FROM notes WHERE path = ?", (str(path.resolve()),)
+        "SELECT people FROM notes WHERE title = 'Team Update'"
     ).fetchone()
     assert row is not None, "Note must exist in DB"
     people_json = row[0]
@@ -363,10 +394,13 @@ def test_capture_people_merge(tmp_path, monkeypatch):
     import engine.paths as paths_mod
     from pathlib import Path
 
+    brain_root = tmp_path / "brain"
+    brain_root.mkdir()
     tmp_db = Path(str(tmp_path / "brain.db"))
     monkeypatch.setattr(db_mod, "DB_PATH", tmp_db)
     monkeypatch.setattr(paths_mod, "DB_PATH", tmp_db)
-    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+    monkeypatch.setattr(paths_mod, "BRAIN_ROOT", brain_root)
+    monkeypatch.setenv("BRAIN_PATH", str(brain_root))
 
     from engine.db import get_connection, init_schema
     from engine.capture import capture_note
@@ -374,10 +408,7 @@ def test_capture_people_merge(tmp_path, monkeypatch):
     conn = get_connection(str(tmp_db))
     init_schema(conn)
 
-    brain_root = tmp_path / "brain"
-    brain_root.mkdir()
-
-    path = capture_note(
+    capture_note(
         "note",
         "Meeting Summary",
         "Jane Doe presented the quarterly results",
@@ -389,8 +420,9 @@ def test_capture_people_merge(tmp_path, monkeypatch):
     )
     conn.commit()
 
+    # ARCH-01: DB now stores relative paths — search by title
     row = conn.execute(
-        "SELECT people FROM notes WHERE path = ?", (str(path.resolve()),)
+        "SELECT people FROM notes WHERE title = 'Meeting Summary'"
     ).fetchone()
     assert row is not None
     people = json.loads(row[0])
@@ -405,10 +437,13 @@ def test_capture_people_dedup(tmp_path, monkeypatch):
     import engine.paths as paths_mod
     from pathlib import Path
 
+    brain_root = tmp_path / "brain"
+    brain_root.mkdir()
     tmp_db = Path(str(tmp_path / "brain.db"))
     monkeypatch.setattr(db_mod, "DB_PATH", tmp_db)
     monkeypatch.setattr(paths_mod, "DB_PATH", tmp_db)
-    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+    monkeypatch.setattr(paths_mod, "BRAIN_ROOT", brain_root)
+    monkeypatch.setenv("BRAIN_PATH", str(brain_root))
 
     from engine.db import get_connection, init_schema
     from engine.capture import capture_note
@@ -416,10 +451,7 @@ def test_capture_people_dedup(tmp_path, monkeypatch):
     conn = get_connection(str(tmp_db))
     init_schema(conn)
 
-    brain_root = tmp_path / "brain"
-    brain_root.mkdir()
-
-    path = capture_note(
+    capture_note(
         "note",
         "Status Update",
         "Anna Korhonen reviewed the document",
@@ -431,8 +463,9 @@ def test_capture_people_dedup(tmp_path, monkeypatch):
     )
     conn.commit()
 
+    # ARCH-01: DB now stores relative paths — search by title
     row = conn.execute(
-        "SELECT people FROM notes WHERE path = ?", (str(path.resolve()),)
+        "SELECT people FROM notes WHERE title = 'Status Update'"
     ).fetchone()
     assert row is not None
     people = json.loads(row[0])
