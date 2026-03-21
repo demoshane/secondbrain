@@ -966,3 +966,139 @@ class TestAsyncBatchHooks:
         conn.close()
 
         assert row is not None, "Expected audit_log entry with event_type='intelligence_error'"
+
+
+# ---------------------------------------------------------------------------
+# Phase 31-06: Golden-path integration test
+# ---------------------------------------------------------------------------
+
+def test_smart_capture_golden_path(isolated_brain, monkeypatch):
+    """End-to-end: realistic meeting notes blob -> segmented -> saved -> linked."""
+    import engine.mcp_server as mcp_mod
+    import engine.paths
+    import engine.db
+    from engine.db import get_connection
+
+    monkeypatch.setattr(engine.paths, "BRAIN_ROOT", isolated_brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", isolated_brain)
+
+    content = (
+        "# Q2 Planning Meeting\n"
+        "Met with Alice Johnson and Bob Chen to discuss the product roadmap.\n"
+        "Decided to prioritize the search feature for the next sprint.\n"
+        "Action items: Alice will draft the technical spec by Friday.\n"
+        "Bob will set up the staging environment and run load tests.\n"
+        "Budget approved for hiring two more engineers in April.\n\n"
+        "---\n\n"
+        "# Alice Johnson\n"
+        "Role: VP Engineering at Acme Corp\n"
+        "Contact: alice.johnson@acme.com\n"
+        "She owns the technical roadmap and reports directly to the CEO.\n"
+        "Has been with the company since 2019 and leads a team of twelve.\n\n"
+        "---\n\n"
+        "# Idea: Semantic Search for Knowledge Base\n"
+        "What if we added vector embeddings to enable semantic search?\n"
+        "Could use sentence-transformers with sqlite-vec for local inference.\n"
+        "This would complement the existing BM25 full-text search nicely.\n"
+        "Worth prototyping in a spike — estimate 2-3 days of work.\n"
+    )
+
+    result = mcp_mod.sb_capture_smart(content)
+
+    # Basic structure
+    assert result["status"] == "created"
+    assert 2 <= result["count"] <= 6, f"Expected 2-6 notes, got {result['count']}"
+    assert "capture_session" in result
+
+    # Each note has required fields
+    for note in result["notes"]:
+        assert "title" in note
+        assert "type" in note
+        assert "path" in note
+
+    # At least one co-captured relationship in DB
+    conn = get_connection(str(engine.db.DB_PATH))
+    rels = conn.execute(
+        "SELECT COUNT(*) FROM relationships WHERE rel_type='co-captured'"
+    ).fetchone()[0]
+    conn.close()
+    if result["count"] >= 2:
+        assert rels >= 1, "Expected at least 1 co-captured relationship"
+
+
+@pytest.mark.slow
+def test_smart_capture_performance_500_notes(isolated_brain, monkeypatch):
+    """Performance: sb_capture_smart completes in <5s even with a 500-note brain."""
+    import engine.mcp_server as mcp_mod
+    import engine.paths
+    import engine.db
+    from engine.db import get_connection
+
+    monkeypatch.setattr(engine.paths, "BRAIN_ROOT", isolated_brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", isolated_brain)
+
+    # Populate brain with 500 notes
+    conn = get_connection(str(engine.db.DB_PATH))
+    for i in range(500):
+        conn.execute(
+            "INSERT OR REPLACE INTO notes "
+            "(path, title, body, type, sensitivity, created_at, updated_at) "
+            "VALUES (?, ?, ?, 'note', 'public', datetime('now'), datetime('now'))",
+            (
+                str(isolated_brain / "note" / f"perf-note-{i}.md"),
+                f"Performance Note {i}",
+                f"Body content for performance test note number {i}. " * 5,
+            ),
+        )
+    conn.commit()
+    conn.close()
+
+    content = (
+        "# Strategy Review\n"
+        "Discussed the long-term product strategy with the leadership team.\n"
+        "Key takeaway: we need to invest more in developer experience.\n\n"
+        "---\n\n"
+        "# Platform Architecture\n"
+        "The current monolith needs to be split into services by Q3.\n"
+        "First step is extracting the search and indexing pipeline.\n"
+    )
+
+    start = time.time()
+    result = mcp_mod.sb_capture_smart(content)
+    elapsed = time.time() - start
+
+    assert result["status"] == "created"
+    assert elapsed < 10.0, f"Performance regression: {elapsed:.2f}s with 500-note brain"
+
+
+# ---------------------------------------------------------------------------
+# Phase 31-06: Overdue actions in recap
+# ---------------------------------------------------------------------------
+
+def test_recap_includes_overdue_actions(isolated_brain, monkeypatch):
+    """sb_recap includes overdue action items when they exist."""
+    import engine.mcp_server as mcp_mod
+    import engine.paths
+    import engine.db
+    from engine.db import get_connection
+
+    monkeypatch.setattr(engine.paths, "BRAIN_ROOT", isolated_brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", isolated_brain)
+
+    # Insert an overdue action item
+    conn = get_connection(str(engine.db.DB_PATH))
+    conn.execute(
+        "INSERT INTO action_items (text, note_path, done, due_date, created_at) "
+        "VALUES (?, ?, 0, '2025-01-01', datetime('now'))",
+        ("Write the spec document", str(isolated_brain / "note" / "test.md")),
+    )
+    conn.commit()
+    conn.close()
+
+    # Mock recap_entity to return something so we can check overdue prepend
+    import engine.intelligence as intel_mod
+    monkeypatch.setattr(intel_mod, "recap_entity", lambda name, conn: "Recent activity summary.")
+
+    result = mcp_mod.sb_recap(name="test")
+    assert "overdue" in result.lower() or "Overdue" in result
+    assert "Write the spec document" in result

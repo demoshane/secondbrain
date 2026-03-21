@@ -541,7 +541,14 @@ def sb_recap(name: str | None = None) -> str:
     def _do_recap():
         conn = _self.get_connection()
         try:
-            return recap_entity(name, conn)
+            # Prepend overdue actions if any exist
+            overdue = get_overdue_actions(conn)
+            overdue_section = ""
+            if overdue:
+                lines = [f"- {a['text']} (due {a['due_date']})" for a in overdue[:10]]
+                overdue_section = "**Overdue action items:**\n" + "\n".join(lines) + "\n\n"
+            recap = recap_entity(name, conn)
+            return (overdue_section + recap) if recap else overdue_section or None
         finally:
             conn.close()
 

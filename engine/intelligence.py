@@ -317,6 +317,47 @@ def find_similar(note_path: str, conn, threshold: float = 0.8, limit: int = 3) -
         return []
 
 
+def find_dormant_related(note_path: str, conn, limit: int = 3) -> list[dict]:
+    """Return up to `limit` notes similar to note_path that haven't been updated in 30+ days.
+
+    Uses find_similar with a wider threshold (0.5) to cast a broad net, then filters to
+    notes whose updated_at is older than 30 days. Best-effort — returns [] on any error.
+
+    Returns: [{"path": str, "title": str, "similarity": float, "last_updated": str}, ...]
+    """
+    try:
+        cutoff = (
+            datetime.datetime.utcnow() - datetime.timedelta(days=30)
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        candidates = find_similar(note_path, conn, threshold=0.5, limit=20)
+        if not candidates:
+            return []
+
+        results = []
+        for candidate in candidates:
+            if len(results) >= limit:
+                break
+            cpath = candidate["note_path"]
+            row = conn.execute(
+                "SELECT updated_at, title FROM notes WHERE path=?", (cpath,)
+            ).fetchone()
+            if not row:
+                continue
+            updated_at, title = row
+            if updated_at and updated_at < cutoff:
+                results.append({
+                    "path": cpath,
+                    "title": title or "",
+                    "similarity": candidate["similarity"],
+                    "last_updated": updated_at,
+                })
+
+        return results
+    except Exception:
+        return []
+
+
 def _append_related_link(note_path: Path, matched_stem: str) -> None:
     """Append Related: [[stem]] to new note — one-directional, best-effort."""
     try:
