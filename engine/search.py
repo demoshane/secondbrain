@@ -1,7 +1,10 @@
 """FTS5 BM25 full-text search with audit log, plus semantic and hybrid RRF modes."""
 import datetime
+import logging
 import math
 import sqlite3
+
+logger = logging.getLogger(__name__)
 
 
 def _recency_multiplier(created_at_str: str, half_life_days: int = 30) -> float:
@@ -157,7 +160,7 @@ def search_semantic(
 
     count = conn.execute("SELECT COUNT(*) FROM note_embeddings").fetchone()[0]
     if count == 0:
-        print("Semantic unavailable. Run sb-reindex to enable.")
+        logger.warning("Semantic unavailable. Run sb-reindex to enable.")
         return []
 
     missing = conn.execute(
@@ -166,9 +169,9 @@ def search_semantic(
         "WHERE ne.note_path IS NULL"
     ).fetchone()[0]
     if missing > 50:
-        print(
-            f"{missing} notes missing embeddings. "
-            "Run sb-reindex to enable full semantic search."
+        logger.warning(
+            "%d notes missing embeddings. Run sb-reindex to enable full semantic search.",
+            missing,
         )
 
     from engine.embeddings import embed_texts

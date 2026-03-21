@@ -1,3 +1,4 @@
+import logging
 import time
 
 import pytest
@@ -54,7 +55,7 @@ class TestSemanticSearch:
 
 
 class TestSemanticFallback:
-    def test_warns_when_too_many_unembed(self, seeded_db, capsys):
+    def test_warns_when_too_many_unembed(self, seeded_db, capsys, caplog):
         import engine.search as s
         # Function doesn't exist yet — fails with AttributeError (RED)
         assert hasattr(s, "search_semantic"), "search_semantic not implemented"
@@ -62,9 +63,9 @@ class TestSemanticFallback:
         with patch.object(s, "search_semantic", side_effect=AttributeError("not implemented")):
             pass
         # Direct call to trigger warning path — fails RED
-        s.search_semantic(seeded_db, "test query")
-        captured = capsys.readouterr()
-        assert "sb-reindex" in captured.out or "sb-reindex" in captured.err
+        with caplog.at_level(logging.WARNING, logger="engine.search"):
+            s.search_semantic(seeded_db, "test query")
+        assert "sb-reindex" in caplog.text
 
 
 class TestHybridSearch:

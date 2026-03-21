@@ -1,7 +1,10 @@
 """Intelligence layer: session recap, action items, stale nudges, connection suggestions."""
 import json
 import datetime
+import logging
 import subprocess
+
+logger = logging.getLogger(__name__)
 from pathlib import Path
 
 from engine.router import get_adapter as _get_adapter
@@ -141,7 +144,7 @@ def extract_action_items(note_path: Path, body_or_conn=None, sensitivity: str = 
                 )
         conn.commit()
     except Exception:
-        pass  # Best-effort — never blocks capture
+        logger.warning("Action item extraction failed", exc_info=True)
 
 
 def list_actions(conn, done: bool = False, assignee: str | None = None, note_path: str | None = None) -> list[dict]:
