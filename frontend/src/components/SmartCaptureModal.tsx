@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import { Loader2, Sparkles, Check } from 'lucide-react'
-import { getAPI } from '@/lib/api'
+import { getAPI } from '@/lib/utils'
 
 interface SavedNote {
   title: string
@@ -68,12 +67,12 @@ export function SmartCaptureModal({ open, onClose }: Props) {
 
         {!results ? (
           <div className="space-y-3">
-            <Textarea
+            <textarea
               placeholder="Paste meeting notes, conversation dumps, or any freeform text..."
               value={content}
-              onChange={e => setContent(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
               rows={8}
-              className="resize-y"
+              className="resize-y w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               autoFocus
             />
             <div className="flex justify-end gap-2">
