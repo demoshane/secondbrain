@@ -154,10 +154,12 @@ def notes_refresh():
 def list_notes():
     conn = get_connection()
     conn.row_factory = sqlite3.Row
-    rows = conn.execute(
-        "SELECT path, title, type, created_at, tags FROM notes ORDER BY created_at DESC"
-    ).fetchall()
-    conn.close()
+    try:
+        rows = conn.execute(
+            "SELECT path, title, type, created_at, tags FROM notes ORDER BY created_at DESC"
+        ).fetchall()
+    finally:
+        conn.close()
     notes = []
     for r in rows:
         d = dict(r)
@@ -665,7 +667,6 @@ def create_note():
     # Index the new note into SQLite immediately so loadNotes() reflects it
     abs_path = str(target.resolve())
     conn = get_connection()
-    conn = get_connection()
     try:
         existing = conn.execute("SELECT path FROM notes WHERE path=?", (abs_path,)).fetchone()
         if not existing:
@@ -707,69 +708,70 @@ def note_meta(note_path):
     p = _Path(note_path) if note_path.startswith("/") else _Path("/") / note_path
     conn = get_connection()
     conn.row_factory = sqlite3.Row
-    title_row = conn.execute(
-        "SELECT title FROM notes WHERE path=?", (str(p),)
-    ).fetchone()
-    if title_row and title_row["title"]:
-        rows = conn.execute(
-            "SELECT path, title FROM notes "
-            "WHERE path != ? AND LOWER(body) LIKE LOWER(?)",
-            (str(p), f"%{title_row['title']}%"),
-        ).fetchall()
-        backlinks = [dict(r) for r in rows]
-    else:
-        backlinks = []
-    related = []
-    if title_row:
-        related_rows = search_notes(conn, title_row["title"])
-        related = [r for r in related_rows if r.get("path") != str(p)][:5]
-    note_row = conn.execute(
-        "SELECT people, body FROM notes WHERE path=?", (str(p),)
-    ).fetchone()
-    raw_people = json.loads(note_row["people"]) if note_row and note_row["people"] else []
-    note_body = note_row["body"] if note_row else ""
-
-    # Resolve raw_people entries — may be absolute paths OR plain name strings
-    people = []
-    seen_paths = set()
-    for item in raw_people:
-        if str(item).startswith("/"):
-            # Absolute path — look up directly
-            title_r = conn.execute(
-                "SELECT path, title FROM notes WHERE path=?", (str(item),)
-            ).fetchone()
-            if title_r:
-                if title_r["path"] not in seen_paths:
-                    seen_paths.add(title_r["path"])
-                    people.append({"path": title_r["path"], "title": title_r["title"]})
-            else:
-                # Path not in DB — derive display title from stem
-                fake_path = str(item)
-                if fake_path not in seen_paths:
-                    seen_paths.add(fake_path)
-                    people.append({
-                        "path": fake_path,
-                        "title": _Path(fake_path).stem.replace("-", " ").title(),
-                    })
-        else:
-            # Plain name string — look up by title in person/people notes
-            title_r = conn.execute(
+    try:
+        title_row = conn.execute(
+            "SELECT title FROM notes WHERE path=?", (str(p),)
+        ).fetchone()
+        if title_row and title_row["title"]:
+            rows = conn.execute(
                 "SELECT path, title FROM notes "
-                "WHERE LOWER(title) = LOWER(?) AND type IN ('person', 'people') "
-                "LIMIT 1",
-                (str(item),),
-            ).fetchone()
-            if title_r:
-                if title_r["path"] not in seen_paths:
-                    seen_paths.add(title_r["path"])
-                    people.append({"path": title_r["path"], "title": title_r["title"]})
-            else:
-                # Name not found as a person note — show as plain label with no path
-                if str(item) not in seen_paths:
-                    seen_paths.add(str(item))
-                    people.append({"path": None, "title": str(item)})
+                "WHERE path != ? AND LOWER(body) LIKE LOWER(?)",
+                (str(p), f"%{title_row['title']}%"),
+            ).fetchall()
+            backlinks = [dict(r) for r in rows]
+        else:
+            backlinks = []
+        related = []
+        if title_row:
+            related_rows = search_notes(conn, title_row["title"])
+            related = [r for r in related_rows if r.get("path") != str(p)][:5]
+        note_row = conn.execute(
+            "SELECT people, body FROM notes WHERE path=?", (str(p),)
+        ).fetchone()
+        raw_people = json.loads(note_row["people"]) if note_row and note_row["people"] else []
+        note_body = note_row["body"] if note_row else ""
 
-    conn.close()
+        # Resolve raw_people entries — may be absolute paths OR plain name strings
+        people = []
+        seen_paths = set()
+        for item in raw_people:
+            if str(item).startswith("/"):
+                # Absolute path — look up directly
+                title_r = conn.execute(
+                    "SELECT path, title FROM notes WHERE path=?", (str(item),)
+                ).fetchone()
+                if title_r:
+                    if title_r["path"] not in seen_paths:
+                        seen_paths.add(title_r["path"])
+                        people.append({"path": title_r["path"], "title": title_r["title"]})
+                else:
+                    # Path not in DB — derive display title from stem
+                    fake_path = str(item)
+                    if fake_path not in seen_paths:
+                        seen_paths.add(fake_path)
+                        people.append({
+                            "path": fake_path,
+                            "title": _Path(fake_path).stem.replace("-", " ").title(),
+                        })
+            else:
+                # Plain name string — look up by title in person/people notes
+                title_r = conn.execute(
+                    "SELECT path, title FROM notes "
+                    "WHERE LOWER(title) = LOWER(?) AND type IN ('person', 'people') "
+                    "LIMIT 1",
+                    (str(item),),
+                ).fetchone()
+                if title_r:
+                    if title_r["path"] not in seen_paths:
+                        seen_paths.add(title_r["path"])
+                        people.append({"path": title_r["path"], "title": title_r["title"]})
+                else:
+                    # Name not found as a person note — show as plain label with no path
+                    if str(item) not in seen_paths:
+                        seen_paths.add(str(item))
+                        people.append({"path": None, "title": str(item)})
+    finally:
+        conn.close()
     return jsonify({"backlinks": backlinks, "related": related, "people": people})
 
 
@@ -1011,9 +1013,11 @@ def batch_capture():
 @app.post("/actions/<int:action_id>/done")
 def action_done(action_id):
     conn = get_connection()
-    conn.execute("UPDATE action_items SET done=1 WHERE id=?", (action_id,))
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute("UPDATE action_items SET done=1 WHERE id=?", (action_id,))
+        conn.commit()
+    finally:
+        conn.close()
     return jsonify({"done": True, "id": action_id})
 
 
@@ -1022,23 +1026,25 @@ def update_action(action_id):
     """Update action item fields. Supports: assignee_path, done."""
     data = request.get_json(force=True)
     conn = get_connection()
-    if "assignee_path" in data:
-        conn.execute(
-            "UPDATE action_items SET assignee_path=? WHERE id=?",
-            (data["assignee_path"], action_id),
-        )
-    if "done" in data:
-        conn.execute(
-            "UPDATE action_items SET done=? WHERE id=?",
-            (1 if data["done"] else 0, action_id),
-        )
-    if "due_date" in data:
-        conn.execute(
-            "UPDATE action_items SET due_date=? WHERE id=?",
-            (data["due_date"], action_id),
-        )
-    conn.commit()
-    conn.close()
+    try:
+        if "assignee_path" in data:
+            conn.execute(
+                "UPDATE action_items SET assignee_path=? WHERE id=?",
+                (data["assignee_path"], action_id),
+            )
+        if "done" in data:
+            conn.execute(
+                "UPDATE action_items SET done=? WHERE id=?",
+                (1 if data["done"] else 0, action_id),
+            )
+        if "due_date" in data:
+            conn.execute(
+                "UPDATE action_items SET due_date=? WHERE id=?",
+                (data["due_date"], action_id),
+            )
+        conn.commit()
+    finally:
+        conn.close()
     return jsonify({"updated": True, "id": action_id})
 
 
@@ -1046,13 +1052,15 @@ def update_action(action_id):
 def get_intelligence():
     conn = get_connection()
     conn.row_factory = sqlite3.Row
-    from engine.intelligence import get_stale_notes
     try:
-        nudge_rows = get_stale_notes(conn, limit=5)
-        nudges = nudge_rows if isinstance(nudge_rows, list) else []
-    except Exception:
-        nudges = []
-    conn.close()
+        from engine.intelligence import get_stale_notes
+        try:
+            nudge_rows = get_stale_notes(conn, limit=5)
+            nudges = nudge_rows if isinstance(nudge_rows, list) else []
+        except Exception:
+            nudges = []
+    finally:
+        conn.close()
     return jsonify({"recap": None, "nudges": nudges})
 
 
@@ -1210,27 +1218,29 @@ def smart_capture():
     conn = get_connection()
 
     saved = []
-    for seg in segments:
-        try:
-            path = capture_note(
-                note_type=seg["type"], title=seg["title"], body=seg["body"],
-                tags=[], people=seg.get("entities", {}).get("people", []),
-                content_sensitivity="public", brain_root=BRAIN_ROOT, conn=conn,
-            )
-            saved.append({"title": seg["title"], "type": seg["type"], "path": str(path)})
-        except Exception as e:
-            saved.append({"title": seg["title"], "type": seg["type"], "error": str(e)})
+    try:
+        for seg in segments:
+            try:
+                path = capture_note(
+                    note_type=seg["type"], title=seg["title"], body=seg["body"],
+                    tags=[], people=seg.get("entities", {}).get("people", []),
+                    content_sensitivity="public", brain_root=BRAIN_ROOT, conn=conn,
+                )
+                saved.append({"title": seg["title"], "type": seg["type"], "path": str(path)})
+            except Exception as e:
+                saved.append({"title": seg["title"], "type": seg["type"], "error": str(e)})
 
-    # Co-captured relationships
-    paths = [s["path"] for s in saved if "path" in s]
-    now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-    for a, b in itertools.combinations(paths, 2):
-        conn.execute(
-            "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
-            (a, b, "co-captured"),
-        )
-    conn.commit()
-    conn.close()
+        # Co-captured relationships
+        paths = [s["path"] for s in saved if "path" in s]
+        now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        for a, b in itertools.combinations(paths, 2):
+            conn.execute(
+                "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+                (a, b, "co-captured"),
+            )
+        conn.commit()
+    finally:
+        conn.close()
 
     _broadcast({"type": "refresh"})
     return jsonify({"notes": saved, "capture_session": session_id, "count": len(saved)})
