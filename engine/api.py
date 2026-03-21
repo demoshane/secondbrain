@@ -39,29 +39,14 @@ ALLOWED_MIMES = {
 
 _STATIC_DIR = _Path(__file__).parent / "gui" / "static"
 
-class _SlashNormMiddleware:
-    """Collapse double-slash after known prefixes so /notes//abs/path → /notes/abs/path.
-
-    When tests pass absolute paths like /notes//private/var/... the double
-    slash prevents Flask route matching. This middleware rewrites PATH_INFO
-    before routing so the path converter receives the absolute path correctly.
-    """
-
-    def __init__(self, wsgi_app):
-        self._app = wsgi_app
-
-    def __call__(self, environ, start_response):
-        import re
-        path = environ.get("PATH_INFO", "")
-        # Rewrite /notes//abs → /notes/abs and /notes//abs/x/meta → /notes/abs/x/meta
-        new_path = re.sub(r"^/(notes|files)//", r"/\1/", path)
-        environ["PATH_INFO"] = new_path
-        return self._app(environ, start_response)
-
-
 app = Flask(__name__)
-app.wsgi_app = _SlashNormMiddleware(app.wsgi_app)
+app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50 MB
 CORS(app, origins=["null", "file://*", "http://127.0.0.1:*"])
+
+
+@app.errorhandler(413)
+def request_entity_too_large(e):
+    return jsonify({"error": "File too large (max 50 MB)"}), 413
 
 
 # ---------------------------------------------------------------------------

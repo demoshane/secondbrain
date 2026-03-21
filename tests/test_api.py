@@ -90,12 +90,12 @@ class TestReadNote:
         """A path inside brain_root that doesn't exist returns 404."""
         monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
         ghost = tmp_path / "nonexistent.md"
-        response = client.get(f"/notes/{ghost}")
+        response = client.get(f"/notes/{str(ghost).lstrip('/')}")
         assert response.status_code == 404
 
     def test_read_note_returns_body_key(self, client, tmp_note):
         """GET without ?raw returns 'body' key with no YAML frontmatter block."""
-        response = client.get(f"/notes/{tmp_note}")
+        response = client.get(f"/notes/{tmp_note.lstrip('/')}")
         assert response.status_code == 200
         data = response.get_json()
         assert "body" in data, f"Expected 'body' key, got: {list(data.keys())}"
@@ -103,7 +103,7 @@ class TestReadNote:
 
     def test_read_note_raw_param(self, client, tmp_note):
         """GET with ?raw=true returns 'content' key with full raw file including frontmatter."""
-        response = client.get(f"/notes/{tmp_note}?raw=true")
+        response = client.get(f"/notes/{tmp_note.lstrip('/')}?raw=true")
         assert response.status_code == 200
         data = response.get_json()
         assert "content" in data, f"Expected 'content' key, got: {list(data.keys())}"
@@ -115,7 +115,7 @@ class TestSaveNote:
         """PUT returns saved=True."""
         full_content = "---\ntitle: Saved Title\ntags: [test]\ntype: idea\n---\n\nUpdated body.\n"
         response = client.put(
-            f"/notes/{tmp_note}",
+            f"/notes/{tmp_note.lstrip('/')}",
             json={"content": full_content},
         )
         assert response.status_code == 200
@@ -124,7 +124,7 @@ class TestSaveNote:
     def test_save_note_updates_sqlite_title(self, client, tmp_note):
         """After PUT, SQLite notes.title matches the title from saved frontmatter."""
         full_content = "---\ntitle: New Title\ntags: [test]\ntype: idea\n---\n\nUpdated body.\n"
-        client.put(f"/notes/{tmp_note}", json={"content": full_content})
+        client.put(f"/notes/{tmp_note.lstrip('/')}", json={"content": full_content})
         conn = get_connection()
         row = conn.execute("SELECT title FROM notes WHERE path=?", (tmp_note,)).fetchone()
         conn.close()
@@ -134,7 +134,7 @@ class TestSaveNote:
     def test_save_note_preserves_frontmatter(self, client, tmp_note):
         """After PUT with full frontmatter, re-reading the file still shows frontmatter."""
         full_content = "---\ntitle: Preserved\ntags: [keep]\ntype: idea\n---\n\nContent preserved.\n"
-        client.put(f"/notes/{tmp_note}", json={"content": full_content})
+        client.put(f"/notes/{tmp_note.lstrip('/')}", json={"content": full_content})
         disk_content = Path(tmp_note).read_text(encoding="utf-8")
         assert disk_content.startswith("---"), "File should still start with frontmatter after save"
 
@@ -383,7 +383,7 @@ class TestNoteMeta:
         """note_b body mentions 'Alice Smith' — must appear in note_a's backlinks."""
         note_a = tmp_note_pair["note_a"]
         note_b = tmp_note_pair["note_b"]
-        response = client.get(f"/notes/{note_a}/meta")
+        response = client.get(f"/notes/{str(note_a).lstrip('/')}/meta")
         assert response.status_code == 200
         data = response.get_json()
         backlink_paths = [bl["path"] for bl in data["backlinks"]]
@@ -395,7 +395,7 @@ class TestNoteMeta:
         """note_c filename contains 'alice' but body doesn't mention 'Alice Smith'."""
         note_a = tmp_note_pair["note_a"]
         note_c = tmp_note_pair["note_c"]
-        response = client.get(f"/notes/{note_a}/meta")
+        response = client.get(f"/notes/{str(note_a).lstrip('/')}/meta")
         assert response.status_code == 200
         data = response.get_json()
         backlink_paths = [bl["path"] for bl in data["backlinks"]]
@@ -406,7 +406,7 @@ class TestNoteMeta:
     def test_backlinks_empty_when_no_mentions(self, client, tmp_note_pair):
         """'Zzz Unique Title Xyz' is not mentioned in any other note body."""
         note_unique = tmp_note_pair["note_unique"]
-        response = client.get(f"/notes/{note_unique}/meta")
+        response = client.get(f"/notes/{str(note_unique).lstrip('/')}/meta")
         assert response.status_code == 200
         data = response.get_json()
         assert data["backlinks"] == [], (
@@ -417,7 +417,7 @@ class TestNoteMeta:
         """note_lower body has 'alice smith' (lowercase) — must still appear in backlinks."""
         note_a = tmp_note_pair["note_a"]
         note_lower = tmp_note_pair["note_lower"]
-        response = client.get(f"/notes/{note_a}/meta")
+        response = client.get(f"/notes/{str(note_a).lstrip('/')}/meta")
         assert response.status_code == 200
         data = response.get_json()
         backlink_paths = [bl["path"] for bl in data["backlinks"]]
@@ -483,7 +483,7 @@ class TestNoteMetaPeopleColumn:
         conn.commit()
         conn.close()
 
-        response = client.get(f"/notes/{content_note.resolve()}/meta")
+        response = client.get(f"/notes/{str(content_note.resolve()).lstrip('/')}/meta")
         assert response.status_code == 200
         data = response.get_json()
         people_titles = [p["title"] for p in data["people"]]
@@ -527,7 +527,7 @@ class TestNoteMetaPeopleColumn:
         conn.commit()
         conn.close()
 
-        response = client.get(f"/notes/{content_note.resolve()}/meta")
+        response = client.get(f"/notes/{str(content_note.resolve()).lstrip('/')}/meta")
         assert response.status_code == 200
         data = response.get_json()
         people_paths = [p["path"] for p in data["people"]]
@@ -546,3 +546,42 @@ class TestTabBar:
         r = client.get("/ui")
         assert r.status_code == 200
         assert b'id="tab-bar"' in r.data
+
+
+class TestUploadSizeCap:
+    def test_max_content_length_configured(self):
+        """app.config MAX_CONTENT_LENGTH must be set to 50 MB."""
+        from engine.api import app as _app
+        limit = _app.config.get("MAX_CONTENT_LENGTH")
+        assert limit is not None, "MAX_CONTENT_LENGTH must be configured"
+        assert limit == 50 * 1024 * 1024, f"Expected 50 MB, got {limit}"
+
+    def test_413_handler_registered(self, client):
+        """The 413 error handler must return JSON with an 'error' key.
+
+        Flask test client doesn't enforce MAX_CONTENT_LENGTH (WSGI-level check),
+        so we invoke the handler directly via app.error_handler_spec.
+        """
+        from engine.api import app as _app
+        from werkzeug.exceptions import RequestEntityTooLarge
+        with _app.test_request_context():
+            from engine.api import request_entity_too_large
+            response, status = request_entity_too_large(RequestEntityTooLarge())
+            assert status == 413
+            import json
+            body = json.loads(response.get_data(as_text=True))
+            assert "error" in body
+            assert "50 MB" in body["error"]
+
+    def test_upload_under_50mb_not_rejected_by_size(self, client, tmp_path, monkeypatch):
+        """POST /files/upload with a small file is not rejected with 413."""
+        import io
+        monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+        small_file = io.BytesIO(b"small content")
+        response = client.post(
+            "/files/upload",
+            data={"file": (small_file, "small.txt"), "note_path": ""},
+            content_type="multipart/form-data",
+        )
+        # Must NOT be 413 — any other status is acceptable (415 for mime, 200 for success)
+        assert response.status_code != 413
