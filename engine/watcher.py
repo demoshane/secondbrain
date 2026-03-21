@@ -81,20 +81,27 @@ class FilesDropHandler(FileSystemEventHandler):
 
 DEBOUNCE_MS = 0.3  # seconds (named for clarity; value is in seconds)
 
-_save_suppress: set[str] = set()
-_save_suppress_lock = threading.Lock()
+_suppress_events: dict[str, threading.Event] = {}
+_suppress_lock = threading.Lock()
 
 
 def suppress_next_delete(abs_path: str, window: float = 0.5) -> None:
     """Record abs_path so _fire will skip the next 'deleted' event for it within window seconds."""
-    with _save_suppress_lock:
-        _save_suppress.add(abs_path)
+    ev = threading.Event()
+    with _suppress_lock:
+        _suppress_events[abs_path] = ev
     threading.Timer(window, _clear_suppress, args=(abs_path,)).start()
 
 
+def is_suppressed(abs_path: str) -> bool:
+    """Check if a path is currently suppressed."""
+    with _suppress_lock:
+        return abs_path in _suppress_events
+
+
 def _clear_suppress(abs_path: str) -> None:
-    with _save_suppress_lock:
-        _save_suppress.discard(abs_path)
+    with _suppress_lock:
+        _suppress_events.pop(abs_path, None)
 
 
 class NoteChangeHandler(FileSystemEventHandler):
@@ -137,9 +144,8 @@ class NoteChangeHandler(FileSystemEventHandler):
         with self._lock:
             self._timers.pop(src_path, None)
         if event_type == "deleted":
-            with _save_suppress_lock:
-                if src_path in _save_suppress:
-                    return
+            if is_suppressed(src_path):
+                return
         if event_type == "created":
             from engine.attachments import is_upload_suppressed
             if is_upload_suppressed(src_path):
