@@ -21,7 +21,7 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
 from engine.db import PERSON_TYPES, _escape_like, get_connection
-from engine.search import search_notes
+from engine.search import search_notes, _apply_filters
 from engine.intelligence import list_actions
 from engine.watcher import suppress_next_delete
 
@@ -161,7 +161,12 @@ def list_notes():
 def search():
     body = request.get_json(force=True) or {}
     query = body.get("query", "")
-    tags_filter = body.get("tags")  # list[str] | None
+    tags_filter = body.get("tags")  # list[str] | None (backwards compat)
+    person = body.get("person")      # str | None
+    tag = body.get("tag")            # str | None — single tag filter
+    note_type = body.get("note_type")  # str | None
+    from_date = body.get("from_date")  # str | None — ISO date YYYY-MM-DD
+    to_date = body.get("to_date")      # str | None — ISO date YYYY-MM-DD
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     try:
@@ -213,6 +218,15 @@ def search():
                     if tags_set.issubset(note_tag_set):
                         filtered.append(r)
                 results = filtered
+        # Apply entity filters (person, tag, note_type, from_date, to_date) — AND logic
+        results = _apply_filters(
+            results, conn,
+            person=person,
+            tag=tag,
+            note_type=note_type,
+            from_date=from_date,
+            to_date=to_date,
+        )
     finally:
         conn.close()
     return jsonify({"results": results})
