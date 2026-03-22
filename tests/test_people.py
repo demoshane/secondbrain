@@ -170,3 +170,89 @@ def test_person_type_isolation(client):
     assert person_path in paths, "type='person' must appear"
     assert people_path in paths, "type='people' must appear"
     assert note_path not in paths, "type='note' must NOT appear"
+
+
+def test_create_person_post_happy_path(client, monkeypatch):
+    """POST /people with name returns 201 and a path to the created note."""
+    from engine.db import get_connection
+    import engine.capture as _capture
+
+    c, brain = client
+
+    # Patch capture_note to avoid real filesystem writes + intelligence hooks
+    created = {}
+
+    def _fake_capture(note_type, title, body, tags, people, content_sensitivity, brain_root, conn, **kw):
+        p = brain / "people" / f"{title.lower().replace(' ', '-')}.md"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(f"---\ntitle: {title}\ntype: {note_type}\n---\n", encoding="utf-8")
+        path_str = str(p)
+        conn.execute(
+            "INSERT OR IGNORE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+            " VALUES (?,?,?,?,?,datetime('now'),datetime('now'))",
+            (path_str, title, note_type, body, "[]"),
+        )
+        conn.commit()
+        created["path"] = path_str
+        return p
+
+    monkeypatch.setattr(_capture, "capture_note", _fake_capture)
+
+    resp = c.post("/people", json={"name": "Dana Koskinen", "role": "Engineer"})
+    assert resp.status_code == 201, resp.data
+    data = json.loads(resp.data)
+    assert "path" in data
+    assert data["path"]  # non-empty path
+
+
+def test_create_person_missing_name(client):
+    """POST /people without name returns 400."""
+    c, _ = client
+    resp = c.post("/people", json={})
+    assert resp.status_code == 400
+    data = json.loads(resp.data)
+    assert "error" in data
+
+
+def test_delete_person_clears_assignee(client):
+    """DELETE /people/<path> NULLs assignee_path in action_items before deleting note."""
+    from engine.db import get_connection
+    import datetime
+
+    c, brain = client
+
+    # Create a person note file
+    person_path_obj = brain / "people" / "erika.md"
+    person_path_obj.parent.mkdir(parents=True, exist_ok=True)
+    person_path_obj.write_text("---\ntitle: Erika\ntype: people\n---\n", encoding="utf-8")
+    person_path_str = str(person_path_obj)
+
+    now = datetime.datetime.utcnow().isoformat()
+    conn = get_connection()
+    # Insert person note into DB
+    conn.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?)",
+        (person_path_str, "Erika", "people", "", "[]", now, now),
+    )
+    # Insert an action item assigned to this person
+    conn.execute(
+        "INSERT INTO action_items (note_path, text, done, assignee_path) VALUES (?,?,?,?)",
+        (person_path_str, "Follow up", 0, person_path_str),
+    )
+    conn.commit()
+    conn.close()
+
+    # Encode the path — Flask test client handles URL encoding
+    encoded = person_path_str.lstrip("/")
+    resp = c.delete(f"/people/{encoded}")
+    assert resp.status_code == 200, resp.data
+
+    # Verify assignee_path was NULLed
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT assignee_path FROM action_items WHERE text = 'Follow up'"
+    ).fetchone()
+    conn.close()
+    # Row should either be deleted (cascade) or have NULL assignee_path
+    assert row is None or row[0] is None, f"Expected NULL assignee_path but got: {row}"

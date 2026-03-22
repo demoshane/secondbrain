@@ -407,6 +407,183 @@ def get_project(note_path):
     })
 
 
+@app.post("/people")
+def create_person():
+    data = request.get_json(force=True) or {}
+    name = data.get("name", "").strip()
+    if not name:
+        return jsonify({"error": "name is required"}), 400
+    role = data.get("role", "").strip()
+    body = f"Role: {role}" if role else ""
+    from engine.capture import capture_note
+    from engine.db import init_schema
+    conn = get_connection()
+    try:
+        init_schema(conn)
+        brain_root = Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain")))
+        result_path = capture_note(
+            note_type="people",
+            title=name,
+            body=body,
+            tags=[],
+            people=[],
+            content_sensitivity="public",
+            brain_root=brain_root,
+            conn=conn,
+        )
+    finally:
+        conn.close()
+    _broadcast({"type": "notes_changed"})
+    return jsonify({"path": str(result_path)}), 201
+
+
+@app.post("/meetings")
+def create_meeting():
+    data = request.get_json(force=True) or {}
+    name = data.get("name", "").strip()
+    if not name:
+        return jsonify({"error": "name is required"}), 400
+    from engine.capture import capture_note
+    from engine.db import init_schema
+    conn = get_connection()
+    try:
+        init_schema(conn)
+        brain_root = Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain")))
+        result_path = capture_note(
+            note_type="meeting",
+            title=name,
+            body="",
+            tags=[],
+            people=[],
+            content_sensitivity="public",
+            brain_root=brain_root,
+            conn=conn,
+        )
+    finally:
+        conn.close()
+    _broadcast({"type": "notes_changed"})
+    return jsonify({"path": str(result_path)}), 201
+
+
+@app.post("/projects")
+def create_project():
+    data = request.get_json(force=True) or {}
+    name = data.get("name", "").strip()
+    if not name:
+        return jsonify({"error": "name is required"}), 400
+    from engine.capture import capture_note
+    from engine.db import init_schema
+    conn = get_connection()
+    try:
+        init_schema(conn)
+        brain_root = Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain")))
+        result_path = capture_note(
+            note_type="projects",
+            title=name,
+            body="",
+            tags=[],
+            people=[],
+            content_sensitivity="public",
+            brain_root=brain_root,
+            conn=conn,
+        )
+    finally:
+        conn.close()
+    _broadcast({"type": "notes_changed"})
+    return jsonify({"path": str(result_path)}), 201
+
+
+@app.get("/people/<path:note_path>/links")
+def get_person_links(note_path):
+    try:
+        abs_path, _brain_root = _resolve_note_path(note_path)
+    except ValueError:
+        return jsonify({"error": "Forbidden"}), 403
+    path_str = str(abs_path)
+    conn = get_connection()
+    try:
+        meeting_count = conn.execute(
+            "SELECT COUNT(*) FROM note_people WHERE person = ?",
+            (path_str,)
+        ).fetchone()[0]
+        action_count = conn.execute(
+            "SELECT COUNT(*) FROM action_items WHERE assignee_path = ? AND done = 0",
+            (path_str,)
+        ).fetchone()[0]
+    finally:
+        conn.close()
+    return jsonify({"meeting_count": meeting_count, "action_count": action_count})
+
+
+@app.delete("/people/<path:note_path>")
+def delete_person(note_path):
+    try:
+        abs_path, brain_root = _resolve_note_path(note_path)
+    except ValueError:
+        return jsonify({"error": "Forbidden"}), 403
+    if not abs_path.exists():
+        return jsonify({"error": "Not found"}), 404
+    path_str = str(abs_path)
+    conn = get_connection()
+    try:
+        # Clear assignee references before delete (avoids orphan FK refs)
+        conn.execute(
+            "UPDATE action_items SET assignee_path = NULL WHERE assignee_path = ?",
+            (path_str,)
+        )
+        # Remove from note_people junction (person column stores path or name)
+        conn.execute("DELETE FROM note_people WHERE person = ?", (path_str,))
+        conn.commit()
+        from engine.delete import delete_note
+        result = delete_note(abs_path, conn, brain_root)
+    except Exception as e:
+        return jsonify({"error": type(e).__name__}), 500
+    finally:
+        conn.close()
+    _broadcast({"type": "notes_changed"})
+    return jsonify(result), 200
+
+
+@app.delete("/meetings/<path:note_path>")
+def delete_meeting(note_path):
+    try:
+        abs_path, brain_root = _resolve_note_path(note_path)
+    except ValueError:
+        return jsonify({"error": "Forbidden"}), 403
+    if not abs_path.exists():
+        return jsonify({"error": "Not found"}), 404
+    conn = get_connection()
+    try:
+        from engine.delete import delete_note
+        result = delete_note(abs_path, conn, brain_root)
+    except Exception as e:
+        return jsonify({"error": type(e).__name__}), 500
+    finally:
+        conn.close()
+    _broadcast({"type": "notes_changed"})
+    return jsonify(result), 200
+
+
+@app.delete("/projects/<path:note_path>")
+def delete_project(note_path):
+    try:
+        abs_path, brain_root = _resolve_note_path(note_path)
+    except ValueError:
+        return jsonify({"error": "Forbidden"}), 403
+    if not abs_path.exists():
+        return jsonify({"error": "Not found"}), 404
+    conn = get_connection()
+    try:
+        from engine.delete import delete_note
+        result = delete_note(abs_path, conn, brain_root)
+    except Exception as e:
+        return jsonify({"error": type(e).__name__}), 500
+    finally:
+        conn.close()
+    _broadcast({"type": "notes_changed"})
+    return jsonify(result), 200
+
+
 @app.get("/links")
 def list_links():
     from urllib.parse import urlparse

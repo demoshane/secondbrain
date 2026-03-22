@@ -1198,3 +1198,60 @@ def test_sb_actions_pagination_shape(tmp_path, monkeypatch):
     assert "total" in result, f"Missing 'total' key; got: {list(result.keys())}"
     assert "total_pages" in result, f"Missing 'total_pages' key; got: {list(result.keys())}"
     assert "page" in result, f"Missing 'page' key; got: {list(result.keys())}"
+
+
+def test_sb_create_person_happy_path(tmp_path, monkeypatch):
+    """sb_create_person returns path and title for a valid name."""
+    import engine.db as _db
+    import engine.paths as _paths
+    import engine.capture as _capture
+    from engine.db import get_connection, init_schema
+
+    tmp_db = tmp_path / "test.db"
+    monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", tmp_path)
+    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+
+    conn = get_connection()
+    init_schema(conn)
+    conn.close()
+
+    # Patch capture_note to avoid real intelligence hooks during testing
+    captured = {}
+
+    def _fake_capture(note_type, title, body, tags, people, content_sensitivity, brain_root, conn, **kw):
+        p = tmp_path / "people" / f"{title.lower().replace(' ', '-')}.md"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(f"---\ntitle: {title}\ntype: {note_type}\n---\n", encoding="utf-8")
+        captured["path"] = str(p)
+        captured["title"] = title
+        return p
+
+    monkeypatch.setattr(_capture, "capture_note", _fake_capture)
+
+    result = mcp_mod.sb_create_person("Fiona Mäkinen", role="Engineer")
+    assert "path" in result, f"Expected path in result: {result}"
+    assert "title" in result, f"Expected title in result: {result}"
+    assert result["title"] == "Fiona Mäkinen"
+    assert result["path"]  # non-empty
+
+
+def test_sb_create_person_missing_name(tmp_path, monkeypatch):
+    """sb_create_person with empty name returns error dict."""
+    import engine.db as _db
+    import engine.paths as _paths
+    from engine.db import get_connection, init_schema
+
+    tmp_db = tmp_path / "test.db"
+    monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", tmp_path)
+    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+
+    conn = get_connection()
+    init_schema(conn)
+    conn.close()
+
+    result = mcp_mod.sb_create_person("   ")
+    assert "error" in result

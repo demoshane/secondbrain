@@ -1334,5 +1334,40 @@ def sb_list_people() -> dict:
         conn.close()
 
 
+@mcp.tool()
+def sb_create_person(name: str, role: str = "") -> dict:
+    """Create a new person note in the brain.
+
+    Args:
+        name: Person's name (required)
+        role: Person's role or title (optional)
+
+    Returns:
+        dict with path and title of created note
+    """
+    _ensure_ready()
+    if not name.strip():
+        return {"error": "name is required"}
+    body = f"Role: {role}" if role.strip() else ""
+    from engine.capture import capture_note
+    from engine.db import init_schema
+    conn = get_connection()
+    try:
+        init_schema(conn)
+        result_path = capture_note(
+            note_type="people",
+            title=name.strip(),
+            body=body,
+            tags=[],
+            people=[],
+            content_sensitivity="public",
+            brain_root=BRAIN_ROOT,
+            conn=conn,
+        )
+    finally:
+        conn.close()
+    return {"path": str(result_path), "title": name.strip()}
+
+
 def main() -> None:
     mcp.run(transport="stdio")
