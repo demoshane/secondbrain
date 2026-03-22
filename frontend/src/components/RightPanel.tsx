@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { useNoteContext } from '@/contexts/NoteContext'
 import { ActionItemList } from './ActionItemList'
 import { getAPI } from '@/lib/utils'
+import { toast } from 'sonner'
 import type { Note, ActionItem } from '@/types'
 
 export function RightPanel() {
@@ -56,21 +57,30 @@ export function RightPanel() {
   }
 
   const toggleDone = async (action: ActionItem) => {
-    await fetch(`${getAPI()}/actions/${action.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ done: !action.done }),
-    })
-    reloadNoteActions()
+    try {
+      await fetch(`${getAPI()}/actions/${action.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ done: !action.done }),
+      })
+      toast.success(action.done ? 'Marked open' : 'Marked complete')
+      reloadNoteActions()
+    } catch {
+      toast.error('Something went wrong -- try again')
+    }
   }
 
   const assignTo = async (action: ActionItem, assigneePath: string) => {
-    await fetch(`${getAPI()}/actions/${action.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ assignee_path: assigneePath === 'none' ? null : assigneePath }),
-    })
-    reloadNoteActions()
+    try {
+      await fetch(`${getAPI()}/actions/${action.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignee_path: assigneePath === 'none' ? null : assigneePath }),
+      })
+      reloadNoteActions()
+    } catch {
+      toast.error('Something went wrong -- try again')
+    }
   }
 
   return (

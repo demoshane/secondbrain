@@ -10,6 +10,7 @@ import { useNoteContext } from '@/contexts/NoteContext'
 import { ActionItemList } from './ActionItemList'
 import { NewEntityModal } from './NewEntityModal'
 import { DeleteEntityModal } from './DeleteEntityModal'
+import { toast } from 'sonner'
 import type { PersonSummary, ActionItem, Note } from '@/types'
 
 function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
@@ -99,12 +100,17 @@ export function PeoplePage() {
   }
 
   const toggleDone = async (action: ActionItem) => {
-    await fetch(`${getAPI()}/actions/${action.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ done: !action.done }),
-    })
-    reloadActions()
+    try {
+      await fetch(`${getAPI()}/actions/${action.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ done: !action.done }),
+      })
+      toast.success(action.done ? 'Marked open' : 'Marked complete')
+      reloadActions()
+    } catch {
+      toast.error('Something went wrong -- try again')
+    }
   }
 
   const assignTo = async (action: ActionItem, assigneePath: string) => {

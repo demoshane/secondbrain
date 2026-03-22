@@ -4,7 +4,9 @@ import remarkGfm from 'remark-gfm'
 import { RefreshCw, ChevronDown } from 'lucide-react'
 import { cn, getAPI } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import type { BrainHealth } from '@/types'
+import { ActionItemList } from './ActionItemList'
+import { toast } from 'sonner'
+import type { BrainHealth, ActionItem, Note } from '@/types'
 
 interface Nudge {
   path: string
@@ -33,6 +35,20 @@ export function IntelligencePage() {
   const [generatingRecap, setGeneratingRecap] = useState(false)
   const [health, setHealth] = useState<BrainHealth | null>(null)
   const [nudges, setNudges] = useState<Nudge[]>([])
+  const [actions, setActions] = useState<ActionItem[]>([])
+  const [people, setPeople] = useState<Note[]>([])
+
+  const loadActions = useCallback(async () => {
+    const res = await fetch(getAPI() + '/actions')
+    const data = await res.json()
+    setActions(data.items || data.actions || [])
+  }, [])
+
+  const loadPeople = useCallback(async () => {
+    const res = await fetch(getAPI() + '/people')
+    const data = await res.json()
+    setPeople(data.people || [])
+  }, [])
 
   useEffect(() => {
     fetch(`${getAPI()}/brain-health`)
@@ -43,7 +59,28 @@ export function IntelligencePage() {
       .then(r => r.json())
       .then(d => setNudges(d.nudges ?? []))
       .catch(() => {})
-  }, [])
+    loadActions()
+    loadPeople()
+  }, [loadActions, loadPeople])
+
+  const toggleDone = async (action: ActionItem) => {
+    await fetch(`${getAPI()}/actions/${action.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ done: !action.done }),
+    })
+    toast.success(action.done ? 'Marked open' : 'Marked complete')
+    loadActions()
+  }
+
+  const assignTo = async (action: ActionItem, assigneePath: string) => {
+    await fetch(`${getAPI()}/actions/${action.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assignee_path: assigneePath === 'none' ? null : assigneePath }),
+    })
+    loadActions()
+  }
 
   const generateRecap = useCallback(async () => {
     setGeneratingRecap(true)
@@ -186,6 +223,21 @@ export function IntelligencePage() {
               ))}
             </ul>
           )}
+        </div>
+      </div>
+
+      {/* Action Items section */}
+      <div className="border rounded-lg overflow-hidden">
+        <div className="px-4 py-2 bg-muted/50 border-b">
+          <h2 className="text-sm font-semibold uppercase text-muted-foreground">Action Items</h2>
+        </div>
+        <div className="p-4">
+          <ActionItemList
+            actions={actions.filter(a => !a.done)}
+            people={people}
+            onToggle={toggleDone}
+            onAssign={assignTo}
+          />
         </div>
       </div>
     </div>
