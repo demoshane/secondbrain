@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: completed
-stopped_at: Completed 33-02-PLAN.md
-last_updated: "2026-03-22T10:07:14.357Z"
+stopped_at: Completed 33-01-PLAN.md
+last_updated: "2026-03-22T10:38:29.695Z"
 last_activity: 2026-03-21 — Phase 31 complete; smart capture, segmenter, dormant resurfacing, GUI modal (6 plans)
 progress:
   total_phases: 48
   completed_phases: 39
   total_plans: 176
-  completed_plans: 183
+  completed_plans: 184
   percent: 99
 ---
 
@@ -41,6 +41,7 @@ Progress: [██████████] 99%
 ## Accumulated Context
 | Phase 32 P04 | 35 | 2 tasks | 7 files |
 | Phase 33 P02 | 20 | 2 tasks | 4 files |
+| Phase 33 P01 | 3047 | 2 tasks | 4 files |
 
 ### Decisions
 
@@ -56,6 +57,8 @@ Active decisions affecting upcoming work:
 - [Phase 32]: archive_old_action_items uses executemany+DELETE per row to satisfy semgrep SQL injection scanner
 - [Phase 33]: Cooldown resets on both empty-match and successful runs — any path past the cooldown+budget gate counts as a run
 - [Phase 33]: Incremental reindex uses utcfromtimestamp(mtime) vs fromisoformat(updated_at) for correct UTC comparison without timezone suffix issues
+- [Phase 33]: list_actions and list_people pagination applied in Python (slice after function call) to preserve filter support without dynamic SQL
+- [Phase 33]: sb_search total reflects search results up to limit*page, not global COUNT(*) — search engines don't expose unbounded counts
 
 ### Pending Todos
 
@@ -71,6 +74,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-22T10:07:14.341Z
-Stopped at: Completed 33-02-PLAN.md
+Last session: 2026-03-22T10:38:29.683Z
+Stopped at: Completed 33-01-PLAN.md
 Resume file: None
