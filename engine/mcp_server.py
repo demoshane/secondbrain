@@ -1205,33 +1205,55 @@ def sb_person_context(name_or_path: str) -> dict:
 
         person_title = row["title"]
 
-        # 2. Meetings via json_each people column (exact path OR name-like match)
-        meeting_rows = conn.execute(
-            """
-            SELECT DISTINCT n.path, n.title, n.created_at
-            FROM notes n, json_each(COALESCE(n.people, '[]')) pe
-            WHERE (pe.value = ? OR pe.value LIKE ?)
-              AND n.type = 'meeting'
-            ORDER BY n.created_at DESC
-            """,
+        # 2+3. Meetings and mentions — use note_people junction table if populated (fast path),
+        # fall back to json_each scans if note_people has no entries for this person.
+        np_count = conn.execute(
+            "SELECT COUNT(*) FROM note_people WHERE person=? OR person LIKE ?",
             (person_path, f"%{person_title}%"),
-        ).fetchall()
+        ).fetchone()[0]
+
+        if np_count > 0:
+            # Fast path: indexed junction table — single query, split by type in Python
+            all_note_rows = conn.execute(
+                """
+                SELECT DISTINCT n.path, n.title, n.type, n.created_at
+                FROM note_people np
+                JOIN notes n ON np.note_path = n.path
+                WHERE np.person = ? OR np.person LIKE ?
+                ORDER BY n.created_at DESC
+                LIMIT 20
+                """,
+                (person_path, f"%{person_title}%"),
+            ).fetchall()
+            meeting_rows = [r for r in all_note_rows if r["type"] == "meeting"]
+            mention_rows = [r for r in all_note_rows if r["type"] not in ("person", "people", "meeting")]
+        else:
+            # Fallback: json_each scan (handles fresh installs where note_people is not yet populated)
+            meeting_rows = conn.execute(
+                """
+                SELECT DISTINCT n.path, n.title, n.created_at
+                FROM notes n, json_each(COALESCE(n.people, '[]')) pe
+                WHERE (pe.value = ? OR pe.value LIKE ?)
+                  AND n.type = 'meeting'
+                ORDER BY n.created_at DESC
+                """,
+                (person_path, f"%{person_title}%"),
+            ).fetchall()
+            mention_rows = conn.execute(
+                """
+                SELECT DISTINCT n.path, n.title, n.created_at
+                FROM notes n, json_each(COALESCE(n.people, '[]')) pe
+                WHERE (pe.value = ? OR pe.value LIKE ?)
+                  AND n.type NOT IN ('person', 'people', 'meeting')
+                ORDER BY n.created_at DESC
+                """,
+                (person_path, f"%{person_title}%"),
+            ).fetchall()
+
         meetings = [
             {"path": r["path"], "title": r["title"], "meeting_date": (r["created_at"] or "")[:10]}
             for r in meeting_rows
         ]
-
-        # 3. Mentions (non-person/meeting notes) via json_each people column
-        mention_rows = conn.execute(
-            """
-            SELECT DISTINCT n.path, n.title, n.created_at
-            FROM notes n, json_each(COALESCE(n.people, '[]')) pe
-            WHERE (pe.value = ? OR pe.value LIKE ?)
-              AND n.type NOT IN ('person', 'people', 'meeting')
-            ORDER BY n.created_at DESC
-            """,
-            (person_path, f"%{person_title}%"),
-        ).fetchall()
         mentions = [{"path": r["path"], "title": r["title"]} for r in mention_rows]
 
         # 4. Action items: assigned to person path or mentioning name; ordered by due_date then created_at

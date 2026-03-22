@@ -817,6 +817,56 @@ def test_sb_person_context_unknown_path(mcp_person_brain):
 
 
 # ---------------------------------------------------------------------------
+# Phase 33-05 — sb_person_context fast path via note_people junction table
+# ---------------------------------------------------------------------------
+
+def test_sb_person_context_uses_note_people_fast_path(tmp_path, monkeypatch):
+    """sb_person_context uses note_people junction table when populated (fast path)."""
+    import engine.db as _db
+    import engine.paths as _paths
+    from engine.db import get_connection as _get_conn, init_schema as _init
+    import json as _json
+
+    brain = tmp_path / "brain"
+    (brain / "people").mkdir(parents=True)
+    (brain / "meetings").mkdir(parents=True)
+
+    tmp_db = brain / "test.db"
+    monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "BRAIN_ROOT", brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", brain)
+    monkeypatch.setenv("BRAIN_PATH", str(brain))
+
+    conn = _get_conn(str(tmp_db))
+    _init(conn)
+
+    person_path = str(brain / "people" / "bob.md")
+    meeting_path = str(brain / "meetings" / "standup.md")
+
+    conn.execute(
+        "INSERT INTO notes (path, title, body, type, people, entities) VALUES (?,?,?,?,?,?)",
+        (person_path, "Bob", "Bob is an engineer.", "person", _json.dumps([]), "{}"),
+    )
+    conn.execute(
+        "INSERT INTO notes (path, title, body, type, people) VALUES (?,?,?,?,?)",
+        (meeting_path, "Standup", "Bob attended standup.", "meeting", _json.dumps([person_path])),
+    )
+    # Populate note_people junction table (fast path)
+    conn.execute(
+        "INSERT INTO note_people (note_path, person) VALUES (?,?)",
+        (meeting_path, person_path),
+    )
+    conn.commit()
+    conn.close()
+
+    result = mcp_mod.sb_person_context(person_path)
+    assert result["found"] is True
+    meeting_paths = [m["path"] for m in result["meetings"]]
+    assert meeting_path in meeting_paths, "Fast path must return meeting linked via note_people"
+
+
+# ---------------------------------------------------------------------------
 # Phase 30-03 — sb_person_context column-based lookup + metrics + sb_list_people
 # ---------------------------------------------------------------------------
 
