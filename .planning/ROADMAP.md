@@ -155,8 +155,8 @@ Plans:
 **Requirements**: GUI-01 through GUI-07
 
 Plans:
-- [ ] 34-01-PLAN.md — Interactive action items + Actions page source note link (GUI-01, GUI-02)
-- [ ] 34-02-PLAN.md — Cmd+K command palette (GUI-03)
+- [x] 34-01-PLAN.md — Interactive action items + Actions page source note link (GUI-01, GUI-02)
+- [x] 34-02-PLAN.md — Cmd+K command palette (GUI-03)
 - [ ] 34-03-PLAN.md — Entity page create/delete + sb_create_person MCP (GUI-04, GUI-07)
 - [ ] 34-04-PLAN.md — Intelligence actionable items + tag autocomplete + toasts + Inbox polish (GUI-05, GUI-06)
 
@@ -204,7 +204,7 @@ Plans:
 | 20–31 | v3.0 | 88/88 | Complete | 2026-03-21 |
 | 32 | 1/6 | Complete    | 2026-03-22 | - |
 | 33 | 2/5 | Complete    | 2026-03-22 | - |
-| 34 | v4.0 | 0/4 | Not started | - |
+| 34 | v4.0 | 2/4 | In Progress|  |
 | 35 | v4.0 | 0/3 | Not started | - |
 | 36 | v4.0 | 0/0 | Planning | - |
 | 37 | v4.0 | 0/0 | Not started | - |

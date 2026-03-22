@@ -2,16 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
-status: completed
-stopped_at: Phase 34 UI-SPEC approved
-last_updated: "2026-03-22T17:32:34.255Z"
-last_activity: 2026-03-21 — Phase 31 complete; smart capture, segmenter, dormant resurfacing, GUI modal (6 plans)
+status: Ready to execute
+stopped_at: Completed 34-01-PLAN.md
+last_updated: "2026-03-22T18:06:19.166Z"
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 13
-  completed_plans: 11
-  percent: 99
+  total_plans: 17
+  completed_plans: 13
 ---
 
 # Project State
@@ -24,12 +22,8 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-Phase: 31 of 35 (Smart Capture & Multi-Context Intelligence)
-Plan: 6 of 6 — complete, verified on host
-Status: Phase 31 complete; Phase 32 next
-Last activity: 2026-03-21 — Phase 31 complete; smart capture, segmenter, dormant resurfacing, GUI modal (6 plans)
-
-Progress: [██████████] 99%
+Phase: 34 (gui-management-productivity) — EXECUTING
+Plan: 3 of 4
 
 ## Performance Metrics
 
@@ -43,6 +37,7 @@ Progress: [██████████] 99%
 | Phase 32 P04 | 35 | 2 tasks | 7 files |
 | Phase 33 P02 | 20 | 2 tasks | 4 files |
 | Phase 33 P01 | 3047 | 2 tasks | 4 files |
+| Phase 34 P01 | 150 | 2 tasks | 5 files |
 
 ### Decisions
 
@@ -60,6 +55,8 @@ Active decisions affecting upcoming work:
 - [Phase 33]: Incremental reindex uses utcfromtimestamp(mtime) vs fromisoformat(updated_at) for correct UTC comparison without timezone suffix issues
 - [Phase 33]: list_actions and list_people pagination applied in Python (slice after function call) to preserve filter support without dynamic SQL
 - [Phase 33]: sb_search total reflects search results up to limit*page, not global COUNT(*) — search engines don't expose unbounded counts
+- [Phase 34]: ActionItemList receives people as prop (no internal fetch) — parent owns data, component owns rendering
+- [Phase 34]: NoteViewer and RightPanel filter actions client-side by note_path — acceptable for small brain; server-side filter is future optimization
 
 ### Pending Todos
 
@@ -75,6 +72,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-22T17:32:34.246Z
-Stopped at: Phase 34 UI-SPEC approved
-Resume file: .planning/phases/34-gui-management-productivity/34-UI-SPEC.md
+Last session: 2026-03-22T18:06:10.465Z
+Stopped at: Completed 34-01-PLAN.md
+Resume file: None
