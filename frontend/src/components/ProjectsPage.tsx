@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Plus, Trash2 } from 'lucide-react'
 import { cn, getAPI } from '@/lib/utils'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { useUIContext } from '@/contexts/UIContext'
 import { useNoteContext } from '@/contexts/NoteContext'
+import { NewEntityModal } from './NewEntityModal'
+import { DeleteEntityModal } from './DeleteEntityModal'
 import type { ProjectSummary, ActionItem } from '@/types'
 
 function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
@@ -32,6 +34,9 @@ export function ProjectsPage() {
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [filter, setFilter] = useState('')
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
+  const [showNewEntity, setShowNewEntity] = useState(false)
+  const [showDeleteEntity, setShowDeleteEntity] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ name: string; path: string } | null>(null)
   const [projectDetail, setProjectDetail] = useState<{
     body: string
     title: string
@@ -41,12 +46,16 @@ export function ProjectsPage() {
   const [backlinks, setBacklinks] = useState<{ path: string; title: string }[]>([])
   const [actions, setActions] = useState<ActionItem[]>([])
 
-  // Fetch projects list on mount
-  useEffect(() => {
+  const loadProjects = () => {
     fetch(`${getAPI()}/projects`)
       .then(r => r.json())
       .then(d => setProjects(d.projects ?? []))
       .catch(() => {})
+  }
+
+  // Fetch projects list on mount
+  useEffect(() => {
+    loadProjects()
   }, [])
 
   // Fetch project detail on selectedPath change
@@ -83,13 +92,20 @@ export function ProjectsPage() {
     <div className="flex h-full" data-testid="projects-page">
       {/* Left column — project list */}
       <div className="w-80 border-r overflow-y-auto flex flex-col">
-        <div className="p-2 border-b">
+        <div className="p-2 border-b flex gap-2">
           <input
             placeholder="Filter by title..."
             value={filter}
             onChange={e => setFilter(e.target.value)}
-            className="w-full rounded-md border border-input bg-background px-3 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
+            className="flex-1 rounded-md border border-input bg-background px-3 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
           />
+          <Button
+            size="sm"
+            onClick={() => setShowNewEntity(true)}
+            data-testid="new-project-button"
+          >
+            <Plus size={16} className="mr-1" /> New Project
+          </Button>
         </div>
         <Table>
           <TableHeader>
@@ -97,6 +113,7 @@ export function ProjectsPage() {
               <TableHead>Title</TableHead>
               <TableHead className="w-24">Updated</TableHead>
               <TableHead className="w-16 text-right">Actions</TableHead>
+              <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -109,11 +126,25 @@ export function ProjectsPage() {
                 <TableCell className="font-medium">{p.title}</TableCell>
                 <TableCell className="text-muted-foreground">{p.updated_at}</TableCell>
                 <TableCell className="text-right">{p.open_actions}</TableCell>
+                <TableCell>
+                  <button
+                    className="opacity-0 group-hover:opacity-100 hover:text-destructive p-1 rounded"
+                    onClick={e => {
+                      e.stopPropagation()
+                      setDeleteTarget({ name: p.title, path: p.path })
+                      setShowDeleteEntity(true)
+                    }}
+                    data-testid="delete-project-button"
+                    title={`Delete ${p.title}`}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </TableCell>
               </TableRow>
             ))}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-muted-foreground py-4">
+                <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
                   No projects found
                 </TableCell>
               </TableRow>
@@ -181,6 +212,26 @@ export function ProjectsPage() {
           </div>
         )}
       </div>
+
+      <NewEntityModal
+        open={showNewEntity}
+        onClose={() => setShowNewEntity(false)}
+        entityType="projects"
+        onCreated={loadProjects}
+      />
+      {deleteTarget && (
+        <DeleteEntityModal
+          open={showDeleteEntity}
+          onClose={() => { setShowDeleteEntity(false); setDeleteTarget(null) }}
+          entityType="projects"
+          entityName={deleteTarget.name}
+          entityPath={deleteTarget.path}
+          onDeleted={() => {
+            loadProjects()
+            if (selectedPath === deleteTarget.path) setSelectedPath(null)
+          }}
+        />
+      )}
     </div>
   )
 }

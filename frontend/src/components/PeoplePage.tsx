@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Plus, Trash2 } from 'lucide-react'
 import { cn, getAPI } from '@/lib/utils'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { useUIContext } from '@/contexts/UIContext'
 import { useNoteContext } from '@/contexts/NoteContext'
 import { ActionItemList } from './ActionItemList'
+import { NewEntityModal } from './NewEntityModal'
+import { DeleteEntityModal } from './DeleteEntityModal'
 import type { PersonSummary, ActionItem, Note } from '@/types'
 
 function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
@@ -39,9 +41,11 @@ export function PeoplePage() {
   const [meetings, setMeetings] = useState<{ path: string; title: string }[]>([])
   const [backlinks, setBacklinks] = useState<{ path: string; title: string }[]>([])
   const [actions, setActions] = useState<ActionItem[]>([])
+  const [showNewEntity, setShowNewEntity] = useState(false)
+  const [showDeleteEntity, setShowDeleteEntity] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ name: string; path: string } | null>(null)
 
-  // Fetch people list on mount
-  useEffect(() => {
+  const loadPeople = () => {
     fetch(`${getAPI()}/people`)
       .then(r => r.json())
       .then(d => setPeople(d.people ?? []))
@@ -50,6 +54,11 @@ export function PeoplePage() {
       .then(r => r.json())
       .then(d => setPeopleNotes((d.notes ?? []).filter((n: Note) => n.type === 'people')))
       .catch(() => {})
+  }
+
+  // Fetch people list on mount
+  useEffect(() => {
+    loadPeople()
   }, [])
 
   // Fetch person detail on selectedPath change
@@ -121,13 +130,20 @@ export function PeoplePage() {
     <div className="flex h-full" data-testid="people-page">
       {/* Left column — directory */}
       <div className="w-72 border-r overflow-y-auto flex flex-col">
-        <div className="p-2 border-b">
+        <div className="p-2 border-b flex gap-2">
           <input
             placeholder="Filter by name..."
             value={filter}
             onChange={e => setFilter(e.target.value)}
-            className="w-full rounded-md border border-input bg-background px-3 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
+            className="flex-1 rounded-md border border-input bg-background px-3 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
           />
+          <Button
+            size="sm"
+            onClick={() => setShowNewEntity(true)}
+            data-testid="new-person-button"
+          >
+            <Plus size={16} className="mr-1" /> New Person
+          </Button>
         </div>
         <Table>
           <TableHeader>
@@ -136,6 +152,7 @@ export function PeoplePage() {
               <TableHead>Org</TableHead>
               <TableHead className="w-24">Last Interaction</TableHead>
               <TableHead className="w-16 text-right">Actions</TableHead>
+              <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -157,11 +174,25 @@ export function PeoplePage() {
                     </span>
                   ) : '—'}
                 </TableCell>
+                <TableCell>
+                  <button
+                    className="opacity-0 group-hover:opacity-100 hover:text-destructive p-1 rounded"
+                    onClick={e => {
+                      e.stopPropagation()
+                      setDeleteTarget({ name: p.title, path: p.path })
+                      setShowDeleteEntity(true)
+                    }}
+                    data-testid="delete-person-button"
+                    title={`Delete ${p.title}`}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </TableCell>
               </TableRow>
             ))}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-4">
                   No people found
                 </TableCell>
               </TableRow>
@@ -252,6 +283,26 @@ export function PeoplePage() {
           </div>
         )}
       </div>
+
+      <NewEntityModal
+        open={showNewEntity}
+        onClose={() => setShowNewEntity(false)}
+        entityType="people"
+        onCreated={loadPeople}
+      />
+      {deleteTarget && (
+        <DeleteEntityModal
+          open={showDeleteEntity}
+          onClose={() => { setShowDeleteEntity(false); setDeleteTarget(null) }}
+          entityType="people"
+          entityName={deleteTarget.name}
+          entityPath={deleteTarget.path}
+          onDeleted={() => {
+            loadPeople()
+            if (selectedPath === deleteTarget.path) setSelectedPath(null)
+          }}
+        />
+      )}
     </div>
   )
 }

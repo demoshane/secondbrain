@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Plus, Trash2 } from 'lucide-react'
 import { cn, getAPI } from '@/lib/utils'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { useUIContext } from '@/contexts/UIContext'
 import { useNoteContext } from '@/contexts/NoteContext'
+import { NewEntityModal } from './NewEntityModal'
+import { DeleteEntityModal } from './DeleteEntityModal'
 import type { MeetingSummary, ActionItem } from '@/types'
 
 function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
@@ -32,6 +34,9 @@ export function MeetingsPage() {
   const [meetings, setMeetings] = useState<MeetingSummary[]>([])
   const [filter, setFilter] = useState('')
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
+  const [showNewEntity, setShowNewEntity] = useState(false)
+  const [showDeleteEntity, setShowDeleteEntity] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ name: string; path: string } | null>(null)
   const [meetingDetail, setMeetingDetail] = useState<{
     body: string
     title: string
@@ -42,12 +47,16 @@ export function MeetingsPage() {
   const [backlinks, setBacklinks] = useState<{ path: string; title: string }[]>([])
   const [actions, setActions] = useState<ActionItem[]>([])
 
-  // Fetch meetings list on mount
-  useEffect(() => {
+  const loadMeetings = () => {
     fetch(`${getAPI()}/meetings`)
       .then(r => r.json())
       .then(d => setMeetings(d.meetings ?? []))
       .catch(() => {})
+  }
+
+  // Fetch meetings list on mount
+  useEffect(() => {
+    loadMeetings()
   }, [])
 
   // Fetch meeting detail on selectedPath change
@@ -85,13 +94,20 @@ export function MeetingsPage() {
     <div className="flex h-full" data-testid="meetings-page">
       {/* Left column — meeting list */}
       <div className="w-80 border-r overflow-y-auto flex flex-col">
-        <div className="p-2 border-b">
+        <div className="p-2 border-b flex gap-2">
           <input
             placeholder="Filter by title..."
             value={filter}
             onChange={e => setFilter(e.target.value)}
-            className="w-full rounded-md border border-input bg-background px-3 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
+            className="flex-1 rounded-md border border-input bg-background px-3 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
           />
+          <Button
+            size="sm"
+            onClick={() => setShowNewEntity(true)}
+            data-testid="new-meeting-button"
+          >
+            <Plus size={16} className="mr-1" /> New Meeting
+          </Button>
         </div>
         <Table>
           <TableHeader>
@@ -100,6 +116,7 @@ export function MeetingsPage() {
               <TableHead className="w-16 text-right">People</TableHead>
               <TableHead className="w-24">Date</TableHead>
               <TableHead className="w-16 text-right">Actions</TableHead>
+              <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -113,11 +130,25 @@ export function MeetingsPage() {
                 <TableCell className="text-right">{m.participant_count}</TableCell>
                 <TableCell className="text-muted-foreground">{m.meeting_date}</TableCell>
                 <TableCell className="text-right">{m.open_actions}</TableCell>
+                <TableCell>
+                  <button
+                    className="opacity-0 group-hover:opacity-100 hover:text-destructive p-1 rounded"
+                    onClick={e => {
+                      e.stopPropagation()
+                      setDeleteTarget({ name: m.title, path: m.path })
+                      setShowDeleteEntity(true)
+                    }}
+                    data-testid="delete-meeting-button"
+                    title={`Delete ${m.title}`}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </TableCell>
               </TableRow>
             ))}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-4">
                   No meetings found
                 </TableCell>
               </TableRow>
@@ -199,6 +230,26 @@ export function MeetingsPage() {
           </div>
         )}
       </div>
+
+      <NewEntityModal
+        open={showNewEntity}
+        onClose={() => setShowNewEntity(false)}
+        entityType="meetings"
+        onCreated={loadMeetings}
+      />
+      {deleteTarget && (
+        <DeleteEntityModal
+          open={showDeleteEntity}
+          onClose={() => { setShowDeleteEntity(false); setDeleteTarget(null) }}
+          entityType="meetings"
+          entityName={deleteTarget.name}
+          entityPath={deleteTarget.path}
+          onDeleted={() => {
+            loadMeetings()
+            if (selectedPath === deleteTarget.path) setSelectedPath(null)
+          }}
+        />
+      )}
     </div>
   )
 }
