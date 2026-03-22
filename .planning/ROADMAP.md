@@ -119,7 +119,7 @@ Visual knowledge map, nodes = notes, edges = relationships, zoomable/filterable 
 **Depends on:** Phase 29
 **Milestone:** v4.0
 **Requirements**: ARCH-01 through ARCH-16
-**Plans:** 1/6 plans executed
+**Plans:** 6/6 plans complete
 
 Plans:
 - [ ] 32-01-PLAN.md — Relative path migration (ARCH-01)
@@ -202,7 +202,7 @@ Plans:
 | 1–13 | v1.5 | 60/60 | Complete | 2026-03-15 |
 | 14–19 | v2.0 | 23/23 | Complete | 2026-03-16 |
 | 20–31 | v3.0 | 88/88 | Complete | 2026-03-21 |
-| 32 | 1/6 | In Progress|  | - |
+| 32 | 1/6 | Complete    | 2026-03-22 | - |
 | 33 | v4.0 | 0/5 | Not started | - |
 | 34 | v4.0 | 0/4 | Not started | - |
 | 35 | v4.0 | 0/3 | Not started | - |
