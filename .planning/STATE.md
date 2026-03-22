@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: completed
-stopped_at: Phase 33 context gathered
-last_updated: "2026-03-22T00:28:50.820Z"
+stopped_at: Completed 33-02-PLAN.md
+last_updated: "2026-03-22T10:07:14.357Z"
 last_activity: 2026-03-21 — Phase 31 complete; smart capture, segmenter, dormant resurfacing, GUI modal (6 plans)
 progress:
   total_phases: 48
   completed_phases: 39
-  total_plans: 172
-  completed_plans: 182
+  total_plans: 176
+  completed_plans: 183
   percent: 99
 ---
 
@@ -40,6 +40,7 @@ Progress: [██████████] 99%
 
 ## Accumulated Context
 | Phase 32 P04 | 35 | 2 tasks | 7 files |
+| Phase 33 P02 | 20 | 2 tasks | 4 files |
 
 ### Decisions
 
@@ -53,6 +54,8 @@ Active decisions affecting upcoming work:
 - [Phase 31]: xfail stubs must patch both engine.paths.BRAIN_ROOT and mcp_mod.BRAIN_ROOT
 - [Phase 32]: Export format changed from flat list to {notes, archived_action_items} dict — breaking for sb-export JSON consumers
 - [Phase 32]: archive_old_action_items uses executemany+DELETE per row to satisfy semgrep SQL injection scanner
+- [Phase 33]: Cooldown resets on both empty-match and successful runs — any path past the cooldown+budget gate counts as a run
+- [Phase 33]: Incremental reindex uses utcfromtimestamp(mtime) vs fromisoformat(updated_at) for correct UTC comparison without timezone suffix issues
 
 ### Pending Todos
 
@@ -68,6 +71,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-22T00:28:50.806Z
-Stopped at: Phase 33 context gathered
-Resume file: .planning/phases/33-performance-scale-hardening/33-CONTEXT.md
+Last session: 2026-03-22T10:07:14.341Z
+Stopped at: Completed 33-02-PLAN.md
+Resume file: None
