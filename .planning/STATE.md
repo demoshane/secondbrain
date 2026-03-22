@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Ready to execute
-stopped_at: Completed 34-01-PLAN.md
-last_updated: "2026-03-22T18:06:19.166Z"
+stopped_at: Completed 34-02-PLAN.md
+last_updated: "2026-03-22T18:06:32.864Z"
 progress:
   total_phases: 6
   completed_phases: 2
@@ -38,6 +38,7 @@ Plan: 3 of 4
 | Phase 33 P02 | 20 | 2 tasks | 4 files |
 | Phase 33 P01 | 3047 | 2 tasks | 4 files |
 | Phase 34 P01 | 150 | 2 tasks | 5 files |
+| Phase 34 P02 | 8 | 2 tasks | 4 files |
 
 ### Decisions
 
@@ -57,6 +58,8 @@ Active decisions affecting upcoming work:
 - [Phase 33]: sb_search total reflects search results up to limit*page, not global COUNT(*) — search engines don't expose unbounded counts
 - [Phase 34]: ActionItemList receives people as prop (no internal fetch) — parent owns data, component owns rendering
 - [Phase 34]: NoteViewer and RightPanel filter actions client-side by note_path — acceptable for small brain; server-side filter is future optimization
+- [Phase 34]: Note navigation in CommandPalette calls setCurrentView('notes') before openNote() to ensure view switch from any page
+- [Phase 34]: Toaster mounted in Plan 02 (not Plan 04) so Plan 04 toast calls work immediately
 
 ### Pending Todos
 
@@ -72,6 +75,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-22T18:06:10.465Z
-Stopped at: Completed 34-01-PLAN.md
+Last session: 2026-03-22T18:06:32.857Z
+Stopped at: Completed 34-02-PLAN.md
 Resume file: None
