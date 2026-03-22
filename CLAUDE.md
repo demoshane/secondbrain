@@ -107,6 +107,37 @@ Configure in Claude Desktop: tool prefix `mcp__second-brain__sb_*`.
 - People graph is high priority — `sb_person_context` is the key lookup tool once Phase 30 ships.
 - `sb_capture_smart` (Phase 31) will replace manual type selection for freeform capture.
 
+## Phase execution strategy
+
+**At the end of every `/gsd:plan-phase` run, always output an execution strategy recommendation before the Next Up block.**
+
+Evaluate by checking `files_modified` overlap across all plans in the phase:
+
+**Use `direct` (single-agent, tell user to instruct Claude directly) when:**
+- Any two plans share a file in `files_modified` — parallel agents will conflict
+- Tasks are mechanical sweeps or incremental additions to existing functions
+- No fresh module creation; all work is inside existing files
+
+**Use `multi-agent` (`/gsd:execute-phase`) when:**
+- All plans have zero `files_modified` overlap
+- Each plan creates a new independent module or subsystem
+- Tasks require deep isolated context (different domains, no shared state)
+
+Output at end of planning:
+```
+Execution strategy: direct  ← tell Claude to execute, do NOT run /gsd:execute-phase
+Reason: Plans 33-01 and 33-04 both modify api.py and mcp_server.py
+```
+or:
+```
+Execution strategy: multi-agent  ← safe to run /gsd:execute-phase
+Reason: All plans touch independent files, no overlap
+```
+
+Tag each plan's frontmatter with `execution_strategy: direct | multi-agent`.
+
+**Why this matters:** Multi-agent burns quota via orchestrator overhead and causes scope leaks when agents share files. Phase 32 example: multi-agent wasted ~500k tokens; single-agent did the same work in 5 minutes.
+
 ## Phase plan format
 
 Plans in `.planning/phases/NN-name/NN-XX-PLAN.md` use XML structure:
