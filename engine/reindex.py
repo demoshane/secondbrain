@@ -94,6 +94,7 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False, entities: boo
     init_schema(conn)
 
     indexed = 0
+    skipped = 0
     errors = []
 
     # Collect all .md files on disk, skipping hidden directories (e.g. .meta, .index, .claude)
@@ -108,11 +109,27 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False, entities: boo
         # Skip hidden directories
         if any(part.startswith(".") for part in md_path.relative_to(brain_root).parts[:-1]):
             continue
+
+        note_path = str(md_path.resolve())
+
+        # Incremental mode: skip files whose mtime <= DB updated_at (unless full=True)
+        if not full:
+            existing_row = conn.execute(
+                "SELECT updated_at FROM notes WHERE path=?", (note_path,)
+            ).fetchone()
+            if existing_row is not None and existing_row[0]:
+                try:
+                    file_mtime_utc = datetime.datetime.utcfromtimestamp(md_path.stat().st_mtime)
+                    db_updated_at = datetime.datetime.fromisoformat(existing_row[0])
+                    if file_mtime_utc <= db_updated_at:
+                        skipped += 1
+                        continue
+                except (ValueError, OSError):
+                    pass  # malformed timestamp or stat failure → fall through and reindex
+
         try:
             post = frontmatter.load(str(md_path))
             meta = post.metadata
-
-            note_path = str(md_path.resolve())
 
             tags = meta.get("tags", [])
             if isinstance(tags, list):
@@ -233,6 +250,7 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False, entities: boo
 
     return {
         "indexed": indexed,
+        "skipped": skipped,
         "purged": purged,
         "errors": errors,
         "embed_updated": embed_result["updated"],
@@ -250,7 +268,7 @@ def main():
     print("[sb-reindex] Starting full index rebuild...")
     result = reindex_brain(BRAIN_ROOT, full=args.full, entities=args.entities)
 
-    print(f"  [OK] Indexed {result['indexed']} notes")
+    print(f"  [OK] Indexed {result['indexed']} notes ({result.get('skipped', 0)} skipped — unchanged)")
     if result["purged"]:
         print(f"  [OK] Purged {result['purged']} stale DB entries (files deleted from disk)")
     print(f"  [OK] {result['embed_updated']} embeddings updated, {result['embed_unchanged']} unchanged")

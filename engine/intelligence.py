@@ -3,6 +3,7 @@ import json
 import datetime
 import logging
 import subprocess
+import time
 
 logger = logging.getLogger(__name__)
 from pathlib import Path
@@ -12,6 +13,10 @@ from engine.db import get_connection, init_schema, migrate_add_action_items_tabl
 
 STATE_PATH = Path.home() / ".meta" / "intelligence_state.json"
 VAULT_GATE = 20  # minimum notes before any proactive offer fires
+
+# Cooldown gate: prevent O(n) similarity scans more often than once per 30 minutes
+_check_connections_last_run: float = 0.0
+_CHECK_CONNECTIONS_COOLDOWN_SECS: int = 30 * 60
 
 ACTION_ITEM_SYSTEM_PROMPT = (
     "You are an assistant that extracts action items from notes. "
@@ -374,11 +379,17 @@ def _append_related_link(note_path: Path, matched_stem: str) -> None:
 
 def check_connections(note_path: Path, conn, brain_root: Path) -> None:
     """Print connection suggestions when similar notes exist. Best-effort."""
+    global _check_connections_last_run
     try:
+        # Cooldown gate: skip O(n) similarity scan if run within the last 30 minutes
+        now = time.monotonic()
+        if (now - _check_connections_last_run) < _CHECK_CONNECTIONS_COOLDOWN_SECS:
+            return
         if not budget_available(conn):
             return
         matches = find_similar(str(note_path.resolve()), conn)
         if not matches:
+            _check_connections_last_run = time.monotonic()
             return
         logger.info("Related notes found for %s:", note_path.name)
         for m in matches:
@@ -387,6 +398,7 @@ def check_connections(note_path: Path, conn, brain_root: Path) -> None:
             # Phase 17 revisit: skip append for pii-sensitivity notes
             _append_related_link(note_path, matched_path.stem)
         consume_budget()
+        _check_connections_last_run = time.monotonic()
     except Exception:
         logger.warning("check_connections failed", exc_info=True)
 
