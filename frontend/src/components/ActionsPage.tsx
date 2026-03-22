@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Checkbox } from '@/components/ui/checkbox'
 import { getAPI } from '@/lib/utils'
+import { useNoteContext } from '@/contexts/NoteContext'
+import { ActionItemList } from './ActionItemList'
 import type { ActionItem, Note } from '@/types'
 
 export function ActionsPage() {
+  const { openNote } = useNoteContext()
   const [actions, setActions] = useState<ActionItem[]>([])
   const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'done'>('open')
   const [people, setPeople] = useState<Note[]>([])
@@ -72,42 +73,14 @@ export function ActionsPage() {
         </Select>
       </div>
       <div className="flex-1 overflow-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-8">Done</TableHead>
-              <TableHead>Task</TableHead>
-              <TableHead>Assignee</TableHead>
-              <TableHead>Due</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {actions.map(action => (
-              <TableRow key={action.id} data-testid="action-row">
-                <TableCell>
-                  <Checkbox
-                    checked={action.done}
-                    onCheckedChange={() => toggleDone(action)}
-                    data-testid="action-done-checkbox"
-                  />
-                </TableCell>
-                <TableCell className="text-sm">{action.text}</TableCell>
-                <TableCell>
-                  <Select value={action.assignee_path ?? 'none'} onValueChange={v => assignTo(action, v)}>
-                    <SelectTrigger className="h-7 w-36 text-xs">
-                      <SelectValue placeholder="Assign…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Unassigned</SelectItem>
-                      {people.map(p => <SelectItem key={p.path} value={p.path}>{p.title}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">{action.due_date ?? '—'}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <ActionItemList
+          actions={actions}
+          people={people}
+          onToggle={toggleDone}
+          onAssign={assignTo}
+          showSourceLink={true}
+          onOpenNote={openNote}
+        />
       </div>
     </div>
   )
