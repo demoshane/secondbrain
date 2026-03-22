@@ -148,3 +148,53 @@ def test_entities_flag_overwrites_people_column(brain_root, db_conn):
     assert "OldEntry" in people_after, (
         f"--entities must MERGE with frontmatter. OldEntry missing: {people_after}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 33-02: Incremental reindex via mtime comparison (PERF-03)
+# ---------------------------------------------------------------------------
+
+import datetime as _dt
+import time as _time
+
+
+def test_incremental_skips_unchanged(brain_root, db_conn):
+    """reindex_brain default (no flags) skips files whose mtime <= DB updated_at."""
+    init_schema(db_conn)
+    note = _make_note(brain_root, "stable.md", "type: note\ntitle: Stable Note", "Content")
+
+    # First pass — indexes the file (sets updated_at to utcnow)
+    result1 = reindex_brain(brain_root, db_conn)
+    assert result1["indexed"] == 1
+
+    # Artificially set the DB updated_at to far in the future so mtime < updated_at
+    future_ts = (_dt.datetime.utcnow() + _dt.timedelta(hours=1)).isoformat()
+    db_conn.execute("UPDATE notes SET updated_at=? WHERE title='Stable Note'", (future_ts,))
+    db_conn.commit()
+
+    # Second pass — file mtime has not changed; DB updated_at is in future → should skip
+    result2 = reindex_brain(brain_root, db_conn)
+    # incremental mode: unchanged files are skipped (indexed count should be 0)
+    assert result2.get("skipped", 0) >= 1 or result2["indexed"] == 0, (
+        f"Expected file to be skipped on second pass, got: {result2}"
+    )
+
+
+def test_full_flag_reindexes_all(brain_root, db_conn):
+    """reindex_brain --full re-indexes all files regardless of mtime."""
+    init_schema(db_conn)
+    _make_note(brain_root, "stable.md", "type: note\ntitle: Stable Note", "Content")
+
+    # First pass
+    reindex_brain(brain_root, db_conn)
+
+    # Set DB updated_at far in future (same as incremental test)
+    future_ts = (_dt.datetime.utcnow() + _dt.timedelta(hours=1)).isoformat()
+    db_conn.execute("UPDATE notes SET updated_at=? WHERE title='Stable Note'", (future_ts,))
+    db_conn.commit()
+
+    # Second pass with full=True — must reindex ALL files
+    result2 = reindex_brain(brain_root, db_conn, full=True)
+    assert result2["indexed"] == 1, (
+        f"full=True must reindex all files, got indexed={result2['indexed']}"
+    )

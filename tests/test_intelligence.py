@@ -546,3 +546,67 @@ def test_list_actions_includes_due_date():
     assert len(results) >= 1
     assert "due_date" in results[0]
     assert results[0]["due_date"] == "2026-04-01"
+
+
+# ---------------------------------------------------------------------------
+# Phase 33-02: Cooldown gate for check_connections (PERF-02)
+# ---------------------------------------------------------------------------
+
+import time as _time
+
+
+@pytest.fixture(autouse=False)
+def reset_cooldown():
+    """Reset check_connections cooldown to 0.0 before and after each test to prevent bleed."""
+    import engine.intelligence as _intel
+    _intel._check_connections_last_run = 0.0
+    yield
+    _intel._check_connections_last_run = 0.0
+
+
+class TestCheckConnectionsCooldown:
+    def test_check_connections_cooldown_blocks(self, tmp_path, reset_cooldown):
+        """check_connections returns immediately (no find_similar call) when cooldown active."""
+        from engine import intelligence
+        conn = _make_db()
+        note = tmp_path / "new.md"
+        note.write_text("---\ntitle: New Note\n---\nContent.")
+
+        # Simulate cooldown active: last run was just now
+        intelligence._check_connections_last_run = _time.monotonic()
+
+        # Patch budget_available to return True so only the cooldown gate can block
+        with patch.object(intelligence, "budget_available", return_value=True), \
+             patch.object(intelligence, "find_similar") as mock_find_similar:
+            intelligence.check_connections(note, conn, tmp_path)
+
+        # find_similar must NOT be called when cooldown is active
+        mock_find_similar.assert_not_called()
+
+    def test_check_connections_cooldown_elapsed(self, tmp_path, monkeypatch, reset_cooldown):
+        """check_connections proceeds (calls find_similar) when cooldown has elapsed."""
+        from engine import intelligence
+        conn = _make_db()
+        # Insert 20+ notes so budget_available passes
+        for i in range(20):
+            conn.execute(
+                "INSERT INTO notes (path, type, title, body, tags, people, sensitivity) VALUES (?,?,?,?,?,?,?)",
+                (f"/n/{i}.md", "note", f"t{i}", "", "[]", "[]", "public")
+            )
+        conn.commit()
+
+        note = tmp_path / "new.md"
+        note.write_text("---\ntitle: New Note\n---\nContent.")
+
+        # Cooldown elapsed: last run was at 0.0 (distant past)
+        intelligence._check_connections_last_run = 0.0
+
+        # Patch budget_available to return True (bypass daily limit)
+        # and find_similar to return empty so check_connections completes cleanly
+        with patch.object(intelligence, "budget_available", return_value=True), \
+             patch.object(intelligence, "consume_budget"), \
+             patch.object(intelligence, "find_similar", return_value=[]) as mock_find_similar:
+            intelligence.check_connections(note, conn, tmp_path)
+
+        # find_similar MUST be called when cooldown has elapsed
+        mock_find_similar.assert_called_once()
