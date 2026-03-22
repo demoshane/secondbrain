@@ -137,11 +137,15 @@ def notes_refresh():
 
 @app.get("/notes")
 def list_notes():
+    limit = min(int(request.args.get("limit", 50)), 200)
+    offset = max(int(request.args.get("offset", 0)), 0)
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     try:
+        total = conn.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
         rows = conn.execute(
-            "SELECT path, title, type, created_at, tags FROM notes ORDER BY created_at DESC"
+            "SELECT path, title, type, created_at, tags FROM notes ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (limit, offset),
         ).fetchall()
     finally:
         conn.close()
@@ -150,7 +154,7 @@ def list_notes():
         d = dict(r)
         d["tags"] = json.loads(d.get("tags") or "[]")
         notes.append(d)
-    return jsonify({"notes": notes})
+    return jsonify({"notes": notes, "total": total, "limit": limit, "offset": offset})
 
 
 @app.post("/search")
@@ -255,23 +259,35 @@ def read_note(note_path):
 @app.get("/people")
 def list_people():
     from engine.people import list_people_with_metrics
+    limit = min(int(request.args.get("limit", 50)), 200)
+    offset = max(int(request.args.get("offset", 0)), 0)
     conn = get_connection()
     try:
+        total = conn.execute(
+            "SELECT COUNT(*) FROM notes WHERE type IN ('person', 'people')"
+        ).fetchone()[0]
         result = list_people_with_metrics(conn)
     finally:
         conn.close()
-    return jsonify({"people": result})
+    paginated = result[offset:offset + limit]
+    return jsonify({"people": paginated, "total": total, "limit": limit, "offset": offset})
 
 
 @app.get("/meetings")
 def list_meetings():
+    limit = min(int(request.args.get("limit", 50)), 200)
+    offset = max(int(request.args.get("offset", 0)), 0)
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     try:
+        total = conn.execute(
+            "SELECT COUNT(*) FROM notes WHERE type = 'meeting'"
+        ).fetchone()[0]
         rows = conn.execute(
             "SELECT n.path, n.title, substr(n.created_at,1,10) AS meeting_date, n.people, "
             "  (SELECT COUNT(*) FROM action_items a WHERE a.note_path=n.path AND a.done=0) AS open_actions "
-            "FROM notes n WHERE n.type = 'meeting' ORDER BY n.created_at DESC"
+            "FROM notes n WHERE n.type = 'meeting' ORDER BY n.created_at DESC LIMIT ? OFFSET ?",
+            (limit, offset),
         ).fetchall()
     finally:
         conn.close()
@@ -288,7 +304,7 @@ def list_meetings():
             "participant_count": len(participants),
             "open_actions": r["open_actions"] or 0,
         })
-    return jsonify({"meetings": result})
+    return jsonify({"meetings": result, "total": total, "limit": limit, "offset": offset})
 
 
 @app.get("/meetings/<path:note_path>")
@@ -328,17 +344,23 @@ def get_meeting(note_path):
 
 @app.get("/projects")
 def list_projects():
+    limit = min(int(request.args.get("limit", 50)), 200)
+    offset = max(int(request.args.get("offset", 0)), 0)
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     try:
+        total = conn.execute(
+            "SELECT COUNT(*) FROM notes WHERE type = 'projects'"
+        ).fetchone()[0]
         rows = conn.execute(
             "SELECT n.path, n.title, substr(n.updated_at,1,10) AS updated_at, "
             "  (SELECT COUNT(*) FROM action_items a WHERE a.note_path=n.path AND a.done=0) AS open_actions "
-            "FROM notes n WHERE n.type = 'projects' ORDER BY n.updated_at DESC"
+            "FROM notes n WHERE n.type = 'projects' ORDER BY n.updated_at DESC LIMIT ? OFFSET ?",
+            (limit, offset),
         ).fetchall()
     finally:
         conn.close()
-    return jsonify({"projects": [dict(r) for r in rows]})
+    return jsonify({"projects": [dict(r) for r in rows], "total": total, "limit": limit, "offset": offset})
 
 
 @app.get("/projects/<path:note_path>")
@@ -448,13 +470,20 @@ def get_actions():
     done = request.args.get("done", "0") == "1"
     assignee = request.args.get("assignee") or None
     note_path = request.args.get("note_path") or None
+    limit = min(int(request.args.get("limit", 50)), 200)
+    offset = max(int(request.args.get("offset", 0)), 0)
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     try:
+        total = conn.execute(
+            "SELECT COUNT(*) FROM action_items WHERE done=?", (1 if done else 0,)
+        ).fetchone()[0]
         actions = list_actions(conn, done=done, assignee=assignee, note_path=note_path)
     finally:
         conn.close()
-    return jsonify({"actions": actions})
+    # Apply limit/offset in Python (list_actions returns all matching rows)
+    paginated = actions[offset:offset + limit]
+    return jsonify({"actions": paginated, "total": total, "limit": limit, "offset": offset})
 
 
 _PREFS_FILE = _Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))) / ".sb-gui-prefs.json"
@@ -760,19 +789,23 @@ def note_meta(note_path):
 
 @app.get("/files")
 def list_files():
+    limit = min(int(request.args.get("limit", 50)), 200)
+    offset = max(int(request.args.get("offset", 0)), 0)
     brain_path = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
     files_dir = _Path(brain_path) / "files"
-    file_list = []
+    all_files = []
     if files_dir.exists():
         for f in sorted(files_dir.rglob("*")):
             if f.is_file():
-                file_list.append({
+                all_files.append({
                     "path": str(f),
                     "name": f.name,
                     "rel_path": str(f.relative_to(files_dir)),
                     "size": f.stat().st_size,
                 })
-    return jsonify({"files": file_list})
+    total = len(all_files)
+    paginated = all_files[offset:offset + limit]
+    return jsonify({"files": paginated, "total": total, "limit": limit, "offset": offset})
 
 
 @app.get("/files/usages")

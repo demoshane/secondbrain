@@ -1,4 +1,5 @@
 """Second Brain MCP server — FastMCP stdio transport."""
+import math
 import secrets
 import sqlite3
 import threading
@@ -118,7 +119,7 @@ def _consume_token(tok: str) -> bool:
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
-def sb_search(query: str, mode: str = "hybrid", limit: int = 10) -> list[dict]:
+def sb_search(query: str, mode: str = "hybrid", limit: int = 10, page: int = 1) -> dict:
     """Search brain notes by keyword, semantic, or hybrid mode."""
     _ensure_ready()
     if len(query) > _MAX_QUERY_LEN:
@@ -126,18 +127,24 @@ def sb_search(query: str, mode: str = "hybrid", limit: int = 10) -> list[dict]:
     valid_modes = {"hybrid", "semantic", "keyword"}
     if mode not in valid_modes:
         raise ValueError(f"INVALID_MODE: mode must be one of {valid_modes}.")
+    page = max(1, page)
+    limit = min(limit, 200)
     conn = get_connection()
     try:
         if mode == "hybrid":
-            results = _retry_call(search_hybrid, conn, query, limit)
+            all_results = _retry_call(search_hybrid, conn, query, limit * page)
         elif mode == "semantic":
-            results = _retry_call(search_semantic, conn, query, limit)
+            all_results = _retry_call(search_semantic, conn, query, limit * page)
         else:
-            results = _retry_call(search_notes, conn, query, limit)
+            all_results = _retry_call(search_notes, conn, query, limit * page)
     finally:
         conn.close()
+    total = len(all_results)
+    offset = (page - 1) * limit
+    results = all_results[offset:offset + limit]
+    total_pages = math.ceil(total / limit) if limit else 1
     _log_mcp_audit("mcp_search", query)
-    return results
+    return {"results": results, "total": total, "page": page, "total_pages": total_pages}
 
 
 @mcp.tool()
@@ -585,15 +592,21 @@ def sb_connections(path: str) -> list[dict]:
 
 
 @mcp.tool()
-def sb_actions(done: bool = False) -> list[dict]:
+def sb_actions(done: bool = False, page: int = 1, limit: int = 50) -> dict:
     """List action items. done=True lists completed items."""
+    page = max(1, page)
+    limit = min(limit, 200)
+    offset = (page - 1) * limit
     conn = get_connection()
     try:
-        results = list_actions(conn, done=done)
+        all_results = list_actions(conn, done=done)
     finally:
         conn.close()
+    total = len(all_results)
+    results = all_results[offset:offset + limit]
+    total_pages = math.ceil(total / limit) if limit else 1
     _log_mcp_audit("mcp_actions", "")
-    return results
+    return {"actions": results, "total": total, "page": page, "total_pages": total_pages}
 
 
 @mcp.tool()
@@ -615,23 +628,29 @@ def sb_actions_done(action_id: int) -> dict:
 
 
 @mcp.tool()
-def sb_files(subfolder: str | None = None) -> list[dict]:
+def sb_files(subfolder: str | None = None, page: int = 1, limit: int = 50) -> dict:
     """List binary files in the brain, optionally filtered by subfolder."""
     files_dir = BRAIN_ROOT / "files"
     if not files_dir.exists():
         raise ValueError(f"FILES_DIR_NOT_FOUND: {files_dir} does not exist.")
+    page = max(1, page)
+    limit = min(limit, 200)
+    offset = (page - 1) * limit
     search_root = files_dir / subfolder if subfolder else files_dir
-    results = []
+    all_files = []
     for f in sorted(search_root.rglob("*")):
         if f.is_file():
             rel = f.relative_to(files_dir)
-            results.append({
+            all_files.append({
                 "name": f.name,
                 "path": str(f),
                 "subfolder": str(rel.parent) if rel.parent != Path(".") else "",
             })
+    total = len(all_files)
+    results = all_files[offset:offset + limit]
+    total_pages = math.ceil(total / limit) if limit else 1
     _log_mcp_audit("mcp_files", str(files_dir))
-    return results
+    return {"files": results, "total": total, "page": page, "total_pages": total_pages}
 
 
 @mcp.tool()

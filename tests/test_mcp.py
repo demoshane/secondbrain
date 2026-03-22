@@ -5,9 +5,10 @@ import engine.mcp_server as mcp_mod
 
 
 def test_sb_search():
-    """sb_search returns a list (may be empty if brain has no notes)."""
+    """sb_search returns a paginated dict with a results key."""
     result = mcp_mod.sb_search("test query")
-    assert isinstance(result, list)
+    assert isinstance(result, dict)
+    assert "results" in result
 
 
 def test_tool_parity():
@@ -669,9 +670,10 @@ def test_sb_remind_clears_due_date(isolated_action_db):
 def test_sb_actions_includes_due_date(isolated_action_db):
     """sb_actions() returns items with 'due_date' key after setting a due date."""
     mcp_mod.sb_remind(action_id=1, due_date="2026-04-01")
-    results = mcp_mod.sb_actions(done=False)
-    assert len(results) >= 1
-    assert "due_date" in results[0]
+    result = mcp_mod.sb_actions(done=False)
+    actions = result["actions"]
+    assert len(actions) >= 1
+    assert "due_date" in actions[0]
 
 
 def test_sb_remind_tool_exists():
@@ -1112,4 +1114,3 @@ def test_sb_actions_pagination_shape(tmp_path, monkeypatch):
     assert "total" in result, f"Missing 'total' key; got: {list(result.keys())}"
     assert "total_pages" in result, f"Missing 'total_pages' key; got: {list(result.keys())}"
     assert "page" in result, f"Missing 'page' key; got: {list(result.keys())}"
-    assert result["people"] == []
