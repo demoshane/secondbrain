@@ -11,6 +11,40 @@ def test_sb_search():
     assert "results" in result
 
 
+def test_sb_search_filter_by_type(tmp_path, monkeypatch):
+    """sb_search with note_type filter returns only notes matching that type."""
+    import engine.db as _db
+    import engine.paths as _paths
+    from engine.db import get_connection, init_schema
+
+    tmp_db = tmp_path / "test.db"
+    monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+
+    conn = get_connection()
+    init_schema(conn)
+    for i, (ntype, title, body) in enumerate([
+        ("meeting", "Sprint Planning", "We discussed the sprint backlog."),
+        ("meeting", "Retrospective", "Retro notes."),
+        ("idea", "Feature Idea", "Build this cool thing."),
+    ]):
+        path = str(tmp_path / f"note-{i}.md")
+        conn.execute(
+            "INSERT OR IGNORE INTO notes (path, title, type, created_at, updated_at, body)"
+            " VALUES (?, ?, ?, datetime('now'), datetime('now'), ?)",
+            (path, title, ntype, body),
+        )
+    conn.commit()
+    conn.close()
+
+    result = mcp_mod.sb_search("", note_type="meeting")
+    assert isinstance(result, dict)
+    assert "results" in result
+    for r in result["results"]:
+        assert r["type"] == "meeting", f"Expected type=meeting, got {r['type']}"
+
+
 def test_tool_parity():
     # 12 tools must be registered — use sync internal dict (same as sb_tools uses)
     # asyncio.run() raises RuntimeError when called from a running event loop (pytest-anyio)

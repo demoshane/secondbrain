@@ -75,6 +75,37 @@ class TestNotesList:
         assert "notes" in response.get_json()
 
 
+@pytest.fixture
+def tmp_notes_db(tmp_path, monkeypatch):
+    """Set up an isolated DB with meeting and idea notes for filter tests."""
+    import engine.db as _db
+    import engine.paths as _paths
+    from engine.db import init_schema
+
+    tmp_db = tmp_path / "test.db"
+    monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+
+    conn = get_connection()
+    init_schema(conn)
+    # Insert two meeting notes and one idea note
+    for i, (ntype, title, body) in enumerate([
+        ("meeting", "Sprint Planning", "We discussed the sprint backlog."),
+        ("meeting", "Retrospective", "Retro went well."),
+        ("idea", "New Feature Idea", "This would be cool to build."),
+    ]):
+        path = str(tmp_path / f"note-{i}.md")
+        conn.execute(
+            "INSERT OR IGNORE INTO notes (path, title, type, created_at, updated_at, body)"
+            " VALUES (?, ?, ?, datetime('now'), datetime('now'), ?)",
+            (path, title, ntype, body),
+        )
+    conn.commit()
+    conn.close()
+    yield
+
+
 class TestSearch:
     def test_search_returns_200(self, client):
         response = client.post("/search", json={"query": "hello"})
@@ -83,6 +114,21 @@ class TestSearch:
     def test_search_has_results_key(self, client):
         response = client.post("/search", json={"query": "hello"})
         assert "results" in response.get_json()
+
+    def test_search_filter_by_type(self, client, tmp_notes_db):
+        """POST /search with note_type filter returns only matching type notes.
+
+        Uses a query that matches both meeting and idea notes so _apply_filters has
+        something to work with. Asserts that the idea note is excluded from results.
+        """
+        # "sprint" appears only in the meeting note body
+        response = client.post("/search", json={"query": "sprint", "note_type": "meeting"})
+        assert response.status_code == 200
+        data = response.get_json()
+        results = data["results"]
+        # All returned results must be meetings
+        for r in results:
+            assert r["type"] == "meeting", f"Expected type=meeting, got {r['type']}"
 
 
 class TestReadNote:

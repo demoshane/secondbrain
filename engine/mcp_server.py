@@ -23,7 +23,7 @@ from engine.intelligence import find_dormant_related, find_similar, get_overdue_
 from engine.link_capture import fetch_link_metadata
 from engine.paths import BRAIN_ROOT, CONFIG_PATH
 from engine.router import get_adapter
-from engine.search import search_hybrid, search_notes, search_semantic
+from engine.search import search_hybrid, search_notes, search_semantic, _apply_filters
 
 try:
     from engine.intelligence import detect_git_context as _detect_git_context
@@ -119,8 +119,26 @@ def _consume_token(tok: str) -> bool:
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
-def sb_search(query: str, mode: str = "hybrid", limit: int = 10, page: int = 1) -> dict:
-    """Search brain notes by keyword, semantic, or hybrid mode."""
+def sb_search(
+    query: str,
+    mode: str = "hybrid",
+    limit: int = 10,
+    page: int = 1,
+    person: str | None = None,
+    tag: str | None = None,
+    note_type: str | None = None,
+    from_date: str | None = None,
+    to_date: str | None = None,
+) -> dict:
+    """Search brain notes by keyword, semantic, or hybrid mode.
+
+    Optional entity filters narrow results with AND logic:
+    - person: match notes where person appears in the people column
+    - tag: match notes with this tag in the note_tags junction table
+    - note_type: match notes with this exact type value
+    - from_date: ISO date string YYYY-MM-DD — exclude notes created before this date
+    - to_date: ISO date string YYYY-MM-DD — exclude notes created after this date
+    """
     _ensure_ready()
     if len(query) > _MAX_QUERY_LEN:
         raise ValueError(f"QUERY_TOO_LONG: query exceeds {_MAX_QUERY_LEN} characters.")
@@ -137,6 +155,15 @@ def sb_search(query: str, mode: str = "hybrid", limit: int = 10, page: int = 1) 
             all_results = _retry_call(search_semantic, conn, query, limit * page)
         else:
             all_results = _retry_call(search_notes, conn, query, limit * page)
+        # Apply entity filters (person, tag, note_type, from_date, to_date) — AND logic
+        all_results = _apply_filters(
+            all_results, conn,
+            person=person,
+            tag=tag,
+            note_type=note_type,
+            from_date=from_date,
+            to_date=to_date,
+        )
     finally:
         conn.close()
     total = len(all_results)
