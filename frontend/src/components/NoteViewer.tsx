@@ -8,7 +8,9 @@ import { useNoteContext } from '@/contexts/NoteContext'
 import { useSearchContext } from '@/contexts/SearchContext'
 import { NoteEditor } from './NoteEditor'
 import { ActionItemList } from './ActionItemList'
+import { TagAutocomplete } from './TagAutocomplete'
 import { getAPI } from '@/lib/utils'
+import { toast } from 'sonner'
 import type { Note, Attachment, ActionItem } from '@/types'
 
 interface Props {
@@ -21,6 +23,7 @@ export function NoteViewer({ note }: Props) {
   const [localTags, setLocalTags] = useState<string[]>(note.tags ?? [])
   const [editingTag, setEditingTag] = useState<string | null>(null)
   const [addingTag, setAddingTag] = useState(false)
+  const [newTag, setNewTag] = useState('')
   const [noteActions, setNoteActions] = useState<ActionItem[]>([])
   const [actionPeople, setActionPeople] = useState<Note[]>([])
   const { setIsDirty } = useNoteContext()
@@ -31,7 +34,9 @@ export function NoteViewer({ note }: Props) {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tags: newTags }),
-    }).catch(() => {})
+    })
+      .then(() => toast.success('Tags saved'))
+      .catch(() => toast.error('Something went wrong -- try again'))
   }
 
   useEffect(() => {
@@ -39,6 +44,7 @@ export function NoteViewer({ note }: Props) {
     setLocalTags(note.tags ?? [])
     setEditingTag(null)
     setAddingTag(false)
+    setNewTag('')
     const encoded = encodeURIComponent(note.path)
     fetch(`${getAPI()}/notes/${encoded}/attachments`)
       .then(r => r.json())
@@ -152,24 +158,20 @@ export function NoteViewer({ note }: Props) {
           )
         ))}
         {addingTag ? (
-          <input
-            className="text-xs border rounded px-1 w-20 bg-background text-foreground"
-            autoFocus
-            placeholder="new tag"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                const val = (e.target as HTMLInputElement).value.trim()
-                if (val && !localTags.includes(val)) {
-                  const newTags = [...localTags, val]
-                  setLocalTags(newTags)
-                  saveTagsFieldLevel(newTags)
-                }
-                setAddingTag(false)
-              } else if (e.key === 'Escape') {
-                setAddingTag(false)
+          <TagAutocomplete
+            value={newTag}
+            onChange={setNewTag}
+            onSelect={(tag) => {
+              if (tag && !localTags.includes(tag)) {
+                const newTags = [...localTags, tag]
+                setLocalTags(newTags)
+                saveTagsFieldLevel(newTags)
               }
+              setNewTag('')
+              setAddingTag(false)
             }}
             onBlur={() => setAddingTag(false)}
+            placeholder="Add tag..."
           />
         ) : (
           <button

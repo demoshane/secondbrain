@@ -656,6 +656,30 @@ def get_link(note_path):
     })
 
 
+@app.get("/tags")
+def list_tags():
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT tag FROM note_tags ORDER BY tag"
+        ).fetchall()
+        tags = [r[0] for r in rows]
+        if not tags:
+            # Fallback: query JSON tags column if note_tags is empty (per Pitfall 6)
+            # MUST be inside the same `with` block — conn is closed after exiting
+            fallback_rows = conn.execute(
+                "SELECT tags FROM notes WHERE tags IS NOT NULL AND tags != '[]'"
+            ).fetchall()
+            import json as _json
+            tag_set = set()
+            for r in fallback_rows:
+                try:
+                    tag_set.update(_json.loads(r[0]))
+                except (_json.JSONDecodeError, TypeError):
+                    pass
+            tags = sorted(tag_set)
+    return jsonify({"tags": tags})
+
+
 @app.get("/actions")
 def get_actions():
     done = request.args.get("done", "0") == "1"
