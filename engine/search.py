@@ -1,5 +1,6 @@
 """FTS5 BM25 full-text search with audit log, plus semantic and hybrid RRF modes."""
 import datetime
+import json as _json
 import logging
 import math
 import sqlite3
@@ -235,6 +236,61 @@ def search_hybrid(
         return bm25[:limit]
 
     return _rrf_merge(bm25, vec_results, k=60, limit=limit)
+
+
+def _apply_filters(
+    results: list[dict],
+    conn: sqlite3.Connection,
+    person: str | None = None,
+    tag: str | None = None,
+    note_type: str | None = None,
+    from_date: str | None = None,
+    to_date: str | None = None,
+) -> list[dict]:
+    """Post-filter search results by entity dimensions. AND logic.
+
+    All params are optional (None = skip that filter). Multiple filters applied
+    in combination require a result to satisfy ALL provided conditions.
+
+    Args:
+        results: List of result dicts (from search_hybrid / search_notes).
+        conn: SQLite connection (needed for tag/person lookups).
+        person: Filter to notes where this name appears in the people column.
+        tag: Filter to notes that have this tag in the note_tags junction table.
+        note_type: Filter to notes where type equals this value.
+        from_date: ISO date string (YYYY-MM-DD). Exclude notes created before this date.
+        to_date: ISO date string (YYYY-MM-DD). Exclude notes created after this date.
+
+    Returns:
+        Filtered list of result dicts.
+    """
+    if not any([person, tag, note_type, from_date, to_date]):
+        return results
+
+    filtered = []
+    for r in results:
+        if note_type and r.get("type") != note_type:
+            continue
+        if from_date and r.get("created_at", "") < from_date:
+            continue
+        if to_date and r.get("created_at", "") > to_date + "T23:59:59":
+            continue
+        if tag:
+            tag_rows = conn.execute(
+                "SELECT tag FROM note_tags WHERE note_path=?", (r["path"],)
+            ).fetchall()
+            tag_set = {row[0] for row in tag_rows}
+            if tag not in tag_set:
+                continue
+        if person:
+            people_row = conn.execute(
+                "SELECT people FROM notes WHERE path=?", (r["path"],)
+            ).fetchone()
+            plist = _json.loads(people_row[0] or "[]") if people_row else []
+            if not any(person in p or p == person for p in plist):
+                continue
+        filtered.append(r)
+    return filtered
 
 
 def main(argv: list[str] | None = None) -> None:

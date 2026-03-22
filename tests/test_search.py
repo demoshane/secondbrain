@@ -97,3 +97,92 @@ class TestHybridFallback:
         captured = capsys.readouterr()
         # Should print fallback notification when no embeddings table populated
         assert "fallback" in captured.out.lower() or len(results) >= 0
+
+
+# ---------------------------------------------------------------------------
+# Phase 33-04: _apply_filters tests
+# ---------------------------------------------------------------------------
+
+class TestApplyFilters:
+    """Tests for the _apply_filters() post-filter function in engine.search."""
+
+    def _make_results(self, db_conn):
+        """Insert test notes and return a list of result dicts matching _apply_filters input."""
+        # Insert notes with mixed types, dates, people
+        notes = [
+            ("filter/note1.md", "note", "Note One", "2024-01-15T00:00:00Z", '["Alice"]'),
+            ("filter/note2.md", "meeting", "Meeting Alpha", "2024-03-01T00:00:00Z", '["Bob"]'),
+            ("filter/note3.md", "meeting", "Meeting Beta", "2023-12-01T00:00:00Z", '["Alice", "Bob"]'),
+            ("filter/note4.md", "idea", "Idea One", "2024-06-01T00:00:00Z", '[]'),
+        ]
+        for path, ntype, title, created_at, people in notes:
+            db_conn.execute(
+                "INSERT OR IGNORE INTO notes (path, type, title, body, tags, people, created_at)"
+                " VALUES (?, ?, ?, '', '[]', ?, ?)",
+                (path, ntype, title, people, created_at),
+            )
+        db_conn.commit()
+
+        # Add tags for note1
+        db_conn.execute(
+            "INSERT OR IGNORE INTO note_tags (note_path, tag) VALUES (?, ?)",
+            ("filter/note1.md", "work"),
+        )
+        db_conn.commit()
+
+        return [
+            {"path": p, "type": t, "title": ti, "created_at": c, "score": 1.0}
+            for p, t, ti, c, _ in notes
+        ]
+
+    def test_apply_filters_no_filters(self, seeded_db):
+        """All-None params: results unchanged."""
+        from engine.search import _apply_filters
+
+        results = [
+            {"path": "a.md", "type": "note", "title": "A", "created_at": "2024-01-01T00:00:00Z", "score": 1.0},
+        ]
+        out = _apply_filters(results, seeded_db)
+        assert out == results
+
+    def test_apply_filters_by_type(self, seeded_db):
+        """note_type filter: only notes of matching type returned."""
+        from engine.search import _apply_filters
+
+        results = self._make_results(seeded_db)
+        out = _apply_filters(results, seeded_db, note_type="meeting")
+        assert len(out) == 2
+        assert all(r["type"] == "meeting" for r in out)
+
+    def test_apply_filters_by_date(self, seeded_db):
+        """from_date filter: notes older than from_date excluded."""
+        from engine.search import _apply_filters
+
+        results = self._make_results(seeded_db)
+        out = _apply_filters(results, seeded_db, from_date="2024-01-01")
+        # note3 has 2023-12-01 — should be excluded
+        assert all(r["created_at"] >= "2024-01-01" for r in out)
+        paths = [r["path"] for r in out]
+        assert "filter/note3.md" not in paths
+
+    def test_apply_filters_by_person(self, seeded_db):
+        """person filter: only notes where Alice appears in people column."""
+        from engine.search import _apply_filters
+
+        results = self._make_results(seeded_db)
+        out = _apply_filters(results, seeded_db, person="Alice")
+        paths = [r["path"] for r in out]
+        assert "filter/note1.md" in paths   # Alice only
+        assert "filter/note3.md" in paths   # Alice + Bob
+        assert "filter/note2.md" not in paths  # Bob only
+        assert "filter/note4.md" not in paths  # no people
+
+    def test_apply_filters_combined(self, seeded_db):
+        """Combined type + from_date: AND logic — both conditions must match."""
+        from engine.search import _apply_filters
+
+        results = self._make_results(seeded_db)
+        # type=meeting AND from_date=2024-01-01 → only note2 (2024-03-01), not note3 (2023-12-01)
+        out = _apply_filters(results, seeded_db, note_type="meeting", from_date="2024-01-01")
+        assert len(out) == 1
+        assert out[0]["path"] == "filter/note2.md"
