@@ -585,3 +585,63 @@ class TestUploadSizeCap:
         )
         # Must NOT be 413 — any other status is acceptable (415 for mime, 200 for success)
         assert response.status_code != 413
+
+
+class TestPagination:
+    """Pagination shape tests for Flask list endpoints (TDD RED → then GREEN after api.py changes)."""
+
+    def test_list_notes_pagination_shape(self, client):
+        """GET /notes returns dict with total, limit, offset keys."""
+        response = client.get("/notes")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "notes" in data
+        assert "total" in data, f"Missing 'total' key; got keys: {list(data.keys())}"
+        assert "limit" in data, f"Missing 'limit' key; got keys: {list(data.keys())}"
+        assert "offset" in data, f"Missing 'offset' key; got keys: {list(data.keys())}"
+
+    def test_list_notes_limit_param(self, client, tmp_path, monkeypatch):
+        """GET /notes?limit=2&offset=0 returns at most 2 notes."""
+        import engine.db as _db
+        import engine.paths as _paths
+        from engine.db import get_connection as _get_conn, init_schema as _init
+
+        tmp_db = tmp_path / "test.db"
+        monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+        monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+        monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+
+        conn = _get_conn()
+        _init(conn)
+        # Insert 5 notes so there's data to paginate
+        for i in range(5):
+            conn.execute(
+                "INSERT INTO notes (path, title, type, created_at, updated_at, body)"
+                " VALUES (?, ?, ?, datetime('now'), datetime('now'), ?)",
+                (f"{tmp_path}/note-{i}.md", f"Note {i}", "idea", f"Body {i}"),
+            )
+        conn.commit()
+        conn.close()
+
+        response = client.get("/notes?limit=2&offset=0")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert len(data["notes"]) <= 2, f"Expected ≤2 notes with limit=2, got {len(data['notes'])}"
+        assert data["total"] >= 2
+
+    def test_list_notes_default_limit(self, client):
+        """GET /notes with no params returns limit=50 in response."""
+        response = client.get("/notes")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data.get("limit") == 50, f"Expected default limit=50, got {data.get('limit')}"
+
+    def test_get_actions_pagination_shape(self, client):
+        """GET /actions returns dict with total, limit, offset keys."""
+        response = client.get("/actions")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "actions" in data
+        assert "total" in data, f"Missing 'total' key; got keys: {list(data.keys())}"
+        assert "limit" in data, f"Missing 'limit' key; got keys: {list(data.keys())}"
+        assert "offset" in data, f"Missing 'offset' key; got keys: {list(data.keys())}"

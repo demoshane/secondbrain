@@ -1063,4 +1063,53 @@ def test_sb_list_people_empty(tmp_path, monkeypatch):
 
     result = mcp_mod.sb_list_people()
     assert "people" in result
+
+
+def test_sb_files_pagination_shape(tmp_path, monkeypatch):
+    """sb_files called with page=1 returns dict with files, total, total_pages, page keys."""
+    import engine.db as _db
+    import engine.paths as _paths
+
+    brain = tmp_path / "brain"
+    brain.mkdir()
+    files_dir = brain / "files"
+    files_dir.mkdir()
+    # Create a dummy file so the files dir exists and has content
+    (files_dir / "test.txt").write_text("hello")
+
+    monkeypatch.setattr(_paths, "BRAIN_ROOT", brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", brain)
+
+    result = mcp_mod.sb_files(page=1)
+    assert isinstance(result, dict), f"Expected dict, got {type(result)}"
+    assert "files" in result, f"Missing 'files' key; got: {list(result.keys())}"
+    assert "total" in result, f"Missing 'total' key; got: {list(result.keys())}"
+    assert "total_pages" in result, f"Missing 'total_pages' key; got: {list(result.keys())}"
+    assert "page" in result, f"Missing 'page' key; got: {list(result.keys())}"
+
+
+def test_sb_actions_pagination_shape(tmp_path, monkeypatch):
+    """sb_actions called with page=1 returns dict with actions, total, total_pages, page keys."""
+    import engine.db as _db
+    import engine.paths as _paths
+    from engine.db import get_connection as _get_conn, init_schema as _init
+
+    brain = tmp_path / "brain"
+    brain.mkdir()
+    tmp_db = brain / "test.db"
+    monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "BRAIN_ROOT", brain)
+    monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", brain)
+
+    conn = _get_conn(str(tmp_db))
+    _init(conn)
+    conn.close()
+
+    result = mcp_mod.sb_actions(page=1)
+    assert isinstance(result, dict), f"Expected dict, got {type(result)}"
+    assert "actions" in result, f"Missing 'actions' key; got: {list(result.keys())}"
+    assert "total" in result, f"Missing 'total' key; got: {list(result.keys())}"
+    assert "total_pages" in result, f"Missing 'total_pages' key; got: {list(result.keys())}"
+    assert "page" in result, f"Missing 'page' key; got: {list(result.keys())}"
     assert result["people"] == []
