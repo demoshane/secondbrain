@@ -165,6 +165,16 @@ Model routing configurable per content-type in `.meta/config.toml`.
 - ✓ `sb-gui` desktop app (pywebview) — three-panel sidebar/viewer/intelligence — v2.0
 - ✓ MCP server (`sb-mcp-server`) with 10 tools, two-step destructive confirmation, Claude Desktop config — v2.0
 
+### Validated in Phase 34 (v4.0)
+
+- ✓ Shared `ActionItemList` component embedded in NoteViewer, PeoplePage, RightPanel, ActionsPage — interactive toggles everywhere — v4.0
+- ✓ Cmd+K command palette (`cmdk`) with 8-page navigation + capture — v4.0
+- ✓ Entity create/delete for People, Meetings, Projects with cascade-aware modal — v4.0
+- ✓ `sb_create_person` MCP tool — v4.0
+- ✓ Tag autocomplete in NoteViewer (`GET /tags` endpoint + `TagAutocomplete` component) — v4.0
+- ✓ `ActionItemList` on IntelligencePage — v4.0
+- ✓ Toast feedback (`sonner`) on all mutations across the GUI — v4.0
+
 ### Active (v3.0)
 
 - [ ] Encryption at rest — brain content and SQLite index unencrypted on disk
@@ -243,4 +253,4 @@ Model routing configurable per content-type in `.meta/config.toml`.
 
 ---
 
-*Last updated: 2026-03-16 after v2.0 milestone*
+*Last updated: 2026-03-22 — Phase 34 complete (GUI productivity: ActionItemList, Cmd+K palette, entity CRUD, tag autocomplete, toasts)*
