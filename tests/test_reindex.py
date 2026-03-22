@@ -198,3 +198,32 @@ def test_full_flag_reindexes_all(brain_root, db_conn):
     assert result2["indexed"] == 1, (
         f"full=True must reindex all files, got indexed={result2['indexed']}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 33-03: embed_pass_async tests
+# ---------------------------------------------------------------------------
+
+def test_embed_pass_async_returns_future(brain_root, db_conn):
+    """embed_pass_async returns a Future; .result() returns dict with 'updated' key."""
+    import concurrent.futures
+    from engine.reindex import embed_pass_async
+    from engine.db import get_connection
+
+    init_schema(db_conn)
+
+    # Use a conn_factory that returns our isolated test db
+    def conn_factory():
+        import sqlite3
+        from engine.db import init_schema as _init
+        c = sqlite3.connect(":memory:")
+        _init(c)
+        return c
+
+    future = embed_pass_async(conn_factory, provider="sentence-transformers")
+    assert isinstance(future, concurrent.futures.Future), (
+        f"embed_pass_async must return a Future, got: {type(future)}"
+    )
+    result = future.result(timeout=30)
+    assert isinstance(result, dict), f"Future.result() must return dict, got: {type(result)}"
+    assert "updated" in result, f"Result dict must have 'updated' key, got: {result.keys()}"

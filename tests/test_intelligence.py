@@ -453,7 +453,7 @@ def api_client_actions(tmp_path, monkeypatch):
     conn.commit()
     conn.close()
 
-    _api.app.config["TESTING"] = True
+    _api.app.config["TESTING"] = True  # nosemgrep
     with _api.app.test_client() as client:
         yield client
 
@@ -610,3 +610,105 @@ class TestCheckConnectionsCooldown:
 
         # find_similar MUST be called when cooldown has elapsed
         mock_find_similar.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Phase 33-03: Recap window_days and embed_pass_async tests
+# ---------------------------------------------------------------------------
+
+class TestRecapWindowDays:
+    def _make_db(self):
+        import sqlite3
+        from engine.db import init_schema
+        conn = sqlite3.connect(":memory:")
+        init_schema(conn)
+        return conn
+
+    def test_recap_window_days_param(self):
+        """Notes older than window_days are excluded from the recap content."""
+        from engine.intelligence import generate_recap_on_demand
+        conn = self._make_db()
+        # Note within window (1 day ago)
+        conn.execute(
+            "INSERT INTO notes (path, type, title, body, tags, people, sensitivity, created_at) "
+            "VALUES (?,?,?,?,?,?,?,datetime('now','-1 day'))",
+            ("/n/recent.md", "note", "Recent Note", "Recent content here", "[]", "[]", "public"),
+        )
+        # Note outside window (10 days ago)
+        conn.execute(
+            "INSERT INTO notes (path, type, title, body, tags, people, sensitivity, created_at) "
+            "VALUES (?,?,?,?,?,?,?,datetime('now','-10 days'))",
+            ("/n/old.md", "note", "Old Note", "Old content here", "[]", "[]", "public"),
+        )
+        conn.commit()
+
+        captured_content = []
+
+        with patch("engine.intelligence._router") as mock_router:
+            mock_adapter = MagicMock()
+
+            def capture_generate(user_content, system_prompt):
+                captured_content.append(user_content)
+                return "Summary"
+
+            mock_adapter.generate.side_effect = capture_generate
+            mock_router.get_adapter.return_value = mock_adapter
+            # window_days=3: only the 1-day-old note should be sent to the adapter
+            generate_recap_on_demand(conn, window_days=3)
+
+        # The adapter should have been called with content that includes the recent note
+        # but NOT the old note (10 days old is outside the 3-day window)
+        assert captured_content, "Adapter was never called — no notes were passed to recap"
+        all_content = "\n".join(captured_content)
+        assert "Recent Note" in all_content, "Recent note (within window) must be in recap content"
+        assert "Old Note" not in all_content, "Old note (outside window) must be excluded from recap"
+
+    def test_recap_days_cli_override(self):
+        """--days N CLI flag passes window_days=N to generate_recap_on_demand."""
+        from engine.intelligence import recap_main
+        with patch("engine.intelligence.get_connection") as mock_conn, \
+             patch("engine.intelligence.init_schema"), \
+             patch("engine.intelligence.detect_git_context", return_value=None), \
+             patch("engine.intelligence.generate_recap_on_demand") as mock_recap:
+            mock_conn.return_value = MagicMock()
+            recap_main(["--days", "3"])
+        # generate_recap_on_demand must be called with window_days=3
+        mock_recap.assert_called_once()
+        call_kwargs = mock_recap.call_args
+        assert call_kwargs.kwargs.get("window_days") == 3 or (
+            len(call_kwargs.args) > 1 and call_kwargs.args[1] == 3
+        ), f"window_days=3 not passed to generate_recap_on_demand: {call_kwargs}"
+
+    def test_recap_max_notes_cap(self):
+        """Hard cap of 50 notes: even with 60 notes in window, at most 50 reach the adapter."""
+        from engine.intelligence import generate_recap_on_demand
+        conn = self._make_db()
+        # Insert 60 notes all within last 1 hour
+        for i in range(60):
+            conn.execute(
+                "INSERT INTO notes (path, type, title, body, tags, people, sensitivity, created_at) "
+                "VALUES (?,?,?,?,?,?,?,datetime('now','-1 hour'))",
+                (f"/n/note{i}.md", "note", f"Note {i}", f"Content {i}", "[]", "[]", "public"),
+            )
+        conn.commit()
+
+        captured_content = []
+
+        with patch("engine.intelligence._router") as mock_router:
+            mock_adapter = MagicMock()
+
+            def capture_generate(user_content, system_prompt):
+                captured_content.append(user_content)
+                return "Summary"
+
+            mock_adapter.generate.side_effect = capture_generate
+            mock_router.get_adapter.return_value = mock_adapter
+            generate_recap_on_demand(conn, window_days=7)
+
+        assert captured_content, "Adapter was never called"
+        # Count how many note titles appear in the combined adapter input
+        all_content = "\n".join(captured_content)
+        note_count = sum(1 for i in range(60) if f"## Note {i}" in all_content)
+        assert note_count <= 50, (
+            f"Hard cap violated: {note_count} notes passed to adapter (max 50 allowed)"
+        )
