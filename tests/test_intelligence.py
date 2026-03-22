@@ -267,14 +267,16 @@ class TestRecap:
 
 
 class TestRecapNoContext:
-    def test_recap_main_no_context_prints_hint(self, capsys):
-        """sb-recap without git context and no args prints the hint message."""
+    def test_recap_main_no_context_calls_generate_recap(self, capsys):
+        """sb-recap without git context falls back to generate_recap_on_demand (not a hint message)."""
         from engine import intelligence
         with patch.object(intelligence, "detect_git_context", return_value=None), \
-             patch("engine.intelligence.get_connection", return_value=_make_db()):
+             patch("engine.intelligence.get_connection", return_value=_make_db()), \
+             patch("engine.intelligence.generate_recap_on_demand", return_value="recap output") as mock_recap:
             intelligence.recap_main([])
         captured = capsys.readouterr()
-        assert "No context detected" in captured.out  # stub prints nothing → RED
+        mock_recap.assert_called_once()
+        assert "recap output" in captured.out
 
 
 class TestClaudeMdHook:

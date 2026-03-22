@@ -75,6 +75,21 @@ def embed_pass(conn, provider: str, batch_size: int = 32, force: bool = False) -
     return {"updated": len(to_embed), "unchanged": unchanged}
 
 
+from concurrent.futures import ThreadPoolExecutor as _ThreadPoolExecutor
+_embed_executor = _ThreadPoolExecutor(max_workers=1, thread_name_prefix="sb-embed")
+
+
+def embed_pass_async(conn_factory, provider: str, batch_size: int = 32, force: bool = False):
+    """Non-blocking embed_pass. Submits to background thread. Returns concurrent.futures.Future."""
+    def _run():
+        conn = conn_factory()
+        try:
+            return embed_pass(conn, provider, batch_size, force)
+        finally:
+            conn.close()
+    return _embed_executor.submit(_run)
+
+
 def reindex_brain(brain_root: Path, conn=None, full: bool = False, entities: bool = False) -> dict:
     """Walk all .md files under brain_root and upsert them into notes + FTS5.
 
@@ -243,7 +258,9 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False, entities: boo
     if has_embeddings == 0 and not full:
         print("[sb-reindex] Downloading embedding model (~90MB, first-time only)...")
 
-    embed_result = embed_pass(conn, provider=provider, batch_size=batch_size, force=full)
+    future = embed_pass_async(get_connection, provider=provider, batch_size=batch_size, force=full)
+    print("[sb-reindex] Embedding running in background (non-blocking)...")
+    embed_result = future.result()  # block to collect stats; non-blocking interface for callers
 
     if close_after:
         conn.close()

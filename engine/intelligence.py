@@ -463,12 +463,18 @@ def recap_entity(name: str, conn) -> str | None:
         print(msg)
         return None
 
-    # 5. Load full note bodies from DB
-    placeholders = ",".join("?" * len(merged_paths))
-    rows = conn.execute(
-        f"SELECT path, title, body, sensitivity FROM notes WHERE path IN ({placeholders})",
-        merged_paths,
-    ).fetchall()
+    # 5. Load full note bodies from DB (individual lookups avoid dynamic IN clause)
+    rows = []
+    seen_loaded = set()
+    for _path in merged_paths:
+        if _path in seen_loaded:
+            continue
+        _row = conn.execute(
+            "SELECT path, title, body, sensitivity FROM notes WHERE path = ?", (_path,)
+        ).fetchone()
+        if _row:
+            rows.append(_row)
+            seen_loaded.add(_path)
 
     # If DB had tagged rows not returned by query (path mismatch), add them too
     existing_paths = {r[0] for r in rows}
@@ -521,10 +527,26 @@ def recap_entity(name: str, conn) -> str | None:
 # On-demand recap (GUIF-02 / ENGL-03)
 # ---------------------------------------------------------------------------
 
-def generate_recap_on_demand(conn) -> str:
-    """Generate recap from last 7 days of notes. Always regenerates (no idempotency guard).
-    Returns the summary string. Returns fallback string on error or empty DB."""
+def generate_recap_on_demand(conn, window_days: int | None = None) -> str:
+    """Generate recap from recent notes within a configurable time window.
+
+    Args:
+        conn: Active sqlite3.Connection.
+        window_days: How many days back to include. If None, reads from config
+            ([recap].window_days, default 7). Hard cap of max_notes (default 50).
+
+    Returns the summary string. Returns fallback string on error or empty DB.
+    """
     try:
+        from engine.config_loader import load_config
+        from engine.paths import CONFIG_PATH as _cfg_path
+        cfg = load_config(_cfg_path)
+        recap_cfg = cfg.get("recap", {})
+        if window_days is None:
+            window_days = recap_cfg.get("window_days", 7)
+        max_notes = recap_cfg.get("max_notes", 50)
+        body_trunc = recap_cfg.get("body_truncation", 500)
+
         # Overdue actions — always prepend if any exist, regardless of recent notes
         overdue = get_overdue_actions(conn)
         overdue_section = ""
@@ -535,18 +557,22 @@ def generate_recap_on_demand(conn) -> str:
                 lines.append(f"- {item['text']} (due {due})")
             overdue_section = "\n".join(lines) + "\n\n"
 
+        # Use string arithmetic in SQL to avoid f-string interpolation into the query.
+        # window_days and max_notes are ints (validated above); the interval is computed
+        # entirely inside SQLite via arithmetic on a bound parameter — no injection risk.
         rows = conn.execute(
             "SELECT title, body, sensitivity FROM notes "
-            "WHERE created_at >= datetime('now', '-7 days') "
-            "ORDER BY created_at DESC LIMIT 30"
+            "WHERE created_at >= datetime('now', (? || ' days')) "
+            "ORDER BY created_at DESC LIMIT ?",
+            (f"-{int(window_days)}", int(max_notes)),
         ).fetchall()
         if not rows:
-            return overdue_section + "No notes captured in the last 7 days."
+            return overdue_section + f"No notes captured in the last {window_days} days."
         # Separate PII from public
         pii_parts = []
         public_parts = []
         for title, body, sensitivity in rows:
-            snippet = f"## {title}\n{body[:300]}"
+            snippet = f"## {title}\n{body[:body_trunc]}"
             if sensitivity == "pii":
                 pii_parts.append(snippet)
             else:
@@ -580,6 +606,7 @@ def recap_main(argv=None) -> None:
 
     parser = argparse.ArgumentParser(prog="sb-recap", description="Summarise recent activity or recap a person/project")
     parser.add_argument("context", nargs="?", help="Entity name (person/project) or leave blank for session recap")
+    parser.add_argument("--days", type=int, default=None, help="Recap window in days (overrides config [recap].window_days)")
     args = parser.parse_args(argv)
 
     conn = get_connection()
@@ -594,8 +621,10 @@ def recap_main(argv=None) -> None:
     # No argument → original session recap (auto-detect git context)
     context_name = detect_git_context()
     if not context_name:
+        # No git context — fall back to general session recap with optional --days window
+        result = generate_recap_on_demand(conn, window_days=args.days)
         conn.close()
-        print("No context detected — try sb-recap <name>")
+        print(result)
         return
 
     rows = conn.execute(
