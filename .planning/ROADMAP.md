@@ -204,7 +204,7 @@ Plans:
 | 20–31 | v3.0 | 88/88 | Complete | 2026-03-21 |
 | 32 | 1/6 | Complete    | 2026-03-22 | - |
 | 33 | 2/5 | Complete    | 2026-03-22 | - |
-| 34 | v4.0 | 2/4 | In Progress|  |
+| 34 | 3/4 | In Progress|  |  |
 | 35 | v4.0 | 0/3 | Not started | - |
 | 36 | v4.0 | 0/0 | Planning | - |
 | 37 | v4.0 | 0/0 | Not started | - |

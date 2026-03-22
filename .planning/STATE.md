@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
-status: Ready to execute
-stopped_at: Completed 34-02-PLAN.md
-last_updated: "2026-03-22T18:06:32.864Z"
+status: unknown
+stopped_at: Completed 34-03-PLAN.md
+last_updated: "2026-03-22T18:34:18.879Z"
 progress:
-  total_phases: 6
-  completed_phases: 2
-  total_plans: 17
-  completed_plans: 13
+  total_phases: 48
+  completed_phases: 40
+  total_plans: 180
+  completed_plans: 190
 ---
 
 # Project State
@@ -39,6 +39,7 @@ Plan: 3 of 4
 | Phase 33 P01 | 3047 | 2 tasks | 4 files |
 | Phase 34 P01 | 150 | 2 tasks | 5 files |
 | Phase 34 P02 | 8 | 2 tasks | 4 files |
+| Phase 34 P03 | 25 | 2 tasks | 9 files |
 
 ### Decisions
 
@@ -60,6 +61,8 @@ Active decisions affecting upcoming work:
 - [Phase 34]: NoteViewer and RightPanel filter actions client-side by note_path — acceptable for small brain; server-side filter is future optimization
 - [Phase 34]: Note navigation in CommandPalette calls setCurrentView('notes') before openNote() to ensure view switch from any page
 - [Phase 34]: Toaster mounted in Plan 02 (not Plan 04) so Plan 04 toast calls work immediately
+- [Phase 34]: DELETE /people NULLs assignee_path before unlink to prevent orphan action items
+- [Phase 34]: sb_create_person MCP tool uses capture_note(note_type='people') — consistent with API pattern
 
 ### Pending Todos
 
@@ -75,6 +78,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-22T18:06:32.857Z
-Stopped at: Completed 34-02-PLAN.md
+Last session: 2026-03-22T18:34:18.866Z
+Stopped at: Completed 34-03-PLAN.md
 Resume file: None
