@@ -52,6 +52,7 @@ filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["engine", "scripts"]
+force-include = {"engine/gui/static" = "engine/gui/static"}
 
 [build-system]
 requires = ["hatchling"]

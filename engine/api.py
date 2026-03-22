@@ -422,7 +422,7 @@ def create_person():
         init_schema(conn)
         brain_root = Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain")))
         result_path = capture_note(
-            note_type="people",
+            note_type="person",
             title=name,
             body=body,
             tags=[],

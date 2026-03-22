@@ -103,7 +103,7 @@ export function RightPanel() {
         )}
         {people.length > 0 && (
           <section>
-            <h3 className="text-xs font-semibold uppercase text-muted-foreground mb-1">People</h3>
+            <h3 className="text-xs font-semibold uppercase text-muted-foreground mb-1">Persons</h3>
             <div className="flex flex-wrap gap-1">
               {people.map(p => (
                 <Badge

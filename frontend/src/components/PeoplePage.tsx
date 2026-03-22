@@ -165,7 +165,7 @@ export function PeoplePage() {
             {filtered.map(p => (
               <TableRow
                 key={p.path}
-                className={cn('cursor-pointer', selectedPath === p.path && 'bg-accent')}
+                className={cn('cursor-pointer group', selectedPath === p.path && 'bg-accent')}
                 onClick={() => setSelectedPath(p.path)}
               >
                 <TableCell className="font-medium">{p.title}</TableCell>

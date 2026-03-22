@@ -7,7 +7,7 @@ from engine.paths import DB_PATH
 logger = logging.getLogger(__name__)
 
 # ARCH-16: Canonical person type values used across engine modules
-PERSON_TYPES = ("person", "people")
+PERSON_TYPES = ("person",)
 
 
 def _escape_like(s: str) -> str:

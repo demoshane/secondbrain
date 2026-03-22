@@ -45,7 +45,8 @@ export function DeleteEntityModal({
       setLinkCounts(null)
       return
     }
-    fetch(`${getAPI()}/people/${encodeURIComponent(entityPath)}/links`)
+    const relPath = entityPath.startsWith('/') ? entityPath.slice(1) : entityPath
+    fetch(`${getAPI()}/people/${relPath}/links`)
       .then(r => r.ok ? r.json() : null)
       .then((data: LinkCounts | null) => setLinkCounts(data))
       .catch(() => setLinkCounts(null))
@@ -55,8 +56,9 @@ export function DeleteEntityModal({
     if (deleting) return
     setDeleting(true)
     try {
+      const relPath = entityPath.startsWith('/') ? entityPath.slice(1) : entityPath
       const resp = await fetch(
-        `${getAPI()}/${entityType}/${encodeURIComponent(entityPath)}`,
+        `${getAPI()}/${entityType}/${relPath}`,
         { method: 'DELETE' }
       )
       if (!resp.ok) {

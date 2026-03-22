@@ -13,7 +13,7 @@ interface CommandPaletteProps {
 const PAGE_VIEWS = [
   { label: 'Notes', value: 'notes' },
   { label: 'Actions', value: 'actions' },
-  { label: 'People', value: 'people' },
+  { label: 'Persons', value: 'people' },
   { label: 'Meetings', value: 'meetings' },
   { label: 'Projects', value: 'projects' },
   { label: 'Links', value: 'links' },

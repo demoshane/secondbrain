@@ -1355,7 +1355,7 @@ def sb_create_person(name: str, role: str = "") -> dict:
     try:
         init_schema(conn)
         result_path = capture_note(
-            note_type="people",
+            note_type="person",
             title=name.strip(),
             body=body,
             tags=[],
