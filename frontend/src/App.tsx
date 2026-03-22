@@ -16,10 +16,12 @@ import { DeleteNoteModal } from './components/DeleteNoteModal'
 import { FileUploadModal } from './components/FileUploadModal'
 import { BatchCaptureModal } from './components/BatchCaptureModal'
 import { SmartCaptureModal } from './components/SmartCaptureModal'
+import { CommandPalette } from './components/CommandPalette'
 import { useNoteContext } from './contexts/NoteContext'
 import { useUIContext } from './contexts/UIContext'
 import { Button } from './components/ui/button'
 import { Trash2, Upload } from 'lucide-react'
+import { Toaster } from 'sonner'
 
 export default function App() {
   const { loadNotes, currentNote, currentPath } = useNoteContext()
@@ -29,8 +31,20 @@ export default function App() {
   const [showUpload, setShowUpload] = useState(false)
   const [showBatch, setShowBatch] = useState(false)
   const [showSmartCapture, setShowSmartCapture] = useState(false)
+  const [showPalette, setShowPalette] = useState(false)
 
   useEffect(() => { loadNotes() }, [loadNotes])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setShowPalette(prev => !prev)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
@@ -103,6 +117,13 @@ export default function App() {
       <FileUploadModal open={showUpload} onClose={() => setShowUpload(false)} />
       <BatchCaptureModal open={showBatch} onClose={() => setShowBatch(false)} />
       <SmartCaptureModal open={showSmartCapture} onClose={() => setShowSmartCapture(false)} />
+      <CommandPalette
+        open={showPalette}
+        onClose={() => setShowPalette(false)}
+        onOpenSmartCapture={() => setShowSmartCapture(true)}
+        onOpenNewNote={() => setShowNewNote(true)}
+      />
+      <Toaster position="bottom-right" duration={3000} />
     </div>
   )
 }
