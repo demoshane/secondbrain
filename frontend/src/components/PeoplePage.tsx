@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button'
 import { useUIContext } from '@/contexts/UIContext'
 import { useNoteContext } from '@/contexts/NoteContext'
-import type { PersonSummary, ActionItem } from '@/types'
+import { ActionItemList } from './ActionItemList'
+import type { PersonSummary, ActionItem, Note } from '@/types'
 
 function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
   const [open, setOpen] = useState(true)
@@ -30,6 +31,7 @@ export function PeoplePage() {
   const { openNote } = useNoteContext()
 
   const [people, setPeople] = useState<PersonSummary[]>([])
+  const [peopleNotes, setPeopleNotes] = useState<Note[]>([])
   const [filter, setFilter] = useState('')
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [selectedPerson, setSelectedPerson] = useState<PersonSummary | null>(null)
@@ -43,6 +45,10 @@ export function PeoplePage() {
     fetch(`${getAPI()}/people`)
       .then(r => r.json())
       .then(d => setPeople(d.people ?? []))
+      .catch(() => {})
+    fetch(`${getAPI()}/notes`)
+      .then(r => r.json())
+      .then(d => setPeopleNotes((d.notes ?? []).filter((n: Note) => n.type === 'people')))
       .catch(() => {})
   }, [])
 
@@ -73,6 +79,33 @@ export function PeoplePage() {
       setActions(acts.actions ?? [])
     }).catch(() => {})
   }, [selectedPath, people])
+
+  const reloadActions = () => {
+    if (!selectedPath) return
+    const enc = encodeURIComponent(selectedPath)
+    fetch(`${getAPI()}/actions?assignee=${enc}`)
+      .then(r => r.json())
+      .then(d => setActions(d.actions ?? []))
+      .catch(() => {})
+  }
+
+  const toggleDone = async (action: ActionItem) => {
+    await fetch(`${getAPI()}/actions/${action.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ done: !action.done }),
+    })
+    reloadActions()
+  }
+
+  const assignTo = async (action: ActionItem, assigneePath: string) => {
+    await fetch(`${getAPI()}/actions/${action.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assignee_path: assigneePath === 'none' ? null : assigneePath }),
+    })
+    reloadActions()
+  }
 
   async function handleOpenInNotes() {
     if (!selectedPath) return
@@ -208,23 +241,12 @@ export function PeoplePage() {
 
             <Section title="Open Actions" count={actions.filter(a => !a.done).length}>
               <div data-testid="actions-section">
-                {actions.filter(a => !a.done).length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-1">No open actions</p>
-                ) : (
-                  <ul className="space-y-1">
-                    {actions.filter(a => !a.done).map(a => (
-                      <li key={a.id} className="flex items-start gap-2 text-sm">
-                        <input type="checkbox" disabled checked={a.done} className="mt-0.5" />
-                        <span>
-                          {a.text}
-                          {a.due_date && (
-                            <span className="ml-2 text-muted-foreground">{a.due_date}</span>
-                          )}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <ActionItemList
+                  actions={actions.filter(a => !a.done)}
+                  people={peopleNotes}
+                  onToggle={toggleDone}
+                  onAssign={assignTo}
+                />
               </div>
             </Section>
           </div>

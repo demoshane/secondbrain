@@ -7,8 +7,9 @@ import { Edit, Paperclip, Plus, X } from 'lucide-react'
 import { useNoteContext } from '@/contexts/NoteContext'
 import { useSearchContext } from '@/contexts/SearchContext'
 import { NoteEditor } from './NoteEditor'
+import { ActionItemList } from './ActionItemList'
 import { getAPI } from '@/lib/utils'
-import type { Note, Attachment } from '@/types'
+import type { Note, Attachment, ActionItem } from '@/types'
 
 interface Props {
   note: Note
@@ -20,6 +21,8 @@ export function NoteViewer({ note }: Props) {
   const [localTags, setLocalTags] = useState<string[]>(note.tags ?? [])
   const [editingTag, setEditingTag] = useState<string | null>(null)
   const [addingTag, setAddingTag] = useState(false)
+  const [noteActions, setNoteActions] = useState<ActionItem[]>([])
+  const [actionPeople, setActionPeople] = useState<Note[]>([])
   const { setIsDirty } = useNoteContext()
   const { setTagFilter } = useSearchContext()
 
@@ -41,7 +44,48 @@ export function NoteViewer({ note }: Props) {
       .then(r => r.json())
       .then(d => setAttachments(d.attachments ?? []))
       .catch(() => setAttachments([]))
+    // Fetch actions for this note (client-side filter by note_path)
+    fetch(`${getAPI()}/actions`)
+      .then(r => r.json())
+      .then(d => {
+        const all: ActionItem[] = d.actions ?? []
+        setNoteActions(all.filter(a => a.note_path === note.path))
+      })
+      .catch(() => setNoteActions([]))
+    // Fetch people for assignee picker
+    fetch(`${getAPI()}/notes`)
+      .then(r => r.json())
+      .then(d => setActionPeople((d.notes ?? []).filter((n: Note) => n.type === 'people')))
+      .catch(() => setActionPeople([]))
   }, [note.path])
+
+  const reloadNoteActions = () => {
+    fetch(`${getAPI()}/actions`)
+      .then(r => r.json())
+      .then(d => {
+        const all: ActionItem[] = d.actions ?? []
+        setNoteActions(all.filter(a => a.note_path === note.path))
+      })
+      .catch(() => {})
+  }
+
+  const toggleDone = async (action: ActionItem) => {
+    await fetch(`${getAPI()}/actions/${action.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ done: !action.done }),
+    })
+    reloadNoteActions()
+  }
+
+  const assignTo = async (action: ActionItem, assigneePath: string) => {
+    await fetch(`${getAPI()}/actions/${action.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assignee_path: assigneePath === 'none' ? null : assigneePath }),
+    })
+    reloadNoteActions()
+  }
 
   if (editing) {
     return (
@@ -139,6 +183,17 @@ export function NoteViewer({ note }: Props) {
       <div className="flex-1 overflow-auto px-4 py-3 prose prose-sm dark:prose-invert max-w-none" data-testid="note-body">
         <Markdown remarkPlugins={[remarkGfm]}>{note.body ?? ''}</Markdown>
       </div>
+      {noteActions.length > 0 && (
+        <div className="px-4 py-3 border-t" data-testid="note-action-items">
+          <h3 className="text-lg font-semibold mb-2">Action Items</h3>
+          <ActionItemList
+            actions={noteActions}
+            people={actionPeople}
+            onToggle={toggleDone}
+            onAssign={assignTo}
+          />
+        </div>
+      )}
       {attachments.length > 0 && (
         <div className="px-4 py-2 border-t" data-testid="attachment-list">
           <div className="flex items-center gap-1 mb-1 text-xs font-semibold uppercase text-muted-foreground">
