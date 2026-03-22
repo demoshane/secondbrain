@@ -380,15 +380,15 @@ def check_connections(note_path: Path, conn, brain_root: Path) -> None:
         matches = find_similar(str(note_path.resolve()), conn)
         if not matches:
             return
-        print("\nRelated notes found:")
+        logger.info("Related notes found for %s:", note_path.name)
         for m in matches:
             matched_path = Path(m["note_path"])
-            print(f"  - {matched_path.name}  (similarity: {m['similarity']:.2f})")
+            logger.info("  - %s  (similarity: %.2f)", matched_path.name, m["similarity"])
             # Phase 17 revisit: skip append for pii-sensitivity notes
             _append_related_link(note_path, matched_path.stem)
         consume_budget()
     except Exception:
-        pass
+        logger.warning("check_connections failed", exc_info=True)
 
 
 # ---------------------------------------------------------------------------
