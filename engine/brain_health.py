@@ -265,6 +265,66 @@ def merge_notes(
     return {"keep": keep_path, "discarded": discard_path, "merged_tags": merged_tags}
 
 
+def get_stub_notes(conn: sqlite3.Connection, word_limit: int = 50) -> list[dict]:
+    """Return notes with body NULL, empty, or fewer than word_limit words.
+
+    Uses LENGTH(body) < 400 as DB pre-filter, then Python word count for accuracy.
+    Per D-04: surfaces thin content for enrichment or merge-first workflow.
+    """
+    rows = conn.execute(
+        """
+        SELECT path, title, body FROM notes
+        WHERE body IS NULL OR TRIM(body) = '' OR LENGTH(body) < 400
+        LIMIT 100
+        """
+    ).fetchall()
+    stubs = []
+    for path, title, body in rows:
+        if body is None or body.strip() == "" or len(body.split()) < word_limit:
+            stubs.append({"path": path, "title": title, "word_count": len((body or "").split())})
+    return stubs[:50]
+
+
+def delete_dangling_relationships(conn: sqlite3.Connection) -> int:
+    """Delete relationships where source or target path not in notes table.
+
+    Per D-07: removes stale graph edges pointing to deleted notes.
+    Returns the count of deleted rows.
+    """
+    result = conn.execute(
+        """
+        DELETE FROM relationships
+        WHERE source_path NOT IN (SELECT path FROM notes)
+           OR target_path NOT IN (SELECT path FROM notes)
+        """
+    )
+    conn.commit()
+    return result.rowcount
+
+
+def get_bidirectional_gaps(conn: sqlite3.Connection) -> list[dict]:
+    """Return one-way relationships (A->B exists but B->A does not).
+
+    Only includes pairs where both paths exist in notes table.
+    Per D-07: flags asymmetric links for review — not auto-created.
+    """
+    rows = conn.execute(
+        """
+        SELECT r.source_path, r.target_path, r.rel_type
+        FROM relationships r
+        WHERE NOT EXISTS (
+            SELECT 1 FROM relationships r2
+            WHERE r2.source_path = r.target_path
+              AND r2.target_path = r.source_path
+        )
+        AND r.source_path IN (SELECT path FROM notes)
+        AND r.target_path IN (SELECT path FROM notes)
+        ORDER BY r.source_path
+        """
+    ).fetchall()
+    return [{"source": r[0], "target": r[1], "rel_type": r[2]} for r in rows]
+
+
 def get_brain_health_report(conn: sqlite3.Connection) -> dict:
     """Run all health checks and return a summary dict.
 

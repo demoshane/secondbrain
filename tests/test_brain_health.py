@@ -458,3 +458,148 @@ def test_merge_nonexistent_discard_raises(merge_conn):
 
     with pytest.raises(ValueError, match="not found"):
         merge_notes(keep_path, "/nonexistent/path.md", conn)
+
+
+# ---------------------------------------------------------------------------
+# Phase 35-02: stub detection + connection cleanup (CONS-02, CONS-03)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def stub_conn(tmp_path):
+    """Isolated SQLite DB for stub and connection cleanup tests."""
+    import engine.db as _db
+    import engine.paths as _paths
+    db_path = tmp_path / "stub_test.db"
+    _db.DB_PATH = db_path
+    _paths.DB_PATH = db_path
+    from engine.db import get_connection, init_schema
+    conn = get_connection()
+    init_schema(conn)
+    yield conn
+    conn.close()
+
+
+def _insert_note(conn, path, title, body):
+    conn.execute(
+        "INSERT INTO notes (path, title, type, body, sensitivity) VALUES (?,?,?,?,?)",
+        (path, title, "note", body, "public"),
+    )
+    conn.commit()
+
+
+def test_get_stub_notes_word_count(stub_conn):
+    """35-02: get_stub_notes returns notes with < 50 words, excludes >= 50 words."""
+    from engine.brain_health import get_stub_notes
+
+    short_body = " ".join(["word"] * 10)   # 10 words — stub
+    borderline = " ".join(["word"] * 49)   # 49 words — stub
+    exact_50 = " ".join(["word"] * 50)     # 50 words — NOT stub
+    long_body = " ".join(["word"] * 100)   # 100 words — NOT stub
+
+    _insert_note(stub_conn, "a.md", "Short", short_body)
+    _insert_note(stub_conn, "b.md", "Borderline", borderline)
+    _insert_note(stub_conn, "c.md", "Exact50", exact_50)
+    _insert_note(stub_conn, "d.md", "Long", long_body)
+
+    result = get_stub_notes(stub_conn)
+    paths = [r["path"] for r in result]
+
+    assert "a.md" in paths, "10-word note must be a stub"
+    assert "b.md" in paths, "49-word note must be a stub"
+    assert "c.md" not in paths, "50-word note must NOT be a stub"
+    assert "d.md" not in paths, "100-word note must NOT be a stub"
+
+
+def test_get_stub_notes_includes_empty(stub_conn):
+    """35-02: get_stub_notes includes notes with empty body (superset of get_empty_notes).
+
+    Schema enforces NOT NULL DEFAULT '' so NULL is tested via empty string path.
+    """
+    from engine.brain_health import get_stub_notes
+    stub_conn.execute(
+        "INSERT INTO notes (path, title, type, body, sensitivity) VALUES (?,?,?,?,?)",
+        ("empty_body.md", "Empty Body", "note", "", "public"),
+    )
+    stub_conn.commit()
+
+    result = get_stub_notes(stub_conn)
+    paths = [r["path"] for r in result]
+    assert "empty_body.md" in paths, "Note with empty body must be included in stubs"
+
+
+def test_delete_dangling_relationships(stub_conn):
+    """35-02: delete_dangling_relationships removes relationship where source_path not in notes."""
+    from engine.brain_health import delete_dangling_relationships
+    _insert_note(stub_conn, "exists.md", "Exists", "body")
+    stub_conn.execute(
+        "INSERT INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+        ("ghost.md", "exists.md", "reference"),
+    )
+    stub_conn.commit()
+
+    count = delete_dangling_relationships(stub_conn)
+    assert count == 1, f"Expected 1 dangling deleted, got {count}"
+    remaining = stub_conn.execute("SELECT * FROM relationships").fetchall()
+    assert len(remaining) == 0
+
+
+def test_delete_dangling_keeps_valid(stub_conn):
+    """35-02: delete_dangling_relationships keeps relationships where both paths exist."""
+    from engine.brain_health import delete_dangling_relationships
+    _insert_note(stub_conn, "src.md", "Source", "body")
+    _insert_note(stub_conn, "tgt.md", "Target", "body")
+    stub_conn.execute(
+        "INSERT INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+        ("src.md", "tgt.md", "reference"),
+    )
+    stub_conn.commit()
+
+    count = delete_dangling_relationships(stub_conn)
+    assert count == 0, f"Expected 0 deleted, got {count}"
+    remaining = stub_conn.execute("SELECT * FROM relationships").fetchall()
+    assert len(remaining) == 1
+
+
+def test_bidirectional_gap_detection(stub_conn):
+    """35-02: get_bidirectional_gaps returns A->B when B->A is missing, and nothing when both directions exist."""
+    from engine.brain_health import get_bidirectional_gaps
+    _insert_note(stub_conn, "A.md", "A", "body")
+    _insert_note(stub_conn, "B.md", "B", "body")
+
+    # Only A->B, no B->A
+    stub_conn.execute(
+        "INSERT INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+        ("A.md", "B.md", "reference"),
+    )
+    stub_conn.commit()
+
+    gaps = get_bidirectional_gaps(stub_conn)
+    assert any(g["source"] == "A.md" and g["target"] == "B.md" for g in gaps), \
+        "A->B gap should be detected"
+
+    # Add B->A
+    stub_conn.execute(
+        "INSERT INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+        ("B.md", "A.md", "reference"),
+    )
+    stub_conn.commit()
+
+    gaps = get_bidirectional_gaps(stub_conn)
+    assert not any(g["source"] == "A.md" and g["target"] == "B.md" for g in gaps), \
+        "A->B should NOT be a gap when B->A also exists"
+
+
+def test_bidirectional_gap_excludes_dangling(stub_conn):
+    """35-02: dangling relationships (path not in notes) must NOT appear in bidirectional gaps."""
+    from engine.brain_health import get_bidirectional_gaps
+    # Insert only one note; the other path doesn't exist
+    _insert_note(stub_conn, "real.md", "Real", "body")
+    stub_conn.execute(
+        "INSERT INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+        ("ghost.md", "real.md", "reference"),
+    )
+    stub_conn.commit()
+
+    gaps = get_bidirectional_gaps(stub_conn)
+    assert not any(g["source"] == "ghost.md" for g in gaps), \
+        "Dangling source (ghost.md) must NOT appear in bidirectional gaps"
