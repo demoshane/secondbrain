@@ -253,4 +253,4 @@ Model routing configurable per content-type in `.meta/config.toml`.
 
 ---
 
-*Last updated: 2026-03-22 — Phase 34 complete (GUI productivity: ActionItemList, Cmd+K palette, entity CRUD, tag autocomplete, toasts)*
+*Last updated: 2026-03-23 — Phase 35 complete (brain consolidation: duplicate merge workflow, stub detection, connection cleanup, health trend tracking, scheduled consolidation)*
