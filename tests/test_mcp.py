@@ -1276,3 +1276,32 @@ def test_merge_confirm_requires_token(tmp_path, monkeypatch):
     assert result["status"] == "pending"
     assert "confirm_token" in result
     assert len(result["confirm_token"]) > 0
+
+
+def test_find_stubs_with_matches(tmp_path, monkeypatch):
+    """sb_find_stubs returns stubs with similar_notes and action field."""
+    import engine.db as _db
+    import engine.paths as _paths
+    from engine.db import get_connection, init_schema
+
+    tmp_db = tmp_path / "test.db"
+    monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+
+    conn = get_connection()
+    init_schema(conn)
+    # Insert a stub note (< 50 words)
+    conn.execute(
+        "INSERT INTO notes (path, title, body, type, created_at, updated_at) VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))",
+        ("stub.md", "Stub Note", "Short body.", "note"),
+    )
+    conn.commit()
+    conn.close()
+
+    result = mcp_mod.sb_find_stubs(word_limit=50)
+    assert result["count"] >= 1
+    stub = next(s for s in result["stubs"] if s["path"] == "stub.md")
+    assert "similar_notes" in stub
+    assert "action" in stub
+    assert stub["action"] in ("merge", "enrich")

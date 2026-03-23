@@ -1420,5 +1420,64 @@ def sb_merge_confirm(keep_path: str, discard_path: str, confirm_token: str = "")
         conn.close()
 
 
+@mcp.tool()
+def sb_find_stubs(word_limit: int = 50, similarity_threshold: float = 0.85) -> dict:
+    """Return stub notes (< word_limit words) with similarity matches for merge-first workflow.
+
+    Per D-05, D-06: stubs with a similar fuller note are routed as merge candidates (action=merge).
+    Stubs with no similar notes are candidates for enrichment (action=enrich).
+    word_limit: notes with fewer words than this are stubs (default 50).
+    similarity_threshold: cosine similarity cutoff for merge candidate detection (default 0.85).
+    """
+    conn = get_connection()
+    try:
+        from engine.brain_health import get_stub_notes
+        stubs = get_stub_notes(conn, word_limit=word_limit)
+        enriched = []
+        for stub in stubs:
+            matches = []
+            try:
+                from engine.intelligence import find_similar
+                from engine.paths import store_path
+                path = stub["path"]
+                try:
+                    path = store_path(path)
+                except (ValueError, Exception):
+                    pass
+                similar = find_similar(path, conn, threshold=similarity_threshold, limit=3)
+                matches = [m for m in similar if m["note_path"] != stub["path"]]
+            except Exception:
+                pass
+            enriched.append({
+                **stub,
+                "similar_notes": matches,
+                "action": "merge" if matches else "enrich",
+            })
+        return {"stubs": enriched, "count": len(enriched)}
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def sb_cleanup_connections() -> dict:
+    """Delete dangling relationships and flag bidirectional gaps.
+
+    Per D-08, D-09: removes stale graph edges (dangling) and surfaces one-way links (gaps)
+    for manual review. Returns counts for transparency.
+    """
+    conn = get_connection()
+    try:
+        from engine.brain_health import delete_dangling_relationships, get_bidirectional_gaps
+        deleted = delete_dangling_relationships(conn)
+        gaps = get_bidirectional_gaps(conn)
+        return {
+            "deleted_dangling": deleted,
+            "bidirectional_gaps": gaps,
+            "gap_count": len(gaps),
+        }
+    finally:
+        conn.close()
+
+
 def main() -> None:
     mcp.run(transport="stdio")
