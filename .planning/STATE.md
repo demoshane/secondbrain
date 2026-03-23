@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Ready to execute
-stopped_at: Completed 35-01-PLAN.md
-last_updated: "2026-03-23T12:30:21.079Z"
+stopped_at: Completed 35-02-PLAN.md
+last_updated: "2026-03-23T12:46:26.430Z"
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 20
-  completed_plans: 16
+  completed_plans: 17
 ---
 
 # Project State
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 35 (brain-consolidation) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 
 ## Performance Metrics
 
@@ -42,6 +42,7 @@ Plan: 2 of 3
 | Phase 34 P03 | 25 | 2 tasks | 9 files |
 | Phase 34 P04 | — | 2 tasks | — | (UATs accepted 2026-03-23)
 | Phase 35 P01 | 30 | 2 tasks | 8 files |
+| Phase 35 P02 | 15 | 2 tasks | 4 files |
 
 ### Decisions
 
@@ -67,6 +68,9 @@ Active decisions affecting upcoming work:
 - [Phase 34]: sb_create_person MCP tool uses capture_note(note_type='people') — consistent with API pattern
 - [Phase 35]: FTS5 rebuild must run outside transaction block — inside transaction it reads pre-commit state, leaving stale entries after content table DELETE
 - [Phase 35]: GUI /brain-health/merge skips confirm-token — window.confirm() modal satisfies D-03 at UX layer; MCP surface uses stricter confirm-token pattern
+- [Phase 35]: test_get_stub_notes_includes_empty uses empty string not NULL — notes.body has NOT NULL DEFAULT constraint
+- [Phase 35]: sb_find_stubs silently catches find_similar exceptions — stubs may have no embeddings, tool must not crash
+- [Phase 35]: get_bidirectional_gaps flags gaps for review only, not auto-create — per D-07 design intent
 
 ### Pending Todos
 
@@ -82,6 +86,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-23T12:30:21.073Z
-Stopped at: Completed 35-01-PLAN.md
+Last session: 2026-03-23T12:46:26.422Z
+Stopped at: Completed 35-02-PLAN.md
 Resume file: None
