@@ -69,6 +69,7 @@ Build a Chrome Manifest V3 extension that captures web pages (full article via R
 ### H — Setup & Installation
 
 - **D-16:** `setup.sh` should detect the built extension directory and prompt the user to install it in Chrome developer mode. If user agrees, open `chrome://extensions` and display step-by-step instructions (can't auto-install — Chrome security prevents it). Installation steps: enable Developer Mode → "Load unpacked" → point to `chrome-extension/` directory.
+- **D-17:** GUI (Settings or Intelligence page) gets an "Install Chrome Extension" button that opens `chrome://extensions` and shows the same step-by-step instructions inline. Should also show current connection status (sb-api reachable from browser context) so the user can confirm the extension will work after install.
 
 ### Claude's Discretion
 
