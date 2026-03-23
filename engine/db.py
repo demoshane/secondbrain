@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 # ARCH-16: Canonical person type values used across engine modules
 PERSON_TYPES = ("person",)
+PERSON_TYPES_PH = ",".join("?" for _ in PERSON_TYPES)  # SQL placeholder string
 
 
 def _escape_like(s: str) -> str:
@@ -360,6 +361,15 @@ def migrate_paths_to_relative(conn: sqlite3.Connection, brain_root: Path | None 
 
     with conn:
         for abs_path, rel_path in path_map.items():
+            # If the relative path already exists, the absolute row is a stale duplicate — remove it.
+            existing = conn.execute("SELECT 1 FROM notes WHERE path=?", (rel_path,)).fetchone()
+            if existing:
+                conn.execute("DELETE FROM notes WHERE path=?", (abs_path,))
+                logger.warning(
+                    "migrate_paths_to_relative: duplicate removed (relative path already exists): %s",
+                    abs_path,
+                )
+                continue
             conn.execute(
                 "UPDATE notes SET path=? WHERE path=?",
                 (rel_path, abs_path),
@@ -404,6 +414,29 @@ def migrate_paths_to_relative(conn: sqlite3.Connection, brain_root: Path | None 
     )
 
 
+def migrate_people_type_to_person(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: rename note type 'people' → 'person'."""
+    conn.execute("UPDATE notes SET type = 'person' WHERE type = 'people'")
+    conn.commit()
+
+
+def migrate_add_health_snapshots_table(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: create health_snapshots table if absent."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS health_snapshots (
+            id              INTEGER PRIMARY KEY,
+            snapped_at      TEXT NOT NULL,
+            score           INTEGER,
+            total_notes     INTEGER,
+            orphan_count    INTEGER,
+            broken_count    INTEGER,
+            duplicate_count INTEGER,
+            stub_count      INTEGER
+        )
+    """)
+    conn.commit()
+
+
 def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     """Create (or optionally recreate) the full schema.
 
@@ -429,6 +462,8 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     # ARCH-05/15: Junction tables for indexed tag and people lookups (32-03)
     migrate_add_note_tags_table(conn)
     migrate_add_note_people_table(conn)
+    migrate_people_type_to_person(conn)
+    migrate_add_health_snapshots_table(conn)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_url ON notes(url)")
     # idx_notes_people is dropped by migrate_add_note_people_table — do not re-create

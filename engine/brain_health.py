@@ -325,6 +325,43 @@ def get_bidirectional_gaps(conn: sqlite3.Connection) -> list[dict]:
     return [{"source": r[0], "target": r[1], "rel_type": r[2]} for r in rows]
 
 
+def take_health_snapshot(conn: sqlite3.Connection) -> dict:
+    """Take a health snapshot for today. Skips if one already exists for today (one-per-day guard)."""
+    import datetime
+    today = datetime.date.today().isoformat()
+    existing = conn.execute(
+        "SELECT id FROM health_snapshots WHERE date(snapped_at) = ?", (today,)
+    ).fetchone()
+    if existing:
+        return {"skipped": True, "reason": "snapshot_exists_today"}
+
+    total = conn.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
+    orphans = get_orphan_notes(conn)
+    broken = get_missing_file_notes(conn)
+    duplicates = get_duplicate_candidates(conn)
+    stubs = get_stub_notes(conn)
+    score = compute_health_score(total, len(orphans), len(broken), len(duplicates))
+
+    conn.execute("""
+        INSERT INTO health_snapshots (snapped_at, score, total_notes, orphan_count, broken_count, duplicate_count, stub_count)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (today, score, total, len(orphans), len(broken), len(duplicates), len(stubs)))
+    conn.commit()
+    return {"skipped": False, "score": score, "total_notes": total,
+            "orphan_count": len(orphans), "broken_count": len(broken),
+            "duplicate_count": len(duplicates), "stub_count": len(stubs)}
+
+
+def cleanup_old_snapshots(conn: sqlite3.Connection, days: int = 90) -> int:
+    """Delete health_snapshots older than `days` days. Returns deleted count."""
+    result = conn.execute(
+        "DELETE FROM health_snapshots WHERE snapped_at < date('now', ?)",
+        (f"-{days} days",),
+    )
+    conn.commit()
+    return result.rowcount
+
+
 def get_brain_health_report(conn: sqlite3.Connection) -> dict:
     """Run all health checks and return a summary dict.
 
