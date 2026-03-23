@@ -5,7 +5,9 @@ This module checks brain data quality: orphans, broken links, duplicate notes.
 """
 from __future__ import annotations
 
+import json
 import sqlite3
+from pathlib import Path
 
 
 def get_orphan_notes(conn: sqlite3.Connection) -> list[dict]:
@@ -149,6 +151,118 @@ def archive_old_action_items(conn: sqlite3.Connection, days: int = 90) -> int:
         )
 
     return len(rows)
+
+
+def merge_notes(
+    keep_path: str, discard_path: str, conn: sqlite3.Connection
+) -> dict:
+    """Merge a duplicate note (discard) into a keep note.
+
+    Per D-02: merges body (separator-joined), tags (set-union), and remaps
+    relationships from discard to keep. Then cascade-deletes discard from all
+    tables, rebuilds FTS5, deletes disk file, and writes an audit log entry.
+
+    Args:
+        keep_path:    Path of the note to keep (merge target).
+        discard_path: Path of the note to delete after merging its content.
+        conn:         Open SQLite connection.
+
+    Returns:
+        {"keep": keep_path, "discarded": discard_path, "merged_tags": list[str]}
+
+    Raises:
+        ValueError: If keep_path or discard_path is not found in the notes table.
+    """
+    keep_row = conn.execute(
+        "SELECT path, title, body, tags FROM notes WHERE path = ?", (keep_path,)
+    ).fetchone()
+    if keep_row is None:
+        raise ValueError(f"keep_path not found: {keep_path!r}")
+
+    discard_row = conn.execute(
+        "SELECT path, title, body, tags FROM notes WHERE path = ?", (discard_path,)
+    ).fetchone()
+    if discard_row is None:
+        raise ValueError(f"discard_path not found: {discard_path!r}")
+
+    keep_body = keep_row[2] or ""
+    discard_body = discard_row[2] or ""
+    if keep_body and discard_body:
+        merged_body = keep_body + "\n\n---\n\n" + discard_body
+    elif discard_body:
+        merged_body = discard_body
+    else:
+        merged_body = keep_body
+
+    keep_tags = json.loads(keep_row[3] or "[]")
+    discard_tags = json.loads(discard_row[3] or "[]")
+    merged_tags = sorted(set(keep_tags + discard_tags))
+    merged_tags_json = json.dumps(merged_tags)
+
+    with conn:
+        # Update keep note body, tags, updated_at
+        conn.execute(
+            "UPDATE notes SET body=?, tags=?, updated_at=datetime('now') WHERE path=?",
+            (merged_body, merged_tags_json, keep_path),
+        )
+
+        # Remap relationships: discard→X becomes keep→X (skip duplicates)
+        conn.execute(
+            """
+            UPDATE relationships SET source_path=?
+            WHERE source_path=?
+              AND target_path NOT IN (
+                  SELECT target_path FROM relationships WHERE source_path=?
+              )
+            """,
+            (keep_path, discard_path, keep_path),
+        )
+        # Remap relationships: X→discard becomes X→keep (skip duplicates)
+        conn.execute(
+            """
+            UPDATE relationships SET target_path=?
+            WHERE target_path=?
+              AND source_path NOT IN (
+                  SELECT source_path FROM relationships WHERE target_path=?
+              )
+            """,
+            (keep_path, discard_path, keep_path),
+        )
+        # Delete any remaining relationships involving discard
+        conn.execute(
+            "DELETE FROM relationships WHERE source_path=? OR target_path=?",
+            (discard_path, discard_path),
+        )
+
+        # Cascade-delete discard from satellite tables
+        conn.execute("DELETE FROM note_embeddings WHERE note_path=?", (discard_path,))
+        conn.execute("DELETE FROM action_items WHERE note_path=?", (discard_path,))
+        conn.execute("DELETE FROM note_people WHERE note_path=?", (discard_path,))
+        conn.execute("DELETE FROM note_tags WHERE note_path=?", (discard_path,))
+
+        # Delete the discard note itself (triggers FTS5 delete trigger)
+        conn.execute("DELETE FROM notes WHERE path=?", (discard_path,))
+
+    # Rebuild FTS5 outside the transaction to ensure it reads committed state
+    conn.execute("INSERT INTO notes_fts(notes_fts) VALUES('rebuild')")
+    conn.commit()
+
+    # Delete discard file from disk (after DB commit per ARCH-08)
+    discard_file = Path(discard_path)
+    if not discard_file.is_absolute():
+        from engine.paths import BRAIN_ROOT
+        discard_file = BRAIN_ROOT / discard_path
+    discard_file.unlink(missing_ok=True)
+
+    # Write audit log entry
+    conn.execute(
+        "INSERT INTO audit_log (event_type, note_path, detail, created_at)"
+        " VALUES ('merge', ?, ?, datetime('now'))",
+        (keep_path, f"merged:{discard_path}"),
+    )
+    conn.commit()
+
+    return {"keep": keep_path, "discarded": discard_path, "merged_tags": merged_tags}
 
 
 def get_brain_health_report(conn: sqlite3.Connection) -> dict:

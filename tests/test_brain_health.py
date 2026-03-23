@@ -290,3 +290,171 @@ def test_health_report_includes_archived_count(archive_conn):
     report = get_brain_health_report(archive_conn)
     assert "archived_action_items" in report, f"archived_action_items missing from {list(report.keys())}"
     assert report["archived_action_items"] >= 1
+
+
+# ---------------------------------------------------------------------------
+# Phase 35-01: merge_notes() tests (CONS-01)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def merge_conn(tmp_path):
+    """Isolated SQLite DB with schema + two markdown files on disk for merge testing."""
+    import engine.db as _db
+    import engine.paths as _paths
+    db_path = tmp_path / "merge_test.db"
+    _db.DB_PATH = db_path
+    _paths.DB_PATH = db_path
+    from engine.db import get_connection, init_schema
+    conn = get_connection()
+    init_schema(conn)
+    # Create actual markdown files on disk
+    keep_file = tmp_path / "keep.md"
+    discard_file = tmp_path / "discard.md"
+    keep_file.write_text("# Keep Note\n\nKeep body content.", encoding="utf-8")
+    discard_file.write_text("# Discard Note\n\nDiscard body content.", encoding="utf-8")
+    # Insert both notes into DB using their absolute paths
+    conn.execute(
+        "INSERT INTO notes (path, title, type, body, tags, sensitivity) VALUES (?,?,?,?,?,?)",
+        (str(keep_file), "Keep Note", "note", "Keep body content.", '["alpha","beta"]', "public"),
+    )
+    conn.execute(
+        "INSERT INTO notes (path, title, type, body, tags, sensitivity) VALUES (?,?,?,?,?,?)",
+        (str(discard_file), "Discard Note", "note", "Discard body content.", '["beta","gamma"]', "public"),
+    )
+    conn.commit()
+    yield conn, tmp_path, str(keep_file), str(discard_file)
+    conn.close()
+
+
+def test_merge_copies_body_tags_relationships(merge_conn):
+    """35-01: merge_notes merges body with separator, unions tags, remaps relationships."""
+    from engine.brain_health import merge_notes
+    conn, tmp_path, keep_path, discard_path = merge_conn
+
+    # Add a relationship from discard to another note
+    other_file = tmp_path / "other.md"
+    other_file.write_text("# Other\n\nOther body.", encoding="utf-8")
+    conn.execute(
+        "INSERT INTO notes (path, title, type, body, sensitivity) VALUES (?,?,?,?,?)",
+        (str(other_file), "Other Note", "note", "Other body.", "public"),
+    )
+    conn.execute(
+        "INSERT INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+        (discard_path, str(other_file), "reference"),
+    )
+    conn.commit()
+
+    result = merge_notes(keep_path, discard_path, conn)
+
+    assert result["keep"] == keep_path
+    assert result["discarded"] == discard_path
+
+    # Body: merged with separator
+    row = conn.execute("SELECT body, tags FROM notes WHERE path=?", (keep_path,)).fetchone()
+    assert "Keep body content." in row[0]
+    assert "Discard body content." in row[0]
+    assert "\n\n---\n\n" in row[0]
+
+    # Tags: union of alpha, beta, gamma
+    import json
+    merged_tags = json.loads(row[1])
+    assert set(merged_tags) == {"alpha", "beta", "gamma"}
+
+    # Relationship remapped: discard->other should now be keep->other
+    rels = conn.execute(
+        "SELECT source_path FROM relationships WHERE target_path=?", (str(other_file),)
+    ).fetchall()
+    sources = [r[0] for r in rels]
+    assert keep_path in sources
+    assert discard_path not in sources
+
+
+def test_merge_deletes_discard_note(merge_conn):
+    """35-01: discard note is removed from notes, embeddings, action_items, note_people, note_tags tables."""
+    from engine.brain_health import merge_notes
+    conn, tmp_path, keep_path, discard_path = merge_conn
+
+    # Add an action item and note_people row for the discard note
+    conn.execute(
+        "INSERT INTO action_items (note_path, text, done) VALUES (?,?,?)",
+        (discard_path, "Do something", 0),
+    )
+    conn.execute(
+        "INSERT INTO note_tags (note_path, tag) VALUES (?,?)",
+        (discard_path, "gamma"),
+    )
+    conn.commit()
+
+    merge_notes(keep_path, discard_path, conn)
+
+    # Notes table: discard gone
+    assert conn.execute("SELECT 1 FROM notes WHERE path=?", (discard_path,)).fetchone() is None
+    # Action items: discard's items gone
+    assert conn.execute("SELECT 1 FROM action_items WHERE note_path=?", (discard_path,)).fetchone() is None
+    # Note tags: discard's tags gone
+    assert conn.execute("SELECT 1 FROM note_tags WHERE note_path=?", (discard_path,)).fetchone() is None
+
+
+def test_merge_fts5_rebuilt(merge_conn):
+    """35-01: after merge, FTS5 search by discard title (title column only) returns no results."""
+    from engine.brain_health import merge_notes
+    conn, tmp_path, keep_path, discard_path = merge_conn
+
+    # Record the discard note's rowid before merge
+    discard_row = conn.execute("SELECT id FROM notes WHERE path=?", (discard_path,)).fetchone()
+    assert discard_row is not None
+    discard_rowid = discard_row[0]
+
+    merge_notes(keep_path, discard_path, conn)
+
+    # Discard note rowid must not exist in notes table anymore
+    assert conn.execute("SELECT 1 FROM notes WHERE id=?", (discard_rowid,)).fetchone() is None
+
+    # FTS5 search scoped to title column — discard title should not appear
+    rows = conn.execute(
+        "SELECT rowid FROM notes_fts WHERE notes_fts MATCH ?",
+        ("title:\"Discard Note\"",),
+    ).fetchall()
+    assert len(rows) == 0, "Discard note title still in FTS5 after merge"
+
+    # Keep note title should still be findable
+    rows = conn.execute(
+        "SELECT rowid FROM notes_fts WHERE notes_fts MATCH ?",
+        ("title:\"Keep Note\"",),
+    ).fetchall()
+    assert len(rows) >= 1
+
+
+def test_merge_discard_file_deleted(merge_conn):
+    """35-01: discard markdown file is deleted from disk after merge."""
+    from engine.brain_health import merge_notes
+    from pathlib import Path
+    conn, tmp_path, keep_path, discard_path = merge_conn
+
+    assert Path(discard_path).exists(), "Discard file must exist before merge"
+    merge_notes(keep_path, discard_path, conn)
+    assert not Path(discard_path).exists(), "Discard file must be deleted after merge"
+
+
+def test_merge_audit_logged(merge_conn):
+    """35-01: audit_log has event_type='merge' entry after merge_notes."""
+    from engine.brain_health import merge_notes
+    conn, tmp_path, keep_path, discard_path = merge_conn
+
+    merge_notes(keep_path, discard_path, conn)
+
+    row = conn.execute(
+        "SELECT note_path, detail FROM audit_log WHERE event_type='merge'",
+    ).fetchone()
+    assert row is not None, "No merge audit log entry found"
+    assert row[0] == keep_path
+    assert discard_path in row[1]
+
+
+def test_merge_nonexistent_discard_raises(merge_conn):
+    """35-01: merge_notes raises ValueError when discard_path not in DB."""
+    from engine.brain_health import merge_notes
+    conn, tmp_path, keep_path, discard_path = merge_conn
+
+    with pytest.raises(ValueError, match="not found"):
+        merge_notes(keep_path, "/nonexistent/path.md", conn)
