@@ -51,7 +51,7 @@ def install_global_cli(repo_root: Path) -> None:
     print("Global CLI installed.")
 
 
-def write_plist(sb_watch_bin: Path, repo_root: Path, plist_path: Path = None) -> Path:
+def write_plist(repo_root: Path, plist_path: Path = None) -> Path:
     """Generate and write the launchd plist for sb-watch.
 
     Creates ~/Library/LaunchAgents/com.secondbrain.watch.plist using plistlib.dump.
@@ -64,7 +64,7 @@ def write_plist(sb_watch_bin: Path, repo_root: Path, plist_path: Path = None) ->
     log_dir.mkdir(parents=True, exist_ok=True)
     plist = {
         "Label": PLIST_LABEL,
-        "ProgramArguments": [str(sb_watch_bin)],
+        "ProgramArguments": ["/usr/bin/env", "uv", "run", "--directory", str(repo_root), "sb-watch"],
         "WorkingDirectory": str(Path.home() / "SecondBrain"),
         "EnvironmentVariables": {
             "PATH": f"{Path.home()}/.local/bin:/usr/local/bin:/usr/bin:/bin",
@@ -79,20 +79,16 @@ def write_plist(sb_watch_bin: Path, repo_root: Path, plist_path: Path = None) ->
     return target
 
 
-def write_api_plist(plist_dir: Path, log_dir: Path) -> Path:
+def write_api_plist(plist_dir: Path, log_dir: Path, repo_root: Path = REPO_ROOT) -> Path:
     """Generate and write the launchd plist for sb-api (persistent API server).
 
     Creates com.secondbrain.api.plist in plist_dir.
     Returns the path to the written plist file.
-    Raises FileNotFoundError if sb-api binary not found in PATH.
     """
-    sb_api_bin = shutil.which("sb-api")
-    if not sb_api_bin:
-        raise FileNotFoundError("sb-api not found in PATH — run 'uv tool install .' first")
     label = "com.secondbrain.api"
     plist = {
         "Label": label,
-        "ProgramArguments": [sb_api_bin],
+        "ProgramArguments": ["/usr/bin/env", "uv", "run", "--directory", str(repo_root), "sb-api"],
         "WorkingDirectory": str(Path.home() / "SecondBrain"),
         "EnvironmentVariables": {
             "PATH": f"{Path.home()}/.local/bin:/usr/local/bin:/usr/bin:/bin",
@@ -109,29 +105,49 @@ def write_api_plist(plist_dir: Path, log_dir: Path) -> Path:
     return out_path
 
 
-def write_digest_plist(plist_dir: Path, log_dir: Path) -> Path:
+def write_digest_plist(plist_dir: Path, log_dir: Path, repo_root: Path = REPO_ROOT) -> Path:
     """Generate and write the launchd plist for sb-digest (Monday 08:00 weekly trigger).
 
     Creates com.secondbrain.digest.plist in plist_dir using plistlib.dump.
     Returns the path to the written plist file.
-    Raises FileNotFoundError if sb-digest binary not found in PATH.
     """
-    sb_digest_bin = shutil.which("sb-digest")
-    if not sb_digest_bin:
-        raise FileNotFoundError("sb-digest not found in PATH — run 'uv tool install .' first")
     label = "com.secondbrain.digest"
-    env = {
-        "PATH": f"{Path.home()}/.local/bin:/usr/local/bin:/usr/bin:/bin",
-        "HOME": str(Path.home()),
-    }
     plist = {
         "Label": label,
-        "ProgramArguments": [sb_digest_bin],
+        "ProgramArguments": ["/usr/bin/env", "uv", "run", "--directory", str(repo_root), "sb-digest"],
         "WorkingDirectory": str(Path.home() / "SecondBrain"),
-        "EnvironmentVariables": env,
+        "EnvironmentVariables": {
+            "PATH": f"{Path.home()}/.local/bin:/usr/local/bin:/usr/bin:/bin",
+            "HOME": str(Path.home()),
+        },
         "StartCalendarInterval": {"Weekday": 1, "Hour": 8, "Minute": 0},
         "StandardOutPath": str(log_dir / "second-brain-digest.log"),
         "StandardErrorPath": str(log_dir / "second-brain-digest-error.log"),
+    }
+    out_path = plist_dir / f"{label}.plist"
+    with open(out_path, "wb") as f:
+        plistlib.dump(plist, f)
+    return out_path
+
+
+def write_consolidate_plist(plist_dir: Path, log_dir: Path, repo_root: Path = REPO_ROOT) -> Path:
+    """Generate and write the launchd plist for sb-consolidate (daily 03:00 trigger).
+
+    Creates com.secondbrain.consolidate.plist in plist_dir using plistlib.dump.
+    Returns the path to the written plist file.
+    """
+    label = "com.secondbrain.consolidate"
+    plist = {
+        "Label": label,
+        "ProgramArguments": ["/usr/bin/env", "uv", "run", "--directory", str(repo_root), "sb-consolidate"],
+        "WorkingDirectory": str(Path.home() / "SecondBrain"),
+        "EnvironmentVariables": {
+            "PATH": f"{Path.home()}/.local/bin:/usr/local/bin:/usr/bin:/bin",
+            "HOME": str(Path.home()),
+        },
+        "StartCalendarInterval": {"Hour": 3, "Minute": 0},
+        "StandardOutPath": str(log_dir / "second-brain-consolidate.log"),
+        "StandardErrorPath": str(log_dir / "second-brain-consolidate-error.log"),
     }
     out_path = plist_dir / f"{label}.plist"
     with open(out_path, "wb") as f:
@@ -199,22 +215,16 @@ def main() -> None:
         install_global_cli(REPO_ROOT)
 
     if args.launchd or run_all:
-        install_global_cli(REPO_ROOT)
-        sb_watch_bin = find_uv().parent / "sb-watch"
-        plist_path = write_plist(sb_watch_bin, REPO_ROOT)
-        load_launchd_agent(plist_path)
         log_dir = Path.home() / "Library" / "Logs"
         plist_dir = Path.home() / "Library" / "LaunchAgents"
-        try:
-            digest_plist = write_digest_plist(plist_dir, log_dir)
-            load_launchd_agent(digest_plist, "com.secondbrain.digest")
-        except FileNotFoundError as e:
-            print(f"Warning: {e} — skipping digest agent install.")
-        try:
-            api_plist = write_api_plist(plist_dir, log_dir)
-            load_launchd_agent(api_plist, "com.secondbrain.api")
-        except FileNotFoundError as e:
-            print(f"Warning: {e} — skipping api agent install.")
+        plist_path = write_plist(REPO_ROOT)
+        load_launchd_agent(plist_path)
+        digest_plist = write_digest_plist(plist_dir, log_dir)
+        load_launchd_agent(digest_plist, "com.secondbrain.digest")
+        api_plist = write_api_plist(plist_dir, log_dir)
+        load_launchd_agent(api_plist, "com.secondbrain.api")
+        consolidate_plist = write_consolidate_plist(plist_dir, log_dir)
+        load_launchd_agent(consolidate_plist, "com.secondbrain.consolidate")
 
     if args.hooks:
         for repo in args.hooks:

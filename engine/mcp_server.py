@@ -1479,5 +1479,27 @@ def sb_cleanup_connections() -> dict:
         conn.close()
 
 
+@mcp.tool()
+def sb_health_trend(days: int = 30) -> dict:
+    """Return health snapshots as a time series for the last N days."""
+    conn = get_connection()
+    try:
+        rows = conn.execute("""
+            SELECT snapped_at, score, total_notes, orphan_count, broken_count, duplicate_count, stub_count
+            FROM health_snapshots
+            WHERE snapped_at >= date('now', ?)
+            ORDER BY snapped_at ASC
+        """, (f"-{days} days",)).fetchall()
+        snapshots = [
+            {"snapped_at": r[0], "score": r[1], "total_notes": r[2],
+             "orphan_count": r[3], "broken_count": r[4],
+             "duplicate_count": r[5], "stub_count": r[6]}
+            for r in rows
+        ]
+        return {"snapshots": snapshots, "count": len(snapshots), "days": days}
+    finally:
+        conn.close()
+
+
 def main() -> None:
     mcp.run(transport="stdio")

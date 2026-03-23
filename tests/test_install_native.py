@@ -182,3 +182,21 @@ def test_hook_install_invalid_repo():
     with patch("subprocess.run", side_effect=mock_run):
         with pytest.raises(ValueError):
             install_hook(fake_repo, fake_hooks)
+
+
+# ---------------------------------------------------------------------------
+# Phase 35-03: write_consolidate_plist test
+# ---------------------------------------------------------------------------
+
+def test_write_consolidate_plist(tmp_path):
+    from scripts.install_native import write_consolidate_plist
+    import plistlib
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    plist_path = write_consolidate_plist(tmp_path, log_dir)
+    assert plist_path.exists()
+    with open(plist_path, "rb") as f:
+        data = plistlib.load(f)
+    assert data["Label"] == "com.secondbrain.consolidate"
+    assert data["StartCalendarInterval"] == {"Hour": 3, "Minute": 0}
+    assert "sb-consolidate" in data["ProgramArguments"]
