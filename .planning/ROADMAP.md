@@ -172,7 +172,7 @@ Plans:
 Plans:
 - [x] 35-01-PLAN.md — Near-duplicate cluster detection + merge workflow (CONS-01)
 - [x] 35-02-PLAN.md — Stub enrichment + connection graph cleanup (CONS-02, CONS-03)
-- [ ] 35-03-PLAN.md — Health trend tracking + scheduled consolidation (CONS-04, CONS-05)
+- [x] 35-03-PLAN.md — Health trend tracking + scheduled consolidation (CONS-04, CONS-05)
 
 ---
 
@@ -235,7 +235,7 @@ Plans:
 | 32 | 1/6 | Complete    | 2026-03-22 | - |
 | 33 | 2/5 | Complete    | 2026-03-22 | - |
 | 34 | 3/4 | Complete    | 2026-03-22 |  |
-| 35 | v4.0 | 2/3 | In Progress|  |
+| 35 | v4.0 | 3/3 | Complete   | 2026-03-23 |
 | 36 | v4.0 | 0/5 | Planning | - |
 | 37 | v4.0 | 0/0 | Planning | - |
 | 38 | v4.0 | 0/0 | Not started | - |

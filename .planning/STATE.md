@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
-status: Ready to execute
-stopped_at: Completed 35-02-PLAN.md
-last_updated: "2026-03-23T12:46:26.430Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 35-03-PLAN.md
+last_updated: "2026-03-23T18:10:40.789Z"
 progress:
   total_phases: 8
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 20
-  completed_plans: 17
+  completed_plans: 18
 ---
 
 # Project State
@@ -43,6 +43,7 @@ Plan: 3 of 3
 | Phase 34 P04 | — | 2 tasks | — | (UATs accepted 2026-03-23)
 | Phase 35 P01 | 30 | 2 tasks | 8 files |
 | Phase 35 P02 | 15 | 2 tasks | 4 files |
+| Phase 35 P03 | 15 | 2 tasks | 9 files |
 
 ### Decisions
 
@@ -71,6 +72,9 @@ Active decisions affecting upcoming work:
 - [Phase 35]: test_get_stub_notes_includes_empty uses empty string not NULL — notes.body has NOT NULL DEFAULT constraint
 - [Phase 35]: sb_find_stubs silently catches find_similar exceptions — stubs may have no embeddings, tool must not crash
 - [Phase 35]: get_bidirectional_gaps flags gaps for review only, not auto-create — per D-07 design intent
+- [Phase 35]: health_snapshots migration is last in init_schema() to avoid ordering issues with other migrations
+- [Phase 35]: take_health_snapshot one-per-day guard uses date(snapped_at) = date('now') — strips time component for reliable comparison
+- [Phase 35]: consolidate_main imports brain_health lazily inside function body — avoids circular import at module load time
 
 ### Pending Todos
 
@@ -86,6 +90,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-23T12:46:26.422Z
-Stopped at: Completed 35-02-PLAN.md
+Last session: 2026-03-23T18:10:40.751Z
+Stopped at: Completed 35-03-PLAN.md
 Resume file: None
