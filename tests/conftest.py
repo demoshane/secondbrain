@@ -306,6 +306,9 @@ def gui_brain(tmp_path_factory):
     tmp_db = _Path(str(brain / "index.db"))
     _paths.DB_PATH = tmp_db
     _db.DB_PATH = tmp_db
+    # Patch BRAIN_ROOT so store_path() validates against the tmp brain, not ~/SecondBrain
+    # (BRAIN_ROOT is computed at import time from env var — must be patched directly)
+    _paths.BRAIN_ROOT = brain
     # Set module-level sentinel so _restore_gui_db can re-anchor after each test
     global _GUI_DB_PATH
     _GUI_DB_PATH = tmp_db

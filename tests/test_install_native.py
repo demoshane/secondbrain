@@ -74,20 +74,16 @@ def test_update_shell_if_needed():
 
 def test_plist_keys(tmp_path):
     """write_plist writes a plist with correct Label, ProgramArguments, KeepAlive, StandardOutPath."""
-    fake_bin = Path("/fake/sb-watch")
-    fake_repo = Path("/fake/repo")
-
-    # Monkeypatch PLIST_PATH so the file is written into tmp_path
     fake_plist_path = tmp_path / "com.secondbrain.watch.plist"
     with patch.object(install_native, "PLIST_PATH", fake_plist_path):
-        result_path = write_plist(fake_bin, fake_repo)
+        result_path = write_plist(REPO_ROOT, plist_path=fake_plist_path)
 
     assert result_path.exists(), "plist file not written"
     with open(result_path, "rb") as f:
         data = plistlib.load(f)
 
     assert data["Label"] == "com.secondbrain.watch"
-    assert data["ProgramArguments"][0] == "/fake/sb-watch"
+    assert "sb-watch" in data["ProgramArguments"]
     assert data["KeepAlive"] is True
     assert "StandardOutPath" in data
 
