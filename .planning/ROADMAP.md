@@ -157,8 +157,8 @@ Plans:
 Plans:
 - [x] 34-01-PLAN.md — Interactive action items + Actions page source note link (GUI-01, GUI-02)
 - [x] 34-02-PLAN.md — Cmd+K command palette (GUI-03)
-- [ ] 34-03-PLAN.md — Entity page create/delete + sb_create_person MCP (GUI-04, GUI-07)
-- [ ] 34-04-PLAN.md — Intelligence actionable items + tag autocomplete + toasts + Inbox polish (GUI-05, GUI-06)
+- [x] 34-03-PLAN.md — Entity page create/delete + sb_create_person MCP (GUI-04, GUI-07)
+- [x] 34-04-PLAN.md — Intelligence actionable items + tag autocomplete + toasts + Inbox polish (GUI-05, GUI-06)
 
 ---
 
