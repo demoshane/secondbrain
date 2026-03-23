@@ -176,16 +176,7 @@ Plans:
 
 ---
 
-### Phase 36: Chrome Extension Capture
-
-**Goal:** Capture web content directly from Chrome into the second brain via a browser extension
-**Depends on:** Phase 31
-**Milestone:** v4.0
-**Status:** Planning
-
----
-
-### Phase 37: Housekeeping
+### Phase 36: Housekeeping
 
 **Goal:** Close known UX gaps and test coverage holes surfaced during v4.0 development: fix broken sb-recap weekly view, add action item creation from person note view, link persons to notes in sidebar, improve cascade capture context detection, and cover install_subagent.py in tests.
 **Depends on:** Phase 34
@@ -193,13 +184,22 @@ Plans:
 **Status:** Planning
 
 Plans:
-- [ ] 37-01-PLAN.md — Fix sb-recap weekly view (MCP `sb_recap` → `generate_recap_on_demand`)
-- [ ] 37-02-PLAN.md — Action item creation from person note view
-- [ ] 37-03-PLAN.md — Link persons to notes in sidebar (add/remove UI)
-- [ ] 37-04-PLAN.md — Context detection + cascade capture on note save
-- [ ] 37-05-PLAN.md — Tests for install_subagent.py
-- [ ] 37-06-PLAN.md — Fix 3 failing Playwright tests: test_title_sync (SSE title propagation to sidebar), test_delete_flow (sidebar re-render after delete), test_right_panel_people_mention (people badge detection in right panel)
-- [ ] 37-07-PLAN.md — Fix 4 failing embedding reindex tests (TestReindexGeneratesEmbeddings): RED since Phase 14, require Ollama/embedding provider running in test environment
+- [ ] 36-01-PLAN.md — Fix sb-recap weekly view (MCP `sb_recap` → `generate_recap_on_demand`)
+- [ ] 36-02-PLAN.md — Action item creation from person note view
+- [ ] 36-03-PLAN.md — Link persons to notes in sidebar (add/remove UI)
+- [ ] 36-04-PLAN.md — Context detection + cascade capture on note save
+- [ ] 36-05-PLAN.md — Tests for install_subagent.py
+- [ ] 36-06-PLAN.md — Fix 3 failing Playwright tests: test_title_sync (SSE title propagation to sidebar), test_delete_flow (sidebar re-render after delete), test_right_panel_people_mention (people badge detection in right panel)
+- [ ] 36-07-PLAN.md — Fix 4 failing embedding reindex tests (TestReindexGeneratesEmbeddings): RED since Phase 14, require Ollama/embedding provider running in test environment
+
+---
+
+### Phase 37: Chrome Extension Capture
+
+**Goal:** Capture web content directly from Chrome into the second brain via a browser extension
+**Depends on:** Phase 31
+**Milestone:** v4.0
+**Status:** Planning
 
 ---
 
