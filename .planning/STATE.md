@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
-status: in_progress
-stopped_at: Completed Phase 34 — all UATs accepted 2026-03-23
-last_updated: "2026-03-23T00:00:00.000Z"
+status: Ready to execute
+stopped_at: Completed 35-01-PLAN.md
+last_updated: "2026-03-23T12:30:21.079Z"
 progress:
-  total_phases: 49
-  completed_phases: 42
-  total_plans: 183
-  completed_plans: 195
+  total_phases: 8
+  completed_phases: 3
+  total_plans: 20
+  completed_plans: 16
 ---
 
 # Project State
@@ -22,8 +22,8 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-Phase: 35 (brain-consolidation) — PLANNED, ready to execute
-Plan: 0 of 3
+Phase: 35 (brain-consolidation) — EXECUTING
+Plan: 2 of 3
 
 ## Performance Metrics
 
@@ -41,6 +41,7 @@ Plan: 0 of 3
 | Phase 34 P02 | 8 | 2 tasks | 4 files |
 | Phase 34 P03 | 25 | 2 tasks | 9 files |
 | Phase 34 P04 | — | 2 tasks | — | (UATs accepted 2026-03-23)
+| Phase 35 P01 | 30 | 2 tasks | 8 files |
 
 ### Decisions
 
@@ -64,6 +65,8 @@ Active decisions affecting upcoming work:
 - [Phase 34]: Toaster mounted in Plan 02 (not Plan 04) so Plan 04 toast calls work immediately
 - [Phase 34]: DELETE /people NULLs assignee_path before unlink to prevent orphan action items
 - [Phase 34]: sb_create_person MCP tool uses capture_note(note_type='people') — consistent with API pattern
+- [Phase 35]: FTS5 rebuild must run outside transaction block — inside transaction it reads pre-commit state, leaving stale entries after content table DELETE
+- [Phase 35]: GUI /brain-health/merge skips confirm-token — window.confirm() modal satisfies D-03 at UX layer; MCP surface uses stricter confirm-token pattern
 
 ### Pending Todos
 
@@ -79,6 +82,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-22T18:34:18.866Z
-Stopped at: Completed 34-03-PLAN.md
+Last session: 2026-03-23T12:30:21.073Z
+Stopped at: Completed 35-01-PLAN.md
 Resume file: None

@@ -170,20 +170,38 @@ Plans:
 **Requirements**: CONS-01 through CONS-05
 
 Plans:
-- [ ] 35-01-PLAN.md — Near-duplicate cluster detection + merge workflow (CONS-01)
+- [x] 35-01-PLAN.md — Near-duplicate cluster detection + merge workflow (CONS-01)
 - [ ] 35-02-PLAN.md — Stub enrichment + connection graph cleanup (CONS-02, CONS-03)
 - [ ] 35-03-PLAN.md — Health trend tracking + scheduled consolidation (CONS-04, CONS-05)
 
 ---
 
-### Phase 36: Chrome Extension Capture
+### Phase 36: Housekeeping
+
+**Goal:** Close known UX gaps and test coverage holes surfaced during v4.0 development: fix broken sb-recap weekly view, add action item creation from person note view, link persons to notes in sidebar, improve cascade capture context detection, and cover install_subagent.py in tests.
+**Depends on:** Phase 34
+**Milestone:** v4.0
+**Status:** Planning
+
+Plans:
+- [ ] 36-01-PLAN.md — Fix sb-recap weekly view (MCP `sb_recap` → `generate_recap_on_demand`)
+- [ ] 36-02-PLAN.md — Action item creation from person note view
+- [ ] 36-03-PLAN.md — Link persons to notes in sidebar (add/remove UI)
+- [ ] 36-04-PLAN.md — Context detection + cascade capture on note save
+- [ ] 36-05-PLAN.md — Tests for install_subagent.py
+
+---
+
+### Phase 37: Chrome Extension Capture
 
 **Goal:** Capture web content directly from Chrome into the second brain via a browser extension
 **Depends on:** Phase 31
 **Milestone:** v4.0
 **Status:** Planning
 
-### Phase 37: Scale Architecture (100K Notes)
+---
+
+### Phase 38: Scale Architecture (100K Notes)
 
 **Goal:** Make the brain functional and fast at 100K+ atomic notes — ANN vector index, incremental reindex, filesystem sharding, audit rotation, tiered storage, chunked embeddings, summarization layer. Encrypted backup to secure off-machine storage with single-command restore (DB + embeddings + relationships — not just markdown files)
 **Depends on:** Phase 32, Phase 33
@@ -191,11 +209,11 @@ Plans:
 **Requirements**: SCALE-01 through SCALE-08
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 37 to break down)
+- [ ] TBD (run /gsd:plan-phase 38 to break down)
 
 ---
 
-### Phase 38: Full Codebase Review
+### Phase 39: Full Codebase Review
 
 **Goal:** Cross-cutting security, architecture, performance, and test-coverage audit of the entire codebase. Produce prioritised findings and actionable fix plans.
 **Depends on:** Phase 34
@@ -203,7 +221,7 @@ Plans:
 **Requirements**: N/A (quality gate)
 
 Plans:
-- [ ] 38-00-PLAN.md — Audit + triage + remediation (agent-teams review)
+- [ ] 39-00-PLAN.md — Audit + triage + remediation (agent-teams review)
 
 ---
 
@@ -217,6 +235,8 @@ Plans:
 | 32 | 1/6 | Complete    | 2026-03-22 | - |
 | 33 | 2/5 | Complete    | 2026-03-22 | - |
 | 34 | 3/4 | Complete    | 2026-03-22 |  |
-| 35 | v4.0 | 0/3 | Not started | - |
-| 36 | v4.0 | 0/0 | Planning | - |
-| 37 | v4.0 | 0/0 | Not started | - |
+| 35 | v4.0 | 1/3 | In Progress|  |
+| 36 | v4.0 | 0/5 | Planning | - |
+| 37 | v4.0 | 0/0 | Planning | - |
+| 38 | v4.0 | 0/0 | Not started | - |
+| 39 | v4.0 | 0/1 | Not started | - |
