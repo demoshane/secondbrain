@@ -122,12 +122,12 @@ Visual knowledge map, nodes = notes, edges = relationships, zoomable/filterable 
 **Plans:** 6/6 plans complete
 
 Plans:
-- [ ] 32-01-PLAN.md — Relative path migration (ARCH-01)
-- [ ] 32-02-PLAN.md — FK cascade + connection safety + upload cap (ARCH-02, ARCH-03, ARCH-04)
-- [ ] 32-03-PLAN.md — Tags + note_people junction tables (ARCH-05, ARCH-15)
-- [ ] 32-04-PLAN.md — Action item archiving + audit_log index (ARCH-06)
-- [ ] 32-05-PLAN.md — Security + consistency fixes (ARCH-07, ARCH-08, ARCH-09, ARCH-14, ARCH-16)
-- [ ] 32-06-PLAN.md — People graph correctness + shared service + parity tests (ARCH-10–ARCH-13)
+- [x] 32-01-PLAN.md — Relative path migration (ARCH-01)
+- [x] 32-02-PLAN.md — FK cascade + connection safety + upload cap (ARCH-02, ARCH-03, ARCH-04)
+- [x] 32-03-PLAN.md — Tags + note_people junction tables (ARCH-05, ARCH-15)
+- [x] 32-04-PLAN.md — Action item archiving + audit_log index (ARCH-06)
+- [x] 32-05-PLAN.md — Security + consistency fixes (ARCH-07, ARCH-08, ARCH-09, ARCH-14, ARCH-16)
+- [x] 32-06-PLAN.md — People graph correctness + shared service + parity tests (ARCH-10–ARCH-13)
 
 ---
 
@@ -139,11 +139,11 @@ Plans:
 **Requirements**: PERF-01 through PERF-07
 
 Plans:
-- [ ] 33-01-PLAN.md — Pagination on all list endpoints + MCP page param (PERF-01)
-- [ ] 33-02-PLAN.md — check_connections gate + fast reindex (PERF-02, PERF-03)
-- [ ] 33-03-PLAN.md — Recap/digest token budget + batched embedding worker (PERF-04, PERF-05)
-- [ ] 33-04-PLAN.md — Entity-based filtering API + MCP (PERF-06)
-- [ ] 33-05-PLAN.md — sb_person_context query consolidation (PERF-07)
+- [x] 33-01-PLAN.md — Pagination on all list endpoints + MCP page param (PERF-01)
+- [x] 33-02-PLAN.md — check_connections gate + fast reindex (PERF-02, PERF-03)
+- [x] 33-03-PLAN.md — Recap/digest token budget + batched embedding worker (PERF-04, PERF-05)
+- [x] 33-04-PLAN.md — Entity-based filtering API + MCP (PERF-06)
+- [x] 33-05-PLAN.md — sb_person_context query consolidation (PERF-07)
 
 ---
 
@@ -176,7 +176,16 @@ Plans:
 
 ---
 
-### Phase 36: Housekeeping
+### Phase 36: Chrome Extension Capture
+
+**Goal:** Capture web content directly from Chrome into the second brain via a browser extension
+**Depends on:** Phase 31
+**Milestone:** v4.0
+**Status:** Planning
+
+---
+
+### Phase 37: Housekeeping
 
 **Goal:** Close known UX gaps and test coverage holes surfaced during v4.0 development: fix broken sb-recap weekly view, add action item creation from person note view, link persons to notes in sidebar, improve cascade capture context detection, and cover install_subagent.py in tests.
 **Depends on:** Phase 34
@@ -184,20 +193,13 @@ Plans:
 **Status:** Planning
 
 Plans:
-- [ ] 36-01-PLAN.md — Fix sb-recap weekly view (MCP `sb_recap` → `generate_recap_on_demand`)
-- [ ] 36-02-PLAN.md — Action item creation from person note view
-- [ ] 36-03-PLAN.md — Link persons to notes in sidebar (add/remove UI)
-- [ ] 36-04-PLAN.md — Context detection + cascade capture on note save
-- [ ] 36-05-PLAN.md — Tests for install_subagent.py
-
----
-
-### Phase 37: Chrome Extension Capture
-
-**Goal:** Capture web content directly from Chrome into the second brain via a browser extension
-**Depends on:** Phase 31
-**Milestone:** v4.0
-**Status:** Planning
+- [ ] 37-01-PLAN.md — Fix sb-recap weekly view (MCP `sb_recap` → `generate_recap_on_demand`)
+- [ ] 37-02-PLAN.md — Action item creation from person note view
+- [ ] 37-03-PLAN.md — Link persons to notes in sidebar (add/remove UI)
+- [ ] 37-04-PLAN.md — Context detection + cascade capture on note save
+- [ ] 37-05-PLAN.md — Tests for install_subagent.py
+- [ ] 37-06-PLAN.md — Fix 3 failing Playwright tests: test_title_sync (SSE title propagation to sidebar), test_delete_flow (sidebar re-render after delete), test_right_panel_people_mention (people badge detection in right panel)
+- [ ] 37-07-PLAN.md — Fix 4 failing embedding reindex tests (TestReindexGeneratesEmbeddings): RED since Phase 14, require Ollama/embedding provider running in test environment
 
 ---
 
@@ -232,11 +234,11 @@ Plans:
 | 1–13 | v1.5 | 60/60 | Complete | 2026-03-15 |
 | 14–19 | v2.0 | 23/23 | Complete | 2026-03-16 |
 | 20–31 | v3.0 | 88/88 | Complete | 2026-03-21 |
-| 32 | 1/6 | Complete    | 2026-03-22 | - |
-| 33 | 2/5 | Complete    | 2026-03-22 | - |
-| 34 | 3/4 | Complete    | 2026-03-22 |  |
-| 35 | v4.0 | 3/3 | Complete    | 2026-03-23 |
-| 36 | v4.0 | 0/5 | Planning | - |
-| 37 | v4.0 | 0/0 | Planning | - |
+| 32 | v4.0 | 6/6 | Complete | 2026-03-22 |
+| 33 | v4.0 | 5/5 | Complete | 2026-03-22 |
+| 34 | v4.0 | 4/4 | Complete | 2026-03-22 |
+| 35 | v4.0 | 3/3 | Complete | 2026-03-23 |
+| 36 | v4.0 | 0/0 | Planning | - |
+| 37 | v4.0 | 0/5 | Planning | - |
 | 38 | v4.0 | 0/0 | Not started | - |
 | 39 | v4.0 | 0/1 | Not started | - |
