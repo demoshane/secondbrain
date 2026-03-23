@@ -195,6 +195,18 @@ Plans:
 
 ---
 
+### Phase 38: Full Codebase Review
+
+**Goal:** Cross-cutting security, architecture, performance, and test-coverage audit of the entire codebase. Produce prioritised findings and actionable fix plans.
+**Depends on:** Phase 34
+**Milestone:** v4.0
+**Requirements**: N/A (quality gate)
+
+Plans:
+- [ ] 38-00-PLAN.md — Audit + triage + remediation (agent-teams review)
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
