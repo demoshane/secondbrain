@@ -15,7 +15,7 @@ from tenacity import (
 )
 
 from engine.capture import build_post, capture_note, check_capture_dedup, log_audit, update_note, write_note_atomic
-from engine.db import get_connection, PERSON_TYPES, _escape_like
+from engine.db import get_connection, PERSON_TYPES, PERSON_TYPES_PH, _escape_like
 from engine.digest import generate_digest
 from engine.forget import forget_person
 from engine.anonymize import anonymize_note
@@ -114,6 +114,22 @@ def _consume_token(tok: str) -> bool:
     return expiry is not None and time.time() < expiry
 
 
+def _to_list(val) -> list:
+    """Coerce MCP transport values to list. MCP may send list[str] as a JSON string."""
+    import json as _json
+    if val is None:
+        return []
+    if isinstance(val, list):
+        return val
+    val = str(val).strip()
+    if val.startswith("["):
+        try:
+            return _json.loads(val)
+        except (ValueError, TypeError):
+            pass
+    return [t.strip() for t in val.split(",") if t.strip()]
+
+
 # ---------------------------------------------------------------------------
 # Tool implementations
 # ---------------------------------------------------------------------------
@@ -179,7 +195,7 @@ def sb_capture(
     title: str,
     body: str,
     note_type: str = "note",
-    tags: list[str] | None = None,
+    tags: str | list[str] | None = None,
     sensitivity: str = "public",
     confirm_token: str = "",
 ) -> dict:
@@ -189,6 +205,7 @@ def sb_capture(
     with a confirm_token. Pass that token back to save despite the similarity match.
     """
     _ensure_ready()
+    tags = _to_list(tags)
     if len(title) > _MAX_TITLE_LEN:
         raise ValueError(f"TITLE_TOO_LONG: title exceeds {_MAX_TITLE_LEN} characters.")
     if len(body) > _MAX_BODY_LEN:
@@ -433,20 +450,6 @@ def sb_capture_link(
     _scheme = _urlparse(url).scheme
     if _scheme not in ("http", "https"):
         raise ValueError("INVALID_URL_SCHEME")
-    # Coerce tags/people from string to list (MCP transport may JSON-serialize lists)
-    import json as _json
-    def _to_list(val):
-        if val is None:
-            return []
-        if isinstance(val, list):
-            return val
-        val = val.strip()
-        if val.startswith("["):
-            try:
-                return _json.loads(val)
-            except (ValueError, TypeError):
-                pass
-        return [t.strip() for t in val.split(",") if t.strip()]
     tags_provided = tags is not None
     tags = _to_list(tags)
     people = _to_list(people)
@@ -1187,13 +1190,13 @@ def sb_person_context(name_or_path: str) -> dict:
         if "/" in name_or_path:
             person_path = name_or_path
             row = conn.execute(
-                "SELECT title, body, entities FROM notes WHERE path=? AND type IN (?, ?)",
+                f"SELECT title, body, entities FROM notes WHERE path=? AND type IN ({PERSON_TYPES_PH})",
                 (person_path, *PERSON_TYPES),
             ).fetchone()
         else:
             row = conn.execute(
-                "SELECT path, title, body, entities FROM notes "
-                "WHERE LOWER(title)=LOWER(?) AND type IN (?, ?) LIMIT 1",
+                f"SELECT path, title, body, entities FROM notes "
+                f"WHERE LOWER(title)=LOWER(?) AND type IN ({PERSON_TYPES_PH}) LIMIT 1",
                 (name_or_path, *PERSON_TYPES),
             ).fetchone()
             if row is None:
@@ -1226,7 +1229,7 @@ def sb_person_context(name_or_path: str) -> dict:
                 (person_path, f"%{person_title}%"),
             ).fetchall()
             meeting_rows = [r for r in all_note_rows if r["type"] == "meeting"]
-            mention_rows = [r for r in all_note_rows if r["type"] not in ("person", "people", "meeting")]
+            mention_rows = [r for r in all_note_rows if r["type"] not in (*PERSON_TYPES, "meeting")]
         else:
             # Fallback: json_each scan (handles fresh installs where note_people is not yet populated)
             meeting_rows = conn.execute(
@@ -1244,7 +1247,7 @@ def sb_person_context(name_or_path: str) -> dict:
                 SELECT DISTINCT n.path, n.title, n.created_at
                 FROM notes n, json_each(COALESCE(n.people, '[]')) pe
                 WHERE (pe.value = ? OR pe.value LIKE ?)
-                  AND n.type NOT IN ('person', 'people', 'meeting')
+                  AND n.type NOT IN ('person', 'meeting')
                 ORDER BY n.created_at DESC
                 """,
                 (person_path, f"%{person_title}%"),
@@ -1315,7 +1318,7 @@ def sb_person_context(name_or_path: str) -> dict:
 
 
 @mcp.tool()
-def sb_list_people() -> dict:
+def sb_list_persons() -> dict:
     """List all person notes with relationship metrics: open actions, org, last interaction, mention count.
 
     Returns:
@@ -1367,6 +1370,54 @@ def sb_create_person(name: str, role: str = "") -> dict:
     finally:
         conn.close()
     return {"path": str(result_path), "title": name.strip()}
+
+
+@mcp.tool()
+def sb_merge_duplicates(threshold: float = 0.92, limit: int = 20) -> dict:
+    """Return near-duplicate note pairs above similarity threshold.
+
+    Use this to discover duplicate notes before merging with sb_merge_confirm.
+    threshold: cosine similarity cutoff (0.92 = very similar). limit: max pairs to return.
+    """
+    conn = get_connection()
+    try:
+        from engine.brain_health import get_duplicate_candidates
+        pairs = get_duplicate_candidates(conn, threshold=threshold)[:limit]
+        return {"pairs": pairs, "count": len(pairs)}
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def sb_merge_confirm(keep_path: str, discard_path: str, confirm_token: str = "") -> dict:
+    """Merge two duplicate notes. Requires confirm_token (two-step safety).
+
+    Step 1: Call without confirm_token to get a token.
+    Step 2: Call again with confirm_token within 60s to execute the merge.
+    keep_path: note to keep (merge target). discard_path: note to delete after merge.
+    """
+    if not confirm_token:
+        tok = _issue_token()
+        return {
+            "status": "pending",
+            "confirm_token": tok,
+            "message": (
+                f"Will merge '{discard_path}' into '{keep_path}'. "
+                f"Call again with confirm_token='{tok}' within 60s."
+            ),
+        }
+    if not _consume_token(confirm_token):
+        raise ValueError(
+            "TOKEN_EXPIRED: confirm_token invalid or expired. "
+            "Call sb_merge_confirm without a token to get a new one."
+        )
+    from engine.brain_health import merge_notes
+    conn = get_connection()
+    try:
+        result = merge_notes(keep_path, discard_path, conn)
+        return {"status": "merged", **result}
+    finally:
+        conn.close()
 
 
 def main() -> None:

@@ -82,6 +82,31 @@ export function IntelligencePage() {
     loadActions()
   }
 
+  const handleMerge = useCallback(async (dc: { a: string; b: string; similarity: number }) => {
+    const choice = window.confirm(
+      `Merge duplicate pair?\n\nA: ${dc.a}\nB: ${dc.b}\n\nClick OK to keep A (discard B), or Cancel to skip.`
+    )
+    if (!choice) return
+    try {
+      const res = await fetch(`${getAPI()}/brain-health/merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keep_path: dc.a, discard_path: dc.b }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        toast.error(`Merge failed: ${err.error}`)
+        return
+      }
+      toast.success('Notes merged successfully')
+      // Refresh health panel
+      const healthRes = await fetch(`${getAPI()}/brain-health`)
+      setHealth(await healthRes.json())
+    } catch {
+      toast.error('Merge failed: network error')
+    }
+  }, [loadActions])
+
   const generateRecap = useCallback(async () => {
     setGeneratingRecap(true)
     try {
@@ -190,8 +215,18 @@ export function IntelligencePage() {
                 <Section title="Duplicate Candidates" count={health.duplicate_count}>
                   <ul className="space-y-1 mt-1">
                     {health.duplicate_candidates.map((dc, i) => (
-                      <li key={i} className="text-xs text-muted-foreground truncate">
-                        {dc.a} / {dc.b} ({Math.round(dc.similarity * 100)}%)
+                      <li key={i} className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground truncate flex-1">
+                          {dc.a} / {dc.b} ({Math.round(dc.similarity * 100)}%)
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-xs shrink-0"
+                          onClick={() => handleMerge(dc)}
+                        >
+                          Merge
+                        </Button>
                       </li>
                     ))}
                   </ul>

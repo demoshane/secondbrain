@@ -1073,7 +1073,7 @@ def mcp_list_people_brain(tmp_path, monkeypatch):
     )
     conn.execute(
         "INSERT INTO notes (path, title, body, type, entities) VALUES (?, ?, ?, ?, ?)",
-        (bob_path, "Bob", "Bob is an engineer.", "people", json.dumps({})),
+        (bob_path, "Bob", "Bob is an engineer.", "person", json.dumps({})),
     )
     conn.execute(
         "INSERT INTO notes (path, title, body, type, people, created_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -1097,8 +1097,8 @@ def mcp_list_people_brain(tmp_path, monkeypatch):
 
 
 def test_sb_list_people(mcp_list_people_brain):
-    """sb_list_people returns all person/people notes with metrics."""
-    result = mcp_mod.sb_list_people()
+    """sb_list_persons returns all person/people notes with metrics."""
+    result = mcp_mod.sb_list_persons()
     assert "people" in result
     people = result["people"]
     assert len(people) == 2
@@ -1130,7 +1130,7 @@ def test_sb_list_people(mcp_list_people_brain):
 
 
 def test_sb_list_people_empty(tmp_path, monkeypatch):
-    """sb_list_people returns empty list on empty DB with no error."""
+    """sb_list_persons returns empty list on empty DB with no error."""
     import engine.db as _db
     import engine.paths as _paths
     from engine.db import get_connection as _get_conn, init_schema as _init
@@ -1147,7 +1147,7 @@ def test_sb_list_people_empty(tmp_path, monkeypatch):
     _init(conn)
     conn.close()
 
-    result = mcp_mod.sb_list_people()
+    result = mcp_mod.sb_list_persons()
     assert "people" in result
 
 
@@ -1255,3 +1255,24 @@ def test_sb_create_person_missing_name(tmp_path, monkeypatch):
 
     result = mcp_mod.sb_create_person("   ")
     assert "error" in result
+
+
+def test_merge_confirm_requires_token(tmp_path, monkeypatch):
+    """sb_merge_confirm without confirm_token returns pending status with token."""
+    import engine.db as _db
+    import engine.paths as _paths
+    from engine.db import get_connection, init_schema
+
+    tmp_db = tmp_path / "test.db"
+    monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+
+    conn = get_connection()
+    init_schema(conn)
+    conn.close()
+
+    result = mcp_mod.sb_merge_confirm(keep_path="a.md", discard_path="b.md")
+    assert result["status"] == "pending"
+    assert "confirm_token" in result
+    assert len(result["confirm_token"]) > 0
