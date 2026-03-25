@@ -239,7 +239,10 @@ async function handleSave(e) {
       addToHistory({ title, type, url: currentPageUrl });
       saveBtn.textContent = 'Saved!';
       saveBtn.style.background = '#16a34a';
-      setTimeout(() => window.close(), 1000);
+      // Close immediately when running as a tab (opened by chrome.tabs.create),
+      // otherwise give 1s so the user sees the "Saved!" confirmation in the popup.
+      const isTab = window.location.protocol === 'chrome-extension:' && window.opener === null;
+      setTimeout(() => window.close(), isTab ? 300 : 1000);
     } else {
       const errData = await res.json().catch(() => ({}));
       showError(`Save failed (${res.status}): ${errData.error || errData.message || 'Unknown error'}`);
