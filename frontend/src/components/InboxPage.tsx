@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { ChevronDown, X } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { getAPI, cn } from '@/lib/utils'
+import { getAPI, cn, encodePath } from '@/lib/utils'
+import { NoteViewer } from './NoteViewer'
+import { useNoteContext } from '@/contexts/NoteContext'
 import type { ActionItem, InboxData, NoteSummary, Note } from '@/types'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -108,56 +110,6 @@ function BacklinkPicker({
   )
 }
 
-// ─── Detail pane ─────────────────────────────────────────────────────────────
-
-function DetailPane({
-  item,
-  onClose,
-}: {
-  item: InboxItem
-  onClose: () => void
-}) {
-  const [body, setBody] = useState<string | null>(null)
-
-  useEffect(() => {
-    setBody(null)
-    const encoded = encodeURIComponent(item.path)
-    fetch(`${getAPI()}/notes/${encoded}`)
-      .then(r => r.json())
-      .then(d => setBody(d.body ?? ''))
-      .catch(() => setBody(''))
-  }, [item.path])
-
-  const rendered =
-    body !== null && typeof (window as Window & { marked?: { parse: (s: string) => string } }).marked !== 'undefined'
-      ? (window as Window & { marked?: { parse: (s: string) => string } }).marked!.parse(body)
-      : body
-
-  return (
-    <div className="flex flex-col h-full overflow-hidden" data-testid="inbox-detail">
-      <div className="flex items-center justify-between px-4 py-2 border-b">
-        <h2 className="text-sm font-semibold truncate">{item.title}</h2>
-        <button
-          className="text-muted-foreground hover:text-foreground"
-          onClick={onClose}
-          aria-label="Close detail pane"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-      <div className="flex-1 overflow-y-auto p-4 prose prose-sm max-w-none dark:prose-invert">
-        {body === null ? (
-          <p className="text-muted-foreground text-sm">Loading…</p>
-        ) : rendered ? (
-          <div dangerouslySetInnerHTML={{ __html: rendered }} />
-        ) : (
-          <p className="text-muted-foreground text-sm italic">Empty note.</p>
-        )}
-      </div>
-    </div>
-  )
-}
-
 function EmptyDetail() {
   return (
     <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
@@ -169,6 +121,7 @@ function EmptyDetail() {
 // ─── InboxPage ────────────────────────────────────────────────────────────────
 
 export function InboxPage() {
+  const { currentNote, openNote } = useNoteContext()
   const [data, setData] = useState<InboxData | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedItem, setSelectedItem] = useState<InboxItem | null>(null)
@@ -212,13 +165,17 @@ export function InboxPage() {
   )
 
   useEffect(() => {
+    if (selectedItem) openNote(selectedItem.path)
+  }, [selectedItem, openNote])
+
+  useEffect(() => {
     loadInbox(0, '')
     fetch(`${getAPI()}/notes`)
       .then(r => r.json())
       .then(d =>
         setPeople(
           (d.notes ?? []).filter(
-            (n: Note) => n.type === 'person' || n.type === 'people'
+            (n: Note) => n.type === 'person'
           )
         )
       )
@@ -266,11 +223,25 @@ export function InboxPage() {
   const deleteNote = useCallback(
     async (note: NoteSummary) => {
       if (!window.confirm(`Delete '${note.title}'? This cannot be undone.`)) return
-      const encoded = encodeURIComponent(note.path)
+      const encoded = encodePath(note.path)
       await fetch(`${getAPI()}/notes/${encoded}`, { method: 'DELETE' })
       loadInbox(0, sourceFilter)
     },
     [loadInbox, sourceFilter]
+  )
+
+  const deleteAllEmptyNotes = useCallback(
+    async () => {
+      const notes = data?.empty_notes ?? []
+      if (notes.length === 0) return
+      if (!window.confirm(`Delete all ${notes.length} empty notes? This cannot be undone.`)) return
+      for (const note of notes) {
+        const encoded = encodePath(note.path)
+        await fetch(`${getAPI()}/notes/${encoded}`, { method: 'DELETE' })
+      }
+      loadInbox(0, sourceFilter)
+    },
+    [data?.empty_notes, loadInbox, sourceFilter]
   )
 
   const handleSourceFilterChange = (val: string) => {
@@ -454,6 +425,14 @@ export function InboxPage() {
             <p className="text-xs text-muted-foreground py-2">Nothing to triage here.</p>
           ) : (
             <div className="flex flex-col gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 text-xs w-full text-destructive border-destructive/40 hover:bg-destructive/10"
+                onClick={deleteAllEmptyNotes}
+              >
+                Delete all
+              </Button>
               {data!.empty_notes.map(note => (
                 <div key={note.path} className="rounded border p-2 text-xs">
                   <div
@@ -496,8 +475,8 @@ export function InboxPage() {
 
       {/* Right detail pane */}
       <div className="flex-1 overflow-hidden">
-        {selectedItem ? (
-          <DetailPane item={selectedItem} onClose={() => setSelectedItem(null)} />
+        {currentNote && selectedItem && currentNote.path.endsWith(selectedItem.path) ? (
+          <NoteViewer note={currentNote} />
         ) : (
           <EmptyDetail />
         )}

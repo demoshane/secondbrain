@@ -34,10 +34,11 @@ fi
 ok "node $(node --version)"
 
 if [[ ! -d "$HOME/SecondBrain" ]]; then
-  fail "~/SecondBrain not found — create or mount the directory before running setup"
-  exit 1
+  mkdir -p "$HOME/SecondBrain"
+  ok "~/SecondBrain created"
+else
+  ok "~/SecondBrain exists"
 fi
-ok "~/SecondBrain exists"
 
 # ── 2. Python dependencies ────────────────────────────────────────────────────
 step "Installing Python dependencies"

@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useNoteContext } from '@/contexts/NoteContext'
 import { useNoteActions } from '@/hooks/useNoteActions'
 
-const NOTE_TYPES = ['note', 'idea', 'meeting', 'people', 'project', 'strategy']
+const NOTE_TYPES = ['note', 'idea', 'meeting', 'person', 'project', 'strategy']
 
 interface Props {
   open: boolean

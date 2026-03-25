@@ -90,16 +90,36 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     await chrome.action.openPopup();
   } catch (err) {
     console.warn('[SB] openPopup() not supported, opening capture tab:', err.message);
-    openCaptureTab({
-      sb_title: info.pageTitle || '',
-      sb_body: info.menuItemId === 'capture-selection' ? (info.selectionText || '')
-        : info.menuItemId === 'capture-link' ? (info.linkUrl || '') : '',
-      sb_type: info.menuItemId === 'capture-link' ? 'link' : 'note',
-      sb_tags: '',
-      sb_source_url: tab.url,
-      sb_source_type: info.menuItemId === 'capture-selection' ? 'selection'
-        : info.menuItemId === 'capture-link' ? 'link' : 'web',
-    });
+
+    // For page capture: extract article content from the content script now
+    // (gesture context already broken since openPopup() threw, so await is safe here)
+    if (info.menuItemId === 'capture-page') {
+      let articleResult = null;
+      try {
+        articleResult = await chrome.tabs.sendMessage(tab.id, { action: 'extract-article' });
+      } catch (e) {
+        console.warn('[SB] Article extraction failed in background:', e.message);
+      }
+      openCaptureTab({
+        sb_title: articleResult?.title || tab.title || '',
+        sb_body: articleResult?.textContent || tab.url || '',
+        sb_type: 'note',
+        sb_tags: '',
+        sb_source_url: tab.url,
+        sb_source_type: 'web',
+      });
+    } else {
+      openCaptureTab({
+        sb_title: tab.title || '',
+        sb_body: info.menuItemId === 'capture-selection' ? (info.selectionText || '')
+          : info.menuItemId === 'capture-link' ? (info.linkUrl || '') : tab.url || '',
+        sb_type: info.menuItemId === 'capture-link' ? 'link' : 'note',
+        sb_tags: '',
+        sb_source_url: tab.url,
+        sb_source_type: info.menuItemId === 'capture-selection' ? 'selection'
+          : info.menuItemId === 'capture-link' ? 'link' : 'web',
+      });
+    }
   }
 });
 

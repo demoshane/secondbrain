@@ -3,9 +3,8 @@
 ## Mandatory first read
 
 **Before any implementation, debugging, or testing: read `.claude/LEARNINGS.md`.**
-It contains rules, deploy pipelines, and known gotchas specific to this project.
 
-**After resolving any issue or bug: update `.claude/LEARNINGS.md`** with the root cause, fix, and rule to prevent recurrence.
+**After resolving a bug:** only add to LEARNINGS.md if the rule is **universally applicable** to future work in this project AND not already covered by CLAUDE.md. One-time fixes, generic coding mistakes, and already-fixed code patterns belong in git history, not LEARNINGS.md. Keep the file under 80 lines.
 
 ## What this is
 
@@ -22,7 +21,7 @@ Engine code lives in this repo (`second-brain`). Brain content lives separately.
 All notes are `.md` files with YAML frontmatter. Subfolders: `coding/`, `people/`, `meetings/`,
 `strategy/`, `projects/`, `personal/`, `ideas/`, `files/`, `.meta/`.
 
-SQLite index: `~/SecondBrain/.meta/brain.db` (not Drive-synced; rebuildable via `sb-reindex`).
+SQLite index: `~/SecondBrain/.index/brain.db` (not Drive-synced; rebuildable via `sb-reindex`).
 
 ## Key entry points
 
@@ -82,7 +81,7 @@ uv run pytest tests/test_capture.py -x  # single file, stop on first failure
 `sb_search`, `sb_read`, `sb_edit`, `sb_recap`, `sb_digest`, `sb_connections`,
 `sb_actions`, `sb_actions_done`, `sb_files`, `sb_forget`, `sb_anonymize`,
 `sb_tools`, `sb_tag`, `sb_remind`, `sb_link`, `sb_unlink`,
-`sb_person_context`, `sb_list_people`
+`sb_person_context`, `sb_list_persons`
 
 Configure in Claude Desktop: tool prefix `mcp__second-brain__sb_*`.
 
@@ -145,12 +144,26 @@ Plans in `.planning/phases/NN-name/NN-XX-PLAN.md` use XML structure:
 with `<behavior>`, `<action>`, `<verify><automated>cmd</automated></verify>`, `<done>` condition.
 After each plan: create `NN-XX-SUMMARY.md` in the same directory.
 
+## Build & deploy (host)
+
+Use the Makefile — never do these steps manually:
+
+```bash
+make dev      # build frontend + reinstall (--editable --force) + restart launchd services
+make restart  # reinstall + restart services only (skip frontend build)
+make test     # run full test suite
+```
+
+`make dev` is the single command for all code changes. Always use it instead of
+`uv tool install .` (which uses a cached wheel and may not pick up source changes).
+Launchd service names: `com.secondbrain.api`, `com.secondbrain.watch`.
+
 ## Key gotchas
 
-- **Intel Mac, Python 3.13 pinned.** When moving to M-chip: re-run embedding setup
-  (lazy-import workaround for sentence-transformers is in place).
+- **macOS 26 (Darwin 25.x).** `sentence-transformers` cannot install (no torch wheel).
+  Embeddings use Ollama (`nomic-embed-text`) — configured in `~/SecondBrain/.meta/config.toml`.
 - **Stale launchd services.** `sb-api` and `sb-watch` may run old code after a rebuild.
-  Check: `launchctl list | grep second-brain` — restart if needed.
+  Always use `make dev` / `make restart` — never `launchctl` directly.
 - **No direct Anthropic API key.** User is on Anthropic Max plan. AI features use
   Claude Code/MCP adapter pattern, not direct SDK calls.
 - **Two-step token pattern** for destructive MCP ops (`sb_forget`, `sb_anonymize`):

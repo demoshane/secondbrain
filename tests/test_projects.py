@@ -24,6 +24,7 @@ def client(monkeypatch, tmp_path):
     tmp_db = Path(str(tmp_path / "test.db"))
     monkeypatch.setattr(_db, "DB_PATH", tmp_db)
     monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "BRAIN_ROOT", brain)
     monkeypatch.setenv("BRAIN_PATH", str(brain))
 
     conn = get_connection()
@@ -36,16 +37,17 @@ def client(monkeypatch, tmp_path):
 
 
 def seed_project(conn, brain):
-    """Insert a test project note into SQLite."""
-    note_path = str(brain / "projects" / "alpha.md")
+    """Insert a test project note into SQLite using relative path (Phase 32+)."""
+    abs_path = brain / "projects" / "alpha.md"
+    rel_path = "projects/alpha.md"  # relative to brain root as stored by Phase 32
     now = "2026-03-01 09:00:00"
     conn.execute(
         "INSERT OR REPLACE INTO notes (path, title, type, body, created_at, updated_at)"
         " VALUES (?,?,?,?,?,?)",
-        (note_path, "Alpha Project", "projects", "Alpha project body text", now, now),
+        (rel_path, "Alpha Project", "projects", "Alpha project body text", now, now),
     )
     conn.commit()
-    return note_path
+    return str(abs_path)  # return absolute path for URL encoding
 
 
 def test_list_projects_empty(client):
@@ -86,7 +88,7 @@ def test_list_projects_open_actions_count(client):
     note_path = seed_project(conn, brain)
     conn.execute(
         "INSERT INTO action_items (note_path, text, done) VALUES (?, ?, ?)",
-        (note_path, "Do thing", 0),
+        ("projects/alpha.md", "Do thing", 0),  # relative path matches Phase 32 storage
     )
     conn.commit()
     conn.close()

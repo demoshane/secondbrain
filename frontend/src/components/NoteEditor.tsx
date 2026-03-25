@@ -1,7 +1,5 @@
 import { useState } from 'react'
-import CodeMirror from '@uiw/react-codemirror'
-import { markdown } from '@codemirror/lang-markdown'
-import { oneDark } from '@codemirror/theme-one-dark'
+import MDEditor from '@uiw/react-md-editor'
 import { Button } from '@/components/ui/button'
 import { useNoteContext } from '@/contexts/NoteContext'
 import { useNoteActions } from '@/hooks/useNoteActions'
@@ -31,7 +29,7 @@ export function NoteEditor({ note, onClose }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full" data-testid="note-editor">
+    <div className="flex flex-col h-full" data-testid="note-editor" data-color-mode={isDarkMode ? 'dark' : 'light'}>
       <div className="flex items-center gap-2 px-4 py-2 border-b">
         <span className="flex-1 font-semibold truncate">{note.title}</span>
         <Button size="sm" variant="outline" onClick={onClose} data-testid="editor-cancel">Cancel</Button>
@@ -40,13 +38,13 @@ export function NoteEditor({ note, onClose }: Props) {
         </Button>
       </div>
       <div className="flex-1 overflow-hidden">
-        <CodeMirror
+        <MDEditor
           value={content}
-          extensions={[markdown()]}
-          theme={isDarkMode ? oneDark : 'light'}
-          onChange={(val) => { setContent(val); setIsDirty(true) }}
+          onChange={val => { setContent(val ?? ''); setIsDirty(true) }}
           height="100%"
-          basicSetup={{ lineNumbers: false, foldGutter: false }}
+          preview="edit"
+          hideToolbar={false}
+          style={{ borderRadius: 0, border: 'none' }}
         />
       </div>
     </div>

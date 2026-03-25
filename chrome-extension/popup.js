@@ -27,7 +27,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Check API connectivity (non-blocking — UI stays responsive)
   checkConnectivity();
 
-  // Check URL params first (Gmail button flow — avoids storage API limitations)
+  // Attach form handlers unconditionally — must happen regardless of population path
+  document.getElementById('capture-form').addEventListener('submit', handleSave);
+  document.getElementById('cancel-btn').addEventListener('click', () => window.close());
+
+  // Check URL params first (Gmail button / tab fallback flow — avoids storage API limitations)
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.has('sb_title')) {
     document.getElementById('sb-title').value = urlParams.get('sb_title') || '';
@@ -37,7 +41,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentPageUrl = urlParams.get('sb_source_url') || '';
     captureSourceUrl = currentPageUrl;
     captureSourceType = urlParams.get('sb_source_type') || 'web';
-    return; // skip further population
+    return; // skip further population (handlers already attached above)
   }
 
   // Check for pendingCapture (context menu flow) or fall back to icon-click flow
@@ -59,10 +63,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Render capture history
   renderHistory();
-
-  // Attach form handlers
-  document.getElementById('capture-form').addEventListener('submit', handleSave);
-  document.getElementById('cancel-btn').addEventListener('click', () => window.close());
 });
 
 // ── Form Population ───────────────────────────────────────────────────────────

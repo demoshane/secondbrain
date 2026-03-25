@@ -24,9 +24,13 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
   const [tagFilter, setTagFilter] = useState<string | null>(null)
 
   const search = useCallback(async (q: string, m = mode, tag = tagFilter) => {
-    const params = new URLSearchParams({ q, mode: m })
-    if (tag) params.set('tags', tag)
-    const res = await fetch(`${getAPI()}/search?${params}`)
+    const body: Record<string, unknown> = { query: q, mode: m }
+    if (tag) body.tag = tag
+    const res = await fetch(`${getAPI()}/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
     const data = await res.json()
     setResults(data.results ?? [])
   }, [mode, tagFilter])

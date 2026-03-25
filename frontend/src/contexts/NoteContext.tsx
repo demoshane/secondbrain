@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback } from 'react'
-import { getAPI } from '@/lib/utils'
+import { getAPI, encodePath } from '@/lib/utils'
 import type { Note } from '@/types'
 
 interface NoteContextValue {
@@ -28,7 +28,7 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const openNote = useCallback(async (path: string) => {
-    const encoded = encodeURIComponent(path)
+    const encoded = encodePath(path)
     const res = await fetch(`${getAPI()}/notes/${encoded}`)
     const note = await res.json()
     setCurrentPath(path)

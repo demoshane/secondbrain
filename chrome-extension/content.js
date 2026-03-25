@@ -259,9 +259,13 @@ function extractGmailThread() {
     const date = dateEl?.getAttribute('title') || '';
 
     // Body: get the message body text
-    const bodyEl = el.querySelector('[data-message-id] > div')
-      || el.querySelector('.a3s') // fallback to common Gmail body class
-      || el;
+    // .a3s.aiL = expanded message body (most reliable Gmail selector)
+    // .a3s     = any message body incl. collapsed
+    // div.ii   = outer message body wrapper
+    const bodyEl = el.querySelector('.a3s.aiL')
+      || el.querySelector('.a3s')
+      || el.querySelector('div.ii')
+      || el.querySelector('[data-message-id] > div');
     const bodyText = bodyEl?.innerText?.trim() || '';
 
     messages.push({ sender, date, body: bodyText });

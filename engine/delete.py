@@ -24,11 +24,13 @@ def delete_note(abs_path: Path, conn, brain_root: Path) -> dict:
     Error messages: type(e).__name__ only — no file content (GDPR-05).
     """
     from engine.watcher import suppress_next_delete  # lazy import — avoids circular imports
+    from engine.paths import store_path
 
-    path_str = str(abs_path.resolve())
+    abs_path_str = str(abs_path.resolve())   # absolute — for watcher suppression
+    path_str = store_path(abs_path)          # relative — for DB queries (Phase 32+)
 
     # 1. Suppress watcher false-positive BEFORE unlink
-    suppress_next_delete(path_str)
+    suppress_next_delete(abs_path_str)
 
     # 2a. If note body contains "File: <path>", delete the source file too
     try:

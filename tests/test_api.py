@@ -30,6 +30,7 @@ def tmp_note(tmp_path, monkeypatch):
     tmp_db = tmp_path / "test.db"
     monkeypatch.setattr(_db, "DB_PATH", tmp_db)
     monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
     monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
 
     conn = get_connection()
@@ -42,12 +43,14 @@ def tmp_note(tmp_path, monkeypatch):
         "---\ntitle: Original Title\ntags: [test]\ntype: idea\n---\n\nBody content here.\n",
         encoding="utf-8",
     )
-    # Insert into SQLite so note_meta / save_note can find it
+    # Insert into SQLite so note_meta / save_note can find it.
+    # Use store_path (relative) to match what the API writes.
+    from engine.paths import store_path as _sp
     conn = get_connection()
     conn.execute(
         "INSERT OR IGNORE INTO notes (path, title, type, created_at, updated_at, body)"
         " VALUES (?, ?, ?, datetime('now'), datetime('now'), ?)",
-        (str(note.resolve()), "Original Title", "idea", "Body content here."),
+        (_sp(note.resolve()), "Original Title", "idea", "Body content here."),
     )
     conn.commit()
     conn.close()
@@ -85,6 +88,7 @@ def tmp_notes_db(tmp_path, monkeypatch):
     tmp_db = tmp_path / "test.db"
     monkeypatch.setattr(_db, "DB_PATH", tmp_db)
     monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
     monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
 
     conn = get_connection()
@@ -169,10 +173,11 @@ class TestSaveNote:
 
     def test_save_note_updates_sqlite_title(self, client, tmp_note):
         """After PUT, SQLite notes.title matches the title from saved frontmatter."""
+        from engine.paths import store_path as _sp
         full_content = "---\ntitle: New Title\ntags: [test]\ntype: idea\n---\n\nUpdated body.\n"
         client.put(f"/notes/{tmp_note.lstrip('/')}", json={"content": full_content})
         conn = get_connection()
-        row = conn.execute("SELECT title FROM notes WHERE path=?", (tmp_note,)).fetchone()
+        row = conn.execute("SELECT title FROM notes WHERE path=?", (_sp(Path(tmp_note)),)).fetchone()
         conn.close()
         assert row is not None, "Note row not found in SQLite"
         assert row[0] == "New Title", f"Expected 'New Title', got: {row[0]}"
@@ -194,6 +199,7 @@ class TestActionItems:
         tmp_db = tmp_path / "test.db"
         monkeypatch.setattr(_db, "DB_PATH", tmp_db)
         monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+        monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
         conn = get_connection()
         init_schema(conn)
         conn.commit()
@@ -294,6 +300,7 @@ def tmp_note_pair(tmp_path, monkeypatch):
     tmp_db = tmp_path / "test.db"
     monkeypatch.setattr(_db, "DB_PATH", tmp_db)
     monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
     monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
 
     conn = get_connection()
@@ -327,12 +334,13 @@ def tmp_note_pair(tmp_path, monkeypatch):
         encoding="utf-8",
     )
 
+    from engine.paths import store_path as _sp
     notes_data = [
-        (str(note_a), "Alice Smith", "Project lead for Q1."),
-        (str(note_b), "Project Notes", "Met with Alice Smith today to discuss the roadmap."),
-        (str(note_c), "Alice Path Note", "This note body mentions nobody relevant."),
-        (str(note_unique), "Zzz Unique Title Xyz", "No mention of anyone."),
-        (str(note_lower), "Lower Case Note", "Met with alice smith yesterday."),
+        (_sp(note_a), "Alice Smith", "Project lead for Q1."),
+        (_sp(note_b), "Project Notes", "Met with Alice Smith today to discuss the roadmap."),
+        (_sp(note_c), "Alice Path Note", "This note body mentions nobody relevant."),
+        (_sp(note_unique), "Zzz Unique Title Xyz", "No mention of anyone."),
+        (_sp(note_lower), "Lower Case Note", "Met with alice smith yesterday."),
     ]
     conn = get_connection()
     for path, title, body in notes_data:
@@ -363,6 +371,7 @@ class TestCreateNote:
         tmp_db = tmp_path / "test.db"
         monkeypatch.setattr(_db, "DB_PATH", tmp_db)
         monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+        monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
         conn = get_connection()
         init_schema(conn)
         conn.commit()
@@ -378,12 +387,14 @@ class TestCreateNote:
 
     def test_create_note_indexed_in_sqlite(self, client, tmp_path, monkeypatch):
         """POST /notes immediately indexes the note into SQLite so GET /notes returns it."""
+        from engine.paths import store_path as _sp
         monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
         res = client.post("/notes", json={"title": "Indexed Note", "type": "idea", "body": "", "brain_path": str(tmp_path)})
         assert res.status_code == 201
-        note_path = res.get_json()["path"]
+        note_path = res.get_json()["path"]  # API returns absolute path
+        rel_path = _sp(Path(note_path))     # DB stores relative path
         conn = get_connection()
-        row = conn.execute("SELECT title FROM notes WHERE path=?", (note_path,)).fetchone()
+        row = conn.execute("SELECT title FROM notes WHERE path=?", (rel_path,)).fetchone()
         conn.close()
         assert row is not None, "New note must be present in SQLite immediately after creation"
         assert row[0] == "Indexed Note"
@@ -432,8 +443,9 @@ class TestNoteMeta:
         response = client.get(f"/notes/{str(note_a).lstrip('/')}/meta")
         assert response.status_code == 200
         data = response.get_json()
+        from engine.paths import store_path as _sp
         backlink_paths = [bl["path"] for bl in data["backlinks"]]
-        assert str(note_b) in backlink_paths, (
+        assert _sp(note_b) in backlink_paths, (
             f"Expected note_b ({note_b}) in backlinks, got: {backlink_paths}"
         )
 
@@ -444,8 +456,9 @@ class TestNoteMeta:
         response = client.get(f"/notes/{str(note_a).lstrip('/')}/meta")
         assert response.status_code == 200
         data = response.get_json()
+        from engine.paths import store_path as _sp
         backlink_paths = [bl["path"] for bl in data["backlinks"]]
-        assert str(note_c) not in backlink_paths, (
+        assert _sp(note_c) not in backlink_paths, (
             f"note_c ({note_c}) should NOT be in backlinks (filename match only)"
         )
 
@@ -466,8 +479,9 @@ class TestNoteMeta:
         response = client.get(f"/notes/{str(note_a).lstrip('/')}/meta")
         assert response.status_code == 200
         data = response.get_json()
+        from engine.paths import store_path as _sp
         backlink_paths = [bl["path"] for bl in data["backlinks"]]
-        assert str(note_lower) in backlink_paths, (
+        assert _sp(note_lower) in backlink_paths, (
             f"Expected note_lower ({note_lower}) in backlinks (case-insensitive), got: {backlink_paths}"
         )
 
@@ -485,6 +499,7 @@ class TestNoteMetaPeopleColumn:
         tmp_db = tmp_path / "test.db"
         monkeypatch.setattr(_db, "DB_PATH", tmp_db)
         monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+        monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
         monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
 
         conn = get_connection()
@@ -513,17 +528,18 @@ class TestNoteMetaPeopleColumn:
             encoding="utf-8",
         )
 
-        # Insert both notes into SQLite
+        # Insert both notes into SQLite (relative paths to match store_path convention)
+        from engine.paths import store_path as _sp
         conn = get_connection()
         conn.execute(
             "INSERT INTO notes (path, title, type, body, people, created_at, updated_at)"
             " VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
-            (str(person_note.resolve()), "John Doe", "person", "Profile of John Doe.", "[]"),
+            (_sp(person_note.resolve()), "John Doe", "person", "Profile of John Doe.", "[]"),
         )
         conn.execute(
             "INSERT INTO notes (path, title, type, body, people, created_at, updated_at)"
             " VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
-            (str(content_note.resolve()), "Meeting Notes", "note",
+            (_sp(content_note.resolve()), "Meeting Notes", "note",
              "We met with John Doe today.", "[]"),
         )
         conn.commit()
@@ -550,11 +566,13 @@ class TestNoteMetaPeopleColumn:
             encoding="utf-8",
         )
 
-        person_path = str(person_note.resolve())
+        from engine.paths import store_path as _sp
         import json as _json
+        person_path = str(person_note.resolve())
+        person_rel = _sp(person_note.resolve())
         content_note = tmp_path / "project-note.md"
         content_note.write_text(
-            f"---\ntitle: Project Note\ntype: note\npeople:\n  - {person_path}\n---\nDetails.\n",
+            f"---\ntitle: Project Note\ntype: note\npeople:\n  - {person_rel}\n---\nDetails.\n",
             encoding="utf-8",
         )
 
@@ -562,13 +580,13 @@ class TestNoteMetaPeopleColumn:
         conn.execute(
             "INSERT INTO notes (path, title, type, body, people, created_at, updated_at)"
             " VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
-            (person_path, "Jane Smith", "person", "Profile.", "[]"),
+            (person_rel, "Jane Smith", "person", "Profile.", "[]"),
         )
         conn.execute(
             "INSERT INTO notes (path, title, type, body, people, created_at, updated_at)"
             " VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
-            (str(content_note.resolve()), "Project Note", "note", "Details.",
-             _json.dumps([person_path])),
+            (_sp(content_note.resolve()), "Project Note", "note", "Details.",
+             _json.dumps([person_rel])),
         )
         conn.commit()
         conn.close()
@@ -578,7 +596,7 @@ class TestNoteMetaPeopleColumn:
         data = response.get_json()
         people_paths = [p["path"] for p in data["people"]]
         people_titles = [p["title"] for p in data["people"]]
-        assert person_path in people_paths, (
+        assert person_rel in people_paths, (
             f"Person from people column must appear. Got paths: {people_paths}"
         )
         assert "Jane Smith" in people_titles, (
@@ -655,6 +673,7 @@ class TestPagination:
         tmp_db = tmp_path / "test.db"
         monkeypatch.setattr(_db, "DB_PATH", tmp_db)
         monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+        monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
         monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
 
         conn = _get_conn()

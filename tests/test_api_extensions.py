@@ -23,6 +23,8 @@ class TestGuiShell:
 
 class TestSaveNote:
     def test_put_note_saves_content(self, client, tmp_path, monkeypatch):
+        import engine.paths as _paths
+        monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
         monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
         p = tmp_path / "test.md"
         p.write_text("# Hello")
@@ -40,9 +42,11 @@ class TestSaveNote:
 class TestCreateNote:
     def test_post_note_creates_file(self, client, tmp_path, monkeypatch):
         import engine.db as _db
+        import engine.paths as _paths
         from engine.db import init_schema, get_connection
         tmp_db = tmp_path / "test.db"
         monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+        monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
         conn = get_connection()
         init_schema(conn)
         conn.commit()
@@ -58,6 +62,8 @@ class TestCreateNote:
 
 class TestNoteMeta:
     def test_get_note_meta_returns_structure(self, client, tmp_path, monkeypatch):
+        import engine.paths as _paths
+        monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
         monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
         p = tmp_path / "note.md"
         p.write_text("# Note")

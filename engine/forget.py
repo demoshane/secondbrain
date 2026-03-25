@@ -23,7 +23,10 @@ def forget_person(slug: str, brain_root: Path, conn: sqlite3.Connection) -> dict
     import frontmatter  # deferred: available as python-frontmatter dep
     brain_root = brain_root.resolve()
 
-    person_file = brain_root / "people" / f"{slug}.md"
+    # Check both new "person/" and legacy "people/" directories
+    person_file = brain_root / "person" / f"{slug}.md"
+    if not person_file.exists():
+        person_file = brain_root / "people" / f"{slug}.md"
     deleted_files: list[str] = []
     cleaned_backlinks: list[str] = []
     cleaned_people_fields: list[str] = []
@@ -49,7 +52,7 @@ def forget_person(slug: str, brain_root: Path, conn: sqlite3.Connection) -> dict
                 errors.append(f"Could not parse {md.name}: {type(e).__name__}")
 
     # Build exact path strings for DB operations
-    person_path = str(brain_root / "people" / f"{slug}.md")
+    person_path = str(person_file)
     sole_ref_paths = [str(p) for p in sole_ref_meetings]
     exact_delete_paths = [person_path] + sole_ref_paths
 

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import MDEditor from '@uiw/react-md-editor'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Edit, Paperclip, Plus, X } from 'lucide-react'
@@ -9,7 +8,7 @@ import { useSearchContext } from '@/contexts/SearchContext'
 import { NoteEditor } from './NoteEditor'
 import { ActionItemList } from './ActionItemList'
 import { TagAutocomplete } from './TagAutocomplete'
-import { getAPI } from '@/lib/utils'
+import { getAPI, encodePath } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { Note, Attachment, ActionItem } from '@/types'
 
@@ -30,7 +29,7 @@ export function NoteViewer({ note }: Props) {
   const { setTagFilter } = useSearchContext()
 
   const saveTagsFieldLevel = (newTags: string[]) => {
-    fetch(`${getAPI()}/notes/${encodeURIComponent(note.path)}`, {
+    fetch(`${getAPI()}/notes/${encodePath(note.path)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tags: newTags }),
@@ -45,8 +44,7 @@ export function NoteViewer({ note }: Props) {
     setEditingTag(null)
     setAddingTag(false)
     setNewTag('')
-    const encoded = encodeURIComponent(note.path)
-    fetch(`${getAPI()}/notes/${encoded}/attachments`)
+    fetch(`${getAPI()}/notes/attachments?path=${encodeURIComponent(note.path)}`)
       .then(r => r.json())
       .then(d => setAttachments(d.attachments ?? []))
       .catch(() => setAttachments([]))
@@ -61,7 +59,7 @@ export function NoteViewer({ note }: Props) {
     // Fetch people for assignee picker
     fetch(`${getAPI()}/notes`)
       .then(r => r.json())
-      .then(d => setActionPeople((d.notes ?? []).filter((n: Note) => n.type === 'people')))
+      .then(d => setActionPeople((d.notes ?? []).filter((n: Note) => n.type === 'person')))
       .catch(() => setActionPeople([]))
   }, [note.path])
 
@@ -182,8 +180,8 @@ export function NoteViewer({ note }: Props) {
           </button>
         )}
       </div>
-      <div className="flex-1 overflow-auto px-4 py-3 prose prose-sm dark:prose-invert max-w-none" data-testid="note-body">
-        <Markdown remarkPlugins={[remarkGfm]}>{note.body ?? ''}</Markdown>
+      <div className="flex-1 overflow-auto px-4 py-3" data-testid="note-body" data-color-mode={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}>
+        <MDEditor.Markdown source={note.body ?? ''} style={{ background: 'transparent', padding: 0 }} />
       </div>
       {noteActions.length > 0 && (
         <div className="px-4 py-3 border-t" data-testid="note-action-items">

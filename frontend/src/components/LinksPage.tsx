@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { cn, getAPI } from '@/lib/utils'
+import { cn, getAPI, encodePath } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -51,7 +51,7 @@ export function LinksPage() {
 
   useEffect(() => {
     if (!selectedLink) { setLinkDetail(null); return }
-    const enc = encodeURIComponent(selectedLink.path)
+    const enc = encodePath(selectedLink.path)
     fetch(`${getAPI()}/links/${enc}`)
       .then(r => r.json())
       .then(d => setLinkDetail(d))

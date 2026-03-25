@@ -2,7 +2,7 @@
 import json
 import sqlite3
 
-from engine.db import PERSON_TYPES
+from engine.db import PERSON_TYPES, PERSON_TYPES_PH
 
 
 def list_people_with_metrics(conn: sqlite3.Connection) -> list[dict]:
@@ -17,7 +17,7 @@ def list_people_with_metrics(conn: sqlite3.Connection) -> list[dict]:
     old_factory = conn.row_factory
     conn.row_factory = sqlite3.Row
     try:
-        rows = conn.execute("""
+        rows = conn.execute(f"""
             SELECT n.path, n.title, n.entities, substr(n.updated_at, 1, 10) AS updated_at,
                 (SELECT COUNT(*) FROM action_items a WHERE a.assignee_path=n.path AND a.done=0) AS open_actions,
                 (SELECT MAX(m.created_at) FROM notes m
@@ -31,8 +31,8 @@ def list_people_with_metrics(conn: sqlite3.Connection) -> list[dict]:
                 (SELECT COUNT(*) FROM notes m
                     JOIN note_people np ON np.note_path = m.path
                     WHERE (np.person = n.path OR LOWER(np.person) = LOWER(n.title))
-                    AND m.type NOT IN (?, ?)) AS mention_count
-            FROM notes n WHERE n.type IN (?, ?) ORDER BY n.title
+                    AND m.type NOT IN ({PERSON_TYPES_PH})) AS mention_count
+            FROM notes n WHERE n.type IN ({PERSON_TYPES_PH}) ORDER BY n.title
         """, (*PERSON_TYPES, *PERSON_TYPES)).fetchall()
     finally:
         conn.row_factory = old_factory

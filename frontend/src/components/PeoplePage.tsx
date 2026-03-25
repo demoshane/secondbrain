@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ChevronDown, Plus, Trash2 } from 'lucide-react'
-import { cn, getAPI } from '@/lib/utils'
+import { cn, getAPI, encodePath } from '@/lib/utils'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { useUIContext } from '@/contexts/UIContext'
@@ -47,13 +47,13 @@ export function PeoplePage() {
   const [deleteTarget, setDeleteTarget] = useState<{ name: string; path: string } | null>(null)
 
   const loadPeople = () => {
-    fetch(`${getAPI()}/people`)
+    fetch(`${getAPI()}/persons`)
       .then(r => r.json())
       .then(d => setPeople(d.people ?? []))
       .catch(() => {})
     fetch(`${getAPI()}/notes`)
       .then(r => r.json())
-      .then(d => setPeopleNotes((d.notes ?? []).filter((n: Note) => n.type === 'people')))
+      .then(d => setPeopleNotes((d.notes ?? []).filter((n: Note) => n.type === 'person')))
       .catch(() => {})
   }
 
@@ -67,7 +67,7 @@ export function PeoplePage() {
     if (!selectedPath) return
     const person = people.find(p => p.path === selectedPath) ?? null
     setSelectedPerson(person)
-    const enc = encodeURIComponent(selectedPath)
+    const enc = encodePath(selectedPath)
     Promise.all([
       fetch(`${getAPI()}/notes/${enc}`).then(r => r.json()),
       fetch(`${getAPI()}/notes/${enc}/meta`).then(r => r.json()),
@@ -92,7 +92,7 @@ export function PeoplePage() {
 
   const reloadActions = () => {
     if (!selectedPath) return
-    const enc = encodeURIComponent(selectedPath)
+    const enc = encodePath(selectedPath)
     fetch(`${getAPI()}/actions?assignee=${enc}`)
       .then(r => r.json())
       .then(d => setActions(d.actions ?? []))
@@ -293,14 +293,14 @@ export function PeoplePage() {
       <NewEntityModal
         open={showNewEntity}
         onClose={() => setShowNewEntity(false)}
-        entityType="people"
+        entityType="persons"
         onCreated={loadPeople}
       />
       {deleteTarget && (
         <DeleteEntityModal
           open={showDeleteEntity}
           onClose={() => { setShowDeleteEntity(false); setDeleteTarget(null) }}
-          entityType="people"
+          entityType="persons"
           entityName={deleteTarget.name}
           entityPath={deleteTarget.path}
           onDeleted={() => {

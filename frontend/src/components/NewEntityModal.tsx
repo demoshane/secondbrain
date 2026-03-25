@@ -8,12 +8,12 @@ import { getAPI } from '@/lib/utils'
 interface NewEntityModalProps {
   open: boolean
   onClose: () => void
-  entityType: 'people' | 'meetings' | 'projects'
+  entityType: 'persons' | 'meetings' | 'projects'
   onCreated: () => void
 }
 
 function titleFor(entityType: NewEntityModalProps['entityType']): string {
-  if (entityType === 'people') return 'New Person'
+  if (entityType === 'persons') return 'New Person'
   if (entityType === 'meetings') return 'New Meeting'
   return 'New Project'
 }
@@ -34,7 +34,7 @@ export function NewEntityModal({ open, onClose, entityType, onCreated }: NewEnti
     setCreating(true)
     try {
       const body: Record<string, string> = { name: name.trim() }
-      if (entityType === 'people' && role.trim()) {
+      if (entityType === 'persons' && role.trim()) {
         body.role = role.trim()
       }
       const resp = await fetch(`${getAPI()}/${entityType}`, {
@@ -70,7 +70,7 @@ export function NewEntityModal({ open, onClose, entityType, onCreated }: NewEnti
             data-testid="new-entity-name"
             autoFocus
           />
-          {entityType === 'people' && (
+          {entityType === 'persons' && (
             <Input
               placeholder="Role / title (optional)"
               value={role}

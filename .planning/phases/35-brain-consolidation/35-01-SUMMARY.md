@@ -135,6 +135,18 @@ None — all merge functionality is fully wired. No placeholder data flows to UI
 - Frontend rebuild required on host before GUI merge button is visible: `npm run build` in `frontend/` then reinstall uv tool
 - Pre-existing test failure in test_intelligence.py should be investigated in a future cleanup pass
 
+## Self-Check: PASSED
+
+- engine/brain_health.py: FOUND
+- engine/mcp_server.py: FOUND
+- engine/merge_cli.py: FOUND
+- engine/api.py: FOUND
+- tests/test_brain_health.py: FOUND
+- tests/test_mcp.py: FOUND
+- commit cefb08d: FOUND
+- commit 869e926: FOUND
+- commit b9efa62: FOUND
+
 ---
 *Phase: 35-brain-consolidation*
 *Completed: 2026-03-23*

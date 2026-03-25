@@ -16,7 +16,7 @@ def test_add_backlink_appended(tmp_path):
     from engine.links import add_backlinks
 
     brain_root = tmp_path / "brain"
-    people_dir = brain_root / "people"
+    people_dir = brain_root / "person"
     people_dir.mkdir(parents=True)
 
     person_file = people_dir / "alice-smith.md"
@@ -36,7 +36,7 @@ def test_add_backlink_idempotent(tmp_path):
     from engine.links import add_backlinks
 
     brain_root = tmp_path / "brain"
-    people_dir = brain_root / "people"
+    people_dir = brain_root / "person"
     people_dir.mkdir(parents=True)
 
     person_file = people_dir / "alice-smith.md"
@@ -57,7 +57,7 @@ def test_relationship_row_inserted(tmp_path):
     from engine.links import add_backlinks
 
     brain_root = tmp_path / "brain"
-    people_dir = brain_root / "people"
+    people_dir = brain_root / "person"
     people_dir.mkdir(parents=True)
 
     person_file = people_dir / "alice-smith.md"
@@ -83,14 +83,14 @@ def test_missing_person_skipped(tmp_path):
     from engine.links import add_backlinks
 
     brain_root = tmp_path / "brain"
-    (brain_root / "people").mkdir(parents=True)
+    (brain_root / "person").mkdir(parents=True)
 
     meeting_path = brain_root / "meeting" / "2026-03-14-standup.md"
 
     conn = _init_conn()
     result = add_backlinks(meeting_path, ["bob nobody"], brain_root, conn)
     # Now the profile is created instead of skipped
-    assert (brain_root / "people" / "bob-nobody.md").exists()
+    assert (brain_root / "person" / "bob-nobody.md").exists()
 
 
 def test_ensure_person_profile_creates_skeleton(tmp_path):
@@ -98,11 +98,11 @@ def test_ensure_person_profile_creates_skeleton(tmp_path):
     from engine.links import ensure_person_profile
 
     brain_root = tmp_path / "brain"
-    (brain_root / "people").mkdir(parents=True)
+    (brain_root / "person").mkdir(parents=True)
 
     path = ensure_person_profile("alice-smith", brain_root)
 
-    assert path == brain_root / "people" / "alice-smith.md"
+    assert path == brain_root / "person" / "alice-smith.md"
     assert path.exists()
     text = path.read_text(encoding="utf-8")
     assert text.startswith("# Alice Smith")
@@ -114,9 +114,9 @@ def test_ensure_person_profile_idempotent(tmp_path):
     from engine.links import ensure_person_profile
 
     brain_root = tmp_path / "brain"
-    (brain_root / "people").mkdir(parents=True)
+    (brain_root / "person").mkdir(parents=True)
 
-    person_file = brain_root / "people" / "alice-smith.md"
+    person_file = brain_root / "person" / "alice-smith.md"
     original = "# Alice Smith\n\nExisting content.\n"
     person_file.write_text(original, encoding="utf-8")
 
@@ -131,14 +131,14 @@ def test_add_backlinks_creates_profile_when_missing(tmp_path):
     from engine.links import add_backlinks
 
     brain_root = tmp_path / "brain"
-    (brain_root / "people").mkdir(parents=True)
+    (brain_root / "person").mkdir(parents=True)
 
     meeting_path = brain_root / "meeting" / "2026-03-14-standup.md"
 
     conn = _init_conn()
     add_backlinks(meeting_path, ["charlie brown"], brain_root, conn)
 
-    person_file = brain_root / "people" / "charlie-brown.md"
+    person_file = brain_root / "person" / "charlie-brown.md"
     assert person_file.exists()
     text = person_file.read_text(encoding="utf-8")
     assert "# Charlie Brown" in text

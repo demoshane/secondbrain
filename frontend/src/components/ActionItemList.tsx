@@ -1,4 +1,4 @@
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -10,6 +10,8 @@ interface ActionItemListProps {
   people: Note[]
   onToggle: (action: ActionItem) => void
   onAssign: (action: ActionItem, assigneePath: string) => void
+  onSetDueDate?: (action: ActionItem, date: string | null) => void
+  onDelete?: (action: ActionItem) => void
   showSourceLink?: boolean
   onOpenNote?: (notePath: string) => void
 }
@@ -19,6 +21,8 @@ export function ActionItemList({
   people,
   onToggle,
   onAssign,
+  onSetDueDate,
+  onDelete,
   showSourceLink = false,
   onOpenNote,
 }: ActionItemListProps) {
@@ -35,6 +39,7 @@ export function ActionItemList({
           <TableHead>Assignee</TableHead>
           <TableHead>Due</TableHead>
           {showSourceLink && <TableHead className="w-10">Note</TableHead>}
+          {onDelete && <TableHead className="w-10"></TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -47,7 +52,10 @@ export function ActionItemList({
                 data-testid="action-done-checkbox"
               />
             </TableCell>
-            <TableCell className={`text-sm${action.done ? ' line-through text-muted-foreground' : ''}`}>
+            <TableCell
+              className={`text-sm${action.done ? ' line-through text-muted-foreground' : ''}${action.note_path ? ' cursor-pointer hover:underline' : ''}`}
+              onClick={() => action.note_path && onOpenNote?.(action.note_path)}
+            >
               {action.text}
             </TableCell>
             <TableCell>
@@ -63,7 +71,14 @@ export function ActionItemList({
                 </SelectContent>
               </Select>
             </TableCell>
-            <TableCell className="text-xs text-muted-foreground">{action.due_date ?? '—'}</TableCell>
+            <TableCell>
+              <input
+                type="date"
+                className="h-7 w-32 text-xs bg-transparent border border-border rounded px-1.5 text-foreground"
+                value={action.due_date ?? ''}
+                onChange={e => onSetDueDate?.(action, e.target.value || null)}
+              />
+            </TableCell>
             {showSourceLink && (
               <TableCell>
                 {action.note_path ? (
@@ -77,6 +92,19 @@ export function ActionItemList({
                     <ExternalLink size={14} />
                   </Button>
                 ) : null}
+              </TableCell>
+            )}
+            {onDelete && (
+              <TableCell>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  aria-label="Delete action item"
+                  onClick={() => onDelete(action)}
+                >
+                  <Trash2 size={14} />
+                </Button>
               </TableCell>
             )}
           </TableRow>

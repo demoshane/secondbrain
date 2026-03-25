@@ -70,8 +70,10 @@ class TestExplicitCommandsAlwaysWork:
 
 
 class TestExtractActionItems:
-    def test_extract_stores_items_in_db(self, tmp_path):
+    def test_extract_stores_items_in_db(self, tmp_path, monkeypatch):
         """extract_action_items() inserts rows into action_items table."""
+        import engine.paths as _paths
+        monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
         from engine.intelligence import extract_action_items
         conn = _make_db()
         note = tmp_path / "note.md"
@@ -208,8 +210,9 @@ class TestStaleSnooze:
 
 
 class TestConnectionSuggestion:
-    def test_check_connections_prints_suggestion(self, tmp_path, capsys):
-        """check_connections() prints connection lines when similarity > 0.8."""
+    def test_check_connections_prints_suggestion(self, tmp_path, caplog):
+        """check_connections() logs connection lines when similarity > 0.8."""
+        import logging
         from engine import intelligence
         conn = _make_db()
         note = tmp_path / "new.md"
@@ -217,10 +220,11 @@ class TestConnectionSuggestion:
         with patch.object(intelligence, "find_similar", return_value=[
             {"note_path": "/brain/meetings/alice.md", "similarity": 0.92}
         ]), patch.object(intelligence, "budget_available", return_value=True), \
-             patch.object(intelligence, "consume_budget"):
-            intelligence.check_connections(note, conn, tmp_path)
-        captured = capsys.readouterr()
-        assert "alice" in captured.out.lower() or "Related" in captured.out  # stub prints nothing → RED
+             patch.object(intelligence, "consume_budget"), \
+             patch.object(intelligence, "_append_related_link"):
+            with caplog.at_level(logging.INFO, logger="engine.intelligence"):
+                intelligence.check_connections(note, conn, tmp_path)
+        assert "alice" in caplog.text.lower() or "Related" in caplog.text
 
 
 class TestConnectionSuggestionEmpty:

@@ -31,17 +31,20 @@ def client():
 
 
 @pytest.fixture
-def note_file(tmp_path, initialized_db):
+def note_file(tmp_path, initialized_db, monkeypatch):
     """Real .md file + full DB row set for unit tests."""
+    import engine.paths as _paths
+    monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
+
     note = tmp_path / "test-note.md"
     note.write_text(
         "---\ntitle: Delete Me\ntags: []\ntype: idea\n---\n\nSome content here.\n",
         encoding="utf-8",
     )
-    path_str = str(note.resolve())
+    path_str = "test-note.md"  # relative path as stored by Phase 32+
     brain_root = tmp_path
 
-    # notes row
+    # notes row (relative path — Phase 32+)
     initialized_db.execute(
         "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
         " VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))",
@@ -57,12 +60,12 @@ def note_file(tmp_path, initialized_db):
     initialized_db.execute(
         "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type)"
         " VALUES (?, ?, ?)",
-        (path_str, "/other/note.md", "link"),
+        (path_str, "other/note.md", "link"),
     )
     initialized_db.execute(
         "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type)"
         " VALUES (?, ?, ?)",
-        ("/other/note.md", path_str, "link"),
+        ("other/note.md", path_str, "link"),
     )
     # action_items row
     initialized_db.execute(
@@ -174,6 +177,7 @@ def tmp_api_note(tmp_path, monkeypatch):
     tmp_db = tmp_path / "test.db"
     monkeypatch.setattr(_db, "DB_PATH", tmp_db)
     monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
     monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
 
     conn = get_connection()
@@ -186,7 +190,7 @@ def tmp_api_note(tmp_path, monkeypatch):
         "---\ntitle: API Note\ntags: []\ntype: idea\n---\n\nContent.\n",
         encoding="utf-8",
     )
-    path_str = str(note.resolve())
+    path_str = "api-note.md"  # relative path as stored by Phase 32+
     conn = get_connection()
     conn.execute(
         "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
@@ -195,7 +199,7 @@ def tmp_api_note(tmp_path, monkeypatch):
     )
     conn.commit()
     conn.close()
-    yield path_str
+    yield str(note.resolve()).lstrip("/")  # yield path without leading slash for URL construction
     # tmp_path cleaned up by pytest; monkeypatch reverts DB_PATH automatically
 
 
@@ -249,7 +253,9 @@ def test_delete_note_removes_source_file(initialized_db, tmp_path, monkeypatch):
         f"---\ntitle: Photo\ntype: note\n---\n\nFile: {source_file}\n",
         encoding="utf-8",
     )
-    path_str = str(note.resolve())
+    import engine.paths as _paths
+    monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
+    path_str = "note/2026-01-01-photo.md"  # relative path
     initialized_db.execute(
         "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
         " VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))",
@@ -257,7 +263,6 @@ def test_delete_note_removes_source_file(initialized_db, tmp_path, monkeypatch):
     )
     initialized_db.commit()
 
-    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
     delete_note(note, initialized_db, tmp_path)
 
     assert not note.exists(), "Note .md file should be deleted"
@@ -266,6 +271,9 @@ def test_delete_note_removes_source_file(initialized_db, tmp_path, monkeypatch):
 
 def test_delete_note_ignores_source_file_outside_files_dir(initialized_db, tmp_path, monkeypatch):
     """delete_note() does NOT delete files referenced outside brain_root/files/ (security guard)."""
+    import engine.paths as _paths
+    monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
+
     outside_file = tmp_path / "important.txt"
     outside_file.write_text("keep me")
 
@@ -275,7 +283,7 @@ def test_delete_note_ignores_source_file_outside_files_dir(initialized_db, tmp_p
         f"---\ntitle: Ref\ntype: note\n---\n\nFile: {outside_file}\n",
         encoding="utf-8",
     )
-    path_str = str(note.resolve())
+    path_str = "note/2026-01-01-ref.md"  # relative path
     initialized_db.execute(
         "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
         " VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))",
@@ -283,7 +291,6 @@ def test_delete_note_ignores_source_file_outside_files_dir(initialized_db, tmp_p
     )
     initialized_db.commit()
 
-    monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
     delete_note(note, initialized_db, tmp_path)
 
     assert not note.exists(), "Note .md file should be deleted"

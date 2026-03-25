@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ChevronDown, Plus, Trash2 } from 'lucide-react'
-import { cn, getAPI } from '@/lib/utils'
+import { cn, getAPI, encodePath } from '@/lib/utils'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { useUIContext } from '@/contexts/UIContext'
@@ -61,7 +61,7 @@ export function ProjectsPage() {
   // Fetch project detail on selectedPath change
   useEffect(() => {
     if (!selectedPath) return
-    const enc = encodeURIComponent(selectedPath)
+    const enc = encodePath(selectedPath)
     Promise.all([
       fetch(`${getAPI()}/projects/${enc}`).then(r => r.json()),
       fetch(`${getAPI()}/notes/${enc}/meta`).then(r => r.json()),

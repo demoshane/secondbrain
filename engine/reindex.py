@@ -162,8 +162,8 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False, entities: boo
 
             conn.execute(
                 """
-                INSERT INTO notes (path, type, title, body, tags, created_at, updated_at, sensitivity, people)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO notes (path, type, title, body, tags, created_at, updated_at, sensitivity, people, url)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(path) DO UPDATE SET
                     type=excluded.type,
                     title=excluded.title,
@@ -171,7 +171,8 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False, entities: boo
                     tags=excluded.tags,
                     updated_at=excluded.updated_at,
                     sensitivity=excluded.sensitivity,
-                    people=excluded.people
+                    people=excluded.people,
+                    url=excluded.url
                 """,
                 (
                     note_path,
@@ -183,6 +184,7 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False, entities: boo
                     now,
                     meta.get("content_sensitivity", "public"),
                     people_json,
+                    meta.get("url") or None,
                 ),
             )
             indexed += 1

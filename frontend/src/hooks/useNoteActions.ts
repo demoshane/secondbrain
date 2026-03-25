@@ -1,9 +1,9 @@
 import { useCallback } from 'react'
-import { getAPI } from '@/lib/utils'
+import { getAPI, encodePath } from '@/lib/utils'
 
 export function useNoteActions() {
   const saveNote = useCallback(async (path: string, content: string) => {
-    const encoded = encodeURIComponent(path)
+    const encoded = encodePath(path)
     const res = await fetch(`${getAPI()}/notes/${encoded}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -13,7 +13,7 @@ export function useNoteActions() {
   }, [])
 
   const deleteNote = useCallback(async (path: string) => {
-    const encoded = encodeURIComponent(path)
+    const encoded = encodePath(path)
     const res = await fetch(`${getAPI()}/notes/${encoded}`, { method: 'DELETE' })
     return res.ok
   }, [])

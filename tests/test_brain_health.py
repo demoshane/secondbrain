@@ -603,3 +603,79 @@ def test_bidirectional_gap_excludes_dangling(stub_conn):
     gaps = get_bidirectional_gaps(stub_conn)
     assert not any(g["source"] == "ghost.md" for g in gaps), \
         "Dangling source (ghost.md) must NOT appear in bidirectional gaps"
+
+
+# ---------------------------------------------------------------------------
+# Phase 35-03: health_snapshots migration + snapshot/cleanup (CONS-04, CONS-05)
+# ---------------------------------------------------------------------------
+
+
+def test_health_snapshots_migration(archive_conn):
+    """35-03: init_schema creates health_snapshots table."""
+    row = archive_conn.execute(
+        "SELECT name FROM sqlite_master WHERE name='health_snapshots'"
+    ).fetchone()
+    assert row is not None, "health_snapshots table must exist after init_schema"
+
+
+def test_take_health_snapshot(archive_conn):
+    """35-03: take_health_snapshot inserts a row with snapped_at=today, score, counts."""
+    from engine.brain_health import take_health_snapshot
+    import datetime
+    result = take_health_snapshot(archive_conn)
+    assert result.get("skipped") is not True, "First snapshot must not be skipped"
+    assert isinstance(result["score"], int)
+    assert isinstance(result["total_notes"], int)
+    assert isinstance(result["orphan_count"], int)
+    assert isinstance(result["broken_count"], int)
+    assert isinstance(result["duplicate_count"], int)
+    assert isinstance(result["stub_count"], int)
+
+    today = datetime.date.today().isoformat()
+    row = archive_conn.execute(
+        "SELECT snapped_at, score FROM health_snapshots WHERE date(snapped_at) = ?",
+        (today,),
+    ).fetchone()
+    assert row is not None, "Snapshot row must exist in health_snapshots for today"
+    assert isinstance(row[1], int)
+
+
+def test_take_health_snapshot_skips_duplicate_day(archive_conn):
+    """35-03: calling take_health_snapshot twice on same day inserts only 1 row."""
+    from engine.brain_health import take_health_snapshot
+    take_health_snapshot(archive_conn)
+    result2 = take_health_snapshot(archive_conn)
+    assert result2.get("skipped") is True, "Second snapshot same day must be skipped"
+    assert result2.get("reason") == "snapshot_exists_today"
+    count = archive_conn.execute("SELECT COUNT(*) FROM health_snapshots").fetchone()[0]
+    assert count == 1, f"Expected 1 snapshot row, got {count}"
+
+
+def test_cleanup_old_snapshots(archive_conn):
+    """35-03: cleanup_old_snapshots deletes snapshots older than 90 days."""
+    from engine.brain_health import cleanup_old_snapshots
+    # Insert snapshot 100 days ago
+    archive_conn.execute(
+        "INSERT INTO health_snapshots (snapped_at, score, total_notes, orphan_count, broken_count, duplicate_count, stub_count)"
+        " VALUES (date('now', '-100 days'), 80, 10, 1, 0, 0, 2)"
+    )
+    archive_conn.commit()
+    deleted = cleanup_old_snapshots(archive_conn, days=90)
+    assert deleted == 1, f"Expected 1 deleted, got {deleted}"
+    count = archive_conn.execute("SELECT COUNT(*) FROM health_snapshots").fetchone()[0]
+    assert count == 0
+
+
+def test_cleanup_old_snapshots_keeps_recent(archive_conn):
+    """35-03: cleanup_old_snapshots keeps snapshots within 90 days."""
+    from engine.brain_health import cleanup_old_snapshots
+    # Insert snapshot 30 days ago
+    archive_conn.execute(
+        "INSERT INTO health_snapshots (snapped_at, score, total_notes, orphan_count, broken_count, duplicate_count, stub_count)"
+        " VALUES (date('now', '-30 days'), 90, 20, 0, 0, 0, 1)"
+    )
+    archive_conn.commit()
+    deleted = cleanup_old_snapshots(archive_conn, days=90)
+    assert deleted == 0, f"Expected 0 deleted, got {deleted}"
+    count = archive_conn.execute("SELECT COUNT(*) FROM health_snapshots").fetchone()[0]
+    assert count == 1

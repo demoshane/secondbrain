@@ -3,7 +3,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { useNoteContext } from '@/contexts/NoteContext'
 import { ActionItemList } from './ActionItemList'
-import { getAPI } from '@/lib/utils'
+import { getAPI, encodePath } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { Note, ActionItem } from '@/types'
 
@@ -16,7 +16,7 @@ export function RightPanel() {
 
   useEffect(() => {
     if (!currentPath) return
-    const encoded = encodeURIComponent(currentPath)
+    const encoded = encodePath(currentPath)
     fetch(`${getAPI()}/notes/${encoded}/meta`)
       .then(r => r.json())
       .then(d => {
@@ -41,7 +41,7 @@ export function RightPanel() {
   useEffect(() => {
     fetch(`${getAPI()}/notes`)
       .then(r => r.json())
-      .then(d => setActionPeople((d.notes ?? []).filter((n: Note) => n.type === 'people')))
+      .then(d => setActionPeople((d.notes ?? []).filter((n: Note) => n.type === 'person')))
       .catch(() => {})
   }, [])
 

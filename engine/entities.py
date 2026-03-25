@@ -10,6 +10,21 @@ _STOP_WORDS = frozenset([
     "Such", "Each", "Very", "Both", "Into", "Over", "Under", "After",
     "Before", "During", "While", "Since", "Until", "About", "Above",
     "Below", "Between", "Through", "Within",
+    # Common heading-prefix words that look like first names
+    "Key", "Core", "Main", "Next", "Last", "New", "Old", "Good", "Bad",
+    "Top", "Best", "Big", "High", "Low", "Raw", "Net", "Hot", "Cold",
+    # Tech/AI terms that appear title-cased in notes
+    "Agent", "Model", "Tool", "Data", "Code", "Test", "Task", "User",
+    "Note", "Item", "Type", "Mode", "Node", "Step", "Phase", "Stage",
+    # Common verbs/nouns that appear in Title Case headings but are never names
+    "Build", "Workflow", "Health", "Template", "Update", "Setup",
+    "Launch", "Deploy", "Release", "Status", "Report", "Summary",
+    "Overview", "Result", "Output", "Input", "Files", "Maintenance",
+    "Review", "Design", "Feature", "Issue", "Request", "Response",
+    "Service", "Process", "Config", "Session", "Change", "Version",
+    # Meeting/calendar terms that appear in Title Case
+    "Sync", "Call", "Chat", "Weekly", "Daily", "Monthly", "Quarterly",
+    "Sprint", "Retro", "Demo", "Standup", "Kickoff",
 ])
 
 # ---------------------------------------------------------------------------
@@ -113,19 +128,68 @@ def extract_entities(title: str, body: str) -> dict:
         return {"people": [], "places": [], "topics": [], "orgs": []}
 
 
-def _extract_people(text: str) -> list[str]:
-    """Extract two-word names using Unicode-aware Extended Latin pattern.
 
-    Filters out English and Finnish stop words.
-    Supports compound prefixes (van, von, de, di, la, el) and hyphenated last names.
-    Requires two-word minimum.
+# Suffixes that indicate abstract nouns or gerunds — not valid last names.
+# Gerunds: -ing, -ings. Abstract nouns: -tion, -sion, -ness, -ment, -ity, -ery, -ory, -ary.
+# Past participles: -ated. Analysis-style: -sis.
+_ABSTRACT_SUFFIXES = (
+    "ing", "ings",
+    "tion", "sion",
+    "ness", "ment",
+    "ity", "ery", "ory", "ary",
+    "ism",
+    "ated", "sis",
+)
+
+
+def _is_abstract_noun(word: str) -> bool:
+    """Return True if word looks like an abstract noun rather than a name.
+
+    Also checks the de-pluralised form (strip trailing 's') so that plural
+    abstract nouns like 'Presentations' are caught alongside 'Presentation'.
     """
-    matches = _NAME_PAT.findall(text)
-    return [
-        f"{first} {last}"
-        for first, last in matches
-        if first not in _ALL_STOPS and last not in _ALL_STOPS
-    ]
+    lower = word.lower()
+    if any(lower.endswith(s) for s in _ABSTRACT_SUFFIXES):
+        return True
+    # Plural form: strip trailing 's' (but not "ss" endings like "lass")
+    if lower.endswith("s") and not lower.endswith("ss") and len(lower) > 3:
+        singular = lower[:-1]
+        if any(singular.endswith(s) for s in _ABSTRACT_SUFFIXES):
+            return True
+    return False
+
+
+# Pattern for a single name-like token (same character class as _NAME_SEG)
+_TOKEN_PAT = re.compile(rf'\b{_NAME_SEG}\b')
+# Allowed gap between first and last name: whitespace + optional compound prefix
+_GAP_PAT = re.compile(rf'^\s+{_PREFIX}$')
+
+
+def _extract_people(text: str) -> list[str]:
+    """Extract two-word names using a sliding window over capitalized tokens.
+
+    Uses a sliding window instead of non-overlapping findall so that
+    consecutive names like "Met Anna Korhonen" yield both ("Met","Anna")
+    and ("Anna","Korhonen") — the latter being the real name.
+
+    Filters out English and Finnish stop words and abstract noun suffixes
+    (gerunds, -tion, -ness, etc.) that commonly appear in title-cased headings.
+    Supports compound prefixes (van, von, de, di, la, el) and hyphenated last names.
+    """
+    tokens = [(m.group(), m.start(), m.end()) for m in _TOKEN_PAT.finditer(text)]
+    results = []
+    for i in range(len(tokens) - 1):
+        first, f_start, f_end = tokens[i]
+        last, l_start, _ = tokens[i + 1]
+        gap = text[f_end:l_start]
+        if not _GAP_PAT.match(gap):
+            continue
+        if (first not in _ALL_STOPS
+                and last not in _ALL_STOPS
+                and not _is_abstract_noun(first)
+                and not _is_abstract_noun(last)):
+            results.append(f"{first} {last}")
+    return list(dict.fromkeys(results))
 
 
 def _extract_organizations(text: str) -> list[str]:

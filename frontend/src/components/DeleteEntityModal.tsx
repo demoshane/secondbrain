@@ -7,14 +7,14 @@ import { getAPI } from '@/lib/utils'
 interface DeleteEntityModalProps {
   open: boolean
   onClose: () => void
-  entityType: 'people' | 'meetings' | 'projects'
+  entityType: 'persons' | 'meetings' | 'projects'
   entityName: string
   entityPath: string
   onDeleted: () => void
 }
 
 function keepLabel(entityType: DeleteEntityModalProps['entityType']): string {
-  if (entityType === 'people') return 'Keep Person'
+  if (entityType === 'persons') return 'Keep Person'
   if (entityType === 'meetings') return 'Keep Meeting'
   return 'Keep Project'
 }
@@ -41,12 +41,12 @@ export function DeleteEntityModal({
       setLinkCounts(null)
       return
     }
-    if (entityType !== 'people') {
+    if (entityType !== 'persons') {
       setLinkCounts(null)
       return
     }
     const relPath = entityPath.startsWith('/') ? entityPath.slice(1) : entityPath
-    fetch(`${getAPI()}/people/${relPath}/links`)
+    fetch(`${getAPI()}/persons/${relPath}/links`)
       .then(r => r.ok ? r.json() : null)
       .then((data: LinkCounts | null) => setLinkCounts(data))
       .catch(() => setLinkCounts(null))
@@ -75,7 +75,7 @@ export function DeleteEntityModal({
   }
 
   const hasCascade =
-    entityType === 'people' &&
+    entityType === 'persons' &&
     linkCounts !== null &&
     (linkCounts.meeting_count > 0 || linkCounts.action_count > 0)
 
@@ -89,7 +89,7 @@ export function DeleteEntityModal({
           {hasCascade ? (
             <p className="text-sm text-muted-foreground" data-testid="cascade-warning">
               {linkCounts!.meeting_count > 0 && (
-                <span>{linkCounts!.meeting_count} meeting note{linkCounts!.meeting_count !== 1 ? 's' : ''} mention this person. </span>
+                <span>{linkCounts!.meeting_count} note{linkCounts!.meeting_count !== 1 ? 's' : ''} mention this person. </span>
               )}
               {linkCounts!.action_count > 0 && (
                 <span>{linkCounts!.action_count} action item{linkCounts!.action_count !== 1 ? 's' : ''} are assigned to them. </span>

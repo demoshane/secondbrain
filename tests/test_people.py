@@ -1,9 +1,9 @@
-"""Phase 27.4 + 30-04: Unit tests for /people endpoint.
+"""Unit tests for /persons endpoint.
 
 Tests cover:
-  - Basic endpoint existence (from 27.4 stubs)
-  - Enriched fields: org, last_interaction, mention_count (Phase 30-04)
-  - Person type isolation: both 'person' and 'people' types appear; plain 'note' does not
+  - Basic endpoint existence
+  - Enriched fields: org, last_interaction, mention_count
+  - Person type isolation: only type='person' appears; plain 'note' does not
 """
 import json
 import datetime
@@ -21,12 +21,13 @@ def client(monkeypatch, tmp_path):
 
     brain = tmp_path / "brain"
     brain.mkdir()
-    for d in ["people", "ideas", "meetings"]:
+    for d in ["person", "ideas", "meetings"]:
         (brain / d).mkdir()
 
     tmp_db = Path(str(tmp_path / "test.db"))
     monkeypatch.setattr(_db, "DB_PATH", tmp_db)
     monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "BRAIN_ROOT", brain)
     monkeypatch.setenv("BRAIN_PATH", str(brain))
 
     conn = get_connection()
@@ -41,7 +42,7 @@ def client(monkeypatch, tmp_path):
 def test_list_people_endpoint(client):
     """GET /people returns 200 with a people key."""
     c, _ = client
-    resp = c.get("/people")
+    resp = c.get("/persons")
     assert resp.status_code == 200
     data = json.loads(resp.data)
     assert "people" in data
@@ -50,7 +51,7 @@ def test_list_people_endpoint(client):
 def test_list_people_empty(client):
     """GET /people with no people notes returns {"people": []}."""
     c, _ = client
-    resp = c.get("/people")
+    resp = c.get("/persons")
     assert resp.status_code == 200
     data = json.loads(resp.data)
     assert data["people"] == []
@@ -62,13 +63,13 @@ def test_list_people_stats(client):
 
     c, brain = client
 
-    note_path = str(brain / "people" / "alice.md")
+    note_path = str(brain / "person" / "alice.md")
     now = datetime.datetime.utcnow().isoformat()
     conn = get_connection()
     conn.execute(
         "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
         " VALUES (?,?,?,?,?,?,?)",
-        (note_path, "Alice", "people", "Alice is a colleague.", "[]", now, now),
+        (note_path, "Alice", "person", "Alice is a colleague.", "[]", now, now),
     )
     conn.execute(
         "INSERT INTO action_items (note_path, text, done, assignee_path)"
@@ -78,7 +79,7 @@ def test_list_people_stats(client):
     conn.commit()
     conn.close()
 
-    resp = c.get("/people")
+    resp = c.get("/persons")
     assert resp.status_code == 200
     data = json.loads(resp.data)
     assert "people" in data
@@ -95,7 +96,7 @@ def test_list_people_enriched(client):
 
     c, brain = client
 
-    person_path = str(brain / "people" / "bob.md")
+    person_path = str(brain / "person" / "bob.md")
     meeting_path = str(brain / "meetings" / "q1-review.md")
     now = datetime.datetime.utcnow().isoformat()
     entities_json = json.dumps({"orgs": ["Acme Corp"], "people": ["Bob"], "topics": []})
@@ -122,7 +123,7 @@ def test_list_people_enriched(client):
     conn.commit()
     conn.close()
 
-    resp = c.get("/people")
+    resp = c.get("/persons")
     assert resp.status_code == 200
     data = json.loads(resp.data)
     people = data["people"]
@@ -134,14 +135,14 @@ def test_list_people_enriched(client):
 
 
 def test_person_type_isolation(client):
-    """Both type='person' and type='people' appear; plain type='note' does NOT."""
+    """Only type='person' appears; plain type='note' does NOT."""
     from engine.db import get_connection
 
     c, brain = client
 
     now = datetime.datetime.utcnow().isoformat()
-    person_path = str(brain / "people" / "carol.md")
-    people_path = str(brain / "people" / "group.md")
+    person_path = str(brain / "person" / "carol.md")
+    person2_path = str(brain / "person" / "dave.md")
     note_path = str(brain / "ideas" / "random.md")
 
     conn = get_connection()
@@ -153,7 +154,7 @@ def test_person_type_isolation(client):
     conn.execute(
         "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
         " VALUES (?,?,?,?,?,?,?)",
-        (people_path, "Engineering Group", "people", "A group note.", "[]", now, now),
+        (person2_path, "Dave", "person", "Dave is a person.", "[]", now, now),
     )
     conn.execute(
         "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
@@ -163,17 +164,17 @@ def test_person_type_isolation(client):
     conn.commit()
     conn.close()
 
-    resp = c.get("/people")
+    resp = c.get("/persons")
     assert resp.status_code == 200
     data = json.loads(resp.data)
     paths = [p["path"] for p in data["people"]]
     assert person_path in paths, "type='person' must appear"
-    assert people_path in paths, "type='people' must appear"
+    assert person2_path in paths, "second person must appear"
     assert note_path not in paths, "type='note' must NOT appear"
 
 
 def test_create_person_post_happy_path(client, monkeypatch):
-    """POST /people with name returns 201 and a path to the created note."""
+    """POST /persons with name returns 201 and a path to the created note."""
     from engine.db import get_connection
     import engine.capture as _capture
 
@@ -183,7 +184,7 @@ def test_create_person_post_happy_path(client, monkeypatch):
     created = {}
 
     def _fake_capture(note_type, title, body, tags, people, content_sensitivity, brain_root, conn, **kw):
-        p = brain / "people" / f"{title.lower().replace(' ', '-')}.md"
+        p = brain / "person" / f"{title.lower().replace(' ', '-')}.md"
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(f"---\ntitle: {title}\ntype: {note_type}\n---\n", encoding="utf-8")
         path_str = str(p)
@@ -198,7 +199,7 @@ def test_create_person_post_happy_path(client, monkeypatch):
 
     monkeypatch.setattr(_capture, "capture_note", _fake_capture)
 
-    resp = c.post("/people", json={"name": "Dana Koskinen", "role": "Engineer"})
+    resp = c.post("/persons", json={"name": "Dana Koskinen", "role": "Engineer"})
     assert resp.status_code == 201, resp.data
     data = json.loads(resp.data)
     assert "path" in data
@@ -206,46 +207,48 @@ def test_create_person_post_happy_path(client, monkeypatch):
 
 
 def test_create_person_missing_name(client):
-    """POST /people without name returns 400."""
+    """POST /persons without name returns 400."""
     c, _ = client
-    resp = c.post("/people", json={})
+    resp = c.post("/persons", json={})
     assert resp.status_code == 400
     data = json.loads(resp.data)
     assert "error" in data
 
 
 def test_delete_person_clears_assignee(client):
-    """DELETE /people/<path> NULLs assignee_path in action_items before deleting note."""
+    """DELETE /persons/<path> NULLs assignee_path in action_items before deleting note."""
     from engine.db import get_connection
     import datetime
 
     c, brain = client
 
     # Create a person note file
-    person_path_obj = brain / "people" / "erika.md"
+    person_path_obj = brain / "person" / "erika.md"
     person_path_obj.parent.mkdir(parents=True, exist_ok=True)
-    person_path_obj.write_text("---\ntitle: Erika\ntype: people\n---\n", encoding="utf-8")
+    person_path_obj.write_text("---\ntitle: Erika\ntype: person\n---\n", encoding="utf-8")
+    from engine.paths import store_path as _sp
     person_path_str = str(person_path_obj)
+    person_rel = _sp(person_path_obj.resolve())
 
     now = datetime.datetime.utcnow().isoformat()
     conn = get_connection()
-    # Insert person note into DB
+    # Insert person note into DB (relative path to match store_path convention)
     conn.execute(
         "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
         " VALUES (?,?,?,?,?,?,?)",
-        (person_path_str, "Erika", "people", "", "[]", now, now),
+        (person_rel, "Erika", "person", "", "[]", now, now),
     )
     # Insert an action item assigned to this person
     conn.execute(
         "INSERT INTO action_items (note_path, text, done, assignee_path) VALUES (?,?,?,?)",
-        (person_path_str, "Follow up", 0, person_path_str),
+        (person_rel, "Follow up", 0, person_rel),
     )
     conn.commit()
     conn.close()
 
     # Encode the path — Flask test client handles URL encoding
     encoded = person_path_str.lstrip("/")
-    resp = c.delete(f"/people/{encoded}")
+    resp = c.delete(f"/persons/{encoded}")
     assert resp.status_code == 200, resp.data
 
     # Verify assignee_path was NULLed

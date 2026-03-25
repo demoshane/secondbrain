@@ -138,14 +138,16 @@ def extract_action_items(note_path: Path, body_or_conn=None, sensitivity: str = 
         raw = adapter.generate(user_content=body, system_prompt=ACTION_ITEM_SYSTEM_PROMPT)
         lines = [line.strip() for line in raw.splitlines() if line.strip() and line.strip() != "NONE"]
         for line in lines:
+            from engine.paths import store_path as _store_path
+            rel_note_path = _store_path(note_path.resolve())
             existing = conn.execute(
                 "SELECT COUNT(*) FROM action_items WHERE note_path=? AND text=?",
-                (str(note_path.resolve()), line),
+                (rel_note_path, line),
             ).fetchone()[0]
             if existing == 0:
                 conn.execute(
                     "INSERT INTO action_items (note_path, text, done) VALUES (?, ?, 0)",
-                    (str(note_path.resolve()), line),
+                    (rel_note_path, line),
                 )
         conn.commit()
     except Exception:

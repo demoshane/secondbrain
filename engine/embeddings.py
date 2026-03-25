@@ -63,8 +63,22 @@ def embed_texts(texts: list, provider: Optional[str] = None,
     elif provider == "ollama":
         try:
             import ollama
-            resp = ollama.embed(model="nomic-embed-text", input=texts)
-            return [_serialize(v) for v in resp["embeddings"]]
+            # Embed one at a time. UTF-8 multibyte chars inflate token count (Finnish etc.),
+            # so start at 1000 chars and halve on context-length errors.
+            blobs = []
+            for text in texts:
+                limit = 1000
+                while True:
+                    try:
+                        r = ollama.embed(model="nomic-embed-text", input=[text[:limit]])
+                        blobs.append(_serialize(r.embeddings[0]))
+                        break
+                    except Exception as inner:
+                        if "context length" in str(inner).lower() and limit > 50:
+                            limit //= 2
+                        else:
+                            raise
+            return blobs
         except Exception as e:
             err_type = type(e).__name__
             if "connect" in str(e).lower() or "connection" in str(e).lower():

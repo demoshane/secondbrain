@@ -39,11 +39,13 @@ def tmp_brain(tmp_path, monkeypatch):
     Returns (tmp_path, note_work_path, note_other_path).
     """
     import engine.db as _db
+    import engine.paths as _paths
     from engine.db import init_schema
 
     # Point DB_PATH at a tmp file so no real DB is touched
     tmp_db = tmp_path / "test_brain.db"
     monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
     monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
 
     # Bootstrap schema in the tmp DB
@@ -58,7 +60,7 @@ def tmp_brain(tmp_path, monkeypatch):
         "---\ntitle: Work Note\ntags: [work, idea]\ntype: note\n---\n\nWork content.\n",
         encoding="utf-8",
     )
-    path_work = str(note_work.resolve())
+    path_work = "work-note.md"  # relative path (Phase 32+)
 
     # Note 2: tagged ["personal"]
     note_other = tmp_path / "personal-note.md"
@@ -66,7 +68,7 @@ def tmp_brain(tmp_path, monkeypatch):
         "---\ntitle: Personal Note\ntags: [personal]\ntype: idea\n---\n\nPersonal content.\n",
         encoding="utf-8",
     )
-    path_other = str(note_other.resolve())
+    path_other = "personal-note.md"  # relative path (Phase 32+)
 
     conn = get_connection()
     conn.execute(

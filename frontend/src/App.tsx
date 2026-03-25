@@ -21,7 +21,8 @@ import { useNoteContext } from './contexts/NoteContext'
 import { useUIContext } from './contexts/UIContext'
 import { Button } from './components/ui/button'
 import { Trash2, Upload } from 'lucide-react'
-import { Toaster } from 'sonner'
+import { Toaster, toast } from 'sonner'
+import { getAPI } from './lib/utils'
 
 export default function App() {
   const { loadNotes, currentNote, currentPath } = useNoteContext()
@@ -34,6 +35,17 @@ export default function App() {
   const [showPalette, setShowPalette] = useState(false)
 
   useEffect(() => { loadNotes() }, [loadNotes])
+
+  useEffect(() => {
+    fetch(`${getAPI()}/health`)
+      .then(r => r.json())
+      .then((d: { warnings?: string[] }) => {
+        for (const w of d.warnings ?? []) {
+          toast.warning(w, { duration: Infinity })
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

@@ -10,3 +10,9 @@ export function getAPI(): string {
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
+
+/** Encode a note path for use in URL path segments.
+ *  Encodes each segment individually (spaces, #, ? etc.) but preserves slashes. */
+export function encodePath(path: string): string {
+  return path.split('/').map(encodeURIComponent).join('/')
+}

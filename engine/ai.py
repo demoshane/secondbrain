@@ -24,7 +24,7 @@ QUESTION_SYSTEM_PROMPTS = {
         "to capture architectural context (why this approach, alternatives, risks). "
         "Output only a numbered list."
     ),
-    "people": (
+    "person": (
         "You are a professional context assistant. Given a person note title, generate 2-3 questions "
         "to capture relationship context (how you know them, their goals, recent interactions). "
         "Output only a numbered list."
@@ -53,7 +53,7 @@ FALLBACK_QUESTIONS: dict[str, list[str]] = {
     "meeting": ["Who were the key decision-makers present?", "What are the next action items?"],
     "idea": ["What problem does this solve?", "Who would benefit most from this?"],
     "coding": ["Why this approach over alternatives?", "What are the main risks?"],
-    "people": ["How did you meet this person?", "What are their current priorities?"],
+    "person": ["How did you meet this person?", "What are their current priorities?"],
     "strategy": ["What does success look like in 90 days?", "What is the biggest obstacle?"],
     "note": ["What is the key insight here?", "How does this connect to current work?"],
     "projects": ["Who is the primary stakeholder?", "What does success look like?"],
@@ -163,7 +163,7 @@ def main() -> None:
         description="Update Claude memory file with a note summary.",
     )
     parser.add_argument("--note-type", dest="note_type", required=True,
-                        help="Content type of the captured note (e.g. coding, people, meeting)")
+                        help="Content type of the captured note (e.g. coding, person, meeting)")
     parser.add_argument("--summary", required=True,
                         help="Summary text to record in memory")
     parser.add_argument("--config-path", dest="config_path", default=None,

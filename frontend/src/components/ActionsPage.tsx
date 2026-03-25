@@ -1,16 +1,22 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { getAPI } from '@/lib/utils'
 import { useNoteContext } from '@/contexts/NoteContext'
+import { useUIContext } from '@/contexts/UIContext'
 import { ActionItemList } from './ActionItemList'
 import type { ActionItem, Note } from '@/types'
 
 export function ActionsPage() {
   const { openNote } = useNoteContext()
+  const { setCurrentView } = useUIContext()
   const [actions, setActions] = useState<ActionItem[]>([])
   const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'done'>('open')
   const [people, setPeople] = useState<Note[]>([])
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all')
+  const [pendingDelete, setPendingDelete] = useState<ActionItem | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const loadActions = useCallback(async () => {
     const params = new URLSearchParams()
@@ -26,7 +32,7 @@ export function ActionsPage() {
   useEffect(() => {
     fetch(`${getAPI()}/notes`)
       .then(r => r.json())
-      .then(d => setPeople((d.notes ?? []).filter((n: Note) => n.type === 'people')))
+      .then(d => setPeople((d.notes ?? []).filter((n: Note) => n.type === 'person')))
       .catch(() => {})
   }, [])
 
@@ -47,6 +53,32 @@ export function ActionsPage() {
     })
     loadActions()
   }
+
+  const setDueDate = async (action: ActionItem, date: string | null) => {
+    await fetch(`${getAPI()}/actions/${action.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ due_date: date }),
+    })
+    loadActions()
+  }
+
+  const confirmDelete = async () => {
+    if (!pendingDelete || deleting) return
+    setDeleting(true)
+    try {
+      await fetch(`${getAPI()}/actions/${pendingDelete.id}`, { method: 'DELETE' })
+      setPendingDelete(null)
+      loadActions()
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const openSourceNote = useCallback(async (notePath: string) => {
+    await openNote(notePath)
+    setCurrentView('notes')
+  }, [openNote, setCurrentView])
 
   return (
     <div className="flex flex-col h-full p-4" data-testid="actions-page">
@@ -78,10 +110,36 @@ export function ActionsPage() {
           people={people}
           onToggle={toggleDone}
           onAssign={assignTo}
+          onSetDueDate={setDueDate}
+          onDelete={setPendingDelete}
           showSourceLink={true}
-          onOpenNote={openNote}
+          onOpenNote={openSourceNote}
         />
       </div>
+
+      <Dialog open={!!pendingDelete} onOpenChange={v => !v && setPendingDelete(null)}>
+        <DialogContent data-testid="delete-action-modal">
+          <DialogHeader>
+            <DialogTitle>Delete action item?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">This cannot be undone.</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setPendingDelete(null)}>
+                Keep
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={deleting}
+                onClick={confirmDelete}
+                data-testid="delete-action-confirm"
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

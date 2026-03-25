@@ -231,3 +231,70 @@ def test_title_body_processed_separately():
     # "Wonderland" ends title, "Alice" starts body — must not yield "Wonderland Alice"
     result = extract_entities("Wonderland", "Alice attended the meeting")
     assert "Wonderland Alice" not in result["people"]
+
+
+# ---------------------------------------------------------------------------
+# False-positive person extraction regression tests (Phase 35 fix)
+# Titles like "Branded Presentations" were being extracted as person names and
+# turned into person stubs by sb_capture_smart.
+# ---------------------------------------------------------------------------
+
+def test_plural_abstract_noun_not_extracted_as_person():
+    """Plural abstract nouns like 'Presentations' are not treated as surnames."""
+    from engine.entities import extract_entities
+
+    result = extract_entities(
+        "AI Agent Learnings — Presentation Build Session",
+        "## Key Discovery: pptxgenjs vs python-pptx for Branded Presentations",
+    )
+    people = result["people"]
+    assert "Branded Presentations" not in people, "plural abstract noun treated as surname"
+    assert "Presentation Build" not in people, "common noun 'Build' treated as surname"
+    assert "Key Discovery" not in people, "'Key' is a stop word"
+    assert "Agent Learnings" not in people, "'Agent' is a stop word"
+
+
+def test_is_abstract_noun_handles_plurals():
+    """_is_abstract_noun returns True for plural abstract nouns."""
+    from engine.entities import _is_abstract_noun
+
+    assert _is_abstract_noun("Presentations")   # presentation → -tion
+    assert _is_abstract_noun("Workflows") is False  # 'workflow' has no abstract suffix
+    assert _is_abstract_noun("Learnings")        # -ings
+    assert _is_abstract_noun("Requirements")     # requirement → -ment
+    assert _is_abstract_noun("Analysis")         # -sis
+    # Real names should not be flagged
+    assert _is_abstract_noun("Korhonen") is False
+    assert _is_abstract_noun("Smith") is False
+
+
+def test_stop_words_prevent_common_noun_pairs():
+    """Common nouns added to stop words are not extracted as person names."""
+    from engine.entities import extract_entities
+
+    text = "## Health Checking and Maintenance Agent workflows"
+    result = extract_entities("", text)
+    people = result["people"]
+    assert "Health Checking" not in people, "'Health' should be a stop word"
+    assert "Maintenance Agent" not in people, "'Agent' is a stop word"
+
+
+def test_first_token_abstract_noun_filtered():
+    """Abstract nouns in the first position are also filtered out."""
+    from engine.entities import extract_entities
+
+    # "Testing Framework", "Planning Session" — first word is abstract
+    result = extract_entities("", "Testing Framework for Planning Session")
+    people = result["people"]
+    assert "Testing Framework" not in people
+    assert "Planning Session" not in people
+
+
+def test_real_names_still_extracted_after_fix():
+    """Real person names continue to be extracted correctly after the fix."""
+    from engine.entities import extract_entities
+
+    result = extract_entities("", "Met with Anna Korhonen and John Smith today")
+    people = result["people"]
+    assert "Anna Korhonen" in people
+    assert "John Smith" in people

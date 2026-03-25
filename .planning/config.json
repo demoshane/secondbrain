@@ -11,6 +11,16 @@
     "security_audit": true,
     "nyquist_validation": true,
     "auto_advance": false,
-    "_auto_chain_active": false
+    "_auto_chain_active": false,
+    "ui_phase": true,
+    "ui_safety_gate": true,
+    "skip_discuss": false,
+    "research_before_questions": false
+  },
+  "git": {
+    "branching_strategy": "none"
+  },
+  "hooks": {
+    "context_warnings": true
   }
 }
