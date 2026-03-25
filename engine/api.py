@@ -61,7 +61,7 @@ _startup_warnings: list[str] = []
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50 MB
-CORS(app, origins=["null", "file://*", "http://127.0.0.1:*"])
+CORS(app, origins=["null", "file://*", "http://127.0.0.1:*", "chrome-extension://*"])
 
 
 @app.errorhandler(413)
@@ -141,6 +141,11 @@ def start_note_observer():
 @app.get("/health")
 def health():
     return jsonify({"status": "ok", "port": 37491, "warnings": _startup_warnings})
+
+
+@app.get("/ping")
+def ping():
+    return jsonify({"ok": True})
 
 
 @app.post("/notes/refresh")
@@ -893,6 +898,7 @@ def create_note():
     note_type = body.get("type", "idea")
     note_body = body.get("body", "")
     brain_path = body.get("brain_path", "") or str(BRAIN_ROOT)
+    source_url = body.get("source_url", "")
     if note_type not in VALID_NOTE_TYPES:
         return jsonify({"error": f"invalid note type: {note_type!r}"}), 400
     import datetime
@@ -912,10 +918,11 @@ def create_note():
     target.parent.mkdir(parents=True, exist_ok=True)
     now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     today = datetime.date.today().isoformat()
+    url_line = f"url: {source_url}\n" if source_url else ""
     md_content = (
         f"---\ntype: {note_type}\ntitle: {title}\ndate: {today}\n"
         f"tags: []\npeople: []\ncreated_at: {now}\nupdated_at: {now}\n"
-        f"content_sensitivity: public\n---\n\n{note_body}\n"
+        f"content_sensitivity: public\n{url_line}---\n\n{note_body}\n"
     )
     target.write_text(md_content, encoding="utf-8")
     # Index the new note into SQLite immediately so loadNotes() reflects it
@@ -1494,6 +1501,8 @@ def smart_capture():
     from engine.paths import BRAIN_ROOT
     import uuid
 
+    source_url = data.get("source_url", "")
+    source_type = data.get("source_type", "")
     segments = segment_blob(content)
     session_id = str(uuid.uuid4())
     conn = get_connection()
@@ -1506,6 +1515,7 @@ def smart_capture():
                     note_type=seg["type"], title=seg["title"], body=seg["body"],
                     tags=[], people=seg.get("entities", {}).get("people", []),
                     content_sensitivity="public", brain_root=BRAIN_ROOT, conn=conn,
+                    url=source_url or None, source_type=source_type or None,
                 )
                 saved.append({"title": seg["title"], "type": seg["type"], "path": str(path)})
             except Exception as e:

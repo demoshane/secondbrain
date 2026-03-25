@@ -691,3 +691,89 @@ class TestPagination:
         assert "total" in data, f"Missing 'total' key; got keys: {list(data.keys())}"
         assert "limit" in data, f"Missing 'limit' key; got keys: {list(data.keys())}"
         assert "offset" in data, f"Missing 'offset' key; got keys: {list(data.keys())}"
+
+
+class TestPingEndpoint:
+    def test_ping(self, client):
+        """GET /ping returns 200 with {ok: true}."""
+        response = client.get("/ping")
+        assert response.status_code == 200
+        assert response.get_json() == {"ok": True}
+
+
+class TestCORSExtension:
+    def test_cors_extension_origin(self, client):
+        """OPTIONS request from a chrome-extension:// origin gets CORS header back."""
+        response = client.options(
+            "/ping",
+            headers={"Origin": "chrome-extension://fakeextensionid"},
+        )
+        # Flask-CORS sets the header on the preflight response
+        assert "Access-Control-Allow-Origin" in response.headers
+
+
+class TestSmartCaptureSourceUrl:
+    def test_smart_capture_source_url(self, tmp_path, monkeypatch, client):
+        """POST /smart-capture with source_url and source_type writes them to frontmatter."""
+        import engine.db as _db
+        import engine.paths as _paths
+        from engine.db import init_schema
+
+        tmp_db = tmp_path / "test.db"
+        monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+        monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+        monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
+        monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+
+        conn = get_connection()
+        init_schema(conn)
+        conn.commit()
+        conn.close()
+
+        response = client.post("/smart-capture", json={
+            "content": "Test note about something interesting",
+            "source_url": "https://example.com",
+            "source_type": "article",
+        })
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["count"] >= 1
+
+        # Find and verify the written file contains source fields
+        saved_paths = [s["path"] for s in data["notes"] if "path" in s]
+        assert saved_paths, "At least one note must have been saved"
+        content = Path(saved_paths[0]).read_text(encoding="utf-8")
+        assert "url: https://example.com" in content
+        assert "source_type: article" in content
+
+
+class TestCreateNoteSourceUrl:
+    def test_create_note_source_url(self, tmp_path, monkeypatch, client):
+        """POST /notes with source_url writes url field into frontmatter."""
+        import engine.db as _db
+        import engine.paths as _paths
+        from engine.db import init_schema
+
+        tmp_db = tmp_path / "test.db"
+        monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+        monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+        monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
+
+        conn = get_connection()
+        init_schema(conn)
+        conn.commit()
+        conn.close()
+
+        response = client.post("/notes", json={
+            "title": "Test Source URL Note",
+            "type": "note",
+            "body": "hello",
+            "brain_path": str(tmp_path),
+            "source_url": "https://example.com",
+        })
+        assert response.status_code == 201
+        data = response.get_json()
+        assert "path" in data
+
+        content = Path(data["path"]).read_text(encoding="utf-8")
+        assert "url: https://example.com" in content

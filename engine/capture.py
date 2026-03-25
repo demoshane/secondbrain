@@ -456,6 +456,7 @@ def capture_note(
     conn: sqlite3.Connection,
     *,
     url: str | None = None,
+    source_type: str | None = None,
 ) -> Path:
     """Build and atomically write a note, returning its final path.
 
@@ -469,6 +470,7 @@ def capture_note(
         brain_root: Root path of the brain directory.
         conn: Open SQLite connection.
         url: Optional URL for link captures — written into frontmatter and DB.
+        source_type: Optional source type (e.g. 'article', 'video') — written into frontmatter.
 
     Returns:
         Path to the written note file.
@@ -517,6 +519,8 @@ def capture_note(
     post = build_post(note_type, title, body, tags, merged_people, content_sensitivity)
     if url:
         post["url"] = url
+    if source_type:
+        post["source_type"] = source_type
     post["entities"] = entities
     write_note_atomic(target, post, conn, url=url)
 
