@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
-status: Ready to plan
-stopped_at: Completed 35-03-PLAN.md
-last_updated: "2026-03-23T18:21:23.819Z"
+status: Ready to execute
+stopped_at: Completed 36-02-PLAN.md — chrome extension scaffold + core capture
+last_updated: "2026-03-25T06:37:48.816Z"
 progress:
   total_phases: 8
   completed_phases: 4
-  total_plans: 20
-  completed_plans: 18
+  total_plans: 23
+  completed_plans: 19
 ---
 
 # Project State
@@ -22,8 +22,8 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-Phase: 36
-Plan: Not started
+Phase: 36 (chrome-extension-capture) — EXECUTING
+Plan: 2 of 4
 
 ## Performance Metrics
 
@@ -44,6 +44,7 @@ Plan: Not started
 | Phase 35 P01 | 30 | 2 tasks | 8 files |
 | Phase 35 P02 | 15 | 2 tasks | 4 files |
 | Phase 35 P03 | 15 | 2 tasks | 9 files |
+| Phase 36 P02 | 226 | 2 tasks | 13 files |
 
 ### Decisions
 
@@ -75,10 +76,13 @@ Active decisions affecting upcoming work:
 - [Phase 35]: health_snapshots migration is last in init_schema() to avoid ordering issues with other migrations
 - [Phase 35]: take_health_snapshot one-per-day guard uses date(snapped_at) = date('now') — strips time component for reliable comparison
 - [Phase 35]: consolidate_main imports brain_health lazily inside function body — avoids circular import at module load time
+- [Phase 36]: chrome.alarms used for badge polling (not setInterval) — service workers have no persistent timers; alarms permission added to manifest
+- [Phase 36]: POST /notes endpoint used in popup (not /smart-capture) — user already selected type in dropdown, so smart classification not needed
 
 ### Pending Todos
 
 - Audit and improve context detection on capture (general)
+- [Phase 36 / Chrome extension] Page summarisation feature: summarise the active page via LLM, show summary in extension popup with an "Add to brain" button to save the summary as a note
 
 ### Roadmap Evolution
 
@@ -90,6 +94,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-23T18:10:40.751Z
-Stopped at: Completed 35-03-PLAN.md
+Last session: 2026-03-25T06:37:48.809Z
+Stopped at: Completed 36-02-PLAN.md — chrome extension scaffold + core capture
 Resume file: None
