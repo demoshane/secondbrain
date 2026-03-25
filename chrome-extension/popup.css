@@ -1,0 +1,240 @@
+/* Second Brain Capture — Popup Styles */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 400px;
+  max-height: 600px;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 0.875rem;
+  color: #1a1a2e;
+  background: #fff;
+  overflow-y: auto;
+}
+
+/* ── Status Bar ──────────────────────────────────────────────────────────── */
+
+.status-bar {
+  height: 4px;
+  background: #d1d5db;
+  transition: background 0.3s;
+}
+
+.status-bar.connected {
+  background: #16a34a;
+}
+
+.status-bar.disconnected {
+  background: #dc2626;
+}
+
+.status-message {
+  font-size: 0.75rem;
+  padding: 4px 12px;
+  background: #fee2e2;
+  color: #991b1b;
+  border-bottom: 1px solid #fca5a5;
+}
+
+.status-message.ok {
+  background: #dcfce7;
+  color: #166534;
+  border-bottom-color: #86efac;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+
+.header {
+  padding: 12px 12px 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.header h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a3a5c;
+}
+
+/* ── Error Message ───────────────────────────────────────────────────────── */
+
+.error-msg {
+  background: #fee2e2;
+  color: #991b1b;
+  border-left: 3px solid #dc2626;
+  padding: 8px 12px;
+  font-size: 0.8125rem;
+  margin: 8px 12px 0;
+  border-radius: 0 4px 4px 0;
+}
+
+/* ── Form ────────────────────────────────────────────────────────────────── */
+
+#capture-form {
+  padding: 10px 12px 12px;
+}
+
+.field {
+  margin-bottom: 10px;
+}
+
+label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+input[type="text"],
+select,
+textarea {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: #1a1a2e;
+  background: #fff;
+  resize: vertical;
+}
+
+input[type="text"]:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: #4f8cc9;
+  box-shadow: 0 0 0 2px rgba(79, 140, 201, 0.2);
+}
+
+select {
+  cursor: pointer;
+}
+
+textarea {
+  min-height: 120px;
+  line-height: 1.5;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+
+.button-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+button {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 5px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+#save-btn {
+  background: #1a3a5c;
+  color: white;
+  flex: 1;
+}
+
+#save-btn:hover:not(:disabled) {
+  background: #2a5080;
+}
+
+#save-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+#cancel-btn {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+#cancel-btn:hover {
+  background: #e5e7eb;
+}
+
+/* ── History Section ─────────────────────────────────────────────────────── */
+
+#history-section {
+  border-top: 1px solid #e5e7eb;
+  padding: 10px 12px;
+  background: #f9fafb;
+}
+
+#history-section h3 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+#history-list {
+  list-style: none;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+#history-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 0.8125rem;
+  border-bottom: 1px solid #e5e7eb;
+  color: #374151;
+  overflow: hidden;
+}
+
+#history-list li:last-child {
+  border-bottom: none;
+}
+
+.history-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-type {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #dbeafe;
+  color: #1e40af;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.history-time {
+  font-size: 0.6875rem;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+/* ── Utilities ───────────────────────────────────────────────────────────── */
+
+.hidden {
+  display: none !important;
+}
+
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
