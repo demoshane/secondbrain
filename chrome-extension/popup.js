@@ -14,9 +14,6 @@ let captureSourceType = 'web';
 // ── Entry Point ───────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Clear pending-capture badge (set by background.js when openPopup() fails)
-  chrome.action.setBadgeText({ text: '' });
-
   // Load API URL from options
   const { apiUrl } = await chrome.storage.sync.get({ apiUrl: DEFAULT_API_URL });
   currentApiUrl = apiUrl;

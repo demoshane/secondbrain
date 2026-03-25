@@ -122,18 +122,9 @@ if (isGmail) {
     }
   });
 
-  // document.body may be null if the content script runs before Gmail's body exists.
-  // Wait for it to be available before attaching the observer.
-  const attachObserver = () => {
-    if (document.body) {
-      gmailObserver.observe(document.body, { childList: true, subtree: true });
-    } else {
-      document.addEventListener('DOMContentLoaded', () => {
-        gmailObserver.observe(document.body, { childList: true, subtree: true });
-      });
-    }
-  };
-  attachObserver();
+  // Observe documentElement (always present) instead of document.body
+  // (body can be null on Gmail's SPA navigation).
+  gmailObserver.observe(document.documentElement, { childList: true, subtree: true });
 }
 
 function injectGmailButton(threadView) {

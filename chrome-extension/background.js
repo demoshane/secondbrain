@@ -57,9 +57,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     try {
       await chrome.action.openPopup();
     } catch (err) {
-      console.warn('[SB] openPopup failed for Gmail (click the icon):', err.message);
-      chrome.action.setBadgeText({ text: '▶' });
-      chrome.action.setBadgeBackgroundColor({ color: '#1a73e8' });
+      console.warn('[SB] openPopup() not supported, opening as tab:', err.message);
+      chrome.tabs.create({ url: chrome.runtime.getURL('popup.html') });
     }
     return;
   }
@@ -78,16 +77,13 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     },
   });
 
-  // Open popup — must happen while still in user gesture context.
-  // Fall back to badge indicator if openPopup() is unsupported or fails.
+  // Open popup — try openPopup() first (Chrome 127+), fall back to new tab.
+  // openPopup() is unsupported on Vivaldi and many Chromium forks.
   try {
     await chrome.action.openPopup();
   } catch (err) {
-    // openPopup() is Chrome 127+ only and unavailable on many Chromium-based browsers.
-    // Show a badge so the user knows to click the icon manually.
-    console.warn('[SB] openPopup failed (click the icon):', err.message);
-    chrome.action.setBadgeText({ text: '▶' });
-    chrome.action.setBadgeBackgroundColor({ color: '#1a73e8' });
+    console.warn('[SB] openPopup() not supported, opening as tab:', err.message);
+    chrome.tabs.create({ url: chrome.runtime.getURL('popup.html') });
   }
 });
 
