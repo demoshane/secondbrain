@@ -33,6 +33,8 @@ export function IntelligencePage() {
   const [generatingRecap, setGeneratingRecap] = useState(false)
   const [health, setHealth] = useState<BrainHealth | null>(null)
   const [nudges, setNudges] = useState<Nudge[]>([])
+  const [showExtensionInstructions, setShowExtensionInstructions] = useState(false)
+  const [extensionApiReachable, setExtensionApiReachable] = useState(false)
 
   useEffect(() => {
     fetch(`${getAPI()}/brain-health`)
@@ -43,6 +45,10 @@ export function IntelligencePage() {
       .then(r => r.json())
       .then(d => setNudges(d.nudges ?? []))
       .catch(() => {})
+    // Check if sb-api is reachable from browser context (for Chrome extension status)
+    fetch(`${getAPI()}/ping`, { signal: AbortSignal.timeout(2000) })
+      .then(res => setExtensionApiReachable(res.ok))
+      .catch(() => setExtensionApiReachable(false))
   }, [])
 
   const generateRecap = useCallback(async () => {
@@ -185,6 +191,47 @@ export function IntelligencePage() {
                 </li>
               ))}
             </ul>
+          )}
+        </div>
+      </div>
+
+      {/* Chrome Extension Install */}
+      <div className="border rounded-lg overflow-hidden">
+        <div className="px-4 py-2 bg-muted/50 border-b">
+          <h2 className="text-sm font-semibold uppercase text-muted-foreground">Chrome Extension</h2>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Capture web pages, selections, and Gmail threads directly from Chrome.
+          </p>
+          <div className="flex items-center gap-2">
+            <div className={cn(
+              'w-2 h-2 rounded-full',
+              extensionApiReachable ? 'bg-green-500' : 'bg-red-500'
+            )} />
+            <span className="text-xs text-muted-foreground">
+              {extensionApiReachable ? 'sb-api reachable from browser' : 'sb-api not reachable'}
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowExtensionInstructions(v => !v)}
+          >
+            Install Chrome Extension
+          </Button>
+          {showExtensionInstructions && (
+            <div className="mt-1 p-3 rounded bg-muted text-sm space-y-2">
+              <p className="font-medium">Installation steps:</p>
+              {/* Note: chrome:// URLs cannot be opened from web pages — show instructions only */}
+              <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                <li>Open <code className="bg-background px-1 rounded text-xs">chrome://extensions</code> in Chrome</li>
+                <li>Enable &ldquo;Developer mode&rdquo; (toggle in top-right)</li>
+                <li>Click &ldquo;Load unpacked&rdquo;</li>
+                <li>Select the <code className="bg-background px-1 rounded text-xs">chrome-extension/</code> directory in the project root</li>
+                <li>The &ldquo;Second Brain Capture&rdquo; extension should appear</li>
+              </ol>
+            </div>
           )}
         </div>
       </div>
