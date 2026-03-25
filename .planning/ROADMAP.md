@@ -197,8 +197,8 @@ Plans:
 **Goal:** Close known UX gaps and test coverage holes surfaced during v4.0 development: fix broken sb-recap weekly view, add action item creation from person note view, people chips in NoteViewer, cascade delete completeness, cover install_subagent.py in tests, fix failing Playwright and embedding tests, and establish Drive sync setup + health check (prerequisite for Phase 38 backup).
 **Depends on:** Phase 34
 **Milestone:** v4.0
-**Status:** Planned
-**Plans:** 8 plans
+**Status:** In progress (UAT gap closure)
+**Plans:** 11 plans
 
 Plans:
 - [ ] 37-01-PLAN.md — Fix sb-recap weekly view (MCP `sb_recap` -> `generate_recap_on_demand`)
@@ -209,6 +209,9 @@ Plans:
 - [ ] 37-06-PLAN.md — Fix 3 failing Playwright tests (title sync, delete flow, people badge)
 - [ ] 37-07-PLAN.md — Fix 4 failing embedding reindex tests (synchronous mode)
 - [ ] 37-08-PLAN.md — Drive sync setup guidance + sb-health Drive check
+- [ ] 37-09-PLAN.md — [GAP] Fix action item disappearing after assigning person
+- [ ] 37-10-PLAN.md — [GAP] Wire check_drive_sync into sb-health CLI
+- [ ] 37-11-PLAN.md — [GAP] Fix sb_recap MCP timeout (adapter timeout + time budget + retry removal)
 
 ---
 
@@ -248,6 +251,6 @@ Plans:
 | 34 | v4.0 | 4/4 | Complete | 2026-03-22 |
 | 35 | v4.0 | 3/3 | Complete | 2026-03-23 |
 | 36 | v4.0 | 4/4 | Complete | 2026-03-25 |
-| 37 | v4.0 | 0/8 | Planned | - |
+| 37 | v4.0 | 0/11 | In progress | - |
 | 38 | v4.0 | 0/0 | Not started | - |
 | 39 | v4.0 | 0/1 | Not started | - |
