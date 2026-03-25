@@ -147,8 +147,8 @@ function injectGmailButton(threadView) {
 
   btn.onclick = async () => {
     const threadData = extractGmailThread();
-    // Store pendingCapture directly via chrome.storage.session
-    // (content scripts CAN access chrome.storage)
+    // Store pendingCapture in session storage — content scripts can do this directly,
+    // no service worker needed (avoids inactive service worker timeout issues).
     await chrome.storage.session.set({
       pendingCapture: {
         menuItemId: 'capture-gmail',
@@ -157,26 +157,15 @@ function injectGmailButton(threadView) {
         timestamp: Date.now(),
       },
     });
-    // Send message to background to open popup.
-    // NOTE: chrome.action.openPopup() requires user gesture propagation.
-    // The gesture chain from content script button click through
-    // sendMessage is NOT guaranteed by Chrome (RESEARCH.md Pitfall 1).
-    // Background handler calls openPopup() and returns success/failure.
-    // On failure, content script shows in-page notification.
-    try {
-      const response = await chrome.runtime.sendMessage({ action: 'open-popup-gmail' });
-      if (!response || !response.ok) {
-        showInPageNotification('Capture stored — click the Second Brain extension icon to review and save.');
-      }
-    } catch (err) {
-      showInPageNotification('Capture stored — click the Second Brain extension icon to review and save.');
-    }
+    // Open popup as a new tab — doesn't require service worker to be active.
+    window.open(chrome.runtime.getURL('popup.html'), '_blank');
   };
 
-  // Insert button into thread toolbar area or prepend to threadView
-  const toolbar = threadView.querySelector('[role="toolbar"]');
-  if (toolbar) {
-    toolbar.appendChild(btn);
+  // Insert button below the subject line (h2), not at the top of threadView.
+  // Falls back to prepend if no h2 found.
+  const subject = threadView.querySelector('h2');
+  if (subject && subject.parentNode) {
+    subject.parentNode.insertBefore(btn, subject.nextSibling);
   } else {
     threadView.prepend(btn);
   }
