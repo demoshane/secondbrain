@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Second Brain Capture — Options</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 480px;
+      margin: 32px auto;
+      padding: 0 16px;
+      color: #1a1a2e;
+      background: #f8f9fa;
+    }
+    h1 {
+      font-size: 1.25rem;
+      margin-bottom: 24px;
+      color: #1a3a5c;
+    }
+    .field {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #374151;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      box-sizing: border-box;
+      background: #fff;
+    }
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #4f8cc9;
+      box-shadow: 0 0 0 2px rgba(79,140,201,0.2);
+    }
+    .hint {
+      font-size: 0.75rem;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+    button {
+      background: #1a3a5c;
+      color: white;
+      border: none;
+      padding: 9px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    button:hover {
+      background: #2a5080;
+    }
+    #status {
+      display: inline-block;
+      margin-left: 12px;
+      font-size: 0.875rem;
+      color: #16a34a;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <h1>Second Brain Capture — Options</h1>
+
+  <div class="field">
+    <label for="apiUrl">sb-api URL</label>
+    <input id="apiUrl" type="text" placeholder="http://127.0.0.1:37491">
+    <p class="hint">The URL where your sb-api is running. Default: http://127.0.0.1:37491</p>
+  </div>
+
+  <div class="field">
+    <label for="defaultTags">Default tags</label>
+    <input id="defaultTags" type="text" placeholder="web-capture">
+    <p class="hint">Tags to pre-fill on every capture (comma-separated).</p>
+  </div>
+
+  <div>
+    <button id="saveBtn">Save</button>
+    <span id="status"></span>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
