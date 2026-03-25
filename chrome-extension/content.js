@@ -121,7 +121,19 @@ if (isGmail) {
       injectGmailButton(threadView);
     }
   });
-  gmailObserver.observe(document.body, { childList: true, subtree: true });
+
+  // document.body may be null if the content script runs before Gmail's body exists.
+  // Wait for it to be available before attaching the observer.
+  const attachObserver = () => {
+    if (document.body) {
+      gmailObserver.observe(document.body, { childList: true, subtree: true });
+    } else {
+      document.addEventListener('DOMContentLoaded', () => {
+        gmailObserver.observe(document.body, { childList: true, subtree: true });
+      });
+    }
+  };
+  attachObserver();
 }
 
 function injectGmailButton(threadView) {
