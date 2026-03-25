@@ -221,7 +221,7 @@ class TestReindexGeneratesEmbeddings:
             note.write_text("---\ntype: note\ntitle: Note One\n---\nBody one")
 
             from engine.reindex import reindex_brain
-            result = reindex_brain(brain_root, db_conn)
+            result = reindex_brain(brain_root, db_conn, synchronous=True)
 
             count = db_conn.execute("SELECT COUNT(*) FROM note_embeddings").fetchone()[0]
             assert count == 1, f"Expected 1 embedding row, got {count}"
@@ -248,10 +248,10 @@ class TestReindexGeneratesEmbeddings:
             from engine.reindex import reindex_brain
 
             # First pass — embeds once
-            reindex_brain(brain_root, db_conn)
+            reindex_brain(brain_root, db_conn, synchronous=True)
 
             # Second pass with full=True — must re-embed even though hash unchanged
-            result = reindex_brain(brain_root, db_conn, full=True)
+            result = reindex_brain(brain_root, db_conn, full=True, synchronous=True)
             assert result["embed_updated"] == 1
             assert result["embed_unchanged"] == 0
         finally:
@@ -275,13 +275,13 @@ class TestReindexGeneratesEmbeddings:
             from engine.reindex import reindex_brain
 
             # First pass
-            reindex_brain(brain_root, db_conn)
+            reindex_brain(brain_root, db_conn, synchronous=True)
             ts_before = db_conn.execute(
                 "SELECT updated_at FROM note_embeddings"
             ).fetchone()[0]
 
             # Second pass — same content, no changes
-            result = reindex_brain(brain_root, db_conn)
+            result = reindex_brain(brain_root, db_conn, synchronous=True)
             ts_after = db_conn.execute(
                 "SELECT updated_at FROM note_embeddings"
             ).fetchone()[0]
@@ -311,7 +311,7 @@ class TestReindexGeneratesEmbeddings:
             from engine.reindex import reindex_brain
 
             # First pass
-            reindex_brain(brain_root, db_conn)
+            reindex_brain(brain_root, db_conn, synchronous=True)
             hash_before = db_conn.execute(
                 "SELECT content_hash FROM note_embeddings"
             ).fetchone()[0]
@@ -320,7 +320,7 @@ class TestReindexGeneratesEmbeddings:
             note.write_text("---\ntype: note\ntitle: Note One\n---\nEdited body")
 
             # Second pass — must detect hash change and re-embed
-            result = reindex_brain(brain_root, db_conn)
+            result = reindex_brain(brain_root, db_conn, synchronous=True)
             hash_after = db_conn.execute(
                 "SELECT content_hash FROM note_embeddings"
             ).fetchone()[0]

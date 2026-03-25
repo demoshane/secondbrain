@@ -567,13 +567,21 @@ def sb_edit(path: str, body: str) -> dict:
 
 
 @mcp.tool()
-def sb_recap(name: str | None = None) -> str:
+def sb_recap(name: str | None = None, days: int | None = None) -> str:
     """Get session recap or cross-context synthesis for a person/project name."""
     import engine.mcp_server as _self
     if name is None and _detect_git_context is not None:
         name = _detect_git_context()
     if name is None:
-        return "No recap available for this context."
+        # Weekly session recap
+        conn = get_connection()
+        try:
+            from engine.intelligence import generate_recap_on_demand
+            result = generate_recap_on_demand(conn, window_days=days)
+            _log_mcp_audit("mcp_recap", "session")
+            return result or "No recent activity to recap."
+        finally:
+            conn.close()
 
     def _do_recap():
         conn = _self.get_connection()
@@ -688,10 +696,39 @@ def sb_forget(slug: str, confirm_token: str = "") -> dict:
     """Forget all data for a person. Call once to get token; call again with token within 60s."""
     if not confirm_token:
         tok = _issue_token()
+        # Build impact preview for the confirmation message
+        from engine.delete import get_delete_impact
+        from engine.paths import BRAIN_ROOT as _br, store_path
+        _person_paths = [
+            str(_br / "person" / f"{slug}.md"),
+            str(_br / "people" / f"{slug}.md"),
+        ]
+        conn = get_connection()
+        try:
+            _impact_parts = []
+            for _pp in _person_paths:
+                try:
+                    _ps = store_path(_pp)
+                    _imp = get_delete_impact(_ps, conn)
+                    if any(_imp.values()):
+                        _impact_parts.append(
+                            f"{_imp['action_items']} action items, "
+                            f"{_imp['relationships']} relationships, "
+                            f"mentioned in {_imp['appears_in_people_of']} notes"
+                        )
+                        break
+                except Exception:
+                    pass
+        finally:
+            conn.close()
+        _impact_str = f" Impact: {_impact_parts[0]}." if _impact_parts else ""
         return {
             "status": "pending",
             "confirm_token": tok,
-            "message": f"Call sb_forget again with confirm_token='{tok}' within 60 seconds to execute.",
+            "message": (
+                f"Call sb_forget again with confirm_token='{tok}' within 60 seconds to execute."
+                f"{_impact_str}"
+            ),
         }
     if not _consume_token(confirm_token):
         raise ValueError(

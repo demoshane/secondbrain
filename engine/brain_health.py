@@ -362,6 +362,41 @@ def cleanup_old_snapshots(conn: sqlite3.Connection, days: int = 90) -> int:
     return result.rowcount
 
 
+def check_drive_sync() -> dict:
+    """3-tier Google Drive sync health check. Returns dict with status and message."""
+    import subprocess
+
+    app_path = Path("/Applications/Google Drive.app")
+    drivefs_base = Path.home() / "Library" / "Application Support" / "Google" / "DriveFS"
+
+    if not app_path.exists():
+        return {
+            "status": "not_installed",
+            "message": (
+                "Google Drive not installed. Install from https://www.google.com/drive/download/"
+                " then add ~/SecondBrain in Preferences -> My Computer."
+            ),
+        }
+
+    result = subprocess.run(["pgrep", "-x", "Google Drive"], capture_output=True)
+    if result.returncode != 0:
+        return {
+            "status": "not_running",
+            "message": "Google Drive installed but not running. Brain won't sync.",
+        }
+
+    db_matches = list(drivefs_base.glob("*/mirror_sqlite.db")) if drivefs_base.exists() else []
+    if db_matches:
+        return {
+            "status": "ok",
+            "message": "Drive running. Confirm ~/SecondBrain is added in Drive Preferences -> My Computer.",
+        }
+    return {
+        "status": "not_configured",
+        "message": "Drive running but no DriveFS account DB found. Open Drive preferences and sign in.",
+    }
+
+
 def get_brain_health_report(conn: sqlite3.Connection) -> dict:
     """Run all health checks and return a summary dict.
 
@@ -389,4 +424,5 @@ def get_brain_health_report(conn: sqlite3.Connection) -> dict:
         "duplicate_candidates": duplicates,
         "empty_notes": empty,
         "archived_action_items": archived_count,
+        "drive_sync": check_drive_sync(),
     }

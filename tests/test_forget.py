@@ -245,3 +245,37 @@ def test_forget_removes_row_stored_by_capture(tmp_path):
     ).fetchone()
     assert row is None, "forget_person must delete the row that capture stored"
     conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Phase 37-04: forget_person NULLs assignee_path
+# ---------------------------------------------------------------------------
+
+def test_forget_person_nulls_assignee_path(brain_tmp):
+    """forget_person NULLs assignee_path for all erased person paths."""
+    from engine.forget import forget_person
+
+    brain_root, conn = brain_tmp
+    slug = "dave-smith"
+    person_file = brain_root / "people" / f"{slug}.md"
+    person_file.write_text("---\ntitle: Dave Smith\ntype: person\n---\n")
+
+    person_path = str(person_file)
+    conn.execute(
+        "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+        " VALUES (?, 'Dave Smith', 'person', '', datetime('now'), datetime('now'))",
+        (person_path,),
+    )
+    conn.execute(
+        "INSERT INTO action_items (note_path, text, assignee_path) VALUES ('other.md', 'Task', ?)",
+        (person_path,),
+    )
+    conn.commit()
+
+    forget_person(slug, brain_root, conn)
+
+    row = conn.execute(
+        "SELECT assignee_path FROM action_items WHERE note_path='other.md'"
+    ).fetchone()
+    assert row is not None
+    assert row[0] is None, "forget_person should NULL assignee_path for erased person"

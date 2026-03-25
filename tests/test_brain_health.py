@@ -679,3 +679,97 @@ def test_cleanup_old_snapshots_keeps_recent(archive_conn):
     assert deleted == 0, f"Expected 0 deleted, got {deleted}"
     count = archive_conn.execute("SELECT COUNT(*) FROM health_snapshots").fetchone()[0]
     assert count == 1
+
+
+# ---------------------------------------------------------------------------
+# Phase 37-08: check_drive_sync() tests
+# ---------------------------------------------------------------------------
+
+def _fake_subprocess_run(returncode):
+    """Return a factory that produces fake subprocess results."""
+    return lambda *a, **kw: type("R", (), {"returncode": returncode})()
+
+
+def test_drive_sync_not_installed(monkeypatch):
+    """Returns not_installed when Google Drive.app does not exist."""
+    from engine.brain_health import check_drive_sync
+
+    class _FP:
+        def __init__(self, p): self._p = str(p)
+        def exists(self): return False
+        def __truediv__(self, other): return _FP(f"{self._p}/{other}")
+        def glob(self, pat): return []
+        @classmethod
+        def home(cls): return cls("~")
+
+    monkeypatch.setattr("engine.brain_health.Path", _FP)
+    result = check_drive_sync()
+    assert result["status"] == "not_installed"
+    assert "google.com/drive/download" in result["message"]
+
+
+def test_drive_sync_not_running(monkeypatch):
+    """Returns not_running when app exists but pgrep finds no process."""
+    from engine.brain_health import check_drive_sync
+
+    class _FP:
+        def __init__(self, p): self._p = str(p)
+        def exists(self): return self._p == "/Applications/Google Drive.app"
+        def __truediv__(self, other): return _FP(f"{self._p}/{other}")
+        def glob(self, pat): return []
+        @classmethod
+        def home(cls): return cls("~")
+
+    monkeypatch.setattr("engine.brain_health.Path", _FP)
+    monkeypatch.setattr("subprocess.run", _fake_subprocess_run(1))
+    result = check_drive_sync()
+    assert result["status"] == "not_running"
+
+
+def test_drive_sync_ok(monkeypatch, tmp_path):
+    """Returns ok when app exists, process running, and DriveFS DB found."""
+    from engine.brain_health import check_drive_sync
+
+    drivefs = tmp_path / "Library" / "Application Support" / "Google" / "DriveFS" / "12345"
+    drivefs.mkdir(parents=True)
+    (drivefs / "mirror_sqlite.db").write_text("")
+
+    class _FP:
+        def __init__(self, p): self._p = Path(p)
+        def exists(self): return str(self._p) == "/Applications/Google Drive.app" or self._p.exists()
+        def __truediv__(self, other): return _FP(self._p / other)
+        def glob(self, pat): return list(self._p.glob(pat))
+        @classmethod
+        def home(cls): return cls(tmp_path)
+
+    monkeypatch.setattr("engine.brain_health.Path", _FP)
+    monkeypatch.setattr("subprocess.run", _fake_subprocess_run(0))
+    result = check_drive_sync()
+    assert result["status"] == "ok"
+
+
+def test_drive_sync_not_configured(monkeypatch, tmp_path):
+    """Returns not_configured when app+process exist but no DriveFS DB found."""
+    from engine.brain_health import check_drive_sync
+
+    class _FP:
+        def __init__(self, p): self._p = Path(p)
+        def exists(self): return str(self._p) == "/Applications/Google Drive.app"
+        def __truediv__(self, other): return _FP(self._p / other)
+        def glob(self, pat): return []
+        @classmethod
+        def home(cls): return cls(tmp_path)
+
+    monkeypatch.setattr("engine.brain_health.Path", _FP)
+    monkeypatch.setattr("subprocess.run", _fake_subprocess_run(0))
+    result = check_drive_sync()
+    assert result["status"] == "not_configured"
+
+
+def test_health_report_includes_drive_sync(conn):
+    """get_brain_health_report includes 'drive_sync' key."""
+    from engine.brain_health import get_brain_health_report
+    with patch("engine.brain_health.check_drive_sync", return_value={"status": "not_installed", "message": "test"}):
+        report = get_brain_health_report(conn)
+    assert "drive_sync" in report
+    assert report["drive_sync"]["status"] == "not_installed"

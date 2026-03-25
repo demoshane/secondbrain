@@ -105,6 +105,11 @@ def forget_person(slug: str, brain_root: Path, conn: sqlite3.Connection) -> dict
             all_delete_paths,
         )
 
+    # 2d-bis. NULL assignee_path for all erased person paths
+    if all_delete_paths:
+        for pth in all_delete_paths:
+            conn.execute("UPDATE action_items SET assignee_path=NULL WHERE assignee_path=?", (pth,))
+
     # 2e. Clean person from people JSON column in surviving notes (ARCH-08 GDPR gap)
     rows = conn.execute("SELECT path, people FROM notes WHERE people IS NOT NULL AND people != '[]'").fetchall()
     for row in rows:

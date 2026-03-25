@@ -1305,3 +1305,31 @@ def test_find_stubs_with_matches(tmp_path, monkeypatch):
     assert "similar_notes" in stub
     assert "action" in stub
     assert stub["action"] in ("merge", "enrich")
+
+
+# ---------------------------------------------------------------------------
+# Phase 37-01: sb_recap routing fix tests
+# ---------------------------------------------------------------------------
+
+def test_sb_recap_no_name_calls_generate_recap(monkeypatch):
+    """sb_recap() with no name calls generate_recap_on_demand and returns its output."""
+    monkeypatch.setattr(mcp_mod, "_detect_git_context", None)
+    with patch("engine.intelligence.generate_recap_on_demand", return_value="Weekly recap here") as mock_recap:
+        result = mcp_mod.sb_recap()
+    assert result == "Weekly recap here"
+
+
+def test_sb_recap_with_name_calls_recap_entity(monkeypatch):
+    """sb_recap(name='Alice') still calls entity recap path — no regression."""
+    monkeypatch.setattr(mcp_mod, "_detect_git_context", None)
+    with patch("engine.mcp_server.recap_entity", return_value="Entity recap") as mock_entity:
+        result = mcp_mod.sb_recap(name="Alice")
+    assert result == "Entity recap"
+
+
+def test_sb_recap_no_name_empty_recap(monkeypatch):
+    """sb_recap() returns fallback string when generate_recap_on_demand returns empty."""
+    monkeypatch.setattr(mcp_mod, "_detect_git_context", None)
+    with patch("engine.intelligence.generate_recap_on_demand", return_value=""):
+        result = mcp_mod.sb_recap()
+    assert result == "No recent activity to recap."

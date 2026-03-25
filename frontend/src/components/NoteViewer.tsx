@@ -8,6 +8,7 @@ import { useSearchContext } from '@/contexts/SearchContext'
 import { NoteEditor } from './NoteEditor'
 import { ActionItemList } from './ActionItemList'
 import { TagAutocomplete } from './TagAutocomplete'
+import { PersonAutocomplete } from './PersonAutocomplete'
 import { getAPI, encodePath } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { Note, Attachment, ActionItem } from '@/types'
@@ -23,10 +24,24 @@ export function NoteViewer({ note }: Props) {
   const [editingTag, setEditingTag] = useState<string | null>(null)
   const [addingTag, setAddingTag] = useState(false)
   const [newTag, setNewTag] = useState('')
+  const [localPeople, setLocalPeople] = useState<string[]>(note.people ?? [])
+  const [addingPerson, setAddingPerson] = useState(false)
   const [noteActions, setNoteActions] = useState<ActionItem[]>([])
   const [actionPeople, setActionPeople] = useState<Note[]>([])
   const { setIsDirty } = useNoteContext()
   const { setTagFilter } = useSearchContext()
+
+  const savePeopleFieldLevel = (newPeople: string[]) => {
+    const prev = localPeople
+    setLocalPeople(newPeople)
+    fetch(`${getAPI()}/notes/${encodePath(note.path)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ people: newPeople }),
+    })
+      .then(() => toast.success('People saved'))
+      .catch(() => { toast.error('Something went wrong -- try again'); setLocalPeople(prev) })
+  }
 
   const saveTagsFieldLevel = (newTags: string[]) => {
     fetch(`${getAPI()}/notes/${encodePath(note.path)}`, {
@@ -44,6 +59,8 @@ export function NoteViewer({ note }: Props) {
     setEditingTag(null)
     setAddingTag(false)
     setNewTag('')
+    setLocalPeople(note.people ?? [])
+    setAddingPerson(false)
     fetch(`${getAPI()}/notes/attachments?path=${encodeURIComponent(note.path)}`)
       .then(r => r.json())
       .then(d => setAttachments(d.attachments ?? []))
@@ -175,6 +192,48 @@ export function NoteViewer({ note }: Props) {
           <button
             className="text-xs text-muted-foreground hover:text-foreground"
             onClick={() => setAddingTag(true)}
+          >
+            <Plus className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-1 items-center px-4 py-1 border-b" data-testid="people-chips">
+        {localPeople.map(personPath => (
+          <Badge
+            key={personPath}
+            variant="secondary"
+            className="cursor-default group"
+            data-testid={`person-${personPath.replace(/[^a-z0-9]/gi, '-').toLowerCase()}`}
+          >
+            {personPath.split('/').pop()?.replace('.md', '').replace(/-/g, ' ') ?? personPath}
+            <button
+              className="ml-1 opacity-0 group-hover:opacity-100 hover:text-destructive"
+              aria-label={`Remove ${personPath}`}
+              onClick={e => {
+                e.stopPropagation()
+                savePeopleFieldLevel(localPeople.filter(p => p !== personPath))
+              }}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </Badge>
+        ))}
+        {addingPerson ? (
+          <PersonAutocomplete
+            existingPeople={localPeople}
+            onAdd={personPath => {
+              if (!localPeople.includes(personPath)) {
+                savePeopleFieldLevel([...localPeople, personPath])
+              }
+              setAddingPerson(false)
+            }}
+            onBlur={() => setAddingPerson(false)}
+          />
+        ) : (
+          <button
+            className="text-xs text-muted-foreground hover:text-foreground"
+            aria-label="Add person"
+            onClick={() => setAddingPerson(true)}
           >
             <Plus className="h-3 w-3" />
           </button>

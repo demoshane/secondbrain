@@ -871,6 +871,36 @@ def save_note(note_path):
             conn.close()
         return jsonify({"saved": True, "path": str(p)})
 
+    people_val = body.get("people")
+    if people_val is not None and "content" not in body and "tags" not in body and "title" not in body:
+        raw = p.read_text(encoding="utf-8")
+        post = _fm.loads(raw)
+        post.metadata["people"] = people_val
+        updated_text = _fm.dumps(post)
+        with tempfile.NamedTemporaryFile("w", dir=p.parent, delete=False, suffix=".tmp", encoding="utf-8") as f:
+            f.write(updated_text)
+            tmp = f.name
+        suppress_next_delete(str(p))
+        os.replace(tmp, p)
+        now = datetime.datetime.utcnow().isoformat()
+        path_str = store_path(p)
+        conn = get_connection()
+        try:
+            conn.execute(
+                "UPDATE notes SET people=?, updated_at=? WHERE path=?",
+                (json.dumps(people_val), now, path_str)
+            )
+            conn.execute("DELETE FROM note_people WHERE note_path=?", (path_str,))
+            for person in people_val:
+                conn.execute(
+                    "INSERT OR IGNORE INTO note_people (note_path, person) VALUES (?, ?)",
+                    (path_str, person)
+                )
+            conn.commit()
+        finally:
+            conn.close()
+        return jsonify({"saved": True, "path": str(p)})
+
     content = body.get("content", "")
     with tempfile.NamedTemporaryFile("w", dir=p.parent, delete=False, suffix=".tmp", encoding="utf-8") as f:
         f.write(content)
@@ -965,6 +995,22 @@ def delete_note_endpoint(note_path):
     finally:
         conn.close()
     return jsonify(result), 200
+
+
+@app.get("/notes/<path:note_path>/impact")
+def note_impact(note_path):
+    try:
+        p, _brain_root = _resolve_note_path(note_path)
+    except ValueError:
+        return jsonify({"error": "Forbidden"}), 403
+    from engine.delete import get_delete_impact
+    path_str = store_path(p)
+    conn = get_connection()
+    try:
+        impact = get_delete_impact(path_str, conn)
+        return jsonify(impact)
+    finally:
+        conn.close()
 
 
 @app.get("/notes/<path:note_path>/meta")
@@ -1290,6 +1336,27 @@ def batch_capture():
 
     _broadcast({"type": "created", "path": ""})
     return jsonify({"succeeded": succeeded, "failed": failed}), 200
+
+
+@app.post("/actions")
+def create_action():
+    data = request.get_json(force=True) or {}
+    text = (data.get("text") or "").strip()
+    if not text:
+        return jsonify({"error": "text is required"}), 400
+    note_path = data.get("note_path") or data.get("assignee_path") or ""
+    assignee_path = data.get("assignee_path") or None
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            "INSERT INTO action_items (note_path, text, assignee_path) VALUES (?, ?, ?)",
+            (note_path, text, assignee_path),
+        )
+        conn.commit()
+        action_id = cur.lastrowid
+    finally:
+        conn.close()
+    return jsonify({"id": action_id, "text": text, "note_path": note_path, "assignee_path": assignee_path, "done": False}), 201
 
 
 @app.post("/actions/<int:action_id>/done")

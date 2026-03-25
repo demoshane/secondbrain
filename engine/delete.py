@@ -5,6 +5,21 @@ import datetime
 from pathlib import Path
 
 
+def get_delete_impact(path_str: str, conn) -> dict:
+    """Return counts of records that will be affected by deleting this note."""
+    action_items = conn.execute(
+        "SELECT COUNT(*) FROM action_items WHERE note_path=?", (path_str,)
+    ).fetchone()[0]
+    relationships = conn.execute(
+        "SELECT COUNT(*) FROM relationships WHERE source_path=? OR target_path=?",
+        (path_str, path_str),
+    ).fetchone()[0]
+    appears_in = conn.execute(
+        "SELECT COUNT(*) FROM note_people WHERE person=?", (path_str,)
+    ).fetchone()[0]
+    return {"action_items": action_items, "relationships": relationships, "appears_in_people_of": appears_in}
+
+
 def delete_note(abs_path: Path, conn, brain_root: Path) -> dict:
     """Delete a single note: file + DB cascade + audit log.
 
@@ -47,7 +62,11 @@ def delete_note(abs_path: Path, conn, brain_root: Path) -> dict:
     # 2b. Remove the note .md file from disk
     abs_path.unlink(missing_ok=True)
 
-    # 3. Delete notes row (notes_ad AFTER DELETE trigger handles FTS5 automatically)
+    # 3a. Capture note type BEFORE deleting (needed for person-specific cascade below)
+    _type_row = conn.execute("SELECT type FROM notes WHERE path=?", (path_str,)).fetchone()
+    _note_type = _type_row[0] if _type_row else None
+
+    # 3b. Delete notes row (notes_ad AFTER DELETE trigger handles FTS5 automatically)
     conn.execute("DELETE FROM notes WHERE path=?", (path_str,))
 
     # 4. Delete note_embeddings row
@@ -61,6 +80,11 @@ def delete_note(abs_path: Path, conn, brain_root: Path) -> dict:
 
     # 6. Delete action_items rows (prevents orphan items in Actions panel)
     conn.execute("DELETE FROM action_items WHERE note_path=?", (path_str,))
+
+    # 6a. Person-specific cascade: NULL assignee_path + clean note_people cross-refs
+    if _note_type == "person":
+        conn.execute("UPDATE action_items SET assignee_path=NULL WHERE assignee_path=?", (path_str,))
+        conn.execute("DELETE FROM note_people WHERE person=?", (path_str,))
 
     # 7. Delete prior audit_log rows for this note (GDPR consistency)
     conn.execute("DELETE FROM audit_log WHERE note_path=?", (path_str,))

@@ -295,3 +295,106 @@ def test_delete_note_ignores_source_file_outside_files_dir(initialized_db, tmp_p
 
     assert not note.exists(), "Note .md file should be deleted"
     assert outside_file.exists(), "File outside files/ must NOT be deleted"
+
+
+# ---------------------------------------------------------------------------
+# Phase 37-04: cascade gaps — person note delete + get_delete_impact
+# ---------------------------------------------------------------------------
+
+def test_delete_person_note_nulls_assignee_path(tmp_path, initialized_db, monkeypatch):
+    """Deleting a person note NULLs assignee_path on action_items assigned to that person."""
+    import engine.paths as _paths
+    monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
+
+    person_note = tmp_path / "alice.md"
+    person_note.write_text("---\ntitle: Alice\ntype: person\n---\n")
+    path_str = "alice.md"
+
+    initialized_db.execute(
+        "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+        " VALUES (?, 'Alice', 'person', '', datetime('now'), datetime('now'))",
+        (path_str,),
+    )
+    initialized_db.execute(
+        "INSERT INTO action_items (note_path, text, assignee_path) VALUES ('other.md', 'Do thing', ?)",
+        (path_str,),
+    )
+    initialized_db.commit()
+
+    delete_note(person_note, initialized_db, tmp_path)
+
+    row = initialized_db.execute(
+        "SELECT assignee_path FROM action_items WHERE note_path='other.md'"
+    ).fetchone()
+    assert row is not None
+    assert row[0] is None, "assignee_path should be NULL after person note deletion"
+
+
+def test_delete_person_note_cleans_note_people(tmp_path, initialized_db, monkeypatch):
+    """Deleting a person note removes their entry from note_people junction table."""
+    import engine.paths as _paths
+    monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
+
+    person_note = tmp_path / "bob.md"
+    person_note.write_text("---\ntitle: Bob\ntype: person\n---\n")
+    path_str = "bob.md"
+
+    initialized_db.execute(
+        "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+        " VALUES (?, 'Bob', 'person', '', datetime('now'), datetime('now'))",
+        (path_str,),
+    )
+    # note_people FK requires note_path to exist in notes
+    initialized_db.execute(
+        "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+        " VALUES ('meeting.md', 'Meeting', 'meeting', '', datetime('now'), datetime('now'))",
+    )
+    initialized_db.execute(
+        "INSERT OR IGNORE INTO note_people (note_path, person) VALUES ('meeting.md', ?)",
+        (path_str,),
+    )
+    initialized_db.commit()
+
+    delete_note(person_note, initialized_db, tmp_path)
+
+    count = initialized_db.execute(
+        "SELECT COUNT(*) FROM note_people WHERE person=?", (path_str,)
+    ).fetchone()[0]
+    assert count == 0, "note_people entries for deleted person should be removed"
+
+
+def test_get_delete_impact_counts(tmp_path, initialized_db):
+    """get_delete_impact returns correct counts for action_items, relationships, note_people."""
+    from engine.delete import get_delete_impact
+
+    path_str = "target.md"
+    initialized_db.execute(
+        "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+        " VALUES (?, 'Target', 'note', '', datetime('now'), datetime('now'))",
+        (path_str,),
+    )
+    initialized_db.execute(
+        "INSERT INTO action_items (note_path, text) VALUES (?, 'A1')", (path_str,)
+    )
+    initialized_db.execute(
+        "INSERT INTO action_items (note_path, text) VALUES (?, 'A2')", (path_str,)
+    )
+    initialized_db.execute(
+        "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?, 'x.md', 'link')",
+        (path_str,),
+    )
+    # note_people FK requires note_path to exist in notes
+    initialized_db.execute(
+        "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+        " VALUES ('y.md', 'Y Note', 'note', '', datetime('now'), datetime('now'))",
+    )
+    initialized_db.execute(
+        "INSERT OR IGNORE INTO note_people (note_path, person) VALUES ('y.md', ?)",
+        (path_str,),
+    )
+    initialized_db.commit()
+
+    impact = get_delete_impact(path_str, initialized_db)
+    assert impact["action_items"] == 2
+    assert impact["relationships"] == 1
+    assert impact["appears_in_people_of"] == 1

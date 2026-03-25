@@ -82,6 +82,25 @@ else
   printf "  Skipped (run \033[1msb-reindex\033[0m when ready)\n"
 fi
 
+# ── 8. Google Drive sync ──────────────────────────────────────────────────────
+step "Checking Google Drive sync"
+if [[ -d "/Applications/Google Drive.app" ]]; then
+  ok "Google Drive installed"
+  if pgrep -x "Google Drive" > /dev/null 2>&1; then
+    ok "Google Drive is running"
+  else
+    printf "  \033[33m!\033[0m Google Drive is not running — brain won't sync until started\n"
+  fi
+  echo "  Reminder: confirm ~/SecondBrain is added in Google Drive Preferences -> My Computer"
+else
+  printf "  \033[33m!\033[0m Google Drive Desktop not installed.\n"
+  echo "  For brain sync across devices:"
+  echo "    1. Install: https://www.google.com/drive/download/"
+  echo "    2. Open Google Drive Preferences -> My Computer"
+  echo "    3. Add folder: ~/SecondBrain"
+  echo "  (Drive is optional — brain works fully without it)"
+fi
+
 # ── Health check ─────────────────────────────────────────────────────────────
 step "Running health check"
 sb-health

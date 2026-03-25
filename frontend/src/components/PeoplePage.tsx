@@ -45,6 +45,8 @@ export function PeoplePage() {
   const [showNewEntity, setShowNewEntity] = useState(false)
   const [showDeleteEntity, setShowDeleteEntity] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ name: string; path: string } | null>(null)
+  const [newActionText, setNewActionText] = useState('')
+  const [addingAction, setAddingAction] = useState(false)
 
   const loadPeople = () => {
     fetch(`${getAPI()}/persons`)
@@ -97,6 +99,26 @@ export function PeoplePage() {
       .then(r => r.json())
       .then(d => setActions(d.actions ?? []))
       .catch(() => {})
+  }
+
+  const createAction = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const text = newActionText.trim()
+    if (!text || !selectedPath) return
+    setAddingAction(true)
+    try {
+      await fetch(`${getAPI()}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, assignee_path: selectedPath, note_path: selectedPath }),
+      })
+      setNewActionText('')
+      reloadActions()
+    } catch {
+      toast.error('Failed to create action item')
+    } finally {
+      setAddingAction(false)
+    }
   }
 
   const toggleDone = async (action: ActionItem) => {
@@ -278,6 +300,18 @@ export function PeoplePage() {
 
             <Section title="Open Actions" count={actions.filter(a => !a.done).length}>
               <div data-testid="actions-section">
+                <form onSubmit={createAction} className="flex gap-2 mb-3">
+                  <input
+                    placeholder="Add action item…"
+                    value={newActionText}
+                    onChange={e => setNewActionText(e.target.value)}
+                    className="flex-1 rounded-md border border-input bg-background px-3 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
+                    data-testid="new-action-input"
+                  />
+                  <Button size="sm" type="submit" disabled={addingAction || !newActionText.trim()}>
+                    <Plus size={14} className="mr-1" /> Add
+                  </Button>
+                </form>
                 <ActionItemList
                   actions={actions.filter(a => !a.done)}
                   people={peopleNotes}
