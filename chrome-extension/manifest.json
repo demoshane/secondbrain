@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Capture web pages, selections, and emails to your Second Brain",
   "minimum_chrome_version": "108",
-  "permissions": ["contextMenus", "activeTab", "scripting", "storage"],
+  "permissions": ["contextMenus", "activeTab", "scripting", "storage", "alarms"],
   "host_permissions": ["http://127.0.0.1/*", "https://mail.google.com/*"],
   "background": { "service_worker": "background.js" },
   "action": {
