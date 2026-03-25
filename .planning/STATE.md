@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
-status: Ready to execute
-stopped_at: Completed 36-02-PLAN.md — chrome extension scaffold + core capture
-last_updated: "2026-03-25T06:37:48.816Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 36-04-PLAN.md
+last_updated: "2026-03-25T07:15:26.481Z"
 progress:
   total_phases: 8
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 23
-  completed_plans: 19
+  completed_plans: 22
 ---
 
 # Project State
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 36 (chrome-extension-capture) — EXECUTING
-Plan: 2 of 4
+Plan: 4 of 4
 
 ## Performance Metrics
 
@@ -45,6 +45,9 @@ Plan: 2 of 4
 | Phase 35 P02 | 15 | 2 tasks | 4 files |
 | Phase 35 P03 | 15 | 2 tasks | 9 files |
 | Phase 36 P02 | 226 | 2 tasks | 13 files |
+| Phase 36 P01 | 176 | 1 tasks | 3 files |
+| Phase 36 P03 | 2 | 1 tasks | 3 files |
+| Phase 36 P04 | 691 | 2 tasks | 6 files |
 
 ### Decisions
 
@@ -78,6 +81,12 @@ Active decisions affecting upcoming work:
 - [Phase 35]: consolidate_main imports brain_health lazily inside function body — avoids circular import at module load time
 - [Phase 36]: chrome.alarms used for badge polling (not setInterval) — service workers have no persistent timers; alarms permission added to manifest
 - [Phase 36]: POST /notes endpoint used in popup (not /smart-capture) — user already selected type in dropdown, so smart classification not needed
+- [Phase 36]: source_type added as kwarg to capture_note() — consistent with existing url kwarg pattern; no schema migration needed
+- [Phase 36]: create_note() writes url to manual frontmatter string — does not use capture_note(), consistent with that function's existing approach
+- [Phase 36]: captureSourceType variable in popup.js tracks source type (gmail/web) for POST body — extend for future source types
+- [Phase 36]: Gmail injected button stores pendingCapture in content script (storage accessible from content scripts), relays open-popup-gmail to background — gesture chain not guaranteed, fallback notification used
+- [Phase 36]: chrome:// URLs cannot be opened from web pages — install button shows inline instructions only
+- [Phase 36]: extensionApiReachable state fetches /ping in useEffect — same check as badge polling but from GUI context
 
 ### Pending Todos
 
@@ -94,6 +103,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-25T06:37:48.809Z
-Stopped at: Completed 36-02-PLAN.md — chrome extension scaffold + core capture
+Last session: 2026-03-25T07:15:26.462Z
+Stopped at: Completed 36-04-PLAN.md
 Resume file: None

@@ -182,13 +182,13 @@ Plans:
 **Depends on:** Phase 31
 **Milestone:** v4.0
 **Requirements**: D-01 through D-17
-**Plans:** 1/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
-- [ ] 36-01-PLAN.md — Backend API: /ping, CORS, source_url/source_type (D-13, D-14, D-15)
+- [x] 36-01-PLAN.md — Backend API: /ping, CORS, source_url/source_type (D-13, D-14, D-15)
 - [x] 36-02-PLAN.md — Extension scaffold + core capture: manifest, popup, context menus, article/selection/link capture (D-01, D-02, D-04, D-05, D-06, D-12)
-- [ ] 36-03-PLAN.md — Gmail integration: injected button, thread extraction, Gmail context menu (D-07, D-08)
-- [ ] 36-04-PLAN.md — Rich UX + install: badge polling, capture history, setup.sh, Intelligence page button (D-09, D-10, D-11, D-16, D-17)
+- [x] 36-03-PLAN.md — Gmail integration: injected button, thread extraction, Gmail context menu (D-07, D-08)
+- [x] 36-04-PLAN.md — Rich UX + install: badge polling, capture history, setup.sh, Intelligence page button (D-09, D-10, D-11, D-16, D-17)
 
 ---
 
@@ -245,7 +245,7 @@ Plans:
 | 33 | v4.0 | 5/5 | Complete | 2026-03-22 |
 | 34 | v4.0 | 4/4 | Complete | 2026-03-22 |
 | 35 | v4.0 | 3/3 | Complete | 2026-03-23 |
-| 36 | v4.0 | 1/4 | In Progress|  |
+| 36 | v4.0 | 4/4 | Complete   | 2026-03-25 |
 | 37 | v4.0 | 0/5 | Planning | - |
 | 38 | v4.0 | 0/0 | Not started | - |
 | 39 | v4.0 | 0/1 | Not started | - |
