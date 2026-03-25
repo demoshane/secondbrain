@@ -11,7 +11,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   switch (msg.action) {
     case 'extract-article':
       handleExtractArticle(sendResponse);
-      return true; // Keep channel open for async sendResponse
+      return true;
 
     case 'extract-selection':
       handleExtractSelection(sendResponse);
@@ -21,10 +21,47 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       sendResponse(extractGmailThread());
       return true;
 
+    case 'show-overlay':
+      showCaptureOverlay(msg.params || {});
+      sendResponse({ ok: true });
+      return false;
+
     default:
       return false;
   }
 });
+
+function showCaptureOverlay(params) {
+  document.querySelector('#sb-capture-overlay')?.remove();
+
+  const url = new URL(chrome.runtime.getURL('popup.html'));
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+
+  const overlay = document.createElement('div');
+  overlay.id = 'sb-capture-overlay';
+  Object.assign(overlay.style, {
+    position: 'fixed', top: '0', left: '0', right: '0', bottom: '0',
+    background: 'rgba(0,0,0,0.55)', zIndex: '2147483647',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  });
+
+  const iframe = document.createElement('iframe');
+  iframe.src = url.toString();
+  Object.assign(iframe.style, {
+    width: '440px', height: '600px', border: 'none', borderRadius: '10px',
+  });
+
+  overlay.appendChild(iframe);
+  // Click outside to dismiss
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+
+  // Close when popup posts 'sb-close'
+  const onMsg = (e) => {
+    if (e.data === 'sb-close') { overlay.remove(); window.removeEventListener('message', onMsg); }
+  };
+  window.addEventListener('message', onMsg);
+}
 
 // ── Article Extraction ────────────────────────────────────────────────────────
 
@@ -147,16 +184,18 @@ function injectGmailButton(threadView) {
 
   btn.onclick = () => {
     const threadData = extractGmailThread();
-    // Pass data via URL params — avoids chrome.storage.session which is
-    // unavailable in content scripts on some Chromium-based browsers (Vivaldi).
-    const url = new URL(chrome.runtime.getURL('popup.html'));
-    url.searchParams.set('sb_title', threadData.subject || document.title);
-    url.searchParams.set('sb_body', threadData.fullBody || '');
-    url.searchParams.set('sb_type', 'meeting');
-    url.searchParams.set('sb_tags', 'email');
-    url.searchParams.set('sb_source_url', location.href);
-    url.searchParams.set('sb_source_type', 'gmail');
-    window.open(url.toString(), '_blank');
+    // Send to background which opens popup via chrome.tabs.create (bypasses ad blocker).
+    chrome.runtime.sendMessage({
+      action: 'open-capture-tab',
+      params: {
+        sb_title: threadData.subject || document.title,
+        sb_body: threadData.fullBody || '',
+        sb_type: 'meeting',
+        sb_tags: 'email',
+        sb_source_url: location.href,
+        sb_source_type: 'gmail',
+      },
+    });
   };
 
   // Float the button fixed bottom-right — avoids fragile Gmail DOM positioning.

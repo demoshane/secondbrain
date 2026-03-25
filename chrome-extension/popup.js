@@ -257,10 +257,19 @@ async function handleSave(e) {
       addToHistory({ title, type, url: currentPageUrl });
       saveBtn.textContent = 'Saved!';
       saveBtn.style.background = '#16a34a';
-      // Close immediately when running as a tab (opened by chrome.tabs.create),
-      // otherwise give 1s so the user sees the "Saved!" confirmation in the popup.
-      const isTab = window.location.protocol === 'chrome-extension:' && window.opener === null;
-      setTimeout(() => window.close(), isTab ? 300 : 1000);
+      // Close after brief "Saved!" flash.
+      // Use chrome.tabs.remove when running as a tab — window.close() is blocked
+      // by some Chromium forks (Vivaldi) when the tab wasn't opened by JS.
+      setTimeout(() => {
+        if (chrome.tabs && typeof chrome.tabs.getCurrent === 'function') {
+          chrome.tabs.getCurrent((tab) => {
+            if (tab) chrome.tabs.remove(tab.id);
+            else window.close();
+          });
+        } else {
+          window.close();
+        }
+      }, 400);
     } else {
       const errData = await res.json().catch(() => ({}));
       showError(`Save failed (${res.status}): ${errData.error || errData.message || 'Unknown error'}`);

@@ -57,8 +57,15 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     try {
       await chrome.action.openPopup();
     } catch (err) {
-      console.warn('[SB] openPopup() not supported, opening as tab:', err.message);
-      chrome.tabs.create({ url: chrome.runtime.getURL('popup.html') });
+      console.warn('[SB] openPopup() not supported, opening capture tab:', err.message);
+      openCaptureTab({
+        sb_title: gmailData?.subject || '',
+        sb_body: gmailData?.fullBody || '',
+        sb_type: 'meeting',
+        sb_tags: 'email',
+        sb_source_url: tab.url,
+        sb_source_type: 'gmail',
+      });
     }
     return;
   }
@@ -77,13 +84,22 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     },
   });
 
-  // Open popup — try openPopup() first (Chrome 127+), fall back to new tab.
-  // openPopup() is unsupported on Vivaldi and many Chromium forks.
+  // Try openPopup() (Chrome 127+), fall back to chrome.tabs.create with URL params.
+  // chrome.tabs.create bypasses Vivaldi's ad blocker (extension API, not page load).
   try {
     await chrome.action.openPopup();
   } catch (err) {
-    console.warn('[SB] openPopup() not supported, opening as tab:', err.message);
-    chrome.tabs.create({ url: chrome.runtime.getURL('popup.html') });
+    console.warn('[SB] openPopup() not supported, opening capture tab:', err.message);
+    openCaptureTab({
+      sb_title: info.pageTitle || '',
+      sb_body: info.menuItemId === 'capture-selection' ? (info.selectionText || '')
+        : info.menuItemId === 'capture-link' ? (info.linkUrl || '') : '',
+      sb_type: info.menuItemId === 'capture-link' ? 'link' : 'note',
+      sb_tags: '',
+      sb_source_url: tab.url,
+      sb_source_type: info.menuItemId === 'capture-selection' ? 'selection'
+        : info.menuItemId === 'capture-link' ? 'link' : 'web',
+    });
   }
 });
 
@@ -104,6 +120,34 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
       sendResponse({ ok: true });
     } catch (err) {
+      sendResponse({ ok: false });
+    }
+  }
+});
+
+// ── Capture Tab Helper ────────────────────────────────────────────────────────
+
+function openCaptureTab(params) {
+  const url = new URL(chrome.runtime.getURL('popup.html'));
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  chrome.tabs.create({ url: url.toString() });
+}
+
+// Content scripts can't call chrome.tabs.create — they message background instead.
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg.action === 'open-capture-tab') {
+    openCaptureTab(msg.params || {});
+    sendResponse({ ok: true });
+  }
+  if (msg.action === 'open-popup-gmail') {
+    try {
+      const result = chrome.action.openPopup();
+      if (result && typeof result.then === 'function') {
+        result.then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+        return true;
+      }
+      sendResponse({ ok: true });
+    } catch {
       sendResponse({ ok: false });
     }
   }
