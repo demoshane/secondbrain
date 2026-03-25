@@ -27,12 +27,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Check API connectivity (non-blocking — UI stays responsive)
   checkConnectivity();
 
+  // Check URL params first (Gmail button flow — avoids storage API limitations)
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.has('sb_title')) {
+    document.getElementById('sb-title').value = urlParams.get('sb_title') || '';
+    document.getElementById('sb-body').value = urlParams.get('sb_body') || '';
+    document.getElementById('sb-type').value = urlParams.get('sb_type') || 'note';
+    document.getElementById('sb-tags').value = urlParams.get('sb_tags') || '';
+    currentPageUrl = urlParams.get('sb_source_url') || '';
+    captureSourceUrl = currentPageUrl;
+    captureSourceType = urlParams.get('sb_source_type') || 'web';
+    return; // skip further population
+  }
+
   // Check for pendingCapture (context menu flow) or fall back to icon-click flow
-  const { pendingCapture } = await chrome.storage.session.get('pendingCapture');
+  let pendingCapture = null;
+  try {
+    ({ pendingCapture } = await chrome.storage.session.get('pendingCapture'));
+  } catch (e) {
+    // chrome.storage.session unavailable (some Chromium forks) — skip
+  }
 
   if (pendingCapture) {
     // Context menu flow — remove pending data then populate form
-    await chrome.storage.session.remove('pendingCapture');
+    try { await chrome.storage.session.remove('pendingCapture'); } catch (e) {}
     await populateFromPendingCapture(pendingCapture);
   } else {
     // Icon click — extract article from current active tab

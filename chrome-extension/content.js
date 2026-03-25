@@ -145,30 +145,31 @@ function injectGmailButton(threadView) {
     marginLeft: '8px',
   });
 
-  btn.onclick = async () => {
+  btn.onclick = () => {
     const threadData = extractGmailThread();
-    // Store pendingCapture in session storage — content scripts can do this directly,
-    // no service worker needed (avoids inactive service worker timeout issues).
-    await chrome.storage.session.set({
-      pendingCapture: {
-        menuItemId: 'capture-gmail',
-        gmailData: threadData,
-        pageUrl: location.href,
-        timestamp: Date.now(),
-      },
-    });
-    // Open popup as a new tab — doesn't require service worker to be active.
-    window.open(chrome.runtime.getURL('popup.html'), '_blank');
+    // Pass data via URL params — avoids chrome.storage.session which is
+    // unavailable in content scripts on some Chromium-based browsers (Vivaldi).
+    const url = new URL(chrome.runtime.getURL('popup.html'));
+    url.searchParams.set('sb_title', threadData.subject || document.title);
+    url.searchParams.set('sb_body', threadData.fullBody || '');
+    url.searchParams.set('sb_type', 'meeting');
+    url.searchParams.set('sb_tags', 'email');
+    url.searchParams.set('sb_source_url', location.href);
+    url.searchParams.set('sb_source_type', 'gmail');
+    window.open(url.toString(), '_blank');
   };
 
-  // Insert button below the subject line (h2), not at the top of threadView.
-  // Falls back to prepend if no h2 found.
-  const subject = threadView.querySelector('h2');
-  if (subject && subject.parentNode) {
-    subject.parentNode.insertBefore(btn, subject.nextSibling);
-  } else {
-    threadView.prepend(btn);
-  }
+  // Float the button fixed bottom-right — avoids fragile Gmail DOM positioning.
+  // Gmail's internal elements are minified and shift across SPA navigations.
+  Object.assign(btn.style, {
+    position: 'fixed',
+    bottom: '24px',
+    right: '24px',
+    zIndex: '9999',
+    marginLeft: '0',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+  });
+  document.body.appendChild(btn);
 }
 
 function showInPageNotification(message) {
