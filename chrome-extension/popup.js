@@ -8,6 +8,8 @@ const MAX_HISTORY = 10;
 
 let currentApiUrl = DEFAULT_API_URL;
 let currentPageUrl = '';
+let captureSourceUrl = '';
+let captureSourceType = 'web';
 
 // ── Entry Point ───────────────────────────────────────────────────────────────
 
@@ -94,6 +96,28 @@ async function populateFromPendingCapture(pending) {
       break;
     }
 
+    case 'capture-gmail': {
+      // Gmail thread capture — pre-fill with extracted thread data
+      const gd = pending.gmailData;
+      if (gd) {
+        setField('sb-title', gd.subject || 'Gmail Thread');
+        setTypePreselect('meeting'); // pre-suggest meeting per D-04
+        setField('sb-body', gd.fullBody || '');
+        setField('sb-tags', 'email');
+      } else {
+        // gmailData extraction failed — basic fallback
+        setField('sb-title', 'Gmail Thread');
+        setTypePreselect('meeting');
+        setField('sb-body', `Source: ${pending.pageUrl}`);
+        setField('sb-tags', 'email');
+      }
+      // Store source URL and type for POST
+      captureSourceUrl = pending.pageUrl;
+      captureSourceType = 'gmail';
+      currentPageUrl = pending.pageUrl;
+      break;
+    }
+
     default: {
       // Unknown menu item — fall back to page extraction
       await populateFromActiveTab();
@@ -107,6 +131,8 @@ async function populateFromActiveTab() {
   if (!tab) return;
 
   currentPageUrl = tab.url || '';
+  captureSourceUrl = tab.url || '';
+  captureSourceType = 'web';
   setFormLoading(true);
 
   const result = await sendToContentScript(tab.url, { action: 'extract-article' });
@@ -197,8 +223,8 @@ async function handleSave(e) {
       type,
       body,
       tags,
-      source_url: currentPageUrl || undefined,
-      source_type: 'web',
+      source_url: captureSourceUrl || currentPageUrl || undefined,
+      source_type: captureSourceType || 'web',
     };
 
     const res = await fetch(`${currentApiUrl}/notes`, {

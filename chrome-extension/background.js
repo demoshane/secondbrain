@@ -23,11 +23,45 @@ chrome.runtime.onInstalled.addListener(() => {
     title: 'Save Link to Brain',
     contexts: ['link'],
   });
+  chrome.contextMenus.create({
+    id: 'capture-gmail',
+    title: 'Capture thread to Brain',
+    contexts: ['page'],
+    documentUrlPatterns: ['https://mail.google.com/*'],
+  });
 });
 
 // ── Context Menu Click Handler ────────────────────────────────────────────────
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId === 'capture-gmail') {
+    // Gmail context menu — extract thread data from content script first,
+    // then store pendingCapture and open popup.
+    // contextMenus.onClicked IS a trusted gesture source, so openPopup() works here.
+    let gmailData = null;
+    try {
+      gmailData = await chrome.tabs.sendMessage(tab.id, { action: 'extract-gmail' });
+    } catch (err) {
+      console.warn('[SB] extract-gmail message failed:', err.message);
+    }
+
+    await chrome.storage.session.set({
+      pendingCapture: {
+        menuItemId: 'capture-gmail',
+        gmailData,
+        pageUrl: tab.url,
+        timestamp: Date.now(),
+      },
+    });
+
+    try {
+      await chrome.action.openPopup();
+    } catch (err) {
+      console.warn('[SB] openPopup failed for Gmail:', err.message);
+    }
+    return;
+  }
+
   // Store capture context before opening popup.
   // chrome.action.openPopup() must be the LAST call — it requires user gesture context
   // (context menu click qualifies), and awaits before it can break the gesture chain.
@@ -49,6 +83,28 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     // openPopup() can fail if popup is already open or window not focused.
     // Swallow — the pendingCapture data is already stored; user can click icon.
     console.warn('[SB] openPopup failed:', err.message);
+  }
+});
+
+// ── Gmail Popup Message Handler ───────────────────────────────────────────────
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.action === 'open-popup-gmail') {
+    // pendingCapture already stored by content script.
+    // Attempt to open popup — gesture propagation from content script
+    // button click through sendMessage is NOT guaranteed by Chrome.
+    // openPopup() returns a promise in Chrome 120+; older versions throw.
+    try {
+      const result = chrome.action.openPopup();
+      if (result && typeof result.then === 'function') {
+        result.then(() => sendResponse({ ok: true }))
+              .catch(() => sendResponse({ ok: false }));
+        return true; // keep message channel open for async response
+      }
+      sendResponse({ ok: true });
+    } catch (err) {
+      sendResponse({ ok: false });
+    }
   }
 });
 
