@@ -194,19 +194,21 @@ Plans:
 
 ### Phase 37: Housekeeping
 
-**Goal:** Close known UX gaps and test coverage holes surfaced during v4.0 development: fix broken sb-recap weekly view, add action item creation from person note view, link persons to notes in sidebar, improve cascade capture context detection, and cover install_subagent.py in tests.
+**Goal:** Close known UX gaps and test coverage holes surfaced during v4.0 development: fix broken sb-recap weekly view, add action item creation from person note view, people chips in NoteViewer, cascade delete completeness, cover install_subagent.py in tests, fix failing Playwright and embedding tests, and establish Drive sync setup + health check (prerequisite for Phase 38 backup).
 **Depends on:** Phase 34
 **Milestone:** v4.0
-**Status:** Planning
+**Status:** Planned
+**Plans:** 8 plans
 
 Plans:
-- [ ] 37-01-PLAN.md — Fix sb-recap weekly view (MCP `sb_recap` → `generate_recap_on_demand`)
+- [ ] 37-01-PLAN.md — Fix sb-recap weekly view (MCP `sb_recap` -> `generate_recap_on_demand`)
 - [ ] 37-02-PLAN.md — Action item creation from person note view
-- [ ] 37-03-PLAN.md — Link persons to notes in sidebar (add/remove UI)
-- [ ] 37-04-PLAN.md — Context detection + cascade capture on note save
+- [ ] 37-03-PLAN.md — People chips in NoteViewer (add/remove person links on notes)
+- [ ] 37-04-PLAN.md — Cascade delete completeness: impact preview + orphan cleanup
 - [ ] 37-05-PLAN.md — Tests for install_subagent.py
-- [ ] 37-06-PLAN.md — Fix 3 failing Playwright tests: test_title_sync (SSE title propagation to sidebar), test_delete_flow (sidebar re-render after delete), test_right_panel_people_mention (people badge detection in right panel)
-- [ ] 37-07-PLAN.md — Fix 4 failing embedding reindex tests (TestReindexGeneratesEmbeddings): RED since Phase 14, require Ollama/embedding provider running in test environment
+- [ ] 37-06-PLAN.md — Fix 3 failing Playwright tests (title sync, delete flow, people badge)
+- [ ] 37-07-PLAN.md — Fix 4 failing embedding reindex tests (synchronous mode)
+- [ ] 37-08-PLAN.md — Drive sync setup guidance + sb-health Drive check
 
 ---
 
@@ -245,7 +247,7 @@ Plans:
 | 33 | v4.0 | 5/5 | Complete | 2026-03-22 |
 | 34 | v4.0 | 4/4 | Complete | 2026-03-22 |
 | 35 | v4.0 | 3/3 | Complete | 2026-03-23 |
-| 36 | v4.0 | 4/4 | Complete   | 2026-03-25 |
-| 37 | v4.0 | 0/5 | Planning | - |
+| 36 | v4.0 | 4/4 | Complete | 2026-03-25 |
+| 37 | v4.0 | 0/8 | Planned | - |
 | 38 | v4.0 | 0/0 | Not started | - |
 | 39 | v4.0 | 0/1 | Not started | - |
