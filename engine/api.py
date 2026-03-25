@@ -540,18 +540,26 @@ def get_person_links(note_path):
         return jsonify({"error": "Forbidden"}), 403
     path_str = store_path(abs_path)
     conn = get_connection()
+    conn.row_factory = sqlite3.Row
     try:
-        meeting_count = conn.execute(
-            "SELECT COUNT(*) FROM note_people WHERE person = ?",
-            (path_str,)
+        # Resolve person title from DB so we can match note_people by name/slug
+        row = conn.execute("SELECT title FROM notes WHERE path = ?", (path_str,)).fetchone()
+        title = row["title"] if row else ""
+        slug = abs_path.stem  # filename without .md
+        # note_people.person stores names or slugs — check all variants
+        variants = list({path_str, title, slug})
+        placeholders = ",".join("?" * len(variants))
+        mention_count = conn.execute(
+            f"SELECT COUNT(DISTINCT note_path) FROM note_people WHERE person IN ({placeholders})",
+            variants,
         ).fetchone()[0]
         action_count = conn.execute(
-            "SELECT COUNT(*) FROM action_items WHERE assignee_path = ? AND done = 0",
-            (path_str,)
+            f"SELECT COUNT(*) FROM action_items WHERE assignee_path IN ({placeholders}) AND done = 0",
+            variants,
         ).fetchone()[0]
     finally:
         conn.close()
-    return jsonify({"meeting_count": meeting_count, "action_count": action_count})
+    return jsonify({"meeting_count": mention_count, "action_count": action_count})
 
 
 @app.delete("/persons/<path:note_path>")
@@ -927,7 +935,7 @@ def create_note():
     target.write_text(md_content, encoding="utf-8")
     # Index the new note into SQLite immediately so loadNotes() reflects it
     abs_path = str(target.resolve())
-    rel_path = store_path(target.resolve())
+    rel_path = str(target.resolve().relative_to(brain_root))
     conn = get_connection()
     try:
         existing = conn.execute("SELECT path FROM notes WHERE path=?", (rel_path,)).fetchone()
