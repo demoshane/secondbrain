@@ -45,7 +45,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       console.warn('[SB] extract-gmail message failed:', err.message);
     }
 
-    await chrome.storage.session.set({
+    chrome.storage.session.set({
       pendingCapture: {
         menuItemId: 'capture-gmail',
         gmailData,
@@ -57,15 +57,17 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     try {
       await chrome.action.openPopup();
     } catch (err) {
-      console.warn('[SB] openPopup failed for Gmail:', err.message);
+      console.warn('[SB] openPopup failed for Gmail (click the icon):', err.message);
+      chrome.action.setBadgeText({ text: '▶' });
+      chrome.action.setBadgeBackgroundColor({ color: '#1a73e8' });
     }
     return;
   }
 
-  // Store capture context before opening popup.
-  // chrome.action.openPopup() must be the LAST call — it requires user gesture context
-  // (context menu click qualifies), and awaits before it can break the gesture chain.
-  await chrome.storage.session.set({
+  // Fire-and-forget the storage write so openPopup() runs while still
+  // in the synchronous user gesture context. openPopup() breaks on many
+  // Chromium-based browsers if any await precedes it.
+  chrome.storage.session.set({
     pendingCapture: {
       menuItemId: info.menuItemId,
       selectionText: info.selectionText || null,
@@ -76,13 +78,16 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     },
   });
 
-  // Open popup — MUST be last (user gesture chain requirement)
+  // Open popup — must happen while still in user gesture context.
+  // Fall back to badge indicator if openPopup() is unsupported or fails.
   try {
     await chrome.action.openPopup();
   } catch (err) {
-    // openPopup() can fail if popup is already open or window not focused.
-    // Swallow — the pendingCapture data is already stored; user can click icon.
-    console.warn('[SB] openPopup failed:', err.message);
+    // openPopup() is Chrome 127+ only and unavailable on many Chromium-based browsers.
+    // Show a badge so the user knows to click the icon manually.
+    console.warn('[SB] openPopup failed (click the icon):', err.message);
+    chrome.action.setBadgeText({ text: '▶' });
+    chrome.action.setBadgeBackgroundColor({ color: '#1a73e8' });
   }
 });
 
