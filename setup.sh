@@ -85,6 +85,36 @@ fi
 step "Running health check"
 sb-health
 
+# ── Chrome Extension ──────────────────────────────────────────────────────────
+EXTENSION_DIR="$REPO_ROOT/chrome-extension"
+if [ -d "$EXTENSION_DIR" ]; then
+  echo ""
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "  Chrome Extension"
+  echo "  A Chrome extension for web capture is available."
+  echo ""
+  read -rp "  Install Chrome extension? [y/N] " install_ext
+  if [[ "$install_ext" =~ ^[Yy]$ ]]; then
+    echo ""
+    echo "  Installation steps:"
+    echo "  1. Open chrome://extensions in Chrome"
+    echo "  2. Enable 'Developer mode' (toggle in top-right)"
+    echo "  3. Click 'Load unpacked'"
+    echo "  4. Select: $EXTENSION_DIR"
+    echo "  5. The 'Second Brain Capture' extension should appear"
+    echo ""
+    # Open Chrome extensions page (macOS)
+    if command -v open &>/dev/null; then
+      open "chrome://extensions"
+    else
+      echo "  Open chrome://extensions manually in Chrome."
+    fi
+    ok "Chrome extension install instructions shown"
+  else
+    ok "Chrome extension skipped (run setup.sh again to install later)"
+  fi
+fi
+
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  Setup complete!"
