@@ -437,6 +437,26 @@ def migrate_add_health_snapshots_table(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def migrate_create_audit_log_archive(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: create audit_log_archive table if absent.
+
+    Archives audit log entries older than 90 days to keep the hot audit_log
+    table performant at scale (100K+ note operations).
+    Columns mirror audit_log plus archived_at (filled by DEFAULT on insert).
+    """
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS audit_log_archive (
+            id          INTEGER PRIMARY KEY,
+            event_type  TEXT NOT NULL,
+            note_path   TEXT,
+            detail      TEXT,
+            created_at  TEXT NOT NULL,
+            archived_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+        )
+    """)
+    conn.commit()
+
+
 def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     """Create (or optionally recreate) the full schema.
 
@@ -464,6 +484,7 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     migrate_add_note_people_table(conn)
     migrate_people_type_to_person(conn)
     migrate_add_health_snapshots_table(conn)
+    migrate_create_audit_log_archive(conn)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_url ON notes(url)")
     # idx_notes_people is dropped by migrate_add_note_people_table — do not re-create

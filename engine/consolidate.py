@@ -15,6 +15,7 @@ def consolidate_main() -> None:
     from engine.db import get_connection, init_schema
     from engine.brain_health import (
         archive_old_action_items,
+        archive_old_audit_entries,
         delete_dangling_relationships,
         take_health_snapshot,
         cleanup_old_snapshots,
@@ -25,6 +26,7 @@ def consolidate_main() -> None:
     results = {}
     try:
         results["archived_actions"] = archive_old_action_items(conn)
+        results["archived_audit"] = archive_old_audit_entries(conn)
         results["deleted_dangling"] = delete_dangling_relationships(conn)
         results["snapshot"] = take_health_snapshot(conn)
         results["cleaned_old_snapshots"] = cleanup_old_snapshots(conn)

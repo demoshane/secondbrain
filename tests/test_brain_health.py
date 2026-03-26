@@ -773,3 +773,86 @@ def test_health_report_includes_drive_sync(conn):
         report = get_brain_health_report(conn)
     assert "drive_sync" in report
     assert report["drive_sync"]["status"] == "not_installed"
+
+
+# ---------------------------------------------------------------------------
+# Phase 38-02: audit log rotation (archive_old_audit_entries)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def audit_conn(tmp_path):
+    """Isolated SQLite DB for audit log rotation tests."""
+    import engine.db as _db
+    import engine.paths as _paths
+    db_path = tmp_path / "audit_rot_test.db"
+    _db.DB_PATH = db_path
+    _paths.DB_PATH = db_path
+    from engine.db import get_connection, init_schema
+    conn = get_connection()
+    init_schema(conn)
+    yield conn
+    conn.close()
+
+
+def _insert_audit_entry(conn, event_type, note_path, created_at):
+    """Helper: insert an audit_log row with explicit created_at."""
+    conn.execute(
+        "INSERT INTO audit_log (event_type, note_path, detail, created_at) VALUES (?,?,?,?)",
+        (event_type, note_path, "test detail", created_at),
+    )
+    conn.commit()
+
+
+def test_archive_old_audit_entries_moves_old(audit_conn):
+    """38-02: audit entries older than 90 days are moved to audit_log_archive."""
+    from engine.brain_health import archive_old_audit_entries
+    _insert_audit_entry(audit_conn, "create", "notes/a.md", "2020-01-01T00:00:00Z")
+    _insert_audit_entry(audit_conn, "update", "notes/b.md", "2020-06-01T00:00:00Z")
+    _insert_audit_entry(audit_conn, "create", "notes/c.md", "2019-01-01T00:00:00Z")
+    count = archive_old_audit_entries(audit_conn, days=90)
+    assert count == 3, f"Expected 3 archived, got {count}"
+    archived = audit_conn.execute("SELECT * FROM audit_log_archive").fetchall()
+    assert len(archived) == 3
+
+
+def test_archive_old_audit_entries_no_old_entries(audit_conn):
+    """38-02: archive_old_audit_entries returns 0 when no entries are old enough."""
+    from engine.brain_health import archive_old_audit_entries
+    import datetime
+    recent = (datetime.datetime.utcnow() - datetime.timedelta(days=10)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    _insert_audit_entry(audit_conn, "create", "notes/recent.md", recent)
+    count = archive_old_audit_entries(audit_conn, days=90)
+    assert count == 0, f"Expected 0 archived, got {count}"
+
+
+def test_archive_old_audit_entries_archived_columns(audit_conn):
+    """38-02: archived entries have correct columns in audit_log_archive."""
+    from engine.brain_health import archive_old_audit_entries
+    _insert_audit_entry(audit_conn, "delete", "notes/x.md", "2018-01-01T00:00:00Z")
+    archive_old_audit_entries(audit_conn, days=90)
+    row = audit_conn.execute(
+        "SELECT event_type, note_path, detail, created_at, archived_at FROM audit_log_archive"
+    ).fetchone()
+    assert row is not None
+    assert row[0] == "delete"
+    assert row[1] == "notes/x.md"
+    assert row[2] == "test detail"
+    assert row[3] == "2018-01-01T00:00:00Z"
+    assert row[4] is not None  # archived_at filled by DEFAULT
+
+
+def test_archive_old_audit_entries_decreases_audit_log(audit_conn):
+    """38-02: audit_log row count decreases by the archived count."""
+    from engine.brain_health import archive_old_audit_entries
+    _insert_audit_entry(audit_conn, "create", "notes/p.md", "2020-01-01T00:00:00Z")
+    _insert_audit_entry(audit_conn, "create", "notes/q.md", "2020-01-02T00:00:00Z")
+    import datetime
+    recent = (datetime.datetime.utcnow() - datetime.timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    _insert_audit_entry(audit_conn, "create", "notes/r.md", recent)
+
+    before = audit_conn.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
+    count = archive_old_audit_entries(audit_conn, days=90)
+    after = audit_conn.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
+    assert count == 2
+    assert after == before - 2

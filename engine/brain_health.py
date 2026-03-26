@@ -9,6 +9,8 @@ import json
 import sqlite3
 from pathlib import Path
 
+from engine.paths import CONFIG_PATH
+
 
 def get_orphan_notes(conn: sqlite3.Connection) -> list[dict]:
     """Return notes with no inbound relationship links.
@@ -153,6 +155,43 @@ def archive_old_action_items(conn: sqlite3.Connection, days: int = 90) -> int:
     return len(rows)
 
 
+def archive_old_audit_entries(conn: sqlite3.Connection, days: int = 90) -> int:
+    """Move audit log entries older than `days` days into audit_log_archive.
+
+    All inserts and deletes happen in a single transaction.
+    Mirrors archive_old_action_items pattern (semgrep-safe: no dynamic IN-clause).
+    Returns count of archived entries.
+    """
+    rows = conn.execute(
+        """
+        SELECT id, event_type, note_path, detail, created_at
+        FROM audit_log
+        WHERE created_at < datetime('now', ?)
+        """,
+        (f"-{days} days",),
+    ).fetchall()
+
+    if not rows:
+        return 0
+
+    with conn:
+        conn.executemany(
+            """
+            INSERT INTO audit_log_archive (event_type, note_path, detail, created_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            [(r[1], r[2], r[3], r[4]) for r in rows],
+        )
+        # Delete each archived row individually using a parameterized statement
+        # (avoids dynamic IN-clause construction flagged by SQL injection scanners)
+        conn.executemany(
+            "DELETE FROM audit_log WHERE id = ?",
+            [(r[0],) for r in rows],
+        )
+
+    return len(rows)
+
+
 def merge_notes(
     keep_path: str, discard_path: str, conn: sqlite3.Connection
 ) -> dict:
@@ -247,6 +286,22 @@ def merge_notes(
     conn.execute("INSERT INTO notes_fts(notes_fts) VALUES('rebuild')")
     conn.commit()
 
+    # Write merged body back to the keep file on disk
+    keep_file = Path(keep_path)
+    if not keep_file.is_absolute():
+        from engine.paths import BRAIN_ROOT
+        keep_file = BRAIN_ROOT / keep_path
+    if keep_file.exists():
+        original_text = keep_file.read_text(encoding="utf-8")
+        # Replace body section: everything after the closing --- of frontmatter
+        parts = original_text.split("---", 2)
+        if len(parts) >= 3:
+            keep_file.write_text(
+                "---" + parts[1] + "---\n\n" + merged_body, encoding="utf-8"
+            )
+        else:
+            keep_file.write_text(merged_body, encoding="utf-8")
+
     # Delete discard file from disk (after DB commit per ARCH-08)
     discard_file = Path(discard_path)
     if not discard_file.is_absolute():
@@ -263,6 +318,101 @@ def merge_notes(
     conn.commit()
 
     return {"keep": keep_path, "discarded": discard_path, "merged_tags": merged_tags}
+
+
+def smart_merge_notes(
+    keep_path: str,
+    discard_path: str,
+    conn: sqlite3.Connection,
+) -> dict:
+    """Merge two duplicate notes using AI to synthesise a deduplicated body.
+
+    Calls the router's public-sensitivity adapter (Ollama by default) to produce
+    a single coherent note from both bodies. Falls back to dumb concatenation if
+    the LLM call fails for any reason.
+
+    Returns same shape as merge_notes:
+        {"keep": keep_path, "discarded": discard_path, "merged_tags": list[str], "smart": bool}
+    """
+    keep_row = conn.execute(
+        "SELECT path, title, body FROM notes WHERE path = ?", (keep_path,)
+    ).fetchone()
+    if keep_row is None:
+        raise ValueError(f"keep_path not found: {keep_path!r}")
+
+    discard_row = conn.execute(
+        "SELECT path, title, body FROM notes WHERE path = ?", (discard_path,)
+    ).fetchone()
+    if discard_row is None:
+        raise ValueError(f"discard_path not found: {discard_path!r}")
+
+    keep_body = keep_row[2] or ""
+    discard_body = discard_row[2] or ""
+    smart = False
+
+    if keep_body or discard_body:
+        try:
+            import engine.router as _router
+
+            adapter = _router.get_adapter("public", CONFIG_PATH)
+            system_prompt = (
+                "You are a knowledge management assistant. "
+                "You are given two versions of a note that cover the same topic. "
+                "Produce a single merged note that:\n"
+                "- Removes exact duplicates and redundant sentences\n"
+                "- Preserves all unique facts, decisions, and insights from both\n"
+                "- Uses clear, concise prose\n"
+                "- Does NOT add new information or commentary\n"
+                "Output only the merged note body — no headings, no preamble."
+            )
+            user_content = (
+                f"NOTE A (title: {keep_row[1]}):\n{keep_body}\n\n"
+                f"NOTE B (title: {discard_row[1]}):\n{discard_body}"
+            )
+            merged_body = adapter.generate(
+                user_content=user_content, system_prompt=system_prompt
+            )
+            smart = True
+        except Exception:
+            # Fallback: concat with separator
+            if keep_body and discard_body:
+                merged_body = keep_body + "\n\n---\n\n" + discard_body
+            else:
+                merged_body = keep_body or discard_body
+    else:
+        merged_body = ""
+
+    # Reuse merge_notes but override the merged body by patching the DB directly
+    # after the standard merge so relationships + cascade still run correctly.
+    # We do this by calling merge_notes (which sets body to concat) then updating.
+    result = merge_notes(keep_path, discard_path, conn)
+
+    # Overwrite DB body with AI-synthesised version
+    with conn:
+        conn.execute(
+            "UPDATE notes SET body=?, updated_at=datetime('now') WHERE path=?",
+            (merged_body, keep_path),
+        )
+    conn.execute("INSERT INTO notes_fts(notes_fts) VALUES('rebuild')")
+    conn.commit()
+
+    # Overwrite disk file with AI body
+    keep_file = Path(keep_path)
+    if not keep_file.is_absolute():
+        from engine.paths import BRAIN_ROOT
+        keep_file = BRAIN_ROOT / keep_path
+    if keep_file.exists():
+        original_text = keep_file.read_text(encoding="utf-8")
+        parts = original_text.split("---", 2)
+        if len(parts) >= 3:
+            keep_file.write_text(
+                "---" + parts[1] + "---\n\n" + merged_body, encoding="utf-8"
+            )
+        else:
+            keep_file.write_text(merged_body, encoding="utf-8")
+
+    result["smart"] = smart
+    return result
 
 
 def get_stub_notes(conn: sqlite3.Connection, word_limit: int = 50) -> list[dict]:
@@ -283,6 +433,70 @@ def get_stub_notes(conn: sqlite3.Connection, word_limit: int = 50) -> list[dict]
         if body is None or body.strip() == "" or len(body.split()) < word_limit:
             stubs.append({"path": path, "title": title, "word_count": len((body or "").split())})
     return stubs[:50]
+
+
+def repair_self_links(conn: sqlite3.Connection) -> int:
+    """Delete relationships where source_path == target_path.
+
+    These are artifacts from earlier bugs where a person profile was linked to itself.
+    Returns count of deleted rows.
+    """
+    result = conn.execute(
+        "DELETE FROM relationships WHERE source_path = target_path"
+    )
+    conn.commit()
+    return result.rowcount
+
+
+def repair_person_backlinks(brain_root: Path, conn: sqlite3.Connection) -> dict:
+    """Remove stale [[...]] backlink lines from person files.
+
+    For each backlink relationship whose target no longer exists on disk:
+    - Remove the [[target_path]] line from the person (source) file
+    - Delete the relationship row from DB
+
+    Returns {"files_updated": int, "links_removed": int}
+    """
+    from collections import defaultdict
+
+    rows = conn.execute(
+        "SELECT source_path, target_path FROM relationships WHERE rel_type = 'backlink'"
+    ).fetchall()
+
+    stale = [(src, tgt) for src, tgt in rows if not Path(tgt).exists()]
+    if not stale:
+        return {"files_updated": 0, "links_removed": 0}
+
+    by_source: dict[str, list[str]] = defaultdict(list)
+    for src, tgt in stale:
+        by_source[src].append(tgt)
+
+    files_updated = 0
+    links_removed = 0
+
+    for source_path, stale_targets in by_source.items():
+        person_file = Path(source_path)
+        for tgt in stale_targets:
+            conn.execute(
+                "DELETE FROM relationships WHERE source_path=? AND target_path=?",
+                (source_path, tgt),
+            )
+            links_removed += 1
+
+        if not person_file.exists():
+            continue
+
+        text = person_file.read_text(encoding="utf-8")
+        original = text
+        for tgt in stale_targets:
+            text = text.replace(f"\n- [[{tgt}]]", "")
+
+        if text != original:
+            person_file.write_text(text, encoding="utf-8")
+            files_updated += 1
+
+    conn.commit()
+    return {"files_updated": files_updated, "links_removed": links_removed}
 
 
 def delete_dangling_relationships(conn: sqlite3.Connection) -> int:
