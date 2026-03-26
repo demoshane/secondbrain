@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Phase complete — ready for verification
-stopped_at: Completed 38-03-PLAN.md — encrypted backup/restore + health check integration
-last_updated: "2026-03-26T14:41:04.405Z"
+stopped_at: Completed 38-04-PLAN.md — chunked embeddings infrastructure
+last_updated: "2026-03-26T14:52:22.617Z"
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 42
-  completed_plans: 36
+  completed_plans: 37
 ---
 
 # Project State
@@ -51,6 +51,7 @@ Plan: 4 of 4
 | Phase 38 P01 | 601 | 2 tasks | 4 files |
 | Phase 38 P02 | 25 | 2 tasks | 6 files |
 | Phase 38 P03 | 480 | 2 tasks | 4 files |
+| Phase 38 P04 | 459 | 2 tasks | 4 files |
 
 ### Decisions
 
@@ -96,6 +97,8 @@ Active decisions affecting upcoming work:
 - [Phase 38]: shard_note disables PRAGMA foreign_keys during transaction — SQLite has no deferred FK support for UPDATE; child tables (note_tags, note_people) have FK on notes.path
 - [Phase 38]: Fernet key stored at ~/.config/second-brain/backup.key (chmod 600) — outside brain folder, not in Drive sync or backup archive
 - [Phase 38]: restore_main uses two-step confirm_token (secrets.token_hex(8), 60s expiry) — mirrors MCP destructive op pattern
+- [Phase 38]: CHUNK_THRESHOLD < CHUNK_SIZE: short notes (<600 chars) reuse note-level blob as single chunk rather than re-embedding
+- [Phase 38]: conftest stub_engine_embeddings skip list extended with TestSplitTextIntoChunks, TestEmbedChunks, TestNoteChunksSchema — new chunking test classes need real embeddings module
 
 ### Pending Todos
 
@@ -112,6 +115,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-26T14:41:04.398Z
-Stopped at: Completed 38-03-PLAN.md — encrypted backup/restore + health check integration
+Last session: 2026-03-26T14:52:22.610Z
+Stopped at: Completed 38-04-PLAN.md — chunked embeddings infrastructure
 Resume file: None
