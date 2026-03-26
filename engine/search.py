@@ -103,6 +103,7 @@ def search_notes(
             "title": row[2],
             "created_at": row[3],
             "score": row[4],
+            "excerpt": None,
         }
         for row in rows
     ]
@@ -138,22 +139,95 @@ def _rrf_merge(
     return [all_items[p] for p in ranked[:limit]]
 
 
+def _enrich_with_excerpts(conn: sqlite3.Connection, results: list[dict], query: str) -> list[dict]:
+    """Add excerpt field to each result from note_chunks table.
+
+    For each result, finds the best-matching chunk by cosine similarity against
+    the query embedding. Sets r["excerpt"] to the trimmed chunk text (max 300 chars),
+    or None if no chunks exist or embeddings are unavailable.
+    """
+    try:
+        from engine.embeddings import embed_texts
+        query_blob = embed_texts([query])[0]
+    except Exception:
+        for r in results:
+            r["excerpt"] = None
+        return results
+
+    import numpy as np
+    query_vec = np.frombuffer(query_blob, dtype=np.float32)
+    query_norm = np.linalg.norm(query_vec)
+
+    for r in results:
+        chunks = conn.execute(
+            "SELECT chunk_text, embedding FROM note_chunks WHERE note_path=?",
+            (r["path"],)
+        ).fetchall()
+        if not chunks or not chunks[0][1]:
+            r["excerpt"] = None
+            continue
+        best_text = None
+        best_sim = -1.0
+        for chunk_text, emb_blob in chunks:
+            if not emb_blob:
+                continue
+            chunk_vec = np.frombuffer(emb_blob, dtype=np.float32)
+            # Handle dimension mismatch gracefully
+            if len(chunk_vec) != len(query_vec):
+                continue
+            dot = np.dot(query_vec, chunk_vec)
+            norm = query_norm * np.linalg.norm(chunk_vec)
+            sim = dot / (norm + 1e-9)
+            if sim > best_sim:
+                best_sim = sim
+                best_text = chunk_text
+        r["excerpt"] = best_text[:300] if best_text else None
+    return results
+
+
 def search_semantic(
     conn: sqlite3.Connection,
     query: str,
     limit: int = 20,
 ) -> list[dict]:
-    """Semantic vector search using sqlite-vec KNN.
+    """Semantic vector search using hnswlib ANN (with sqlite-vec fallback).
 
-    Embeds the query via embed_texts, then runs a cosine-distance KNN query
-    against note_embeddings. Returns list[dict] with keys: path, title, type,
-    created_at, score (1.0 - cosine_distance, higher = better match).
+    Tries hnswlib ANN first (O(log n) at scale). Falls back to sqlite-vec KNN
+    on any failure. Returns list[dict] with keys: path, title, type,
+    created_at, score, excerpt (1.0 - cosine_distance, higher = better match).
 
     Fallback behaviour:
+    - If hnswlib unavailable or ANN returns empty: falls back to sqlite-vec.
     - If sqlite-vec fails to load: returns [].
     - If note_embeddings table is empty: prints a notification and returns [].
     - If >50 notes lack embeddings: prints a warning and searches what's indexed.
     """
+    # Try hnswlib ANN first (O(log n) at scale)
+    try:
+        from engine.ann_index import knn_query as _ann_knn
+        from engine.embeddings import embed_texts
+        query_blob = embed_texts([query])[0]
+        ann_results = _ann_knn(query_blob, k=limit, conn=conn)
+        if ann_results:
+            results = []
+            for note_path, distance in ann_results:
+                row = conn.execute(
+                    "SELECT path, type, title, created_at FROM notes WHERE path=?",
+                    (note_path,)
+                ).fetchone()
+                if row:
+                    score = 1.0 - distance  # cosine distance -> similarity
+                    results.append({
+                        "path": row[0], "type": row[1], "title": row[2],
+                        "created_at": row[3], "score": score * _recency_multiplier(row[3]),
+                    })
+            if results:
+                results = sorted(results, key=lambda r: r["score"], reverse=True)[:limit]
+                return _enrich_with_excerpts(conn, results, query)
+    except Exception as e:
+        logger.warning("ANN search failed, falling back to sqlite-vec: %s", e)
+
+    # Fallback: sqlite-vec KNN
     try:
         import sqlite_vec
         conn.enable_load_extension(True)
@@ -202,7 +276,7 @@ def search_semantic(
         (query_blob, limit),
     ).fetchall()
 
-    return [
+    results = [
         {
             "path": row[0],
             "title": row[1],
@@ -212,6 +286,7 @@ def search_semantic(
         }
         for row in rows
     ]
+    return _enrich_with_excerpts(conn, results, query)
 
 
 def search_hybrid(
@@ -237,7 +312,8 @@ def search_hybrid(
         # search_semantic already printed a notification if relevant
         return bm25[:limit]
 
-    return _rrf_merge(bm25, vec_results, k=60, limit=limit)
+    merged = _rrf_merge(bm25, vec_results, k=60, limit=limit)
+    return _enrich_with_excerpts(conn, merged, query)
 
 
 def _apply_filters(

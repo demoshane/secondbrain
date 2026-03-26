@@ -103,6 +103,56 @@ class TestHybridFallback:
 # Phase 33-04: _apply_filters tests
 # ---------------------------------------------------------------------------
 
+class TestSearchExcerpt:
+    """Tests for excerpt field returned by search functions."""
+
+    def test_search_notes_has_excerpt_field(self, seeded_db):
+        """search_notes results always include excerpt key (None for BM25-only path)."""
+        from engine.search import search_notes
+        results = search_notes(seeded_db, "topic_0")
+        assert len(results) > 0
+        for r in results:
+            assert "excerpt" in r
+            assert r["excerpt"] is None  # BM25-only path sets None
+
+    def test_search_hybrid_has_excerpt_field(self, seeded_db):
+        """search_hybrid results always include excerpt key."""
+        from engine.search import search_hybrid
+        with patch("engine.search._enrich_with_excerpts", side_effect=lambda conn, results, query: [
+            {**r, "excerpt": None} for r in results
+        ]):
+            results = search_hybrid(seeded_db, "topic_0")
+        assert len(results) > 0
+        for r in results:
+            assert "excerpt" in r
+
+    def test_enrich_with_excerpts_no_chunks(self, seeded_db):
+        """_enrich_with_excerpts sets excerpt=None when no chunks exist."""
+        from engine.search import _enrich_with_excerpts
+        results = [{"path": "notes/note_0000.md", "score": 1.0}]
+        out = _enrich_with_excerpts(seeded_db, results, "test query")
+        assert out[0]["excerpt"] is None
+
+    def test_enrich_with_excerpts_with_chunk_data(self, seeded_db):
+        """_enrich_with_excerpts returns best chunk text when chunks exist."""
+        import struct
+        from engine.search import _enrich_with_excerpts
+
+        # Insert a chunk with a 384-dim embedding (matching stub embed_texts output)
+        blob = struct.pack("384f", *[0.1] * 384)
+        seeded_db.execute(
+            "INSERT OR IGNORE INTO note_chunks (note_path, chunk_index, chunk_text, embedding) VALUES (?, ?, ?, ?)",
+            ("notes/note_0000.md", 0, "This is the best matching chunk text for the note.", blob),
+        )
+        seeded_db.commit()
+
+        results = [{"path": "notes/note_0000.md", "score": 1.0}]
+        out = _enrich_with_excerpts(seeded_db, results, "test query")
+        # Stub embed_texts returns 384-dim blob; chunk has 384-dim blob — dimensions match
+        assert out[0]["excerpt"] is not None
+        assert len(out[0]["excerpt"]) <= 300
+
+
 class TestApplyFilters:
     """Tests for the _apply_filters() post-filter function in engine.search."""
 
