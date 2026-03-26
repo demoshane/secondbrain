@@ -95,6 +95,11 @@ def get_duplicate_candidates(
         return []
 
 
+def get_archived_count(conn: sqlite3.Connection) -> int:
+    """Return count of archived notes (archived = 1)."""
+    return conn.execute("SELECT COUNT(*) FROM notes WHERE archived = 1").fetchone()[0]
+
+
 def compute_health_score(
     total_notes: int,
     orphans: int,

@@ -473,6 +473,22 @@ def migrate_create_note_chunks(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def migrate_add_archived_column(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: add 'archived' INTEGER column to notes (0=active, 1=archived)."""
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(notes)").fetchall()}
+    if "archived" not in cols:
+        conn.execute("ALTER TABLE notes ADD COLUMN archived INTEGER NOT NULL DEFAULT 0")
+        conn.commit()
+
+
+def migrate_add_summary_column(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: add 'summary' TEXT column to notes for auto-generated summaries."""
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(notes)").fetchall()}
+    if "summary" not in cols:
+        conn.execute("ALTER TABLE notes ADD COLUMN summary TEXT")
+        conn.commit()
+
+
 def migrate_create_audit_log_archive(conn: sqlite3.Connection) -> None:
     """Idempotent migration: create audit_log_archive table if absent.
 
@@ -522,6 +538,8 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     migrate_add_health_snapshots_table(conn)
     migrate_create_audit_log_archive(conn)
     migrate_create_note_chunks(conn)
+    migrate_add_archived_column(conn)
+    migrate_add_summary_column(conn)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_url ON notes(url)")
     # idx_notes_people is dropped by migrate_add_note_people_table — do not re-create

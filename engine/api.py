@@ -164,14 +164,22 @@ def notes_refresh():
 def list_notes():
     limit = min(int(request.args.get("limit", 50)), 200)
     offset = max(int(request.args.get("offset", 0)), 0)
+    include_archived = request.args.get("include_archived", "false").lower() == "true"
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     try:
-        total = conn.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
-        rows = conn.execute(
-            "SELECT path, title, type, created_at, tags FROM notes ORDER BY created_at DESC LIMIT ? OFFSET ?",
-            (limit, offset),
-        ).fetchall()
+        if include_archived:
+            total = conn.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
+            rows = conn.execute(
+                "SELECT path, title, type, created_at, tags FROM notes ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                (limit, offset),
+            ).fetchall()
+        else:
+            total = conn.execute("SELECT COUNT(*) FROM notes WHERE archived = 0").fetchone()[0]
+            rows = conn.execute(
+                "SELECT path, title, type, created_at, tags FROM notes WHERE archived = 0 ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                (limit, offset),
+            ).fetchall()
     finally:
         conn.close()
     notes = []

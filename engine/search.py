@@ -72,6 +72,7 @@ def search_notes(
             FROM notes_fts
             JOIN notes n ON notes_fts.rowid = n.id
             WHERE notes_fts MATCH ?
+              AND n.archived = 0
             ORDER BY bm25(notes_fts, 10.0, 1.0)
             LIMIT ?
         """
@@ -83,6 +84,7 @@ def search_notes(
             JOIN notes n ON notes_fts.rowid = n.id
             WHERE notes_fts MATCH ?
               AND n.type = ?
+              AND n.archived = 0
             ORDER BY bm25(notes_fts, 10.0, 1.0)
             LIMIT ?
         """
