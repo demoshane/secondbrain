@@ -221,7 +221,7 @@ Plans:
 **Depends on:** Phase 32, Phase 33
 **Milestone:** v4.0
 **Requirements**: SCALE-01 through SCALE-08
-**Plans:** 7 plans
+**Plans:** 0/1 plans executed
 
 Plans:
 - [ ] 38-01-PLAN.md — hnswlib ANN index module + reindex integration (SCALE-01)
@@ -289,7 +289,7 @@ Plans:
 | 35 | v4.0 | 3/3 | Complete | 2026-03-23 |
 | 36 | v4.0 | 4/4 | Complete | 2026-03-25 |
 | 37 | v4.0 | 11/11 | Complete | 2026-03-26 |
-| 38 | v4.0 | 0/7 | Not started | - |
+| 38 | v4.0 | 0/1 | Planned    |  |
 | 39 | v4.0 | 1/1 | Not started | - |
 | 40 | v4.0 | 0/5 | Not started | - |
 | 41 | v4.0 | 0/5 | Not started | - |

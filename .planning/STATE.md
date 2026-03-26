@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
-status: Phase complete — UAT passed
-stopped_at: Phase 37 UI-SPEC approved
-last_updated: "2026-03-25T18:42:03.397Z"
+status: Phase complete — ready for verification
+stopped_at: Phase 38 Plan 01 complete — ANN index module + reindex wiring done
+last_updated: "2026-03-26T14:24:06.786Z"
 progress:
-  total_phases: 8
-  completed_phases: 5
-  total_plans: 23
-  completed_plans: 22
+  total_phases: 12
+  completed_phases: 6
+  total_plans: 42
+  completed_plans: 34
 ---
 
 # Project State
@@ -48,6 +48,7 @@ Plan: 4 of 4
 | Phase 36 P01 | 176 | 1 tasks | 3 files |
 | Phase 36 P03 | 2 | 1 tasks | 3 files |
 | Phase 36 P04 | 691 | 2 tasks | 6 files |
+| Phase 38 P01 | 601 | 2 tasks | 4 files |
 
 ### Decisions
 
@@ -87,6 +88,8 @@ Active decisions affecting upcoming work:
 - [Phase 36]: Gmail injected button stores pendingCapture in content script (storage accessible from content scripts), relays open-popup-gmail to background — gesture chain not guaranteed, fallback notification used
 - [Phase 36]: chrome:// URLs cannot be opened from web pages — install button shows inline instructions only
 - [Phase 36]: extensionApiReachable state fetches /ping in useEffect — same check as badge polling but from GUI context
+- [Phase 38]: hnswlib compiled from source on macOS 26 using SDKROOT+CXXFLAGS for MacOSX15.4.sdk
+- [Phase 38]: load_or_build_index returns None (not raises) when no file and no conn — caller handles fallback to sqlite-vec
 
 ### Pending Todos
 
@@ -103,6 +106,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-25T18:42:03.389Z
-Stopped at: Phase 37 UI-SPEC approved
-Resume file: .planning/phases/37-housekeeping/37-UI-SPEC.md
+Last session: 2026-03-26T14:24:06.779Z
+Stopped at: Phase 38 Plan 01 complete — ANN index module + reindex wiring done
+Resume file: None
