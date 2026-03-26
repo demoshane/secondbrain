@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Phase complete — ready for verification
-stopped_at: Completed 38-04-PLAN.md — chunked embeddings infrastructure
-last_updated: "2026-03-26T14:52:22.617Z"
+stopped_at: Completed 38-06-PLAN.md — tiered storage and summarization layer
+last_updated: "2026-03-26T17:09:57.215Z"
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 42
-  completed_plans: 37
+  completed_plans: 38
 ---
 
 # Project State
@@ -52,6 +52,7 @@ Plan: 4 of 4
 | Phase 38 P02 | 25 | 2 tasks | 6 files |
 | Phase 38 P03 | 480 | 2 tasks | 4 files |
 | Phase 38 P04 | 459 | 2 tasks | 4 files |
+| Phase 38 P06 | 25 | 2 tasks | 7 files |
 
 ### Decisions
 
@@ -99,6 +100,8 @@ Active decisions affecting upcoming work:
 - [Phase 38]: restore_main uses two-step confirm_token (secrets.token_hex(8), 60s expiry) — mirrors MCP destructive op pattern
 - [Phase 38]: CHUNK_THRESHOLD < CHUNK_SIZE: short notes (<600 chars) reuse note-level blob as single chunk rather than re-embedding
 - [Phase 38]: conftest stub_engine_embeddings skip list extended with TestSplitTextIntoChunks, TestEmbedChunks, TestNoteChunksSchema — new chunking test classes need real embeddings module
+- [Phase 38]: summarize_note uses _router.get_adapter('public') — consistent with recap_entity pattern, not direct call_claude
+- [Phase 38]: SUMMARY_THRESHOLD=2000 chars, SUMMARY_MAX_INPUT=8000 chars — balance coverage vs token cost
 
 ### Pending Todos
 
@@ -115,6 +118,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-26T14:52:22.610Z
-Stopped at: Completed 38-04-PLAN.md — chunked embeddings infrastructure
+Last session: 2026-03-26T17:09:57.206Z
+Stopped at: Completed 38-06-PLAN.md — tiered storage and summarization layer
 Resume file: None
