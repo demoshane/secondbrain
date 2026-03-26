@@ -144,6 +144,49 @@ def check_git_hooks() -> dict:
     return _ok("Git hooks", f"hooksPath = {hooks_path}")
 
 
+def check_backup() -> dict:
+    """Check backup staleness and backup key existence."""
+    from engine.backup import check_backup_health, KEY_PATH
+    from engine.paths import BRAIN_ROOT
+
+    backup_dir = BRAIN_ROOT / ".backup"
+    backup_status = check_backup_health(backup_dir)
+
+    if backup_status["last_backup"] is None:
+        backup_result = _warn("Backup", "No backups found. Run sb-backup.")
+    elif backup_status["stale"]:
+        backup_result = _warn(
+            "Backup",
+            f"STALE — last backup {backup_status['age_days']} days ago",
+        )
+    else:
+        backup_result = _ok(
+            "Backup",
+            f"OK — last backup {backup_status['age_days']} days ago",
+        )
+
+    if not KEY_PATH.exists():
+        key_result = _warn("Backup key", "MISSING — will be generated on first sb-backup")
+    else:
+        key_result = _ok("Backup key", "OK")
+
+    # Return worst-of-two as a single combined result
+    if backup_result["status"] == "fail" or key_result["status"] == "fail":
+        combined_status = "fail"
+    elif backup_result["status"] == "warn" or key_result["status"] == "warn":
+        combined_status = "warn"
+    else:
+        combined_status = "ok"
+
+    return {
+        "label": "Backup",
+        "status": combined_status,
+        "detail": f"{backup_result['detail']}; key: {key_result['detail']}",
+        "_backup": backup_result,
+        "_key": key_result,
+    }
+
+
 def check_global_cli() -> dict:
     missing = [cmd for cmd in ("sb-search", "sb-capture", "sb-reindex") if shutil.which(cmd) is None]
     if missing:
@@ -193,6 +236,7 @@ CHECKS = [
     check_launchd,
     check_embeddings,
     check_pii_processing,
+    check_backup,
 ]
 
 STATUS_ICON = {"ok": "\033[32m✓\033[0m", "warn": "\033[33m⚠\033[0m", "fail": "\033[31m✗\033[0m"}
