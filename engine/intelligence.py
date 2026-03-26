@@ -69,6 +69,14 @@ def _save_state(state: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Summarization constants (38-06)
+# ---------------------------------------------------------------------------
+
+SUMMARY_THRESHOLD = 2000  # characters — notes longer than this get summarized
+SUMMARY_MAX_INPUT = 8000  # characters — cap input to LLM to control cost
+
+
+# ---------------------------------------------------------------------------
 # Budget gate (INTL-10)
 # ---------------------------------------------------------------------------
 
@@ -596,6 +604,80 @@ def generate_recap_on_demand(conn, window_days: int | None = None) -> str:
         return overdue_section + ("\n\n".join(parts) if parts else "Recap generation unavailable (AI adapter not responding).")
     except Exception as exc:
         return f"Error generating recap: {exc}"
+
+
+# ---------------------------------------------------------------------------
+# Summarization (38-06)
+# ---------------------------------------------------------------------------
+
+def summarize_note(conn, note_path: str, force: bool = False) -> str | None:
+    """Generate and store a summary for a long note.
+
+    Returns summary string if generated, None if note too short or already summarized.
+    Uses existing LLM adapter pattern (router → ClaudeAdapter).
+
+    Args:
+        conn: Active SQLite connection.
+        note_path: Path of the note to summarize.
+        force: If True, regenerate even if a summary already exists.
+
+    Returns:
+        Summary string on success, None if note is too short or not found.
+    """
+    row = conn.execute(
+        "SELECT body, summary FROM notes WHERE path=?", (note_path,)
+    ).fetchone()
+    if not row:
+        return None
+
+    body, existing_summary = row
+    if not body or len(body) < SUMMARY_THRESHOLD:
+        return None
+    if existing_summary and not force:
+        return existing_summary
+
+    from engine.paths import CONFIG_PATH
+    try:
+        adapter = _router.get_adapter("public", CONFIG_PATH)
+        prompt = (
+            "Summarize the following note in 2-3 concise sentences. "
+            "Focus on key facts, decisions, and action items.\n\n"
+            + body[:SUMMARY_MAX_INPUT]
+        )
+        summary = adapter.generate(user_content=prompt)
+        if summary:
+            conn.execute(
+                "UPDATE notes SET summary=? WHERE path=?",
+                (summary.strip(), note_path),
+            )
+            conn.commit()
+            return summary.strip()
+    except Exception as e:
+        logger.warning("Summarization failed for %s: %s", note_path, e)
+    return None
+
+
+def summarize_unsummarized(conn, limit: int = 10) -> int:
+    """Batch summarize notes that are long but have no summary.
+
+    Returns count of notes successfully summarized.
+
+    Args:
+        conn: Active SQLite connection.
+        limit: Maximum number of notes to process in this batch.
+    """
+    rows = conn.execute(
+        """SELECT path FROM notes
+           WHERE (summary IS NULL OR summary = '')
+             AND length(body) >= ?
+           LIMIT ?""",
+        (SUMMARY_THRESHOLD, limit),
+    ).fetchall()
+    count = 0
+    for (path,) in rows:
+        if summarize_note(conn, path):
+            count += 1
+    return count
 
 
 # ---------------------------------------------------------------------------
