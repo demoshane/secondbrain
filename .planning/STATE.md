@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Phase complete — ready for verification
-stopped_at: Completed 38-02-PLAN.md — audit rotation + sharding helpers
-last_updated: "2026-03-26T14:34:48.431Z"
+stopped_at: Completed 38-03-PLAN.md — encrypted backup/restore + health check integration
+last_updated: "2026-03-26T14:41:04.405Z"
 progress:
   total_phases: 12
   completed_phases: 6
   total_plans: 42
-  completed_plans: 35
+  completed_plans: 36
 ---
 
 # Project State
@@ -50,6 +50,7 @@ Plan: 4 of 4
 | Phase 36 P04 | 691 | 2 tasks | 6 files |
 | Phase 38 P01 | 601 | 2 tasks | 4 files |
 | Phase 38 P02 | 25 | 2 tasks | 6 files |
+| Phase 38 P03 | 480 | 2 tasks | 4 files |
 
 ### Decisions
 
@@ -93,6 +94,8 @@ Active decisions affecting upcoming work:
 - [Phase 38]: load_or_build_index returns None (not raises) when no file and no conn — caller handles fallback to sqlite-vec
 - [Phase 38]: archive_old_audit_entries uses executemany+DELETE per row — mirrors Phase 32 pattern for semgrep compliance
 - [Phase 38]: shard_note disables PRAGMA foreign_keys during transaction — SQLite has no deferred FK support for UPDATE; child tables (note_tags, note_people) have FK on notes.path
+- [Phase 38]: Fernet key stored at ~/.config/second-brain/backup.key (chmod 600) — outside brain folder, not in Drive sync or backup archive
+- [Phase 38]: restore_main uses two-step confirm_token (secrets.token_hex(8), 60s expiry) — mirrors MCP destructive op pattern
 
 ### Pending Todos
 
@@ -109,6 +112,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-26T14:34:48.425Z
-Stopped at: Completed 38-02-PLAN.md — audit rotation + sharding helpers
+Last session: 2026-03-26T14:41:04.398Z
+Stopped at: Completed 38-03-PLAN.md — encrypted backup/restore + health check integration
 Resume file: None
