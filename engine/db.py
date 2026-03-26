@@ -437,6 +437,42 @@ def migrate_add_health_snapshots_table(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def migrate_create_note_chunks(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: create note_chunks table if absent.
+
+    Stores per-chunk text and embedding blobs produced by split_text_into_chunks()
+    during embed_pass(). Enables paragraph-level search and excerpt return for
+    long notes (>= CHUNK_THRESHOLD characters).
+
+    Columns:
+        id          - rowid alias
+        note_path   - absolute (or relative) path matching notes.path
+        chunk_index - zero-based position within the note
+        chunk_text  - raw character window text
+        embedding   - float32 BLOB (same dimensions as note_embeddings.embedding)
+        created_at  - ISO8601 UTC timestamp
+
+    Constraints:
+        UNIQUE(note_path, chunk_index) — one row per chunk position per note;
+        ON CONFLICT ... DO UPDATE is used by embed_pass for idempotent writes.
+    """
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS note_chunks (
+            id          INTEGER PRIMARY KEY,
+            note_path   TEXT NOT NULL,
+            chunk_index INTEGER NOT NULL,
+            chunk_text  TEXT NOT NULL,
+            embedding   BLOB,
+            created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+            UNIQUE(note_path, chunk_index)
+        )
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_note_chunks_path ON note_chunks(note_path)"
+    )
+    conn.commit()
+
+
 def migrate_create_audit_log_archive(conn: sqlite3.Connection) -> None:
     """Idempotent migration: create audit_log_archive table if absent.
 
@@ -485,6 +521,7 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     migrate_people_type_to_person(conn)
     migrate_add_health_snapshots_table(conn)
     migrate_create_audit_log_archive(conn)
+    migrate_create_note_chunks(conn)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_url ON notes(url)")
     # idx_notes_people is dropped by migrate_add_note_people_table — do not re-create

@@ -135,7 +135,15 @@ def stub_engine_embeddings(request):
     sentence-transformers download is attempted.
     """
     # Classes/modules that need the real engine.embeddings — do not stub
-    skip_classes = {"TestEmbedTexts", "TestSerialize", "TestReindexGeneratesEmbeddings"}
+    skip_classes = {
+        "TestEmbedTexts",
+        "TestSerialize",
+        "TestReindexGeneratesEmbeddings",
+        # 38-04: chunking tests use real engine.embeddings to test new functions
+        "TestSplitTextIntoChunks",
+        "TestEmbedChunks",
+        "TestNoteChunksSchema",
+    }
     cls = request.node.cls
     if cls is not None and cls.__name__ in skip_classes:
         yield

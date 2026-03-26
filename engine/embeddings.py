@@ -8,6 +8,70 @@ from typing import Optional
 
 _model_cache = None  # Lazy-loaded SentenceTransformer instance
 
+# ---------------------------------------------------------------------------
+# Chunking parameters
+# ---------------------------------------------------------------------------
+
+CHUNK_SIZE = 1200       # characters per chunk
+CHUNK_OVERLAP = 200     # overlap between consecutive chunks
+CHUNK_THRESHOLD = 600   # notes shorter than this get a single chunk = full body
+
+
+def split_text_into_chunks(
+    text: str,
+    chunk_size: int = CHUNK_SIZE,
+    overlap: int = CHUNK_OVERLAP,
+) -> list:
+    """Split text into overlapping character-window chunks.
+
+    Returns a list of chunk strings. Texts shorter than or equal to chunk_size
+    are returned as a single-element list containing the full text (no split).
+
+    Args:
+        text: Input text to split.
+        chunk_size: Maximum number of characters per chunk.
+        overlap: Number of characters shared between consecutive chunks.
+
+    Returns:
+        List[str] — at least one element.
+    """
+    if len(text) <= chunk_size:
+        return [text]
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = min(start + chunk_size, len(text))
+        chunks.append(text[start:end])
+        if end == len(text):
+            break
+        start += chunk_size - overlap
+    return chunks
+
+
+def embed_chunks(
+    text: str,
+    provider: Optional[str] = None,
+    batch_size: int = 32,
+) -> list:
+    """Split text into chunks and embed each one.
+
+    Returns a list of (chunk_text, embedding_blob) tuples — one per chunk.
+    Short texts produce a single-entry list containing (text, blob).
+
+    Args:
+        text: Input text to chunk and embed.
+        provider: Embedding provider — passed to embed_texts().
+        batch_size: Encoding batch size — passed to embed_texts().
+
+    Returns:
+        List[Tuple[str, bytes]] — parallel to split_text_into_chunks() output.
+    """
+    chunks = split_text_into_chunks(text)
+    if not chunks:
+        return []
+    blobs = embed_texts(chunks, provider=provider, batch_size=batch_size)
+    return list(zip(chunks, blobs))
+
 
 def _get_model():
     """Lazy-load the sentence-transformers model (avoids 90MB download on import)."""
