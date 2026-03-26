@@ -72,6 +72,19 @@ def embed_pass(conn, provider: str, batch_size: int = 32, force: bool = False) -
             (path, blob, h, now),
         )
     conn.commit()
+
+    # Update ANN index for each newly embedded note
+    try:
+        from engine.ann_index import add_to_index
+        for path, blob, h in zip(paths, blobs, hashes):
+            rowid = conn.execute(
+                "SELECT rowid FROM note_embeddings WHERE note_path=?", (path,)
+            ).fetchone()
+            if rowid is not None:
+                add_to_index(rowid[0], path, blob)
+    except Exception as e:
+        print(f"[sb-reindex] ANN index update skipped: {e}")
+
     return {"updated": len(to_embed), "unchanged": unchanged}
 
 
@@ -248,6 +261,12 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False, entities: boo
     for note_path, body in all_notes:
         update_wiki_link_relationships(conn, note_path, body)
 
+    # Purge dangling relationships (targets/sources deleted from disk since last reindex)
+    from engine.brain_health import delete_dangling_relationships
+    dangling_purged = delete_dangling_relationships(conn)
+    if dangling_purged:
+        print(f"[sb-reindex] Purged {dangling_purged} dangling relationship(s)")
+
     # --- Embedding second pass ---
     from engine.config_loader import load_config
     config = load_config(BRAIN_ROOT / ".meta" / "config.toml")
@@ -269,6 +288,15 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False, entities: boo
         print("[sb-reindex] Embedding running in background (non-blocking)...")
         embed_result = future.result()  # block to collect stats; non-blocking interface for callers
 
+    # Full ANN index rebuild when --full flag is set
+    if full:
+        try:
+            from engine.ann_index import rebuild_index
+            rebuild_index(conn)
+            print("[sb-reindex] ANN index rebuilt.")
+        except Exception as e:
+            print(f"[sb-reindex] ANN index rebuild skipped: {e}")
+
     if close_after:
         conn.close()
 
@@ -276,6 +304,7 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False, entities: boo
         "indexed": indexed,
         "skipped": skipped,
         "purged": purged,
+        "dangling_purged": dangling_purged,
         "errors": errors,
         "embed_updated": embed_result["updated"],
         "embed_unchanged": embed_result["unchanged"],
