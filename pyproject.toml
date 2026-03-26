@@ -13,6 +13,7 @@ dependencies = [
     "pywebview>=5.0",
     "fastmcp>=3.1.1",
     "tenacity>=9.1.4",
+    "hnswlib>=0.8.0",
 ]
 
 [project.optional-dependencies]
