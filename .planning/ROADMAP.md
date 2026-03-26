@@ -5,7 +5,7 @@
 - ✅ **v1.5 Second Brain MVP** — Phases 1–13 (shipped 2026-03-15)
 - ✅ **v2.0 Intelligence + GUI Hub** — Phases 14–19 (shipped 2026-03-16)
 - ✅ **v3.0 GUI Overhaul & Polish** — Phases 20–31 (shipped 2026-03-21)
-- 📋 **v4.0 Memory & Reliability** — Phases 32–36 (planned)
+- 📋 **v4.0 Memory & Reliability** — Phases 32–41 (planned)
 
 ## Phases
 
@@ -197,33 +197,40 @@ Plans:
 **Goal:** Close known UX gaps and test coverage holes surfaced during v4.0 development: fix broken sb-recap weekly view, add action item creation from person note view, people chips in NoteViewer, cascade delete completeness, cover install_subagent.py in tests, fix failing Playwright and embedding tests, and establish Drive sync setup + health check (prerequisite for Phase 38 backup).
 **Depends on:** Phase 34
 **Milestone:** v4.0
-**Status:** In progress (UAT gap closure)
-**Plans:** 11 plans
+**Status:** ✅ Complete (UAT passed 2026-03-26)
+**Plans:** 11/11 plans complete
 
 Plans:
-- [ ] 37-01-PLAN.md — Fix sb-recap weekly view (MCP `sb_recap` -> `generate_recap_on_demand`)
-- [ ] 37-02-PLAN.md — Action item creation from person note view
-- [ ] 37-03-PLAN.md — People chips in NoteViewer (add/remove person links on notes)
-- [ ] 37-04-PLAN.md — Cascade delete completeness: impact preview + orphan cleanup
-- [ ] 37-05-PLAN.md — Tests for install_subagent.py
-- [ ] 37-06-PLAN.md — Fix 3 failing Playwright tests (title sync, delete flow, people badge)
-- [ ] 37-07-PLAN.md — Fix 4 failing embedding reindex tests (synchronous mode)
-- [ ] 37-08-PLAN.md — Drive sync setup guidance + sb-health Drive check
-- [ ] 37-09-PLAN.md — [GAP] Fix action item disappearing after assigning person
-- [ ] 37-10-PLAN.md — [GAP] Wire check_drive_sync into sb-health CLI
-- [ ] 37-11-PLAN.md — [GAP] Fix sb_recap MCP timeout (adapter timeout + time budget + retry removal)
+- [x] 37-01-PLAN.md — Fix sb-recap weekly view (MCP `sb_recap` -> `generate_recap_on_demand`)
+- [x] 37-02-PLAN.md — Action item creation from person note view
+- [x] 37-03-PLAN.md — People chips in NoteViewer (add/remove person links on notes)
+- [x] 37-04-PLAN.md — Cascade delete completeness: impact preview + orphan cleanup
+- [x] 37-05-PLAN.md — Tests for install_subagent.py
+- [x] 37-06-PLAN.md — Fix 3 failing Playwright tests (title sync, delete flow, people badge)
+- [x] 37-07-PLAN.md — Fix 4 failing embedding reindex tests (synchronous mode)
+- [x] 37-08-PLAN.md — Drive sync setup guidance + sb-health Drive check
+- [x] 37-09-PLAN.md — [GAP] Fix action item disappearing after assigning person
+- [x] 37-10-PLAN.md — [GAP] Wire check_drive_sync into sb-health CLI
+- [x] 37-11-PLAN.md — [GAP] Fix sb_recap MCP timeout (raw mode for MCP path; content cap; adapter timeout 30s)
 
 ---
 
 ### Phase 38: Scale Architecture (100K Notes)
 
-**Goal:** Make the brain functional and fast at 100K+ atomic notes — ANN vector index, incremental reindex, filesystem sharding, audit rotation, tiered storage, chunked embeddings, summarization layer. Encrypted backup to secure off-machine storage with single-command restore (DB + embeddings + relationships — not just markdown files)
+**Goal:** Make the brain functional and fast at 100K+ atomic notes — ANN vector index, incremental reindex, filesystem sharding, audit rotation, tiered storage, chunked embeddings, summarization layer, memory consolidation engine. Encrypted backup to secure off-machine storage with single-command restore (DB + embeddings + relationships — not just markdown files)
 **Depends on:** Phase 32, Phase 33
 **Milestone:** v4.0
 **Requirements**: SCALE-01 through SCALE-08
+**Plans:** 7 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 38 to break down)
+- [ ] 38-01-PLAN.md — hnswlib ANN index module + reindex integration (SCALE-01)
+- [ ] 38-02-PLAN.md — Audit log rotation + filesystem sharding helpers (SCALE-04, SCALE-03)
+- [ ] 38-03-PLAN.md — Encrypted backup + restore + health check (SCALE-08)
+- [ ] 38-04-PLAN.md — Chunked embeddings: note_chunks table + embed_chunks + reindex (SCALE-06, SCALE-02)
+- [ ] 38-05-PLAN.md — Search excerpt via hnswlib ANN + API/MCP passthrough (SCALE-06, SCALE-02)
+- [ ] 38-06-PLAN.md — Tiered storage (archived flag) + summarization layer (SCALE-05, SCALE-07)
+- [ ] 38-07-PLAN.md — Memory consolidation engine: candidates via ANN + health reporting (SCALE-01, SCALE-06)
 
 ---
 
@@ -239,6 +246,36 @@ Plans:
 
 ---
 
+### Phase 40: UI Feature Completeness
+
+**Goal:** Add the backend API capabilities required by the new Visily designs that don't exist yet — per-person Brain Insight, weekly synthesis endpoint, project status field + stats, linked meetings on projects, meetings participants as linkable objects, action items grouped-by-source endpoint, markdown body rendering for links.
+**Depends on:** Phase 37
+**Milestone:** v4.0
+
+Plans:
+- [ ] 40-01-PLAN.md — Per-person AI Brain Insight endpoint (`GET /people/:path/insight`)
+- [ ] 40-02-PLAN.md — Weekly Synthesis endpoint (`GET /intelligence/synthesis`)
+- [ ] 40-03-PLAN.md — Project status field + stats API (status, related_notes_count, linked_meetings_count)
+- [ ] 40-04-PLAN.md — Linked meetings on projects + participant objects on meetings
+- [ ] 40-05-PLAN.md — Action items grouped-by-source endpoint + Links markdown rendering fix
+
+---
+
+### Phase 41: Visual Redesign
+
+**Goal:** Implement the complete Visily UI redesign across the entire frontend — new design system tokens, component library overhaul, app shell, command palette, and all 8 page redesigns (Notes, Actions, People, Meetings, Projects, Intelligence, Inbox, Links) to match the approved mockups in `ui-design-files/`.
+**Depends on:** Phase 40
+**Milestone:** v4.0
+
+Plans:
+- [ ] 41-01-PLAN.md — Design system tokens + base component overhaul (colors, typography, buttons, badges, inputs, overlays, skeletons)
+- [ ] 41-02-PLAN.md — App shell redesign: topbar, tabbar with icons, command palette
+- [ ] 41-03-PLAN.md — Notes view redesign: sidebar, NoteViewer, NoteEditor, Right Panel
+- [ ] 41-04-PLAN.md — People + Meetings + Projects page redesigns
+- [ ] 41-05-PLAN.md — Actions + Inbox + Intelligence + Links page redesigns
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -251,6 +288,8 @@ Plans:
 | 34 | v4.0 | 4/4 | Complete | 2026-03-22 |
 | 35 | v4.0 | 3/3 | Complete | 2026-03-23 |
 | 36 | v4.0 | 4/4 | Complete | 2026-03-25 |
-| 37 | v4.0 | 0/11 | In progress | - |
-| 38 | v4.0 | 0/0 | Not started | - |
-| 39 | v4.0 | 0/1 | Not started | - |
+| 37 | v4.0 | 11/11 | Complete | 2026-03-26 |
+| 38 | v4.0 | 0/7 | Not started | - |
+| 39 | v4.0 | 1/1 | Not started | - |
+| 40 | v4.0 | 0/5 | Not started | - |
+| 41 | v4.0 | 0/5 | Not started | - |
