@@ -85,6 +85,42 @@ def embed_pass(conn, provider: str, batch_size: int = 32, force: bool = False) -
     except Exception as e:
         print(f"[sb-reindex] ANN index update skipped: {e}")
 
+    # Chunk pass: split long notes into chunks and store embeddings in note_chunks
+    try:
+        from engine.embeddings import split_text_into_chunks, embed_texts, CHUNK_THRESHOLD
+
+        chunk_count = 0
+        for path, body, h in to_embed:
+            if len(body) < CHUNK_THRESHOLD:
+                # Short note: single chunk = full body, reuse note-level embedding
+                blob = next(b for p, b, _ in zip(paths, blobs, hashes) if p == path)
+                conn.execute(
+                    """INSERT INTO note_chunks (note_path, chunk_index, chunk_text, embedding)
+                       VALUES (?, 0, ?, ?)
+                       ON CONFLICT(note_path, chunk_index) DO UPDATE SET
+                           chunk_text=excluded.chunk_text, embedding=excluded.embedding""",
+                    (path, body, blob),
+                )
+                chunk_count += 1
+            else:
+                # Long note: split and embed each chunk independently
+                chunks = split_text_into_chunks(body)
+                chunk_blobs = embed_texts(chunks, provider=provider, batch_size=batch_size)
+                # Delete existing chunks for this note before re-inserting (note may have changed)
+                conn.execute("DELETE FROM note_chunks WHERE note_path=?", (path,))
+                for idx, (chunk_text, chunk_blob) in enumerate(zip(chunks, chunk_blobs)):
+                    conn.execute(
+                        """INSERT INTO note_chunks (note_path, chunk_index, chunk_text, embedding)
+                           VALUES (?, ?, ?, ?)""",
+                        (path, idx, chunk_text, chunk_blob),
+                    )
+                chunk_count += len(chunks)
+        conn.commit()
+        if chunk_count:
+            print(f"[sb-reindex] Wrote {chunk_count} chunks.")
+    except Exception as e:
+        print(f"[sb-reindex] Chunk embedding skipped: {e}")
+
     return {"updated": len(to_embed), "unchanged": unchanged}
 
 
@@ -273,6 +309,11 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False, entities: boo
     embed_cfg = config.get("embeddings", {})
     provider = embed_cfg.get("provider", "sentence-transformers")
     batch_size = embed_cfg.get("batch_size", 32)
+
+    # Full rebuild: delete all existing chunks so embed_pass writes a clean set
+    if full:
+        conn.execute("DELETE FROM note_chunks")
+        conn.commit()
 
     # First-run download notice: print before model load if no embeddings exist yet
     has_embeddings = conn.execute("SELECT COUNT(*) FROM note_embeddings").fetchone()[0]
