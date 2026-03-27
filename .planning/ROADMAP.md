@@ -221,16 +221,17 @@ Plans:
 **Depends on:** Phase 32, Phase 33
 **Milestone:** v4.0
 **Requirements**: SCALE-01 through SCALE-08
-**Plans:** 0/1 plans executed
+**Status:** ✅ Complete (UAT skipped — infrastructure-only phase, 2026-03-27)
+**Plans:** 7/7 plans complete
 
 Plans:
-- [ ] 38-01-PLAN.md — hnswlib ANN index module + reindex integration (SCALE-01)
-- [ ] 38-02-PLAN.md — Audit log rotation + filesystem sharding helpers (SCALE-04, SCALE-03)
-- [ ] 38-03-PLAN.md — Encrypted backup + restore + health check (SCALE-08)
-- [ ] 38-04-PLAN.md — Chunked embeddings: note_chunks table + embed_chunks + reindex (SCALE-06, SCALE-02)
-- [ ] 38-05-PLAN.md — Search excerpt via hnswlib ANN + API/MCP passthrough (SCALE-06, SCALE-02)
-- [ ] 38-06-PLAN.md — Tiered storage (archived flag) + summarization layer (SCALE-05, SCALE-07)
-- [ ] 38-07-PLAN.md — Memory consolidation engine: candidates via ANN + health reporting (SCALE-01, SCALE-06)
+- [x] 38-01-PLAN.md — hnswlib ANN index module + reindex integration (SCALE-01)
+- [x] 38-02-PLAN.md — Audit log rotation + filesystem sharding helpers (SCALE-04, SCALE-03)
+- [x] 38-03-PLAN.md — Encrypted backup + restore + health check (SCALE-08)
+- [x] 38-04-PLAN.md — Chunked embeddings: note_chunks table + embed_chunks + reindex (SCALE-06, SCALE-02)
+- [x] 38-05-PLAN.md — Search excerpt via hnswlib ANN + API/MCP passthrough (SCALE-06, SCALE-02)
+- [x] 38-06-PLAN.md — Tiered storage (archived flag) + summarization layer (SCALE-05, SCALE-07)
+- [x] 38-07-PLAN.md — Memory consolidation engine: candidates via ANN + health reporting (SCALE-01, SCALE-06)
 
 ---
 
@@ -240,9 +241,16 @@ Plans:
 **Depends on:** Phase 34
 **Milestone:** v4.0
 **Requirements**: N/A (quality gate)
+**Plans:** 7 plans (+ gap closure plans after triage)
 
 Plans:
-- [ ] 39-00-PLAN.md — Audit + triage + remediation (agent-teams review)
+- [ ] 39-01-PLAN.md — Security audit: API surfaces, MCP tools, Chrome extension
+- [ ] 39-02-PLAN.md — Architecture audit: module coupling, dead code, dual-write consistency
+- [ ] 39-03-PLAN.md — Performance audit: queries, loops, indexes, scale bottlenecks
+- [ ] 39-04-PLAN.md — Test coverage audit: module mapping, MCP tools, thin tests
+- [ ] 39-05-PLAN.md — Dead code + optimisation audit: stale paths, duplication, cleanup
+- [ ] 39-06-PLAN.md — Triage: consolidate findings into 39-FINDINGS.md
+- [ ] 39-07-PLAN.md — User review + remediation scope approval
 
 ---
 
@@ -274,6 +282,16 @@ Plans:
 - [ ] 41-04-PLAN.md — People + Meetings + Projects page redesigns
 - [ ] 41-05-PLAN.md — Actions + Inbox + Intelligence + Links page redesigns
 
+### Phase 42: Add importance field to notes
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 41
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 42 to break down)
+
 ---
 
 ## Progress
@@ -289,7 +307,7 @@ Plans:
 | 35 | v4.0 | 3/3 | Complete | 2026-03-23 |
 | 36 | v4.0 | 4/4 | Complete | 2026-03-25 |
 | 37 | v4.0 | 11/11 | Complete | 2026-03-26 |
-| 38 | v4.0 | 0/1 | Planned    |  |
-| 39 | v4.0 | 1/1 | Not started | - |
+| 38 | v4.0 | 7/7 | Complete | 2026-03-27 |
+| 39 | v4.0 | 0/7+ | Not started | - |
 | 40 | v4.0 | 0/5 | Not started | - |
 | 41 | v4.0 | 0/5 | Not started | - |
