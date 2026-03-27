@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Ready to execute
-stopped_at: Completed 39-03-PLAN.md (performance audit)
-last_updated: "2026-03-27T14:08:26.152Z"
+stopped_at: Completed 39-02-PLAN.md — architecture audit findings
+last_updated: "2026-03-27T14:09:06.140Z"
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 47
-  completed_plans: 42
+  completed_plans: 43
 ---
 
 # Project State
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 39 (codebase-review) — EXECUTING
-Plan: 3 of 7
+Plan: 4 of 7
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Plan: 3 of 7
 | Phase 38 P05 | 10 | 2 tasks | 2 files |
 | Phase 39 P04 | 15 | 1 tasks | 1 files |
 | Phase 39 P03 | 420 | 1 tasks | 1 files |
+| Phase 39 P02 | 25 | 1 tasks | 1 files |
 
 ### Decisions
 
@@ -113,6 +114,9 @@ Active decisions affecting upcoming work:
 - [Phase 39]: PERF-07: get_duplicate_candidates is O(n^2); replace with ANN-based approach from consolidate.py
 - [Phase 39]: PERF-08: recap_entity bypasses Phase 32 junction tables — oversight, fix in remediation
 - [Phase 39]: Missing indexes: notes(archived) and action_items(note_path) highest priority additions
+- [Phase 39]: templates.py confirmed dead — zero engine imports; delete candidate
+- [Phase 39]: FK CASCADE gap: action_items and note_embeddings lack ON DELETE CASCADE (only note_tags/note_people have it from Phase 32)
+- [Phase 39]: Dual-write (tags/people JSON + junction tables) verified consistent across all 4 write surfaces in capture.py, reindex.py, api.py
 
 ### Pending Todos
 
@@ -130,8 +134,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-27T14:08:26.143Z
-Stopped at: Completed 39-03-PLAN.md (performance audit)
+Last session: 2026-03-27T14:09:06.129Z
+Stopped at: Completed 39-02-PLAN.md — architecture audit findings
 Resume file: None
 
 ### Next action
