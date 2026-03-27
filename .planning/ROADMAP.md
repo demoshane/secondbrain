@@ -241,7 +241,7 @@ Plans:
 **Depends on:** Phase 34
 **Milestone:** v4.0
 **Requirements**: N/A (quality gate)
-**Plans:** 13 plans (7 audit + 6 remediation)
+**Plans:** 8/13 plans executed
 
 Plans:
 - [x] 39-01-PLAN.md — Security audit: API surfaces, MCP tools, Chrome extension
@@ -255,7 +255,7 @@ Plans:
 - [ ] 39-09-PLAN.md — Group B: DB schema migration — FK CASCADE + indexes (F-10)
 - [ ] 39-10-PLAN.md — Group C: Performance query fixes (F-03, F-04, F-05, F-15, F-16)
 - [ ] 39-11-PLAN.md — Group D: Dead code removal (F-02, F-11)
-- [ ] 39-12-PLAN.md — Group E: MCP test coverage (F-06, F-12, F-13, F-14, F-17)
+- [x] 39-12-PLAN.md — Group E: MCP test coverage (F-06, F-12, F-13, F-14, F-17)
 - [ ] 39-13-PLAN.md — Group F: New test files for untested modules (COV-06 through COV-10)
 
 ---
@@ -314,6 +314,6 @@ Plans:
 | 36 | v4.0 | 4/4 | Complete | 2026-03-25 |
 | 37 | v4.0 | 11/11 | Complete | 2026-03-26 |
 | 38 | v4.0 | 7/7 | Complete | 2026-03-27 |
-| 39 | v4.0 | 7/13 | In progress | - |
+| 39 | v4.0 | 8/13 | In Progress|  |
 | 40 | v4.0 | 0/5 | Not started | - |
 | 41 | v4.0 | 0/5 | Not started | - |

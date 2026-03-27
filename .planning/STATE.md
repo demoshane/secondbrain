@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Ready to plan
-stopped_at: Completed 39-06-PLAN.md (findings consolidation)
-last_updated: "2026-03-27T16:45:33.370Z"
+stopped_at: Completed 39-12-PLAN.md
+last_updated: "2026-03-27T17:24:27.531Z"
 progress:
-  total_phases: 11
-  completed_phases: 8
-  total_plans: 47
-  completed_plans: 47
+  total_phases: 13
+  completed_phases: 7
+  total_plans: 54
+  completed_plans: 48
 ---
 
 # Project State
@@ -60,6 +60,8 @@ Plan: Not started
 | Phase 39 P05 | 900 | 1 tasks | 1 files |
 | Phase 39 P01 | 179 | 1 tasks | 1 files |
 | Phase 39 P06 | 180 | 1 tasks | 1 files |
+| Phase 39 P08 | 30 | 2 tasks | 4 files |
+| Phase 39 P12 | 15 | 2 tasks | 1 files |
 
 ### Decisions
 
@@ -127,6 +129,9 @@ Active decisions affecting upcoming work:
 - [Phase 39]: SEC-04 Medium: sb_files subfolder param allows path traversal outside files_dir — needs resolve+is_relative_to guard
 - [Phase 39]: Security: no SQL injection found in full codebase audit — all queries use parameterized placeholders
 - [Phase 39]: 39-FINDINGS.md: 31 consolidated findings (0 Critical, 6 High, 11 Medium, 14 Low) — 6 remediation groups planned for Wave 3
+- [Phase 39]: _int_param uses abort(400) — consistent with Flask error handling; min/max clamping preserves existing behaviour while adding bad-input rejection
+- [Phase 39]: sb_files subfolder traversal guard uses resolve()+is_relative_to() pattern — resolves symlinks before comparison to prevent bypass
+- [Phase 39]: sb_anonymize scrub check uses frontmatter.load() to parse past YAML; sb_actions_done idempotent: SQLite UPDATE rowcount=1 even on already-done row
 
 ### Pending Todos
 
@@ -158,8 +163,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-27T14:15:29.567Z
-Stopped at: Completed 39-06-PLAN.md (findings consolidation)
+Last session: 2026-03-27T17:24:27.518Z
+Stopped at: Completed 39-12-PLAN.md
 Resume file: None
 
 ### Next action
