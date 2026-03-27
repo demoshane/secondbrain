@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
-status: Phase complete — ready for verification
-stopped_at: Completed 38-06-PLAN.md — tiered storage and summarization layer
-last_updated: "2026-03-26T17:09:57.215Z"
+status: Ready to execute
+stopped_at: "Completed 39-04-PLAN.md: test coverage audit"
+last_updated: "2026-03-27T14:08:11.668Z"
 progress:
-  total_phases: 12
-  completed_phases: 6
-  total_plans: 42
-  completed_plans: 38
+  total_phases: 11
+  completed_phases: 7
+  total_plans: 47
+  completed_plans: 42
 ---
 
 # Project State
@@ -22,8 +22,8 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-Phase: 36 (chrome-extension-capture) — COMPLETE
-Plan: 4 of 4
+Phase: 39 (codebase-review) — EXECUTING
+Plan: 3 of 7
 
 ## Performance Metrics
 
@@ -53,6 +53,8 @@ Plan: 4 of 4
 | Phase 38 P03 | 480 | 2 tasks | 4 files |
 | Phase 38 P04 | 459 | 2 tasks | 4 files |
 | Phase 38 P06 | 25 | 2 tasks | 7 files |
+| Phase 38 P05 | 10 | 2 tasks | 2 files |
+| Phase 39 P04 | 15 | 1 tasks | 1 files |
 
 ### Decisions
 
@@ -102,6 +104,10 @@ Active decisions affecting upcoming work:
 - [Phase 38]: conftest stub_engine_embeddings skip list extended with TestSplitTextIntoChunks, TestEmbedChunks, TestNoteChunksSchema — new chunking test classes need real embeddings module
 - [Phase 38]: summarize_note uses _router.get_adapter('public') — consistent with recap_entity pattern, not direct call_claude
 - [Phase 38]: SUMMARY_THRESHOLD=2000 chars, SUMMARY_MAX_INPUT=8000 chars — balance coverage vs token cost
+- [Phase 38]: search_semantic uses ANN-first pattern: hnswlib knn_query tried first, any exception falls back to sqlite-vec
+- [Phase 38]: _enrich_with_excerpts skips dimension-mismatched chunks (len check) to handle 384-dim test stubs vs 768-dim production vectors
+- [Phase 38]: excerpt enrichment called at search_hybrid merge point, not inside sub-search functions, to avoid double-enrichment
+- [Phase 39]: MCP tool coverage matrix: 13/22 tools tested; sb_anonymize, sb_capture_link, sb_actions_done, sb_connections, sb_digest are highest-priority gaps
 
 ### Pending Todos
 
@@ -111,6 +117,7 @@ Active decisions affecting upcoming work:
 ### Roadmap Evolution
 
 - Phase 37 added: Scale Architecture (100K Notes) — ANN index, incremental reindex, sharding, tiered storage, chunked embeddings, summarization layer, backup & DR
+- Phase 42 added: Add importance field to notes — optional 250-char field capturing why a note matters, across DB, capture paths, MCP tools, Chrome plugin, and GUI
 
 ### Blockers/Concerns
 
@@ -118,6 +125,10 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-26T17:09:57.206Z
-Stopped at: Completed 38-06-PLAN.md — tiered storage and summarization layer
+Last session: 2026-03-27T14:08:04.969Z
+Stopped at: Completed 39-04-PLAN.md: test coverage audit
 Resume file: None
+
+### Next action
+
+Plan next phase.
