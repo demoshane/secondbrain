@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Ready to execute
-stopped_at: "Completed 39-04-PLAN.md: test coverage audit"
-last_updated: "2026-03-27T14:08:11.668Z"
+stopped_at: Completed 39-03-PLAN.md (performance audit)
+last_updated: "2026-03-27T14:08:26.152Z"
 progress:
   total_phases: 11
   completed_phases: 7
@@ -55,6 +55,7 @@ Plan: 3 of 7
 | Phase 38 P06 | 25 | 2 tasks | 7 files |
 | Phase 38 P05 | 10 | 2 tasks | 2 files |
 | Phase 39 P04 | 15 | 1 tasks | 1 files |
+| Phase 39 P03 | 420 | 1 tasks | 1 files |
 
 ### Decisions
 
@@ -108,6 +109,10 @@ Active decisions affecting upcoming work:
 - [Phase 38]: _enrich_with_excerpts skips dimension-mismatched chunks (len check) to handle 384-dim test stubs vs 768-dim production vectors
 - [Phase 38]: excerpt enrichment called at search_hybrid merge point, not inside sub-search functions, to avoid double-enrichment
 - [Phase 39]: MCP tool coverage matrix: 13/22 tools tested; sb_anonymize, sb_capture_link, sb_actions_done, sb_connections, sb_digest are highest-priority gaps
+- [Phase 39]: PERF-01: note_meta backlink detection should use relationships table, not LIKE scan on body
+- [Phase 39]: PERF-07: get_duplicate_candidates is O(n^2); replace with ANN-based approach from consolidate.py
+- [Phase 39]: PERF-08: recap_entity bypasses Phase 32 junction tables — oversight, fix in remediation
+- [Phase 39]: Missing indexes: notes(archived) and action_items(note_path) highest priority additions
 
 ### Pending Todos
 
@@ -125,8 +130,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-27T14:08:04.969Z
-Stopped at: Completed 39-04-PLAN.md: test coverage audit
+Last session: 2026-03-27T14:08:26.143Z
+Stopped at: Completed 39-03-PLAN.md (performance audit)
 Resume file: None
 
 ### Next action
