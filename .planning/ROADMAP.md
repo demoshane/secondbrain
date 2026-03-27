@@ -265,13 +265,15 @@ Plans:
 **Goal:** Add the backend API capabilities required by the new Visily designs that don't exist yet — per-person Brain Insight, weekly synthesis endpoint, project status field + stats, linked meetings on projects, meetings participants as linkable objects, action items grouped-by-source endpoint, markdown body rendering for links.
 **Depends on:** Phase 37
 **Milestone:** v4.0
+**Requirements**: D-01 through D-21
+**Plans:** 5 plans
 
 Plans:
-- [ ] 40-01-PLAN.md — Per-person AI Brain Insight endpoint (`GET /people/:path/insight`)
-- [ ] 40-02-PLAN.md — Weekly Synthesis endpoint (`GET /intelligence/synthesis`)
-- [ ] 40-03-PLAN.md — Project status field + stats API (status, related_notes_count, linked_meetings_count)
-- [ ] 40-04-PLAN.md — Linked meetings on projects + participant objects on meetings
-- [ ] 40-05-PLAN.md — Action items grouped-by-source endpoint + Links markdown rendering fix
+- [ ] 40-01-PLAN.md — Per-person AI Brain Insight endpoint + person_insights cache table (D-01, D-02, D-03, D-04, D-05)
+- [ ] 40-02-PLAN.md — Weekly Synthesis endpoint (D-06, D-07, D-08, D-09)
+- [ ] 40-03-PLAN.md — Project status field + stats + PUT status endpoint (D-10, D-11, D-12, D-13, D-14)
+- [ ] 40-04-PLAN.md — Linked meetings on projects + participant objects on meetings (D-15, D-16)
+- [ ] 40-05-PLAN.md — Action items grouped-by-source endpoint (D-18, D-19, D-20, D-21)
 
 ---
 
