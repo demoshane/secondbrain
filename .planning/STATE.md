@@ -132,6 +132,20 @@ Active decisions affecting upcoming work:
 
 - Audit and improve context detection on capture (general)
 - [Phase 36 / Chrome extension] Page summarisation feature: summarise the active page via LLM, show summary in extension popup with an "Add to brain" button to save the summary as a note
+- [Phase 39 / Codebase Review] F-18 SEC-06: CORS accepts any chrome-extension://* origin — accepted risk, document explicitly (engine/api.py:64)
+- [Phase 39 / Codebase Review] F-19 SEC-07: Host header injection in /ui script tag — localhost-only, accepted risk (engine/api.py:786-791)
+- [Phase 39 / Codebase Review] F-20 SEC-08: /ui/prefs PUT has no size/schema validation — localhost-only, low impact (engine/api.py:783)
+- [Phase 39 / Codebase Review] F-21 SEC-09: Chrome extension <all_urls> permission scope — accepted risk, on-demand only (manifest.json:21)
+- [Phase 39 / Codebase Review] F-22 ARCH-06: api.py at 1754 lines with no Flask Blueprint partitioning — defer to dedicated refactor plan (engine/api.py)
+- [Phase 39 / Codebase Review] F-23 ARCH-07: consolidate.py lazy import comment says "circular import" but reason is load-time deferral — clarify comment (engine/consolidate.py:99-108)
+- [Phase 39 / Codebase Review] F-24 PERF-09: list_people fetches all records then paginates in Python — known Phase 33 trade-off (engine/api.py:317-331)
+- [Phase 39 / Codebase Review] F-25 PERF-10: get_stale_notes fetches 3× limit then filters in Python — acceptable at current scale (engine/intelligence.py:241-283)
+- [Phase 39 / Codebase Review] F-26 PERF-11: startup() uses glob.glob for disk count instead of DB COUNT(*) (engine/api.py:1731)
+- [Phase 39 / Codebase Review] F-27 DEAD-03: Deprecated /people route aliases still live; IntelligencePage.tsx:50 not yet migrated to /persons (engine/api.py:318,456,543,574)
+- [Phase 39 / Codebase Review] F-28 DEAD-04: os.environ.get("BRAIN_PATH") repeated 13× in api.py instead of using imported BRAIN_ROOT (engine/api.py)
+- [Phase 39 / Codebase Review] F-29 DEAD-05: json.loads(col or "[]") pattern repeated 13× across 5 files — no shared helper (multiple engine modules)
+- [Phase 39 / Codebase Review] F-30 DEAD-07: ensure_person_profile() writes to person/ (singular) but brain uses people/ (plural) — needs Phase 30/32 audit before changing (engine/links.py:46-60)
+- [Phase 39 / Codebase Review] F-31 DEAD-08: datetime.utcnow() used 33× across 13 files — deprecated in Python 3.12+ (multiple engine modules)
 
 ### Roadmap Evolution
 
