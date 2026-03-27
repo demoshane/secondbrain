@@ -241,14 +241,14 @@ Plans:
 **Depends on:** Phase 34
 **Milestone:** v4.0
 **Requirements**: N/A (quality gate)
-**Plans:** 4/7 plans executed
+**Plans:** 5/7 plans executed
 
 Plans:
 - [x] 39-01-PLAN.md — Security audit: API surfaces, MCP tools, Chrome extension
 - [x] 39-02-PLAN.md — Architecture audit: module coupling, dead code, dual-write consistency
 - [x] 39-03-PLAN.md — Performance audit: queries, loops, indexes, scale bottlenecks
 - [x] 39-04-PLAN.md — Test coverage audit: module mapping, MCP tools, thin tests
-- [ ] 39-05-PLAN.md — Dead code + optimisation audit: stale paths, duplication, cleanup
+- [x] 39-05-PLAN.md — Dead code + optimisation audit: stale paths, duplication, cleanup
 - [ ] 39-06-PLAN.md — Triage: consolidate findings into 39-FINDINGS.md
 - [ ] 39-07-PLAN.md — User review + remediation scope approval
 
@@ -308,6 +308,6 @@ Plans:
 | 36 | v4.0 | 4/4 | Complete | 2026-03-25 |
 | 37 | v4.0 | 11/11 | Complete | 2026-03-26 |
 | 38 | v4.0 | 7/7 | Complete | 2026-03-27 |
-| 39 | v4.0 | 4/7 | In Progress|  |
+| 39 | v4.0 | 5/7 | In Progress|  |
 | 40 | v4.0 | 0/5 | Not started | - |
 | 41 | v4.0 | 0/5 | Not started | - |

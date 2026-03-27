@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Ready to execute
-stopped_at: Completed 39-02-PLAN.md — architecture audit findings
-last_updated: "2026-03-27T14:09:06.140Z"
+stopped_at: Completed 39-01-PLAN.md (security audit)
+last_updated: "2026-03-27T14:09:41.885Z"
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 47
-  completed_plans: 43
+  completed_plans: 45
 ---
 
 # Project State
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 39 (codebase-review) — EXECUTING
-Plan: 4 of 7
+Plan: 6 of 7
 
 ## Performance Metrics
 
@@ -57,6 +57,8 @@ Plan: 4 of 7
 | Phase 39 P04 | 15 | 1 tasks | 1 files |
 | Phase 39 P03 | 420 | 1 tasks | 1 files |
 | Phase 39 P02 | 25 | 1 tasks | 1 files |
+| Phase 39 P05 | 900 | 1 tasks | 1 files |
+| Phase 39 P01 | 179 | 1 tasks | 1 files |
 
 ### Decisions
 
@@ -117,6 +119,12 @@ Active decisions affecting upcoming work:
 - [Phase 39]: templates.py confirmed dead — zero engine imports; delete candidate
 - [Phase 39]: FK CASCADE gap: action_items and note_embeddings lack ON DELETE CASCADE (only note_tags/note_people have it from Phase 32)
 - [Phase 39]: Dual-write (tags/people JSON + junction tables) verified consistent across all 4 write surfaces in capture.py, reindex.py, api.py
+- [Phase 39]: templates.py confirmed dead — zero engine callers, only isolated test import
+- [Phase 39]: NoteEditor.tsx alive — reachable via App.tsx → NoteViewer.tsx → NoteEditor.tsx
+- [Phase 39]: sharding.py implemented but unwired from any user-facing CLI or API surface
+- [Phase 39]: SEC-01 High: 8 unguarded int() calls in api.py cause HTTP 500 on bad input — fix in remediation plans
+- [Phase 39]: SEC-04 Medium: sb_files subfolder param allows path traversal outside files_dir — needs resolve+is_relative_to guard
+- [Phase 39]: Security: no SQL injection found in full codebase audit — all queries use parameterized placeholders
 
 ### Pending Todos
 
@@ -134,8 +142,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-27T14:09:06.129Z
-Stopped at: Completed 39-02-PLAN.md — architecture audit findings
+Last session: 2026-03-27T14:09:41.876Z
+Stopped at: Completed 39-01-PLAN.md (security audit)
 Resume file: None
 
 ### Next action
