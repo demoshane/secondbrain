@@ -21,11 +21,25 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
 from engine.db import PERSON_TYPES, PERSON_TYPES_PH, _escape_like, get_connection
-from engine.paths import BRAIN_ROOT
 from engine.paths import BRAIN_ROOT, store_path
 from engine.search import search_notes, _apply_filters
 from engine.intelligence import list_actions
 from engine.watcher import suppress_next_delete
+
+
+def _int_param(name: str, default: int, min_val: int | None = None, max_val: int | None = None) -> int:
+    """Parse an integer query parameter, returning HTTP 400 on bad input."""
+    raw = request.args.get(name, str(default))
+    try:
+        val = int(raw)
+    except (ValueError, TypeError):
+        from flask import abort
+        abort(400, description=f"Invalid integer for '{name}': {raw}")
+    if min_val is not None:
+        val = max(val, min_val)
+    if max_val is not None:
+        val = min(val, max_val)
+    return val
 
 
 def _note_folder(path: str) -> str:
@@ -162,8 +176,8 @@ def notes_refresh():
 
 @app.get("/notes")
 def list_notes():
-    limit = min(int(request.args.get("limit", 50)), 200)
-    offset = max(int(request.args.get("offset", 0)), 0)
+    limit = _int_param("limit", 50, min_val=1, max_val=200)
+    offset = _int_param("offset", 0, min_val=0)
     include_archived = request.args.get("include_archived", "false").lower() == "true"
     conn = get_connection()
     conn.row_factory = sqlite3.Row
@@ -318,8 +332,8 @@ def read_note(note_path):
 @app.get("/people")  # deprecated alias
 def list_people():
     from engine.people import list_people_with_metrics
-    limit = min(int(request.args.get("limit", 50)), 200)
-    offset = max(int(request.args.get("offset", 0)), 0)
+    limit = _int_param("limit", 50, min_val=1, max_val=200)
+    offset = _int_param("offset", 0, min_val=0)
     conn = get_connection()
     try:
         total = conn.execute(
@@ -334,8 +348,8 @@ def list_people():
 
 @app.get("/meetings")
 def list_meetings():
-    limit = min(int(request.args.get("limit", 50)), 200)
-    offset = max(int(request.args.get("offset", 0)), 0)
+    limit = _int_param("limit", 50, min_val=1, max_val=200)
+    offset = _int_param("offset", 0, min_val=0)
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     try:
@@ -403,8 +417,8 @@ def get_meeting(note_path):
 
 @app.get("/projects")
 def list_projects():
-    limit = min(int(request.args.get("limit", 50)), 200)
-    offset = max(int(request.args.get("offset", 0)), 0)
+    limit = _int_param("limit", 50, min_val=1, max_val=200)
+    offset = _int_param("offset", 0, min_val=0)
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     try:
@@ -637,8 +651,8 @@ def delete_project(note_path):
 @app.get("/links")
 def list_links():
     from urllib.parse import urlparse
-    limit = min(int(request.args.get("limit", 50)), 200)
-    offset = int(request.args.get("offset", 0))
+    limit = _int_param("limit", 50, min_val=1, max_val=200)
+    offset = _int_param("offset", 0, min_val=0)
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     try:
@@ -735,8 +749,8 @@ def get_actions():
     done = request.args.get("done", "0") == "1"
     assignee = request.args.get("assignee") or None
     note_path = request.args.get("note_path") or None
-    limit = min(int(request.args.get("limit", 50)), 200)
-    offset = max(int(request.args.get("offset", 0)), 0)
+    limit = _int_param("limit", 50, min_val=1, max_val=200)
+    offset = _int_param("offset", 0, min_val=0)
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     try:
@@ -1105,8 +1119,8 @@ def note_meta(note_path):
 
 @app.get("/files")
 def list_files():
-    limit = min(int(request.args.get("limit", 50)), 200)
-    offset = max(int(request.args.get("offset", 0)), 0)
+    limit = _int_param("limit", 50, min_val=1, max_val=200)
+    offset = _int_param("offset", 0, min_val=0)
     brain_path = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
     files_dir = _Path(brain_path) / "files"
     all_files = []
@@ -1453,7 +1467,7 @@ def intelligence_recap():
 def get_inbox():
     """Return inbox items: unassigned actions, unprocessed notes, empty notes."""
     PAGE_SIZE = 20
-    actions_offset = int(request.args.get("actions_offset", 0))
+    actions_offset = _int_param("actions_offset", 0, min_val=0)
     source_note = request.args.get("source_note") or None
 
     conn = get_connection()

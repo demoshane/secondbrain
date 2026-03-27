@@ -674,7 +674,12 @@ def sb_files(subfolder: str | None = None, page: int = 1, limit: int = 50) -> di
     page = max(1, page)
     limit = min(limit, 200)
     offset = (page - 1) * limit
-    search_root = files_dir / subfolder if subfolder else files_dir
+    if subfolder:
+        search_root = (files_dir / subfolder).resolve()
+        if not search_root.is_relative_to(files_dir.resolve()):
+            raise ValueError("INVALID_SUBFOLDER: path traversal detected")
+    else:
+        search_root = files_dir
     all_files = []
     for f in sorted(search_root.rglob("*")):
         if f.is_file():
