@@ -303,16 +303,28 @@ function renderHistory() {
     const section = document.getElementById('history-section');
     const list = document.getElementById('history-list');
     section.classList.remove('hidden');
-    list.innerHTML = '';
+    list.replaceChildren();
 
     for (const entry of history) {
       const li = document.createElement('li');
       const time = relativeTime(entry.savedAt);
-      li.innerHTML = `
-        <span class="history-title" title="${escapeHtml(entry.title || '')}">${escapeHtml(entry.title || 'Untitled')}</span>
-        <span class="history-type">${escapeHtml(entry.type || 'note')}</span>
-        <span class="history-time">${time}</span>
-      `;
+
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'history-title';
+      titleSpan.title = entry.title || '';
+      titleSpan.textContent = entry.title || 'Untitled';
+
+      const typeSpan = document.createElement('span');
+      typeSpan.className = 'history-type';
+      typeSpan.textContent = entry.type || 'note';
+
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 'history-time';
+      timeSpan.textContent = time;
+
+      li.appendChild(titleSpan);
+      li.appendChild(typeSpan);
+      li.appendChild(timeSpan);
       list.appendChild(li);
     }
   } catch {
