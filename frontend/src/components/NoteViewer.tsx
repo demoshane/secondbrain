@@ -7,6 +7,7 @@ import { NoteTypeBadge } from '@/components/ui/note-type-badge'
 import { TagBadge } from '@/components/ui/tag-badge'
 import { PersonBadge } from '@/components/ui/person-badge'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { FileUploadModal } from './FileUploadModal'
 import { NoteEditor } from './NoteEditor'
 import { useNoteContext } from '@/contexts/NoteContext'
 import { useSearchContext } from '@/contexts/SearchContext'
@@ -40,6 +41,7 @@ export function NoteViewer({ note }: Props) {
   const [editing, setEditing] = useState(false)
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [showDelete, setShowDelete] = useState(false)
+  const [showUpload, setShowUpload] = useState(false)
   const { loadNotes, setIsDirty } = useNoteContext()
   const { setTagFilter } = useSearchContext()
 
@@ -130,7 +132,7 @@ export function NoteViewer({ note }: Props) {
           <Pencil className="h-4 w-4 mr-1" />
           Edit Note
         </Button>
-        <Button variant="ghost" size="sm">
+        <Button variant="ghost" size="sm" onClick={() => setShowUpload(true)}>
           <Upload className="h-4 w-4" />
         </Button>
         <Button
@@ -172,6 +174,8 @@ export function NoteViewer({ note }: Props) {
           </ul>
         </div>
       )}
+
+      <FileUploadModal open={showUpload} onClose={() => setShowUpload(false)} />
 
       {/* Delete confirmation */}
       <ConfirmDialog

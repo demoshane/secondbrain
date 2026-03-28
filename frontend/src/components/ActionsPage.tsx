@@ -7,6 +7,7 @@ import { SkeletonList } from '@/components/ui/skeleton-list'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getAPI } from '@/lib/utils'
+import { toast } from 'sonner'
 import type { ActionItem, Note } from '@/types'
 
 function groupBySource(items: ActionItem[]): Map<string, ActionItem[]> {
@@ -37,6 +38,9 @@ export function ActionsPage() {
   const [deleting, setDeleting] = useState(false)
   const [allCollapsed, setAllCollapsed] = useState(false)
   const [groupCollapsed, setGroupCollapsed] = useState<Map<string, boolean>>(new Map())
+  const [showNewAction, setShowNewAction] = useState(false)
+  const [newActionText, setNewActionText] = useState('')
+  const [savingNew, setSavingNew] = useState(false)
 
   const loadActions = useCallback(async () => {
     setLoading(true)
@@ -96,6 +100,28 @@ export function ActionsPage() {
     }
   }
 
+  const handleNewActionSave = async () => {
+    const text = newActionText.trim()
+    if (!text) return
+    setSavingNew(true)
+    try {
+      const res = await fetch(`${getAPI()}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Action added')
+      setNewActionText('')
+      setShowNewAction(false)
+      loadActions()
+    } catch {
+      toast.error('Failed to add action. Try again.')
+    } finally {
+      setSavingNew(false)
+    }
+  }
+
   const clearFilters = () => {
     setStatusFilter('all')
     setAssigneeFilter('all')
@@ -128,11 +154,28 @@ export function ActionsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold">Action Items</h2>
-        <Button variant="default" size="sm">
+        <Button variant="default" size="sm" onClick={() => setShowNewAction(v => !v)}>
           <Plus className="h-4 w-4 mr-1" />
           New Action
         </Button>
       </div>
+
+      {showNewAction && (
+        <div className="flex items-center gap-2 mb-4 p-3 rounded-lg border border-border bg-card">
+          <input
+            autoFocus
+            value={newActionText}
+            onChange={e => setNewActionText(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleNewActionSave(); if (e.key === 'Escape') setShowNewAction(false) }}
+            placeholder="What needs to be done?"
+            className="flex-1 rounded-md border border-input bg-input px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
+          />
+          <Button size="sm" onClick={handleNewActionSave} disabled={savingNew || !newActionText.trim()}>
+            {savingNew ? 'Saving…' : 'Add'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setShowNewAction(false)}>Cancel</Button>
+        </div>
+      )}
 
       {/* Filter bar */}
       <div className="flex items-center gap-2 mb-4">

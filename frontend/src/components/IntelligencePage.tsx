@@ -147,6 +147,19 @@ export function IntelligencePage() {
     }
   }, [])
 
+  const deleteEmptyNotes = async () => {
+    const empty = health?.empty_notes ?? []
+    if (empty.length === 0) return
+    if (!confirm(`Delete ${empty.length} empty note(s)? This cannot be undone.`)) return
+    let deleted = 0
+    for (const n of empty) {
+      const res = await fetch(`${getAPI()}/notes/${encodeURIComponent(n.path)}`, { method: 'DELETE' })
+      if (res.ok) deleted++
+    }
+    toast.success(`Deleted ${deleted} empty note(s)`)
+    runHealthCheck()
+  }
+
   return (
     <div className="flex flex-1 overflow-hidden" data-testid="intelligence-page">
       {/* Left column ~65% — Brain Health + Stale Notes + Actions */}
@@ -378,6 +391,11 @@ export function IntelligencePage() {
               <RefreshCw className={cn('h-4 w-4 mr-2', healthLoading && 'animate-spin')} />
               Run Health Check
             </Button>
+            {(health?.empty_count ?? 0) > 0 && (
+              <Button variant="outline" size="sm" onClick={deleteEmptyNotes}>
+                Delete {health!.empty_count} Empty Note{health!.empty_count !== 1 ? 's' : ''}
+              </Button>
+            )}
           </div>
         </div>
       </div>
