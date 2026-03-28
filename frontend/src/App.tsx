@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { FileText } from 'lucide-react'
 import { Topbar } from './components/Topbar'
 import { TabBar } from './components/TabBar'
 import { Sidebar } from './components/Sidebar'
@@ -17,10 +18,9 @@ import { FileUploadModal } from './components/FileUploadModal'
 import { BatchCaptureModal } from './components/BatchCaptureModal'
 import { SmartCaptureModal } from './components/SmartCaptureModal'
 import { CommandPalette } from './components/CommandPalette'
+import { EmptyState } from '@/components/ui/empty-state'
 import { useNoteContext } from './contexts/NoteContext'
 import { useUIContext } from './contexts/UIContext'
-import { Button } from './components/ui/button'
-import { Trash2, Upload } from 'lucide-react'
 import { Toaster, toast } from 'sonner'
 import { getAPI } from './lib/utils'
 
@@ -71,34 +71,15 @@ export default function App() {
         <div className="flex flex-1 flex-col overflow-hidden">
           {currentView === 'notes' ? (
             currentNote ? (
-              <div className="flex flex-col flex-1 overflow-hidden">
-                <div className="flex items-center gap-1 px-2 py-1 border-b">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setShowUpload(true)}
-                    disabled={!currentPath}
-                    data-testid="upload-btn"
-                  >
-                    <Upload className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setShowDelete(true)}
-                    disabled={!currentPath}
-                    data-testid="delete-btn"
-                    className="text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-                <NoteViewer note={currentNote} />
-              </div>
+              <NoteViewer note={currentNote} />
             ) : (
-              <div className="flex-1 flex items-center justify-center text-muted-foreground" data-testid="no-note-selected">
-                Select a note
-              </div>
+              <EmptyState
+                icon={FileText}
+                heading="No note open"
+                body="Select a note from the sidebar or create a new one."
+                actionLabel="New Note"
+                onAction={() => setShowNewNote(true)}
+              />
             )
           ) : currentView === 'actions' ? (
             <ActionsPage />
