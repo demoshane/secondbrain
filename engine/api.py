@@ -2142,6 +2142,42 @@ def brain_health_merge():
         conn.close()
 
 
+@app.post("/summarise-url")
+def summarise_url():
+    """Summarise a web page's content via LLM.
+
+    Request JSON: {url: str, content: str (page text, truncated to 8000 chars server-side)}
+    Response JSON: {summary: str}
+    """
+    data = request.get_json(force=True, silent=True) or {}
+    url = (data.get("url") or "").strip()
+    content = (data.get("content") or "").strip()
+    if not url:
+        return jsonify({"error": "url is required"}), 400
+    if not content:
+        return jsonify({"error": "content is required"}), 400
+
+    # Truncate server-side regardless of what client sends
+    content = content[:8000]
+
+    try:
+        from engine.intelligence import _router
+        from engine.paths import CONFIG_PATH
+        adapter = _router.get_adapter("public", CONFIG_PATH)
+        system_prompt = (
+            "You are a concise summariser. Given the text of a web page, write a clear "
+            "1-3 paragraph summary capturing the key points, main arguments, and any "
+            "important conclusions. Be factual and objective."
+        )
+        summary = adapter.generate(
+            user_content=f"URL: {url}\n\n{content}",
+            system_prompt=system_prompt,
+        )
+        return jsonify({"summary": summary})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
 def startup() -> None:
     """Pre-serve initialization. Call before serve() in any startup path.
 
