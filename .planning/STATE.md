@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Ready to execute
-stopped_at: Completed 41-04-PLAN.md — People, Meetings, Projects pages two-column layout + POST /projects/<path>/meetings endpoint
-last_updated: "2026-03-28T12:00:00.449Z"
+stopped_at: Completed 41-05-PLAN.md — Actions, Inbox, Intelligence, Links pages rebuilt with Visily layouts
+last_updated: "2026-03-28T12:06:36.076Z"
 progress:
   total_phases: 14
   completed_phases: 9
   total_plans: 64
-  completed_plans: 61
+  completed_plans: 62
 ---
 
 # Project State
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 41 (visual-redesign) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ Plan: 4 of 5
 | Phase 41 P01 | 193 | 3 tasks | 17 files |
 | Phase 41 P02 | 96 | 2 tasks | 4 files |
 | Phase 41 P04 | 203 | 2 tasks | 4 files |
+| Phase 41 P05 | 233 | 2 tasks | 4 files |
 
 ### Decisions
 
@@ -141,6 +142,9 @@ Active decisions affecting upcoming work:
 - [Phase 41]: Inline Upload/Delete action bar removed from App.tsx — plan 03 re-adds delete inside NoteViewer
 - [Phase 41]: ProjectsPage uses inline select form for Link Meeting (not modal) — simpler UX, avoids extra dialog layer
 - [Phase 41]: link_meeting_to_project stores meeting_sp (resolved path) directly — consistent with existing route patterns in api.py
+- [Phase 41]: ActionsPage uses button-group filter (Open/Done/All) instead of Select dropdown per UI-SPEC interaction pattern
+- [Phase 41]: IntelligencePage Chrome Extension section removed — two-column layout has no place for one-time setup panel
+- [Phase 41]: LinksPage adds delete capability and markdown body rendering — gaps flagged in ui-descriptions
 
 ### Pending Todos
 
@@ -172,8 +176,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-28T12:00:00.437Z
-Stopped at: Completed 41-04-PLAN.md — People, Meetings, Projects pages two-column layout + POST /projects/<path>/meetings endpoint
+Last session: 2026-03-28T12:06:36.066Z
+Stopped at: Completed 41-05-PLAN.md — Actions, Inbox, Intelligence, Links pages rebuilt with Visily layouts
 Resume file: None
 
 ### Next action
