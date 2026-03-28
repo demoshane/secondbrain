@@ -324,7 +324,7 @@ Plans:
 **Goal:** UI polish pass discovered during Phase 41.2 execution: collapse sidebar grouping, retheme Chrome extension, make action items fully interactive, inline editing on detail pages, connections panel cleanup, attachments visibility, chrome page summarisation, and wiki-link navigation.
 **Depends on:** Phase 41.2
 **Milestone:** v4.0
-**Plans:** 7/8 plans executed
+**Plans:** 8/8 plans complete
 
 Plans:
 - [x] 41.3-01-PLAN.md — Sidebar: collapse folder→type grouping to single-level by type
@@ -334,7 +334,7 @@ Plans:
 - [x] 41.3-05-PLAN.md — Connections panel: proper sections, tags, add/remove
 - [x] 41.3-06-PLAN.md — Attachments section on all detail panels
 - [x] 41.3-07-PLAN.md — Chrome extension: page summarisation (LLM summary → Add to brain)
-- [ ] 41.3-08-PLAN.md — NoteViewer: [[wiki-links]] clickable navigation
+- [x] 41.3-08-PLAN.md — NoteViewer: [[wiki-links]] clickable navigation
 
 ### Phase 42: Add importance field to notes
 

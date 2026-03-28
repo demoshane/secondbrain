@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
-status: Ready to execute
-stopped_at: Completed 41.3-07-PLAN.md — Chrome extension page summarisation
-last_updated: "2026-03-28T16:20:10.093Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 41.3-08-PLAN.md — NoteViewer wiki-link navigation
+last_updated: "2026-03-28T16:23:15.341Z"
 progress:
   total_phases: 18
-  completed_phases: 12
+  completed_phases: 13
   total_plans: 82
-  completed_plans: 80
+  completed_plans: 81
 ---
 
 # Project State
@@ -84,6 +84,7 @@ Plan: 8 of 8
 | Phase 41.3 P05 | 600 | 3 tasks | 2 files |
 | Phase 41.3 P06 | 12 | 1 tasks | 7 files |
 | Phase 41.3 P07 | 3 | 2 tasks | 4 files |
+| Phase 41.3 P08 | 3 | 1 tasks | 1 files |
 
 ### Decisions
 
@@ -193,6 +194,7 @@ Active decisions affecting upcoming work:
 - [Phase 41.3]: POST /summarise-url placed at top level (not /intelligence/*) — it is extension-facing, not GUI-facing
 - [Phase 41.3]: _router.get_adapter('public') used for /summarise-url — consistent with summarize_note() and recap_entity() patterns
 - [Phase 41.3]: Extension summarise button event handlers attached unconditionally before URL-param early-return — fixes handler gap in Gmail popup path
+- [Phase 41.3]: preprocessWikiLinks() pre-processes [[Title]] to wiki: scheme links before ReactMarkdown; custom 'a' renderer intercepts and navigates or dims unmatched
 
 ### Pending Todos
 
@@ -225,8 +227,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-28T16:20:10.082Z
-Stopped at: Completed 41.3-07-PLAN.md — Chrome extension page summarisation
+Last session: 2026-03-28T16:23:15.329Z
+Stopped at: Completed 41.3-08-PLAN.md — NoteViewer wiki-link navigation
 Resume file: None
 
 ### Next action
