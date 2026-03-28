@@ -282,11 +282,11 @@ Plans:
 **Goal:** Implement the complete Visily UI redesign across the entire frontend — new design system tokens, component library overhaul, app shell, command palette, and all 8 page redesigns (Notes, Actions, People, Meetings, Projects, Intelligence, Inbox, Links) to match the approved mockups in `ui-design-files/`.
 **Depends on:** Phase 40
 **Milestone:** v4.0
-**Plans:** 1/5 plans executed
+**Plans:** 2/5 plans executed
 
 Plans:
 - [x] 41-01-PLAN.md — Design system tokens + base component overhaul (colors, typography, buttons, badges, inputs, overlays, skeletons)
-- [ ] 41-02-PLAN.md — App shell redesign: topbar, tabbar with icons, command palette
+- [x] 41-02-PLAN.md — App shell redesign: topbar, tabbar with icons, command palette
 - [ ] 41-03-PLAN.md — Notes view redesign: sidebar, NoteViewer, NoteEditor, Right Panel
 - [ ] 41-04-PLAN.md — People + Meetings + Projects page redesigns
 - [ ] 41-05-PLAN.md — Actions + Inbox + Intelligence + Links page redesigns
@@ -329,6 +329,6 @@ Plans:
 | 38 | v4.0 | 7/7 | Complete | 2026-03-27 |
 | 39 | v4.0 | 13/13 | Complete | 2026-03-28 |
 | 40 | v4.0 | 5/5 | Complete | 2026-03-28 |
-| 41 | v4.0 | 1/5 | In Progress|  |
+| 41 | v4.0 | 2/5 | In Progress|  |
 | 42 | v4.0 | 0/? | Not started | - |
 | 43 | v4.0 | 0/? | Not started | - |

@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Ready to execute
-stopped_at: Completed 41-01-PLAN.md — design tokens and shared components
-last_updated: "2026-03-28T11:50:35.444Z"
+stopped_at: Completed 41-02-PLAN.md — app shell redesign (Topbar, TabBar, CommandPalette, App.tsx)
+last_updated: "2026-03-28T11:54:17.073Z"
 progress:
   total_phases: 14
   completed_phases: 9
   total_plans: 64
-  completed_plans: 59
+  completed_plans: 60
 ---
 
 # Project State
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 41 (visual-redesign) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ Plan: 2 of 5
 | Phase 39 P08 | 30 | 2 tasks | 4 files |
 | Phase 39 P12 | 15 | 2 tasks | 1 files |
 | Phase 41 P01 | 193 | 3 tasks | 17 files |
+| Phase 41 P02 | 96 | 2 tasks | 4 files |
 
 ### Decisions
 
@@ -135,6 +136,8 @@ Active decisions affecting upcoming work:
 - [Phase 39]: sb_anonymize scrub check uses frontmatter.load() to parse past YAML; sb_actions_done idempotent: SQLite UPDATE rowcount=1 even on already-done row
 - [Phase 41]: prose-invert always applied (not dark:prose-invert) since app is always dark — dark conditionals are dead code
 - [Phase 41]: noteTypeColorMap exported from badge.tsx so downstream components can import without re-declaring the hex pairs
+- [Phase 41]: Search mode selector hidden behind SlidersHorizontal toggle (showAdvanced state, default false)
+- [Phase 41]: Inline Upload/Delete action bar removed from App.tsx — plan 03 re-adds delete inside NoteViewer
 
 ### Pending Todos
 
@@ -166,8 +169,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-28T11:50:35.431Z
-Stopped at: Completed 41-01-PLAN.md — design tokens and shared components
+Last session: 2026-03-28T11:54:17.063Z
+Stopped at: Completed 41-02-PLAN.md — app shell redesign (Topbar, TabBar, CommandPalette, App.tsx)
 Resume file: None
 
 ### Next action
