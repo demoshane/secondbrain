@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
-status: Ready to execute
-stopped_at: Completed 41-05-PLAN.md — Actions, Inbox, Intelligence, Links pages rebuilt with Visily layouts
-last_updated: "2026-03-28T12:06:36.076Z"
+status: Phase complete — ready for verification
+stopped_at: "Completed 41-03-PLAN.md — Notes view rebuilt: Sidebar type grouping, NoteViewer markdown rendering, NoteEditor textarea, RightPanel collapsible"
+last_updated: "2026-03-28T12:12:27.435Z"
 progress:
   total_phases: 14
-  completed_phases: 9
+  completed_phases: 10
   total_plans: 64
-  completed_plans: 62
+  completed_plans: 63
 ---
 
 # Project State
@@ -66,6 +66,7 @@ Plan: 5 of 5
 | Phase 41 P02 | 96 | 2 tasks | 4 files |
 | Phase 41 P04 | 203 | 2 tasks | 4 files |
 | Phase 41 P05 | 233 | 2 tasks | 4 files |
+| Phase 41 P03 | 3 | 3 tasks | 4 files |
 
 ### Decisions
 
@@ -145,6 +146,9 @@ Active decisions affecting upcoming work:
 - [Phase 41]: ActionsPage uses button-group filter (Open/Done/All) instead of Select dropdown per UI-SPEC interaction pattern
 - [Phase 41]: IntelligencePage Chrome Extension section removed — two-column layout has no place for one-time setup panel
 - [Phase 41]: LinksPage adds delete capability and markdown body rendering — gaps flagged in ui-descriptions
+- [Phase 41]: NoteViewer delete uses direct fetch DELETE + loadNotes() refresh — context.deleteNote does not exist
+- [Phase 41]: NoteEditor replaces MDEditor with plain textarea — matches Visily mockup
+- [Phase 41]: RightPanel collapse persisted to localStorage 'rp-collapsed' key — survives page refresh
 
 ### Pending Todos
 
@@ -176,8 +180,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-28T12:06:36.066Z
-Stopped at: Completed 41-05-PLAN.md — Actions, Inbox, Intelligence, Links pages rebuilt with Visily layouts
+Last session: 2026-03-28T12:12:27.425Z
+Stopped at: Completed 41-03-PLAN.md — Notes view rebuilt: Sidebar type grouping, NoteViewer markdown rendering, NoteEditor textarea, RightPanel collapsible
 Resume file: None
 
 ### Next action
