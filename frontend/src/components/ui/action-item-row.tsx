@@ -1,5 +1,5 @@
-import * as React from "react"
-import { Trash2 } from "lucide-react"
+import { useState } from "react"
+import { Trash2, Pencil } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import { type ActionItem } from "@/types"
@@ -9,6 +9,7 @@ interface ActionItemRowProps {
   onToggle: (id: number) => void
   onDelete: (id: number) => void
   onAssign?: (id: number, path: string | null) => void
+  onSetDue?: (id: number, date: string | null) => void
   showSource?: boolean
   className?: string
 }
@@ -22,9 +23,25 @@ function ActionItemRow({
   item,
   onToggle,
   onDelete,
+  onSetDue,
   showSource: _showSource,
   className,
 }: ActionItemRowProps) {
+  const [editingDue, setEditingDue] = useState(false)
+  const [dueInput, setDueInput] = useState(item.due_date ?? '')
+
+  const handleConfirmDue = () => {
+    if (onSetDue) {
+      onSetDue(item.id, dueInput || null)
+    }
+    setEditingDue(false)
+  }
+
+  const handleCancelDue = () => {
+    setDueInput(item.due_date ?? '')
+    setEditingDue(false)
+  }
+
   return (
     <div
       className={cn(
@@ -50,18 +67,59 @@ function ActionItemRow({
         >
           {item.text}
         </label>
-        {item.due_date && (
-          <p
+        {editingDue ? (
+          <div className="flex items-center gap-1 mt-1">
+            <input
+              type="date"
+              value={dueInput}
+              onChange={e => setDueInput(e.target.value)}
+              className="text-xs bg-input border border-border rounded px-1.5 py-0.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleConfirmDue()
+                if (e.key === 'Escape') handleCancelDue()
+              }}
+              autoFocus
+            />
+            <button
+              type="button"
+              onClick={handleConfirmDue}
+              className="text-xs px-1.5 py-0.5 text-green-400 hover:text-green-300"
+              aria-label="Confirm due date"
+            >
+              ✓
+            </button>
+            <button
+              type="button"
+              onClick={handleCancelDue}
+              className="text-xs px-1.5 py-0.5 text-muted-foreground hover:text-foreground"
+              aria-label="Cancel"
+            >
+              ✕
+            </button>
+          </div>
+        ) : item.due_date ? (
+          <button
+            type="button"
+            onClick={() => { setDueInput(item.due_date ?? ''); setEditingDue(true) }}
             className={cn(
-              "text-xs mt-0.5",
+              "group/due flex items-center gap-1 text-xs mt-0.5",
               isOverdue(item.due_date) && !item.done
                 ? "text-red-400"
                 : "text-muted-foreground"
             )}
           >
-            Due: {item.due_date}
-          </p>
-        )}
+            <span>Due: {item.due_date}</span>
+            <Pencil className="h-3 w-3 opacity-0 group-hover/due:opacity-100 transition-opacity" />
+          </button>
+        ) : onSetDue ? (
+          <button
+            type="button"
+            onClick={() => { setDueInput(''); setEditingDue(true) }}
+            className="text-xs mt-0.5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            Set deadline
+          </button>
+        ) : null}
       </div>
       <button
         type="button"
