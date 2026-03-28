@@ -1,47 +1,21 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { Inbox } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { getAPI, cn, encodePath } from '@/lib/utils'
+import { ActionItemRow } from '@/components/ui/action-item-row'
+import { CollapsibleSection } from '@/components/ui/collapsible-section'
+import { EmptyState } from '@/components/ui/empty-state'
+import { SkeletonList } from '@/components/ui/skeleton-list'
+import { getAPI, encodePath } from '@/lib/utils'
 import { NoteViewer } from './NoteViewer'
 import { useNoteContext } from '@/contexts/NoteContext'
 import type { ActionItem, InboxData, NoteSummary, Note } from '@/types'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type InboxItem =
   | { kind: 'action'; id: string; path: string; title: string; text: string }
   | { kind: 'note'; id: string; path: string; title: string }
-
-// ─── Section component ───────────────────────────────────────────────────────
-
-function Section({
-  title,
-  count,
-  children,
-}: {
-  title: string
-  count: number
-  children: React.ReactNode
-}) {
-  const [open, setOpen] = useState(true)
-  return (
-    <div className="border-b">
-      <button
-        className="flex w-full items-center justify-between px-4 py-2 text-sm font-medium hover:bg-accent"
-        onClick={() => setOpen(o => !o)}
-      >
-        <span>
-          {title} ({count})
-        </span>
-        <ChevronDown
-          className={cn('h-4 w-4 transition-transform', open ? 'rotate-180' : '')}
-        />
-      </button>
-      {open && <div className="px-4 pb-3">{children}</div>}
-    </div>
-  )
-}
 
 // ─── Backlink picker (inline search) ─────────────────────────────────────────
 
@@ -85,7 +59,7 @@ function BacklinkPicker({
     <div className="mt-1 flex flex-col gap-1">
       <input
         autoFocus
-        className="w-full rounded border px-2 py-1 text-xs"
+        className="w-full rounded border px-2 py-1 text-xs bg-input"
         placeholder="Search notes… (min 2 chars)"
         value={query}
         onChange={e => setQuery(e.target.value)}
@@ -106,14 +80,6 @@ function BacklinkPicker({
       <Button size="sm" variant="ghost" className="h-6 text-xs self-start" onClick={onCancel}>
         Cancel
       </Button>
-    </div>
-  )
-}
-
-function EmptyDetail() {
-  return (
-    <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
-      Select an item to preview
     </div>
   )
 }
@@ -196,16 +162,29 @@ export function InboxPage() {
   )
 
   const assignAction = useCallback(
-    async (actionId: number, assigneePath: string) => {
+    async (actionId: number, assigneePath: string | null) => {
       await fetch(`${getAPI()}/actions/${actionId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignee_path: assigneePath === 'none' ? null : assigneePath }),
+        body: JSON.stringify({ assignee_path: assigneePath }),
       })
       loadInbox(0, sourceFilter)
     },
     [loadInbox, sourceFilter]
   )
+
+  // ActionItemRow onAssign adapter: (id, path|null) => void
+  const handleAssign = useCallback(
+    (id: number, path: string | null) => {
+      assignAction(id, path)
+    },
+    [assignAction]
+  )
+
+  // ActionItemRow onToggle: no-op for inbox context (not toggling done here)
+  const handleToggle = useCallback((_id: number) => {}, [])
+  // ActionItemRow onDelete: no-op for inbox context
+  const handleDeleteAction = useCallback((_id: number) => {}, [])
 
   const addBacklink = useCallback(
     async (sourcePath: string, targetPath: string) => {
@@ -268,217 +247,260 @@ export function InboxPage() {
   }
 
   const totalCount = data?.total_count ?? 0
+  const allClear = totalCount === 0 && !loading
 
   return (
-    <div className="flex h-full overflow-hidden" data-testid="inbox-page">
-      {/* Left list pane */}
-      <div className="w-80 flex-shrink-0 flex flex-col border-r overflow-y-auto">
+    <div className="flex flex-1 overflow-hidden" data-testid="inbox-page">
+      {/* List column */}
+      <div className="w-80 border-r border-border bg-card flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="px-4 py-3 border-b">
-          {totalCount === 0 && !loading ? (
+        <div className="px-4 py-3 border-b border-border flex-shrink-0">
+          {allClear ? (
             <div>
-              <p className="text-sm font-medium text-green-600">All clear — nothing to triage.</p>
+              <p className="text-sm font-semibold text-foreground">
+                Inbox{' '}
+                <span className="inline-flex items-center justify-center rounded-full bg-secondary text-muted-foreground px-2 text-xs min-w-[1.25rem]">
+                  0
+                </span>
+              </p>
               {checkedAt && (
                 <p className="text-xs text-muted-foreground mt-0.5">Last checked {checkedAt}</p>
               )}
             </div>
           ) : (
-            <p className="text-sm font-semibold">{totalCount} items need attention</p>
+            <p className="text-sm font-semibold text-foreground">
+              Inbox{' '}
+              <span className="inline-flex items-center justify-center rounded-full bg-secondary text-muted-foreground px-2 text-xs min-w-[1.25rem]">
+                {totalCount}
+              </span>
+            </p>
           )}
         </div>
 
-        {/* Section 1 — Unassigned Actions */}
-        <Section title="Unassigned Actions" count={data?.unassigned_actions_total ?? 0}>
-          <div className="mb-2">
-            <input
-              className="w-full rounded border px-2 py-1 text-xs"
-              placeholder="Filter by source note…"
-              value={sourceFilter}
-              onChange={e => handleSourceFilterChange(e.target.value)}
-            />
-          </div>
-          {loading && actionsAccum.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-2">Loading…</p>
-          ) : actionsAccum.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-2">Nothing to triage here.</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {actionsAccum.map(action => (
-                <div
-                  key={action.id}
-                  className="rounded border p-2 text-xs cursor-pointer hover:bg-accent"
-                  onClick={() =>
-                    setSelectedItem({
-                      kind: 'action',
-                      id: String(action.id),
-                      path: action.note_path,
-                      title: action.note_path.split('/').pop()?.replace('.md', '') ?? action.note_path,
-                      text: action.text,
-                    })
-                  }
-                >
-                  <p className="font-medium line-clamp-2">{action.text}</p>
-                  <p className="text-muted-foreground truncate mt-0.5">{action.note_path}</p>
-                  <div className="flex items-center gap-1 mt-1" onClick={e => e.stopPropagation()}>
-                    <Select
-                      value={action.assignee_path ?? 'none'}
-                      onValueChange={v => assignAction(action.id, v)}
-                    >
-                      <SelectTrigger className="h-6 w-28 text-xs">
-                        <SelectValue placeholder="Assign…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Unassigned</SelectItem>
-                        {people.map(p => (
-                          <SelectItem key={p.path} value={p.path}>
-                            {p.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 text-xs px-2"
-                      onClick={() => dismiss(String(action.id), 'action')}
-                    >
-                      Dismiss
-                    </Button>
-                  </div>
-                </div>
-              ))}
-              {data && data.unassigned_actions_total > actionsOffset + 20 && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-xs"
-                  onClick={loadMoreActions}
-                >
-                  Load more
-                </Button>
-              )}
-            </div>
-          )}
-        </Section>
-
-        {/* Section 2 — Unprocessed Notes */}
-        <Section title="Unprocessed Notes" count={data?.unprocessed_notes.length ?? 0}>
+        {/* Sections */}
+        <div className="flex-1 overflow-y-auto">
           {loading && !data ? (
-            <p className="text-xs text-muted-foreground py-2">Loading…</p>
-          ) : (data?.unprocessed_notes.length ?? 0) === 0 ? (
-            <p className="text-xs text-muted-foreground py-2">Nothing to triage here.</p>
+            <SkeletonList count={5} rowHeight="h-12" className="p-3" />
           ) : (
-            <div className="flex flex-col gap-2">
-              {data!.unprocessed_notes.map(note => (
-                <div key={note.path} className="rounded border p-2 text-xs">
-                  <div
-                    className="cursor-pointer hover:text-primary"
-                    onClick={() =>
-                      setSelectedItem({
-                        kind: 'note',
-                        id: note.path,
-                        path: note.path,
-                        title: note.title,
-                      })
-                    }
-                  >
-                    <p className="font-medium truncate">{note.title}</p>
-                    <p className="text-muted-foreground">{formatDate(note.created_at)}</p>
-                  </div>
-                  {backlinkOpen === note.path ? (
-                    <BacklinkPicker
-                      notePath={note.path}
-                      onSelect={targetPath => addBacklink(note.path, targetPath)}
-                      onCancel={() => setBacklinkOpen(null)}
+            <>
+              {/* Section 1 — Unassigned Actions */}
+              <CollapsibleSection
+                title="Unassigned Actions"
+                count={data?.unassigned_actions_total ?? 0}
+                sectionId="inbox-unassigned-actions"
+                defaultOpen={true}
+              >
+                <div className="px-3 pb-3">
+                  <div className="mb-2">
+                    <input
+                      className="w-full rounded border border-border px-2 py-1 text-xs bg-input"
+                      placeholder="Filter by source note…"
+                      value={sourceFilter}
+                      onChange={e => handleSourceFilterChange(e.target.value)}
                     />
+                  </div>
+                  {actionsAccum.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2">Nothing to triage here.</p>
                   ) : (
-                    <div className="flex gap-1 mt-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-6 text-xs px-2"
-                        onClick={() => setBacklinkOpen(note.path)}
-                      >
-                        Add Backlink
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-6 text-xs px-2"
-                        onClick={() => dismiss(note.path, 'note')}
-                      >
-                        Dismiss
-                      </Button>
+                    <div className="flex flex-col gap-1">
+                      {actionsAccum.map(action => (
+                        <div
+                          key={action.id}
+                          className="rounded border border-border p-2 text-xs cursor-pointer hover:bg-secondary/30"
+                          onClick={() =>
+                            setSelectedItem({
+                              kind: 'action',
+                              id: String(action.id),
+                              path: action.note_path,
+                              title: action.note_path.split('/').pop()?.replace('.md', '') ?? action.note_path,
+                              text: action.text,
+                            })
+                          }
+                        >
+                          <p className="font-medium line-clamp-2 text-foreground">{action.text}</p>
+                          <p className="text-muted-foreground truncate mt-0.5 text-xs">
+                            {action.note_path.split('/').pop()?.replace('.md', '') ?? action.note_path}
+                          </p>
+                          <div className="flex items-center gap-1 mt-1" onClick={e => e.stopPropagation()}>
+                            <Select
+                              value={action.assignee_path ?? 'none'}
+                              onValueChange={v => assignAction(action.id, v === 'none' ? null : v)}
+                            >
+                              <SelectTrigger className="h-6 w-28 text-xs">
+                                <SelectValue placeholder="Assign…" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">Unassigned</SelectItem>
+                                {people.map(p => (
+                                  <SelectItem key={p.path} value={p.path}>
+                                    {p.title}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 text-xs px-2"
+                              onClick={() => dismiss(String(action.id), 'action')}
+                            >
+                              Dismiss
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                      {data && data.unassigned_actions_total > actionsOffset + 20 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs mt-1"
+                          onClick={loadMoreActions}
+                        >
+                          Load more
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
-              ))}
-            </div>
-          )}
-        </Section>
+              </CollapsibleSection>
 
-        {/* Section 3 — Empty Notes */}
-        <Section title="Empty Notes" count={data?.empty_notes.length ?? 0}>
-          {loading && !data ? (
-            <p className="text-xs text-muted-foreground py-2">Loading…</p>
-          ) : (data?.empty_notes.length ?? 0) === 0 ? (
-            <p className="text-xs text-muted-foreground py-2">Nothing to triage here.</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-6 text-xs w-full text-destructive border-destructive/40 hover:bg-destructive/10"
-                onClick={deleteAllEmptyNotes}
+              {/* Section 2 — Unprocessed Notes */}
+              <CollapsibleSection
+                title="Unprocessed Notes"
+                count={data?.unprocessed_notes.length ?? 0}
+                sectionId="inbox-unprocessed-notes"
+                defaultOpen={true}
               >
-                Delete all
-              </Button>
-              {data!.empty_notes.map(note => (
-                <div key={note.path} className="rounded border p-2 text-xs">
-                  <div
-                    className="cursor-pointer hover:text-primary"
-                    onClick={() =>
-                      setSelectedItem({
-                        kind: 'note',
-                        id: note.path,
-                        path: note.path,
-                        title: note.title,
-                      })
-                    }
-                  >
-                    <p className="font-medium truncate">{note.title}</p>
-                  </div>
-                  <div className="flex gap-1 mt-1">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 text-xs px-2 text-destructive hover:text-destructive"
-                      onClick={() => deleteNote(note)}
-                    >
-                      Delete
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 text-xs px-2"
-                      onClick={() => dismiss(note.path, 'note')}
-                    >
-                      Dismiss
-                    </Button>
-                  </div>
+                <div className="px-3 pb-3">
+                  {(data?.unprocessed_notes.length ?? 0) === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2">Nothing to triage here.</p>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      {data!.unprocessed_notes.map(note => (
+                        <div key={note.path} className="rounded border border-border p-2 text-xs">
+                          <div
+                            className="cursor-pointer hover:text-primary"
+                            onClick={() =>
+                              setSelectedItem({
+                                kind: 'note',
+                                id: note.path,
+                                path: note.path,
+                                title: note.title,
+                              })
+                            }
+                          >
+                            <p className="font-medium truncate text-foreground">{note.title}</p>
+                            <p className="text-muted-foreground">{formatDate(note.created_at)}</p>
+                          </div>
+                          {backlinkOpen === note.path ? (
+                            <BacklinkPicker
+                              notePath={note.path}
+                              onSelect={targetPath => addBacklink(note.path, targetPath)}
+                              onCancel={() => setBacklinkOpen(null)}
+                            />
+                          ) : (
+                            <div className="flex gap-1 mt-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 text-xs px-2"
+                                onClick={() => setBacklinkOpen(note.path)}
+                              >
+                                Add Backlink
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 text-xs px-2"
+                                onClick={() => dismiss(note.path, 'note')}
+                              >
+                                Dismiss
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
+              </CollapsibleSection>
+
+              {/* Section 3 — Empty Notes */}
+              <CollapsibleSection
+                title="Empty Notes"
+                count={data?.empty_notes.length ?? 0}
+                sectionId="inbox-empty-notes"
+                defaultOpen={true}
+              >
+                <div className="px-3 pb-3">
+                  {(data?.empty_notes.length ?? 0) === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2">Nothing to triage here.</p>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 text-xs w-full text-destructive border-destructive/40 hover:bg-destructive/10"
+                        onClick={deleteAllEmptyNotes}
+                      >
+                        Delete all
+                      </Button>
+                      {data!.empty_notes.map(note => (
+                        <div key={note.path} className="rounded border border-border p-2 text-xs">
+                          <div
+                            className="cursor-pointer hover:text-primary"
+                            onClick={() =>
+                              setSelectedItem({
+                                kind: 'note',
+                                id: note.path,
+                                path: note.path,
+                                title: note.title,
+                              })
+                            }
+                          >
+                            <p className="font-medium truncate text-foreground">{note.title}</p>
+                          </div>
+                          <div className="flex gap-1 mt-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 text-xs px-2 text-destructive hover:text-destructive"
+                              onClick={() => deleteNote(note)}
+                            >
+                              Delete
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 text-xs px-2"
+                              onClick={() => dismiss(note.path, 'note')}
+                            >
+                              Dismiss
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CollapsibleSection>
+            </>
           )}
-        </Section>
+        </div>
       </div>
 
-      {/* Right detail pane */}
-      <div className="flex-1 overflow-hidden">
+      {/* Detail column */}
+      <div className="flex-1 bg-background overflow-y-auto p-6">
         {currentNote && selectedItem && currentNote.path.endsWith(selectedItem.path) ? (
           <NoteViewer note={currentNote} />
         ) : (
-          <EmptyDetail />
+          <div className="flex h-full items-center justify-center">
+            <EmptyState
+              icon={Inbox}
+              heading="Inbox ready"
+              body="Select an item from the list to preview its contents and triage it into your Second Brain."
+            />
+          </div>
         )}
       </div>
     </div>
