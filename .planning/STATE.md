@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Ready to execute
-stopped_at: Completed 41.2-04-PLAN.md — Link Note form in PeoplePage Connections section
-last_updated: "2026-03-28T14:44:34.890Z"
+stopped_at: Completed 41.2-03-PLAN.md — Fix link_meeting_to_project endpoint
+last_updated: "2026-03-28T14:49:21.291Z"
 progress:
   total_phases: 16
   completed_phases: 11
   total_plans: 74
-  completed_plans: 71
+  completed_plans: 72
 ---
 
 # Project State
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 41.2 (Interactive Feature Completion — Bug Fixes & Missing Interactions) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 
 ## Performance Metrics
 
@@ -75,6 +75,7 @@ Plan: 5 of 6
 | Phase 41.2-interactive-gaps P05 | 525638 | 1 tasks | 1 files |
 | Phase 41.2 P02 | 8 | 1 tasks | 1 files |
 | Phase 41.2 P04 | 5 | 1 tasks | 1 files |
+| Phase 41.2-interactive-gaps P03 | 5 | 1 tasks | 1 files |
 
 ### Decisions
 
@@ -169,6 +170,7 @@ Active decisions affecting upcoming work:
 - [Phase 41.2]: Preview toggle in NoteEditor is a ghost button above body — no toolbar or split-view; ReactMarkdown reused from existing deps
 - [Phase 41.2]: MeetingsPage participants mapped from {name,path} objects to name strings at fetch boundary — type declaration stays string[], normalization at fetch time
 - [Phase 41.2]: PeoplePage Link Note uses Link icon (not Plus) to distinguish linking existing notes from new creation
+- [Phase 41.2]: link_meeting_to_project: two-pass DB lookup pattern — try store_path(relative) first, fall back to raw meeting_path for pre-Phase-32 absolute-path rows; row_factory=sqlite3.Row added for diagnostic type access
 
 ### Pending Todos
 
@@ -200,8 +202,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-28T14:44:34.879Z
-Stopped at: Completed 41.2-04-PLAN.md — Link Note form in PeoplePage Connections section
+Last session: 2026-03-28T14:49:21.280Z
+Stopped at: Completed 41.2-03-PLAN.md — Fix link_meeting_to_project endpoint
 Resume file: None
 
 ### Next action
