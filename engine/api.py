@@ -552,13 +552,22 @@ def link_meeting_to_project(note_path):
         return jsonify({"error": "forbidden"}), 403
 
     conn = get_connection()
+    conn.row_factory = sqlite3.Row
     try:
         sp = store_path(abs_path)
+        # Try relative path first; fall back to raw note_path for pre-Phase-32 absolute-path DBs
         proj = conn.execute(
-            "SELECT path FROM notes WHERE path=? AND type='projects'", (sp,)
+            "SELECT path, type FROM notes WHERE path=? AND type='projects'", (sp,)
         ).fetchone()
         if not proj:
-            return jsonify({"error": "Project not found"}), 404
+            proj_any = conn.execute(
+                "SELECT path, type FROM notes WHERE path=?", (sp,)
+            ).fetchone()
+            if proj_any:
+                return jsonify({
+                    "error": f"Note found at '{sp}' but has wrong type '{proj_any['type']}' (expected 'projects')"
+                }), 404
+            return jsonify({"error": f"Project not found: {sp}"}), 404
 
         try:
             abs_mtg, _brain_root2 = _resolve_note_path(meeting_path)
@@ -566,11 +575,26 @@ def link_meeting_to_project(note_path):
         except ValueError:
             return jsonify({"error": "forbidden"}), 403
 
+        # Try relative path first; fall back to raw meeting_path for pre-Phase-32 absolute-path DBs
         mtg = conn.execute(
-            "SELECT path FROM notes WHERE path=? AND type='meeting'", (meeting_sp,)
+            "SELECT path, type FROM notes WHERE path=? AND type='meeting'", (meeting_sp,)
         ).fetchone()
+        if not mtg and meeting_sp != meeting_path:
+            # Absolute path in DB — try the raw value as stored
+            mtg = conn.execute(
+                "SELECT path, type FROM notes WHERE path=? AND type='meeting'", (meeting_path,)
+            ).fetchone()
+            if mtg:
+                meeting_sp = meeting_path
         if not mtg:
-            return jsonify({"error": "Meeting not found"}), 404
+            mtg_any = conn.execute(
+                "SELECT path, type FROM notes WHERE path=?", (meeting_sp,)
+            ).fetchone()
+            if mtg_any:
+                return jsonify({
+                    "error": f"Note found at '{meeting_sp}' but has wrong type '{mtg_any['type']}' (expected 'meeting')"
+                }), 404
+            return jsonify({"error": f"Meeting not found: {meeting_sp}"}), 404
 
         existing = conn.execute(
             "SELECT id FROM relationships WHERE "
@@ -1789,7 +1813,12 @@ def create_relationship():
 
 @app.post("/smart-capture")
 def smart_capture():
-    """Segment freeform text into typed notes and save atomically."""
+    """Segment freeform text into typed notes and save atomically.
+
+    High-confidence segments (>= CONFIDENCE_THRESHOLD) are saved immediately.
+    Low-confidence segments are returned as 'pending_review' for the caller to
+    confirm the type before saving via POST /smart-capture/confirm.
+    """
     import itertools
     data = request.get_json() or {}
     content = data.get("content", "").strip()
@@ -1798,6 +1827,7 @@ def smart_capture():
 
     from engine.segmenter import segment_blob
     from engine.capture import capture_note
+    from engine.typeclassifier import CONFIDENCE_THRESHOLD
     import uuid
 
     source_url = data.get("source_url", "")
@@ -1807,8 +1837,20 @@ def smart_capture():
     conn = get_connection()
 
     saved = []
+    pending_review = []
     try:
         for seg in segments:
+            confidence = seg.get("confidence", 1.0)
+            if confidence < CONFIDENCE_THRESHOLD:
+                # Return to caller for type confirmation
+                pending_review.append({
+                    "title": seg["title"],
+                    "body": seg["body"],
+                    "suggested_type": seg["type"],
+                    "confidence": round(confidence, 2),
+                    "people": seg.get("entities", {}).get("people", []),
+                })
+                continue
             try:
                 path = capture_note(
                     note_type=seg["type"], title=seg["title"], body=seg["body"],
@@ -1816,13 +1858,81 @@ def smart_capture():
                     content_sensitivity="public", brain_root=_engine_paths.BRAIN_ROOT, conn=conn,
                     url=source_url or None, source_type=source_type or None,
                 )
-                saved.append({"title": seg["title"], "type": seg["type"], "path": str(path)})
+                saved.append({
+                    "title": seg["title"],
+                    "type": seg["type"],
+                    "confidence": round(confidence, 2),
+                    "path": str(path),
+                })
             except Exception as e:
                 saved.append({"title": seg["title"], "type": seg["type"], "error": str(e)})
 
-        # Co-captured relationships
+        # Co-captured relationships between auto-saved notes
         paths = [s["path"] for s in saved if "path" in s]
         now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        for a, b in itertools.combinations(paths, 2):
+            conn.execute(
+                "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+                (a, b, "co-captured"),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+    _broadcast({"type": "refresh"})
+    return jsonify({
+        "notes": saved,
+        "capture_session": session_id,
+        "count": len(saved),
+        "pending_review": pending_review,
+    })
+
+
+@app.post("/smart-capture/confirm")
+def smart_capture_confirm():
+    """Save pending smart-capture segments after user has confirmed their types.
+
+    Expects JSON body:
+      {
+        "segments": [
+          {"title": str, "type": str, "body": str, "people": [str]},
+          ...
+        ],
+        "capture_session": str  (optional, for co-captured relationship linking)
+      }
+    """
+    import itertools
+    data = request.get_json() or {}
+    segments = data.get("segments", [])
+    if not segments:
+        return jsonify({"error": "segments is required"}), 400
+
+    from engine.capture import capture_note
+    import uuid
+
+    session_id = data.get("capture_session") or str(uuid.uuid4())
+    conn = get_connection()
+    saved = []
+    try:
+        for seg in segments:
+            note_type = seg.get("type", "note")
+            title = seg.get("title", "Untitled")
+            body = seg.get("body", "")
+            people = seg.get("people", [])
+            if note_type not in VALID_NOTE_TYPES:
+                saved.append({"title": title, "type": note_type, "error": f"invalid type: {note_type!r}"})
+                continue
+            try:
+                path = capture_note(
+                    note_type=note_type, title=title, body=body,
+                    tags=[], people=people,
+                    content_sensitivity="public", brain_root=_engine_paths.BRAIN_ROOT, conn=conn,
+                )
+                saved.append({"title": title, "type": note_type, "path": str(path)})
+            except Exception as e:
+                saved.append({"title": title, "type": note_type, "error": str(e)})
+
+        paths = [s["path"] for s in saved if "path" in s]
         for a, b in itertools.combinations(paths, 2):
             conn.execute(
                 "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
