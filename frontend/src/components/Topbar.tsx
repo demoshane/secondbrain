@@ -1,5 +1,5 @@
-import { useRef } from 'react'
-import { Search, Plus, FolderSync, Sparkles } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Search, Plus, FolderUp, Sparkles, SlidersHorizontal } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -19,6 +19,7 @@ export function Topbar({ onNewNote, onBatchCapture, onSmartCapture }: Props) {
   const { connected } = useSSEContext()
   const { loadNotes } = useNoteContext()
   const inputRef = useRef<HTMLInputElement>(null)
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   const handleSearch = () => {
     if (query.trim()) {
@@ -35,18 +36,28 @@ export function Topbar({ onNewNote, onBatchCapture, onSmartCapture }: Props) {
   }
 
   return (
-    <div className="flex items-center gap-2 px-3 py-2 border-b bg-background" data-testid="topbar">
-      <div className="flex-1 flex items-center gap-2">
-        <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-        <Input
-          ref={inputRef}
-          data-testid="search-input"
-          placeholder="Search notes…"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          onKeyDown={handleKeyDown}
-          className="h-8"
-        />
+    <div className="h-[52px] flex items-center gap-2 px-4 border-b border-border bg-background" data-testid="topbar">
+      <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+      <Input
+        ref={inputRef}
+        data-testid="search-input"
+        placeholder="Search notes..."
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        onKeyDown={handleKeyDown}
+        className="flex-1 h-8 bg-input"
+      />
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={() => setShowAdvanced(prev => !prev)}
+        title="Advanced search options"
+        data-testid="search-advanced-toggle"
+        className="h-8 w-8 p-0"
+      >
+        <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
+      </Button>
+      {showAdvanced && (
         <Select value={mode} onValueChange={(v: string) => setMode(v as 'hybrid' | 'bm25' | 'semantic')}>
           <SelectTrigger className="w-28 h-8" data-testid="search-mode-select">
             <SelectValue />
@@ -57,21 +68,23 @@ export function Topbar({ onNewNote, onBatchCapture, onSmartCapture }: Props) {
             <SelectItem value="semantic">Semantic</SelectItem>
           </SelectContent>
         </Select>
-      </div>
-      <Button size="sm" variant="outline" data-testid="new-note-btn" onClick={onNewNote}>
+      )}
+      <Button size="sm" variant="default" data-testid="new-note-btn" onClick={onNewNote}>
         <Plus className="h-4 w-4 mr-1" />
         New Note
       </Button>
-      <Button size="sm" variant="ghost" data-testid="smart-capture-btn" onClick={onSmartCapture} title="Smart Capture">
-        <Sparkles className="h-4 w-4" />
+      <Button size="sm" variant="outline" data-testid="smart-capture-btn" onClick={onSmartCapture}>
+        <Sparkles className="h-4 w-4 mr-1 text-orange-400" />
+        Smart Capture
       </Button>
-      <Button size="sm" variant="ghost" data-testid="batch-capture-btn" onClick={onBatchCapture} title="Batch Capture">
-        <FolderSync className="h-4 w-4" />
+      <Button size="sm" variant="ghost" data-testid="batch-capture-btn" onClick={onBatchCapture}>
+        <FolderUp className="h-4 w-4 mr-1" />
+        Batch
       </Button>
       <div
         data-testid="sse-status-dot"
-        className={cn('h-2 w-2 rounded-full', connected ? 'bg-green-500' : 'bg-red-400')}
-        title={connected ? 'Live' : 'Disconnected'}
+        className={cn('h-2 w-2 rounded-full', connected ? 'bg-green-500' : 'bg-red-500')}
+        title={connected ? 'Connected' : 'Disconnected'}
       />
     </div>
   )
