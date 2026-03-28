@@ -234,6 +234,85 @@ button {
   flex-shrink: 0;
 }
 
+/* ── Summarise Section ───────────────────────────────────────────────────── */
+
+.summarise-section {
+  padding: 0 12px 12px;
+  border-bottom: 1px solid #2a3245;
+}
+
+#summarise-btn {
+  width: 100%;
+  background: #1e2535;
+  color: #d4dae8;
+  border: 1px solid #2a3245;
+  padding: 8px 18px;
+  border-radius: 5px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+#summarise-btn:hover:not(:disabled) {
+  background: #252d42;
+}
+
+#summarise-btn:disabled {
+  background: #1e2535;
+  color: #7a8499;
+  cursor: not-allowed;
+}
+
+/* ── Summary Panel ───────────────────────────────────────────────────────── */
+
+#summary-panel {
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid #2a3245;
+}
+
+.summary-text {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: #d4dae8;
+  background: #191f2d;
+  border: 1px solid #2a3245;
+  border-radius: 5px;
+  padding: 9px;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+#add-to-brain-btn {
+  background: #5b6cf7;
+  color: #ffffff;
+  flex: 1;
+}
+
+#add-to-brain-btn:hover:not(:disabled) {
+  background: #4a5be0;
+}
+
+#add-to-brain-btn:disabled {
+  background: #1e2535;
+  color: #7a8499;
+  cursor: not-allowed;
+}
+
+#summary-cancel-btn {
+  background: #1e2535;
+  color: #d4dae8;
+  border: 1px solid #2a3245;
+}
+
+#summary-cancel-btn:hover {
+  background: #252d42;
+}
+
 /* ── Utilities ───────────────────────────────────────────────────────────── */
 
 .hidden {

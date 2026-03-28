@@ -31,6 +31,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('capture-form').addEventListener('submit', handleSave);
   document.getElementById('cancel-btn').addEventListener('click', () => window.close());
 
+  // Attach summarise handlers unconditionally
+  document.getElementById('summarise-btn').addEventListener('click', handleSummarise);
+  document.getElementById('add-to-brain-btn').addEventListener('click', handleAddTobrainFromSummary);
+  document.getElementById('summary-cancel-btn').addEventListener('click', discardSummary);
+
   // Check URL params first (Gmail button / tab fallback flow — avoids storage API limitations)
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.has('sb_title')) {
@@ -281,6 +286,143 @@ async function handleSave(e) {
     saveBtn.disabled = false;
     saveBtn.textContent = 'Save';
   }
+}
+
+// ── Summarise Flow ────────────────────────────────────────────────────────
+
+let _summariseResult = null; // { summary, title, url } — held until "Add to brain" or "Discard"
+
+async function handleSummarise() {
+  clearError();
+  const btn = document.getElementById('summarise-btn');
+  btn.disabled = true;
+  btn.textContent = 'Summarising…';
+
+  try {
+    // Get active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.id) {
+      showError('No active tab found.');
+      btn.disabled = false;
+      btn.textContent = 'Summarise page';
+      return;
+    }
+
+    const tabUrl = tab.url || '';
+    const tabTitle = tab.title || 'Untitled';
+
+    // Extract page text via content script (same path as article extraction)
+    const result = await sendToContentScript(tabUrl, { action: 'extract-article' });
+    const rawText = (result && result.success && result.textContent) ? result.textContent : '';
+    const content = rawText.slice(0, 8000);
+
+    if (!content) {
+      showError('Could not extract page text. The page may not be accessible.');
+      btn.disabled = false;
+      btn.textContent = 'Summarise page';
+      return;
+    }
+
+    // POST to backend
+    const res = await fetch(`${currentApiUrl}/summarise-url`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: tabUrl, content }),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      showError(`Summarise failed (${res.status}): ${errData.error || 'Unknown error'}`);
+      btn.disabled = false;
+      btn.textContent = 'Summarise page';
+      return;
+    }
+
+    const data = await res.json();
+    const summary = (data.summary || '').trim();
+
+    if (!summary) {
+      showError('LLM returned an empty summary. Try again.');
+      btn.disabled = false;
+      btn.textContent = 'Summarise page';
+      return;
+    }
+
+    // Store result for "Add to brain"
+    _summariseResult = { summary, title: `Summary: ${tabTitle}`, url: tabUrl };
+
+    // Show summary panel, hide capture form
+    document.getElementById('capture-form').classList.add('hidden');
+    document.getElementById('summarise-section').classList.add('hidden');
+    document.getElementById('summary-text').textContent = summary;
+    document.getElementById('summary-panel').classList.remove('hidden');
+
+  } catch (err) {
+    showError(`Network error: ${err.message}`);
+    btn.disabled = false;
+    btn.textContent = 'Summarise page';
+  }
+}
+
+async function handleAddTobrainFromSummary() {
+  if (!_summariseResult) return;
+
+  const addBtn = document.getElementById('add-to-brain-btn');
+  addBtn.disabled = true;
+  addBtn.textContent = 'Saving…';
+
+  try {
+    const payload = {
+      title: _summariseResult.title,
+      type: 'note',
+      body: _summariseResult.summary,
+      tags: ['summary'],
+      source_url: _summariseResult.url,
+      source_type: 'web',
+    };
+
+    const res = await fetch(`${currentApiUrl}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (res.status === 201 || res.status === 200) {
+      addToHistory({ title: _summariseResult.title, type: 'note', url: _summariseResult.url });
+      addBtn.textContent = 'Saved!';
+      addBtn.style.background = '#16a34a';
+      setTimeout(() => {
+        if (chrome.tabs && typeof chrome.tabs.getCurrent === 'function') {
+          chrome.tabs.getCurrent((tab) => {
+            if (tab) chrome.tabs.remove(tab.id);
+            else window.close();
+          });
+        } else {
+          window.close();
+        }
+      }, 400);
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      showError(`Save failed (${res.status}): ${errData.error || errData.message || 'Unknown error'}`);
+      addBtn.disabled = false;
+      addBtn.textContent = 'Add to brain';
+    }
+  } catch (err) {
+    showError(`Network error: ${err.message}`);
+    addBtn.disabled = false;
+    addBtn.textContent = 'Add to brain';
+  }
+}
+
+function discardSummary() {
+  _summariseResult = null;
+  document.getElementById('summary-panel').classList.add('hidden');
+  document.getElementById('capture-form').classList.remove('hidden');
+  document.getElementById('summarise-section').classList.remove('hidden');
+  document.getElementById('summarise-btn').disabled = false;
+  document.getElementById('summarise-btn').textContent = 'Summarise page';
 }
 
 // ── Capture History ───────────────────────────────────────────────────────────
