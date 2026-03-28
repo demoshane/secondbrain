@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Ready to execute
-stopped_at: Completed 41.3-06-PLAN.md — Attachments section on all detail panels
-last_updated: "2026-03-28T16:15:03.152Z"
+stopped_at: Completed 41.3-07-PLAN.md — Chrome extension page summarisation
+last_updated: "2026-03-28T16:20:10.093Z"
 progress:
   total_phases: 18
   completed_phases: 12
   total_plans: 82
-  completed_plans: 79
+  completed_plans: 80
 ---
 
 # Project State
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 41.3 (ui-polish) — EXECUTING
-Plan: 7 of 8
+Plan: 8 of 8
 
 ## Performance Metrics
 
@@ -83,6 +83,7 @@ Plan: 7 of 8
 | Phase 41.3 P04 | 300 | 1 tasks | 4 files |
 | Phase 41.3 P05 | 600 | 3 tasks | 2 files |
 | Phase 41.3 P06 | 12 | 1 tasks | 7 files |
+| Phase 41.3 P07 | 3 | 2 tasks | 4 files |
 
 ### Decisions
 
@@ -189,6 +190,9 @@ Active decisions affecting upcoming work:
 - [Phase 41.3]: Tags section always visible in RightPanel when note is open — discoverable even when empty
 - [Phase 41.3]: AttachmentsSection always visible (no length > 0 gate) — discoverable even when empty
 - [Phase 41.3]: FileUploadModal.notePath prop overrides NoteContext.currentPath — required for entity pages where selected path != NoteContext currentPath
+- [Phase 41.3]: POST /summarise-url placed at top level (not /intelligence/*) — it is extension-facing, not GUI-facing
+- [Phase 41.3]: _router.get_adapter('public') used for /summarise-url — consistent with summarize_note() and recap_entity() patterns
+- [Phase 41.3]: Extension summarise button event handlers attached unconditionally before URL-param early-return — fixes handler gap in Gmail popup path
 
 ### Pending Todos
 
@@ -221,8 +225,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-28T16:15:03.139Z
-Stopped at: Completed 41.3-06-PLAN.md — Attachments section on all detail panels
+Last session: 2026-03-28T16:20:10.082Z
+Stopped at: Completed 41.3-07-PLAN.md — Chrome extension page summarisation
 Resume file: None
 
 ### Next action
