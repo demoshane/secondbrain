@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
-status: Ready to plan
-stopped_at: Completed 41.1-02-PLAN.md — ActionsPage source-note grouping + MeetingsPage date chips
-last_updated: "2026-03-28T13:19:01.954Z"
+status: Ready to execute
+stopped_at: Completed 41.2-05-PLAN.md — NoteEditor markdown preview toggle
+last_updated: "2026-03-28T14:44:01.640Z"
 progress:
-  total_phases: 15
+  total_phases: 16
   completed_phases: 11
-  total_plans: 68
-  completed_plans: 67
+  total_plans: 74
+  completed_plans: 70
 ---
 
 # Project State
@@ -22,8 +22,8 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-Phase: 42
-Plan: Not started
+Phase: 41.2 (Interactive Feature Completion — Bug Fixes & Missing Interactions) — EXECUTING
+Plan: 3 of 6
 
 ## Performance Metrics
 
@@ -71,6 +71,8 @@ Plan: Not started
 | Phase 41.1 P04 | 96 | 2 tasks | 3 files |
 | Phase 41.1 P03 | 115 | 2 tasks | 1 files |
 | Phase 41.1 P02 | 691 | 2 tasks | 2 files |
+| Phase 41.2 P01 | 5 | 1 tasks | 1 files |
+| Phase 41.2-interactive-gaps P05 | 525638 | 1 tasks | 1 files |
 
 ### Decisions
 
@@ -161,6 +163,8 @@ Active decisions affecting upcoming work:
 - [Phase 41.1]: Quick Capture on IntelligencePage POSTs to /capture with note_type:note — same contract as other capture paths
 - [Phase 41.1]: ActionsPage per-group collapse uses Map<string, boolean> with allCollapsed as fallback default
 - [Phase 41.1]: MeetingsPage date chip uses formatDateChip() helper returning {month, day} with MONTH_ABBR lookup
+- [Phase 41.2]: Tags fetched via separate GET /notes/${enc} — meta endpoint does not expose tags directly; detailPeople sourced from meta.people already fetched in loadProjectDetail
+- [Phase 41.2]: Preview toggle in NoteEditor is a ghost button above body — no toolbar or split-view; ReactMarkdown reused from existing deps
 
 ### Pending Todos
 
@@ -192,8 +196,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-28T13:12:21.271Z
-Stopped at: Completed 41.1-02-PLAN.md — ActionsPage source-note grouping + MeetingsPage date chips
+Last session: 2026-03-28T14:44:01.631Z
+Stopped at: Completed 41.2-05-PLAN.md — NoteEditor markdown preview toggle
 Resume file: None
 
 ### Next action

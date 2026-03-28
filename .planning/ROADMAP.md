@@ -304,6 +304,21 @@ Plans:
 - [x] 41.1-03-PLAN.md — IntelligencePage right column: Priority Actions, Quick Capture, stale days-badge
 - [x] 41.1-04-PLAN.md — PeoplePage avatar + profile display, ProjectsPage stat tiles, LinksPage "Open as Note"
 
+### Phase 41.2: Interactive Feature Completion — Bug Fixes & Missing Interactions
+
+**Goal:** Fix critical bugs discovered post-Phase 41 and restore missing interactive features: note save destroys frontmatter (data loss), meetings participants render as `[object Object]`, missing Tags/People sections, no way to add actions or participants from meeting detail, no way to add connections from person detail, no markdown preview in editor, and link-meeting failure.
+**Depends on:** Phase 41.1
+**Milestone:** v4.0
+**Plans:** 3/6 plans executed
+
+Plans:
+- [x] 41.2-01-PLAN.md — Projects detail: Tags + People sections
+- [x] 41.2-02-PLAN.md — Meetings detail: Fix participants bug + Add Action + Add Participant + Tags
+- [ ] 41.2-03-PLAN.md — Debug + fix "Link Meeting" failure
+- [ ] 41.2-04-PLAN.md — Person detail: "Link Note" / Add Connection button
+- [x] 41.2-05-PLAN.md — NoteEditor: markdown preview toggle
+- [ ] 41.2-06-PLAN.md — CRITICAL: Fix note save data loss (frontmatter overwritten) + title not saved
+
 ### Phase 42: Add importance field to notes
 
 **Goal:** [To be planned]
