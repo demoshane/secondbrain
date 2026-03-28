@@ -4,7 +4,7 @@ milestone: v4.0
 milestone_name: Memory & Reliability
 status: Ready to execute
 stopped_at: Completed 41.2-05-PLAN.md — NoteEditor markdown preview toggle
-last_updated: "2026-03-28T14:44:01.640Z"
+last_updated: "2026-03-28T14:44:09.962Z"
 progress:
   total_phases: 16
   completed_phases: 11
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 41.2 (Interactive Feature Completion — Bug Fixes & Missing Interactions) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 
 ## Performance Metrics
 
@@ -73,6 +73,7 @@ Plan: 3 of 6
 | Phase 41.1 P02 | 691 | 2 tasks | 2 files |
 | Phase 41.2 P01 | 5 | 1 tasks | 1 files |
 | Phase 41.2-interactive-gaps P05 | 525638 | 1 tasks | 1 files |
+| Phase 41.2 P02 | 8 | 1 tasks | 1 files |
 
 ### Decisions
 
@@ -165,6 +166,7 @@ Active decisions affecting upcoming work:
 - [Phase 41.1]: MeetingsPage date chip uses formatDateChip() helper returning {month, day} with MONTH_ABBR lookup
 - [Phase 41.2]: Tags fetched via separate GET /notes/${enc} — meta endpoint does not expose tags directly; detailPeople sourced from meta.people already fetched in loadProjectDetail
 - [Phase 41.2]: Preview toggle in NoteEditor is a ghost button above body — no toolbar or split-view; ReactMarkdown reused from existing deps
+- [Phase 41.2]: MeetingsPage participants mapped from {name,path} objects to name strings at fetch boundary — type declaration stays string[], normalization at fetch time
 
 ### Pending Todos
 
