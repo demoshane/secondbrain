@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Ready to execute
-stopped_at: Completed 41.2-02-PLAN.md — MeetingsPage participants fix + Add Action + Add Participant + Tags
-last_updated: "2026-03-28T14:44:10.104Z"
+stopped_at: Completed 41.2-04-PLAN.md — Link Note form in PeoplePage Connections section
+last_updated: "2026-03-28T14:44:34.890Z"
 progress:
   total_phases: 16
   completed_phases: 11
   total_plans: 74
-  completed_plans: 70
+  completed_plans: 71
 ---
 
 # Project State
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 41.2 (Interactive Feature Completion — Bug Fixes & Missing Interactions) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 
 ## Performance Metrics
 
@@ -74,6 +74,7 @@ Plan: 4 of 6
 | Phase 41.2 P01 | 5 | 1 tasks | 1 files |
 | Phase 41.2-interactive-gaps P05 | 525638 | 1 tasks | 1 files |
 | Phase 41.2 P02 | 8 | 1 tasks | 1 files |
+| Phase 41.2 P04 | 5 | 1 tasks | 1 files |
 
 ### Decisions
 
@@ -167,6 +168,7 @@ Active decisions affecting upcoming work:
 - [Phase 41.2]: Tags fetched via separate GET /notes/${enc} — meta endpoint does not expose tags directly; detailPeople sourced from meta.people already fetched in loadProjectDetail
 - [Phase 41.2]: Preview toggle in NoteEditor is a ghost button above body — no toolbar or split-view; ReactMarkdown reused from existing deps
 - [Phase 41.2]: MeetingsPage participants mapped from {name,path} objects to name strings at fetch boundary — type declaration stays string[], normalization at fetch time
+- [Phase 41.2]: PeoplePage Link Note uses Link icon (not Plus) to distinguish linking existing notes from new creation
 
 ### Pending Todos
 
@@ -198,8 +200,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-28T14:44:10.093Z
-Stopped at: Completed 41.2-02-PLAN.md — MeetingsPage participants fix + Add Action + Add Participant + Tags
+Last session: 2026-03-28T14:44:34.879Z
+Stopped at: Completed 41.2-04-PLAN.md — Link Note form in PeoplePage Connections section
 Resume file: None
 
 ### Next action
