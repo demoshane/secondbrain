@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
-status: Ready to plan
-stopped_at: Completed 41.2-06-PLAN.md — Fix critical note save data loss (frontmatter preservation)
-last_updated: "2026-03-28T14:56:42.662Z"
+status: Ready to execute
+stopped_at: Completed 41.3-02-PLAN.md — Chrome extension dark Visily retheme
+last_updated: "2026-03-28T15:57:33.175Z"
 progress:
-  total_phases: 16
+  total_phases: 18
   completed_phases: 12
-  total_plans: 74
-  completed_plans: 73
+  total_plans: 82
+  completed_plans: 75
 ---
 
 # Project State
@@ -22,8 +22,8 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-Phase: 42
-Plan: Not started
+Phase: 41.3 (ui-polish) — EXECUTING
+Plan: 3 of 8
 
 ## Performance Metrics
 
@@ -77,6 +77,8 @@ Plan: Not started
 | Phase 41.2 P04 | 5 | 1 tasks | 1 files |
 | Phase 41.2-interactive-gaps P03 | 5 | 1 tasks | 1 files |
 | Phase 41.2 P06 | 1 | 2 tasks | 3 files |
+| Phase 41.3 P01 | 5 | 1 tasks | 1 files |
+| Phase 41.3 P02 | 65 | 1 tasks | 2 files |
 
 ### Decisions
 
@@ -174,6 +176,8 @@ Active decisions affecting upcoming work:
 - [Phase 41.2]: link_meeting_to_project: two-pass DB lookup pattern — try store_path(relative) first, fall back to raw meeting_path for pre-Phase-32 absolute-path rows; row_factory=sqlite3.Row added for diagnostic type access
 - [Phase 41.2]: title_and_body_title / title_and_body_body key names chosen to avoid collision with existing single-field branches
 - [Phase 41.2]: NoteEditor saveNote sends {body} not {content} when title absent — body-only branch preserves frontmatter
+- [Phase 41.3]: Sidebar single-level type grouping: remove FOLDER_ORDER, replace groupByFolderThenType with groupByType returning flat Map<string, Note[]>
+- [Phase 41.3]: Select appearance:none + SVG data-URI chevron chosen over OS-default styling for native-dark look in Chrome extension popup
 
 ### Pending Todos
 
@@ -198,6 +202,7 @@ Active decisions affecting upcoming work:
 
 - Phase 37 added: Scale Architecture (100K Notes) — ANN index, incremental reindex, sharding, tiered storage, chunked embeddings, summarization layer, backup & DR
 - Phase 42 added: Add importance field to notes — optional 250-char field capturing why a note matters, across DB, capture paths, MCP tools, Chrome plugin, and GUI
+- Phase 44 added: Backend code cleanup — F-22 (api.py Blueprint partitioning), F-27 (deprecated /people aliases), F-28 (BRAIN_PATH consolidation), F-29 (json.loads helper), F-30 (ensure_person_profile wrong path), F-31 (datetime.utcnow() → datetime.now(UTC))
 
 ### Blockers/Concerns
 
@@ -205,8 +210,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-28T14:52:19.629Z
-Stopped at: Completed 41.2-06-PLAN.md — Fix critical note save data loss (frontmatter preservation)
+Last session: 2026-03-28T15:57:33.161Z
+Stopped at: Completed 41.3-02-PLAN.md — Chrome extension dark Visily retheme
 Resume file: None
 
 ### Next action

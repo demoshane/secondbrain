@@ -321,15 +321,20 @@ Plans:
 
 ### Phase 41.3: UI Polish — Sidebar, Chrome Extension & Action Item Interactivity
 
-**Goal:** Three targeted UI improvements discovered during Phase 41.2 execution: collapse the redundant two-level sidebar grouping to a single type-level list; retheme the Chrome extension popup to match the app's dark Visily design tokens; make action items fully interactive (mark done, set deadlines, add new) in every view that shows them — People, Meetings, Projects, and the Right Panel.
+**Goal:** UI polish pass discovered during Phase 41.2 execution: collapse sidebar grouping, retheme Chrome extension, make action items fully interactive, inline editing on detail pages, connections panel cleanup, attachments visibility, chrome page summarisation, and wiki-link navigation.
 **Depends on:** Phase 41.2
 **Milestone:** v4.0
-**Plans:** 0/3 complete
+**Plans:** 2/8 plans executed
 
 Plans:
-- [ ] 41.3-01-PLAN.md — Sidebar: collapse folder→type grouping to single-level by type
-- [ ] 41.3-02-PLAN.md — Chrome extension: retheme popup to dark Visily design tokens
+- [x] 41.3-01-PLAN.md — Sidebar: collapse folder→type grouping to single-level by type
+- [x] 41.3-02-PLAN.md — Chrome extension: retheme popup to dark Visily design tokens
 - [ ] 41.3-03-PLAN.md — Action items: mark done + set deadline + add new in all detail views
+- [ ] 41.3-04-PLAN.md — Inline note editing on all detail-panel pages
+- [ ] 41.3-05-PLAN.md — Connections panel: proper sections, tags, add/remove
+- [ ] 41.3-06-PLAN.md — Attachments section on all detail panels
+- [ ] 41.3-07-PLAN.md — Chrome extension: page summarisation (LLM summary → Add to brain)
+- [ ] 41.3-08-PLAN.md — NoteViewer: [[wiki-links]] clickable navigation
 
 ### Phase 42: Add importance field to notes
 
@@ -350,6 +355,16 @@ Plans:
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 43 to break down)
+
+### Phase 44: Backend Code Cleanup
+
+**Goal:** Eliminate accumulated technical debt flagged in the Phase 39 audit: remove deprecated `/people` route aliases (F-27), replace `datetime.utcnow()` deprecated in Python 3.12+ across 14 files (F-31), consolidate the 13× repeated `os.environ.get("BRAIN_PATH")` pattern (F-28), add a shared `json.loads(col or "[]")` helper (F-29), fix `ensure_person_profile()` writing to wrong path `person/` vs `people/` (F-30), and begin `api.py` Blueprint partitioning (F-22, now 2149 lines).
+**Requirements**: F-22, F-27, F-28, F-29, F-30, F-31 (from 39-FINDINGS.md)
+**Depends on:** Phase 43
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 44 to break down)
 
 ---
 
