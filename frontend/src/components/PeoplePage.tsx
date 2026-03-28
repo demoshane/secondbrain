@@ -3,6 +3,22 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Users, Plus, Trash2 } from 'lucide-react'
 import { cn, getAPI, encodePath } from '@/lib/utils'
+
+function AvatarInitials({ name, size = 'lg' }: { name: string; size?: 'sm' | 'lg' }) {
+  const words = name.trim().split(/\s+/)
+  let initials: string
+  if (words.length === 1) {
+    initials = words[0].slice(0, 2).toUpperCase()
+  } else {
+    initials = (words[0][0] + words[words.length - 1][0]).toUpperCase()
+  }
+  const sizeClass = size === 'lg' ? 'w-16 h-16 text-xl' : 'w-8 h-8 text-xs'
+  return (
+    <div className={cn('rounded-full bg-primary/20 text-primary font-semibold flex items-center justify-center shrink-0', sizeClass)}>
+      {initials}
+    </div>
+  )
+}
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -168,17 +184,22 @@ export function PeoplePage() {
                   onClick={() => setSelectedPath(p.path)}
                   data-testid="person-row"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground truncate">{p.title}</span>
-                    {p.open_actions > 0 && (
-                      <span className="inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-xs w-5 h-5 shrink-0 ml-2">
-                        {p.open_actions}
-                      </span>
-                    )}
+                  <div className="flex items-center gap-2.5">
+                    <AvatarInitials name={p.title} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-foreground truncate">{p.title}</span>
+                        {p.open_actions > 0 && (
+                          <span className="inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-xs w-5 h-5 shrink-0 ml-2">
+                            {p.open_actions}
+                          </span>
+                        )}
+                      </div>
+                      {p.org && (
+                        <div className="text-xs text-muted-foreground truncate mt-0.5">{p.org}</div>
+                      )}
+                    </div>
                   </div>
-                  {p.org && (
-                    <div className="text-xs text-muted-foreground truncate mt-0.5">{p.org}</div>
-                  )}
                 </div>
               ))}
             </div>
@@ -204,11 +225,14 @@ export function PeoplePage() {
           <div className="flex flex-col h-full">
             <div className="px-6 py-4 border-b border-border shrink-0">
               <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h1 className="text-xl font-semibold text-foreground">{personNote?.title ?? ''}</h1>
-                  {selectedPerson?.org && (
-                    <p className="text-sm text-muted-foreground mt-0.5">{selectedPerson.org}</p>
-                  )}
+                <div className="flex items-center gap-4">
+                  <AvatarInitials name={personNote?.title ?? selectedPerson?.title ?? ''} size="lg" />
+                  <div>
+                    <h1 className="text-xl font-semibold text-foreground">{personNote?.title ?? ''}</h1>
+                    {selectedPerson?.org && (
+                      <p className="text-sm text-muted-foreground mt-0.5">{selectedPerson.org}</p>
+                    )}
+                  </div>
                 </div>
                 <Button size="sm" variant="outline" onClick={handleOpenInNotes}>
                   Open in Notes
@@ -219,7 +243,7 @@ export function PeoplePage() {
             <div className="flex-1 divide-y divide-border">
               {personNote?.body && (
                 <CollapsibleSection
-                  title="Brain Insight"
+                  title="Profile & Context"
                   count={1}
                   sectionId={`people-insight-${selectedPath}`}
                   defaultOpen={true}
