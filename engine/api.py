@@ -538,6 +538,58 @@ def update_project_status(note_path):
     return jsonify({"status": status, "path": sp})
 
 
+@app.post("/projects/<path:note_path>/meetings")
+def link_meeting_to_project(note_path):
+    """Link a meeting note to a project via the relationships table."""
+    data = request.get_json(force=True) or {}
+    meeting_path = data.get("meeting_path", "").strip()
+    if not meeting_path:
+        return jsonify({"error": "meeting_path is required"}), 400
+
+    try:
+        abs_path, _brain_root = _resolve_note_path(note_path)
+    except ValueError:
+        return jsonify({"error": "forbidden"}), 403
+
+    conn = get_connection()
+    try:
+        sp = store_path(abs_path)
+        proj = conn.execute(
+            "SELECT path FROM notes WHERE path=? AND type='projects'", (sp,)
+        ).fetchone()
+        if not proj:
+            return jsonify({"error": "Project not found"}), 404
+
+        try:
+            abs_mtg, _brain_root2 = _resolve_note_path(meeting_path)
+            meeting_sp = store_path(abs_mtg)
+        except ValueError:
+            return jsonify({"error": "forbidden"}), 403
+
+        mtg = conn.execute(
+            "SELECT path FROM notes WHERE path=? AND type='meeting'", (meeting_sp,)
+        ).fetchone()
+        if not mtg:
+            return jsonify({"error": "Meeting not found"}), 404
+
+        existing = conn.execute(
+            "SELECT id FROM relationships WHERE "
+            "(source_path=? AND target_path=?) OR (source_path=? AND target_path=?)",
+            (sp, meeting_sp, meeting_sp, sp),
+        ).fetchone()
+        if not existing:
+            conn.execute(
+                "INSERT INTO relationships (source_path, target_path, rel_type) VALUES (?, ?, ?)",
+                (sp, meeting_sp, "linked"),
+            )
+            conn.commit()
+    finally:
+        conn.close()
+
+    _broadcast({"type": "notes_changed", "path": sp})
+    return jsonify({"project_path": sp, "meeting_path": meeting_sp, "linked": True})
+
+
 @app.post("/persons")
 @app.post("/people")  # deprecated alias
 def create_person():
