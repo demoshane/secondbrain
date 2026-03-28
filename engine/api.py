@@ -1008,6 +1008,49 @@ def put_prefs():
         return jsonify({"error": str(e)}), 500
 
 
+@app.get("/config")
+def get_config():
+    """Return the user-editable AI routing config (narrow: routing + ollama + models)."""
+    from engine.config_loader import load_config
+    from engine.paths import CONFIG_PATH
+    cfg = load_config(CONFIG_PATH)
+    return jsonify({
+        "routing": cfg.get("routing", {}),
+        "ollama": cfg.get("ollama", {}),
+        "models": cfg.get("models", {}),
+    })
+
+
+@app.put("/config")
+def put_config():
+    """Persist changes to routing.* and ollama.* in config.toml. Other sections untouched."""
+    import tomli_w
+    from engine.config_loader import load_config
+    from engine.paths import CONFIG_PATH
+
+    data = request.get_json(force=True, silent=True) or {}
+    allowed_routing_keys = {"public_model", "private_model", "pii_model", "fallback_model"}
+
+    try:
+        cfg = load_config(CONFIG_PATH)
+
+        if "routing" in data:
+            for k, v in data["routing"].items():
+                if k in allowed_routing_keys:
+                    cfg.setdefault("routing", {})[k] = v
+
+        if "ollama" in data and "host" in data["ollama"]:
+            cfg.setdefault("ollama", {})["host"] = data["ollama"]["host"]
+
+        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(CONFIG_PATH, "wb") as f:
+            tomli_w.dump(cfg, f)
+
+        return jsonify({"saved": True})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
 @app.get("/ui")
 def gui_shell():
     html = (_STATIC_DIR / "index.html").read_text(encoding="utf-8")
@@ -1184,6 +1227,31 @@ def save_note(note_path):
     return jsonify({"saved": True, "path": str(p)})
 
 
+@app.post("/notes/<path:note_path>/rename")
+def rename_note_route(note_path):
+    from engine.rename import rename_note
+    try:
+        p, _brain_root = _resolve_note_path(note_path)
+    except ValueError:
+        return jsonify({"error": "Forbidden"}), 403
+    if not p.exists():
+        return jsonify({"error": "Not found"}), 404
+    body = request.get_json(force=True) or {}
+    new_title = (body.get("title") or "").strip()
+    if not new_title:
+        return jsonify({"error": "title required"}), 400
+    conn = get_connection()
+    try:
+        result = rename_note(p, new_title, _brain_root, conn)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+    finally:
+        conn.close()
+    # Return relative new_path (consistent with how all note paths are stored/returned)
+    result["new_path"] = store_path(result["new_path"])
+    return jsonify({"saved": True, **result})
+
+
 VALID_PROJECT_STATUSES = {"active", "paused", "completed"}
 
 VALID_NOTE_TYPES = {
@@ -1302,10 +1370,11 @@ def note_meta(note_path):
             related_rows = search_notes(conn, title_row["title"])
             related = [r for r in related_rows if r.get("path") != db_path][:5]
         note_row = conn.execute(
-            "SELECT people, body FROM notes WHERE path=?", (db_path,)
+            "SELECT people, body, tags FROM notes WHERE path=?", (db_path,)
         ).fetchone()
         raw_people = json.loads(note_row["people"]) if note_row and note_row["people"] else []
         note_body = note_row["body"] if note_row else ""
+        note_tags = json.loads(note_row["tags"] or "[]") if note_row else []
 
         # Resolve raw_people entries — may be paths (absolute or relative) OR plain name strings.
         # Treat as a path if it contains a path separator or ends with .md.
@@ -1347,14 +1416,10 @@ def note_meta(note_path):
                     if title_r["path"] not in seen_paths:
                         seen_paths.add(title_r["path"])
                         people.append({"path": title_r["path"], "title": title_r["title"]})
-                else:
-                    # Name not found as a person note — show as plain label with no path
-                    if item_str not in seen_paths:
-                        seen_paths.add(item_str)
-                        people.append({"path": None, "title": item_str})
+                # Unresolved plain-text name — omit (noise from old entity extraction)
     finally:
         conn.close()
-    return jsonify({"backlinks": backlinks, "related": related, "people": people})
+    return jsonify({"backlinks": backlinks, "related": related, "people": people, "tags": note_tags})
 
 
 @app.get("/files")
@@ -1713,6 +1778,24 @@ def intelligence_synthesis():
         return jsonify({"synthesis": text})
     except Exception as exc:
         return jsonify({"synthesis": f"Error: {exc}"}), 500
+    finally:
+        conn.close()
+
+
+@app.post("/ask")
+def ask_brain_endpoint():
+    """Answer a freeform question using the brain's notes as context."""
+    data = request.get_json(force=True, silent=True) or {}
+    question = (data.get("question") or "").strip()
+    if not question:
+        return jsonify({"error": "question is required"}), 400
+    conn = get_connection()
+    try:
+        from engine.intelligence import ask_brain
+        result = ask_brain(question, conn)
+        return jsonify(result)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
     finally:
         conn.close()
 
