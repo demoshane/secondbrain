@@ -251,7 +251,7 @@ class TestActionItems:
         from engine.db import get_connection
         conn = get_connection()
         cursor = conn.execute(
-            "INSERT INTO action_items (note_path, body, done) VALUES (?, ?, 0)",
+            "INSERT INTO action_items (note_path, text, done) VALUES (?, ?, 0)",
             ("notes/test-assign.md", "Action to assign"),
         )
         item_id = cursor.lastrowid
@@ -288,6 +288,114 @@ class TestActionItems:
         for item in data["actions"]:
             assert item.get("done") == 0
             assert item.get("assignee_path") == "people/alice.md"
+
+    def test_actions_grouped_empty(self, client):
+        """GET /actions/grouped with no action items returns {groups: [], total: 0}."""
+        response = client.get("/actions/grouped")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data == {"groups": [], "total": 0}
+
+    def test_actions_grouped_shape(self, client):
+        """GET /actions/grouped returns groups with note_title, note_path, actions."""
+        from engine.db import get_connection
+        conn = get_connection()
+        conn.execute(
+            "INSERT INTO notes (path, title, type, body, created_at, updated_at)"
+            " VALUES (?, ?, 'ideas', '', datetime('now'), datetime('now'))",
+            ("notes/alpha.md", "Alpha Note"),
+        )
+        conn.execute(
+            "INSERT INTO notes (path, title, type, body, created_at, updated_at)"
+            " VALUES (?, ?, 'ideas', '', datetime('now'), datetime('now'))",
+            ("notes/beta.md", "Beta Note"),
+        )
+        conn.execute(
+            "INSERT INTO action_items (note_path, text, done) VALUES (?, ?, 0)",
+            ("notes/alpha.md", "Action A1"),
+        )
+        conn.execute(
+            "INSERT INTO action_items (note_path, text, done) VALUES (?, ?, 0)",
+            ("notes/alpha.md", "Action A2"),
+        )
+        conn.execute(
+            "INSERT INTO action_items (note_path, text, done) VALUES (?, ?, 0)",
+            ("notes/beta.md", "Action B1"),
+        )
+        conn.execute(
+            "INSERT INTO action_items (note_path, text, done) VALUES (?, ?, 0)",
+            ("notes/beta.md", "Action B2"),
+        )
+        conn.commit()
+        conn.close()
+
+        response = client.get("/actions/grouped")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "groups" in data
+        assert "total" in data
+        assert data["total"] == 4
+        assert len(data["groups"]) == 2
+        for group in data["groups"]:
+            assert "note_path" in group
+            assert "note_title" in group
+            assert "actions" in group
+            assert len(group["actions"]) == 2
+
+    def test_actions_grouped_filter_done(self, client):
+        """GET /actions/grouped?done=1 returns only completed actions."""
+        from engine.db import get_connection
+        conn = get_connection()
+        for path, title in [("notes/open.md", "Open"), ("notes/done.md", "Done")]:
+            conn.execute(
+                "INSERT INTO notes (path, title, type, body, created_at, updated_at)"
+                " VALUES (?, ?, 'ideas', '', datetime('now'), datetime('now'))",
+                (path, title),
+            )
+        conn.execute(
+            "INSERT INTO action_items (note_path, text, done) VALUES (?, ?, 0)",
+            ("notes/open.md", "Open action"),
+        )
+        conn.execute(
+            "INSERT INTO action_items (note_path, text, done) VALUES (?, ?, 1)",
+            ("notes/done.md", "Done action"),
+        )
+        conn.commit()
+        conn.close()
+
+        response = client.get("/actions/grouped?done=1")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["total"] == 1
+        assert len(data["groups"]) == 1
+        assert data["groups"][0]["note_path"] == "notes/done.md"
+
+    def test_actions_grouped_filter_assignee(self, client):
+        """GET /actions/grouped?assignee= filters to matching assignee."""
+        from engine.db import get_connection
+        conn = get_connection()
+        for path, title in [("notes/alice.md", "Alice"), ("notes/bob.md", "Bob")]:
+            conn.execute(
+                "INSERT INTO notes (path, title, type, body, created_at, updated_at)"
+                " VALUES (?, ?, 'ideas', '', datetime('now'), datetime('now'))",
+                (path, title),
+            )
+        conn.execute(
+            "INSERT INTO action_items (note_path, text, done, assignee_path) VALUES (?, ?, 0, ?)",
+            ("notes/alice.md", "Alice's task", "people/alice.md"),
+        )
+        conn.execute(
+            "INSERT INTO action_items (note_path, text, done, assignee_path) VALUES (?, ?, 0, ?)",
+            ("notes/bob.md", "Bob's task", "people/bob.md"),
+        )
+        conn.commit()
+        conn.close()
+
+        response = client.get("/actions/grouped?assignee=people/alice.md")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["total"] == 1
+        assert data["groups"][0]["note_path"] == "notes/alice.md"
 
 
 @pytest.fixture
@@ -348,6 +456,14 @@ def tmp_note_pair(tmp_path, monkeypatch):
             "INSERT OR REPLACE INTO notes (path, title, body, type, created_at, updated_at)"
             " VALUES (?, ?, ?, 'note', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
             (path, title, body),
+        )
+    # Seed backlink relationships for notes that mention Alice Smith (note_a)
+    from engine.paths import store_path as _sp2
+    for src in (note_b, note_lower):
+        conn.execute(
+            "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type)"
+            " VALUES (?, ?, 'backlink')",
+            (_sp2(src), _sp2(note_a)),
         )
     conn.commit()
     conn.close()

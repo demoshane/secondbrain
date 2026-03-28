@@ -221,8 +221,16 @@ def archive_conn(tmp_path):
 
 
 def _insert_action_item(conn, note_path, text, done, done_at, created_at=None):
-    """Helper: insert an action_item row with explicit done_at."""
+    """Helper: insert an action_item row with explicit done_at.
+
+    Also inserts a parent notes row to satisfy FK constraint on action_items.note_path.
+    """
     ca = created_at or "2025-01-01T00:00:00Z"
+    conn.execute(
+        "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+        " VALUES (?, '', 'note', '', datetime('now'), datetime('now'))",
+        (note_path,),
+    )
     conn.execute(
         "INSERT INTO action_items (note_path, text, done, done_at, created_at) VALUES (?,?,?,?,?)",
         (note_path, text, 1 if done else 0, done_at, ca),
@@ -528,14 +536,21 @@ def test_get_stub_notes_includes_empty(stub_conn):
 
 
 def test_delete_dangling_relationships(stub_conn):
-    """35-02: delete_dangling_relationships removes relationship where source_path not in notes."""
+    """35-02: delete_dangling_relationships removes relationship where source_path not in notes.
+
+    FK is temporarily disabled to insert the dangling relationship (source path not in notes)
+    that this test is designed to clean up.
+    """
     from engine.brain_health import delete_dangling_relationships
     _insert_note(stub_conn, "exists.md", "Exists", "body")
+    # Disable FK temporarily to insert a dangling relationship (ghost.md not in notes)
+    stub_conn.execute("PRAGMA foreign_keys = OFF")
     stub_conn.execute(
         "INSERT INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
         ("ghost.md", "exists.md", "reference"),
     )
     stub_conn.commit()
+    stub_conn.execute("PRAGMA foreign_keys = ON")
 
     count = delete_dangling_relationships(stub_conn)
     assert count == 1, f"Expected 1 dangling deleted, got {count}"
@@ -590,15 +605,22 @@ def test_bidirectional_gap_detection(stub_conn):
 
 
 def test_bidirectional_gap_excludes_dangling(stub_conn):
-    """35-02: dangling relationships (path not in notes) must NOT appear in bidirectional gaps."""
+    """35-02: dangling relationships (path not in notes) must NOT appear in bidirectional gaps.
+
+    FK is temporarily disabled to insert the dangling relationship (ghost.md not in notes)
+    that this test needs to verify is excluded from gap detection.
+    """
     from engine.brain_health import get_bidirectional_gaps
     # Insert only one note; the other path doesn't exist
     _insert_note(stub_conn, "real.md", "Real", "body")
+    # Disable FK temporarily to insert a dangling relationship (ghost.md not in notes)
+    stub_conn.execute("PRAGMA foreign_keys = OFF")
     stub_conn.execute(
         "INSERT INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
         ("ghost.md", "real.md", "reference"),
     )
     stub_conn.commit()
+    stub_conn.execute("PRAGMA foreign_keys = ON")
 
     gaps = get_bidirectional_gaps(stub_conn)
     assert not any(g["source"] == "ghost.md" for g in gaps), \

@@ -359,53 +359,62 @@ def migrate_paths_to_relative(conn: sqlite3.Connection, brain_root: Path | None 
         )
         return
 
-    with conn:
-        for abs_path, rel_path in path_map.items():
-            # If the relative path already exists, the absolute row is a stale duplicate — remove it.
-            existing = conn.execute("SELECT 1 FROM notes WHERE path=?", (rel_path,)).fetchone()
-            if existing:
-                conn.execute("DELETE FROM notes WHERE path=?", (abs_path,))
-                logger.warning(
-                    "migrate_paths_to_relative: duplicate removed (relative path already exists): %s",
-                    abs_path,
-                )
-                continue
-            conn.execute(
-                "UPDATE notes SET path=? WHERE path=?",
-                (rel_path, abs_path),
-            )
-            conn.execute(
-                "UPDATE relationships SET source_path=? WHERE source_path=?",
-                (rel_path, abs_path),
-            )
-            conn.execute(
-                "UPDATE relationships SET target_path=? WHERE target_path=?",
-                (rel_path, abs_path),
-            )
-            conn.execute(
-                "UPDATE action_items SET note_path=? WHERE note_path=?",
-                (rel_path, abs_path),
-            )
-            try:
-                # assignee_path may not exist on older schemas — guard idempotently
+    # Disable FK enforcement for the duration of this migration.
+    # Updating notes.path (PK) while child tables still hold the old value would
+    # violate FK constraints — we update all tables atomically, so FKs are
+    # consistent at the end of the transaction even if momentarily violated.
+    original_fk = conn.execute("PRAGMA foreign_keys").fetchone()[0]
+    conn.execute("PRAGMA foreign_keys = OFF")
+    try:
+        with conn:
+            for abs_path, rel_path in path_map.items():
+                # If the relative path already exists, the absolute row is a stale duplicate — remove it.
+                existing = conn.execute("SELECT 1 FROM notes WHERE path=?", (rel_path,)).fetchone()
+                if existing:
+                    conn.execute("DELETE FROM notes WHERE path=?", (abs_path,))
+                    logger.warning(
+                        "migrate_paths_to_relative: duplicate removed (relative path already exists): %s",
+                        abs_path,
+                    )
+                    continue
                 conn.execute(
-                    "UPDATE action_items SET assignee_path=? WHERE assignee_path=?",
+                    "UPDATE notes SET path=? WHERE path=?",
                     (rel_path, abs_path),
                 )
-            except sqlite3.OperationalError:
-                pass
-            conn.execute(
-                "UPDATE note_embeddings SET note_path=? WHERE note_path=?",
-                (rel_path, abs_path),
-            )
-            conn.execute(
-                "UPDATE audit_log SET note_path=? WHERE note_path=?",
-                (rel_path, abs_path),
-            )
-            conn.execute(
-                "UPDATE attachments SET note_path=? WHERE note_path=?",
-                (rel_path, abs_path),
-            )
+                conn.execute(
+                    "UPDATE relationships SET source_path=? WHERE source_path=?",
+                    (rel_path, abs_path),
+                )
+                conn.execute(
+                    "UPDATE relationships SET target_path=? WHERE target_path=?",
+                    (rel_path, abs_path),
+                )
+                conn.execute(
+                    "UPDATE action_items SET note_path=? WHERE note_path=?",
+                    (rel_path, abs_path),
+                )
+                try:
+                    # assignee_path may not exist on older schemas — guard idempotently
+                    conn.execute(
+                        "UPDATE action_items SET assignee_path=? WHERE assignee_path=?",
+                        (rel_path, abs_path),
+                    )
+                except sqlite3.OperationalError:
+                    pass
+                conn.execute(
+                    "UPDATE note_embeddings SET note_path=? WHERE note_path=?",
+                    (rel_path, abs_path),
+                )
+                conn.execute(
+                    "UPDATE audit_log SET note_path=? WHERE note_path=?",
+                    (rel_path, abs_path),
+                )
+                conn.execute(
+                    "UPDATE attachments SET note_path=? WHERE note_path=?",
+                    (rel_path, abs_path),
+                )
+    finally:
+        conn.execute(f"PRAGMA foreign_keys = {original_fk}")  # noqa: S608 — integer value from PRAGMA, not user input
 
     logger.info(
         "migrate_paths_to_relative: migrated %d paths to relative (%d skipped outside BRAIN_ROOT)",
@@ -489,6 +498,26 @@ def migrate_add_summary_column(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
+def migrate_add_status_column(conn: sqlite3.Connection) -> None:
+    """Idempotent: add 'status' TEXT column to notes if absent."""
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(notes)").fetchall()}
+    if "status" not in cols:
+        conn.execute("ALTER TABLE notes ADD COLUMN status TEXT NOT NULL DEFAULT 'active'")
+        conn.commit()
+
+
+def migrate_create_person_insights(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: create person_insights table for 24h-cached AI insights."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS person_insights (
+            person_path  TEXT PRIMARY KEY,
+            insight      TEXT NOT NULL DEFAULT '',
+            generated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+        )
+    """)
+    conn.commit()
+
+
 def migrate_create_audit_log_archive(conn: sqlite3.Connection) -> None:
     """Idempotent migration: create audit_log_archive table if absent.
 
@@ -507,6 +536,105 @@ def migrate_create_audit_log_archive(conn: sqlite3.Connection) -> None:
         )
     """)
     conn.commit()
+
+
+def _migrate_fk_cascade(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: add ON DELETE CASCADE FK constraints to note_embeddings,
+    action_items, and relationships using the rename-recreate pattern.
+
+    SQLite does not support ALTER TABLE ... ADD CONSTRAINT, so each table must be
+    recreated with the correct schema. Existing data is preserved via INSERT SELECT.
+
+    audit_log is intentionally excluded — audit entries must survive note deletion
+    for compliance.
+
+    Migration is skipped if note_embeddings already has ON DELETE CASCADE
+    (detected via PRAGMA foreign_key_list).
+    """
+    # Check if migration already applied by inspecting note_embeddings FK
+    fk_list = conn.execute("PRAGMA foreign_key_list(note_embeddings)").fetchall()
+    already_cascaded = any(row[6] == "CASCADE" for row in fk_list)  # row[6] = on_delete
+    if already_cascaded:
+        logger.debug("_migrate_fk_cascade: already applied, skipping")
+        return
+
+    logger.info("_migrate_fk_cascade: applying FK CASCADE migration")
+
+    # Save the current FK enforcement state and disable it during migration.
+    # Recreating tables while child rows reference the old table name requires FK OFF.
+    # We restore to the original state (not unconditionally ON) so callers using
+    # raw sqlite3.connect() (e.g. tests) are not silently affected.
+    original_fk = conn.execute("PRAGMA foreign_keys").fetchone()[0]
+    conn.execute("PRAGMA foreign_keys = OFF")
+
+    try:
+        with conn:
+            # --- note_embeddings ---
+            # Inspect actual columns (future-proof against additional migrations)
+            ne_cols = [row[1] for row in conn.execute("PRAGMA table_info(note_embeddings)").fetchall()]
+            conn.execute("ALTER TABLE note_embeddings RENAME TO _ne_old")
+            conn.execute("""
+                CREATE TABLE note_embeddings (
+                    note_path    TEXT PRIMARY KEY REFERENCES notes(path) ON DELETE CASCADE,
+                    embedding    BLOB,
+                    content_hash TEXT,
+                    stale        BOOL NOT NULL DEFAULT 0,
+                    created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+                    updated_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+                )
+            """)
+            col_list = ", ".join(ne_cols)
+            conn.execute(f"INSERT INTO note_embeddings ({col_list}) SELECT {col_list} FROM _ne_old")  # noqa: S608
+            conn.execute("DROP TABLE _ne_old")
+
+            # --- action_items ---
+            # Columns vary by migration history — discover at runtime
+            ai_cols = [row[1] for row in conn.execute("PRAGMA table_info(action_items)").fetchall()]
+            conn.execute("ALTER TABLE action_items RENAME TO _ai_old")
+            # Build the CREATE TABLE with all columns from current schema.
+            # Base columns always present; extended columns discovered via PRAGMA.
+            ai_col_defs = (
+                "id INTEGER PRIMARY KEY, "
+                "note_path TEXT NOT NULL REFERENCES notes(path) ON DELETE CASCADE, "
+                "text TEXT NOT NULL, "
+                "done BOOL NOT NULL DEFAULT 0, "
+                "created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"
+            )
+            extra_defs = []
+            if "assignee_path" in ai_cols:
+                extra_defs.append("assignee_path TEXT NULL")
+            if "due_date" in ai_cols:
+                extra_defs.append("due_date TEXT NULL")
+            if "done_at" in ai_cols:
+                extra_defs.append("done_at TEXT NULL")
+            if extra_defs:
+                ai_col_defs += ", " + ", ".join(extra_defs)
+            conn.execute(f"CREATE TABLE action_items ({ai_col_defs})")  # noqa: S608
+            col_list_ai = ", ".join(ai_cols)
+            conn.execute(f"INSERT INTO action_items ({col_list_ai}) SELECT {col_list_ai} FROM _ai_old")  # noqa: S608
+            conn.execute("DROP TABLE _ai_old")
+
+            # --- relationships ---
+            # Check actual columns (composite PK: source_path, target_path, rel_type)
+            rel_cols = [row[1] for row in conn.execute("PRAGMA table_info(relationships)").fetchall()]
+            conn.execute("ALTER TABLE relationships RENAME TO _rel_old")
+            conn.execute("""
+                CREATE TABLE relationships (
+                    source_path TEXT NOT NULL REFERENCES notes(path) ON DELETE CASCADE,
+                    target_path TEXT NOT NULL REFERENCES notes(path) ON DELETE CASCADE,
+                    rel_type    TEXT NOT NULL DEFAULT 'link',
+                    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+                    PRIMARY KEY (source_path, target_path, rel_type)
+                )
+            """)
+            col_list_rel = ", ".join(rel_cols)
+            conn.execute(f"INSERT INTO relationships ({col_list_rel}) SELECT {col_list_rel} FROM _rel_old")  # noqa: S608
+            conn.execute("DROP TABLE _rel_old")
+
+    finally:
+        conn.execute(f"PRAGMA foreign_keys = {original_fk}")  # noqa: S608 — integer value from PRAGMA, not user input
+
+    logger.info("_migrate_fk_cascade: FK CASCADE migration complete")
 
 
 def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
@@ -540,8 +668,15 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     migrate_create_note_chunks(conn)
     migrate_add_archived_column(conn)
     migrate_add_summary_column(conn)
+    migrate_add_status_column(conn)
+    migrate_create_person_insights(conn)
+    # F-10: Add FK CASCADE constraints to note_embeddings, action_items, relationships
+    _migrate_fk_cascade(conn)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_url ON notes(url)")
     # idx_notes_people is dropped by migrate_add_note_people_table — do not re-create
     conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_created_path ON audit_log(created_at, note_path)")
+    # F-10 performance indexes: archived filter and action_items lookup
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_archived ON notes(archived)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_action_items_note_path ON action_items(note_path)")
     conn.commit()

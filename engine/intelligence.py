@@ -39,6 +39,24 @@ RECAP_ENTITY_SYSTEM_PROMPT = (
     "Be concise. Format: narrative paragraph, then '## Open Actions' heading, then bullets."
 )
 
+PERSON_INSIGHT_SYSTEM_PROMPT = (
+    "You are a personal knowledge assistant. Given notes about a person, write a concise "
+    "brain insight: (1) who they are and their role/context, (2) recent interactions or meetings, "
+    "(3) open action items involving them. Use 3-5 sentences, narrative style. Be specific — "
+    "mention meeting titles, project names, and dates when available."
+)
+
+WEEKLY_SYNTHESIS_SYSTEM_PROMPT = (
+    "You are a personal knowledge assistant reviewing a full week of notes. "
+    "Write a structured weekly synthesis covering: "
+    "(1) Key themes and topics worked on this week, "
+    "(2) Important decisions made or conclusions reached, "
+    "(3) People you interacted with most and in what context, "
+    "(4) Open threads, pending actions, or risks to watch. "
+    "Use 2-3 short paragraphs. Be specific — mention note titles, people, "
+    "and project names. Output plain prose with section headers."
+)
+
 
 class _RouterShim:
     """Thin wrapper so tests can patch `engine.intelligence._router`."""
@@ -432,13 +450,27 @@ def recap_entity(name: str, conn) -> str | None:
     except Exception:
         hybrid_results = []
 
-    # 2. Also fetch by explicit people/tags match
+    # 2. Also fetch by explicit people/tags match via junction tables (F-03)
     try:
-        tagged = conn.execute(
-            "SELECT path, title, body, sensitivity FROM notes "
-            "WHERE people LIKE ? OR tags LIKE ? ORDER BY updated_at DESC LIMIT 20",
-            (f"%{name}%", f"%{name}%"),
+        tagged_by_people = conn.execute(
+            "SELECT DISTINCT n.path, n.title, n.body, n.sensitivity FROM notes n "
+            "JOIN note_people np ON np.note_path = n.path "
+            "WHERE np.person LIKE ? ORDER BY n.updated_at DESC LIMIT 20",
+            (f"%{name}%",),
         ).fetchall()
+        tagged_by_tags = conn.execute(
+            "SELECT DISTINCT n.path, n.title, n.body, n.sensitivity FROM notes n "
+            "JOIN note_tags nt ON nt.note_path = n.path "
+            "WHERE nt.tag = ? ORDER BY n.updated_at DESC LIMIT 20",
+            (name,),
+        ).fetchall()
+        seen_tagged: set[str] = set()
+        tagged = []
+        for row in tagged_by_people + tagged_by_tags:
+            if row[0] not in seen_tagged:
+                seen_tagged.add(row[0])
+                tagged.append(row)
+        tagged = tagged[:20]
     except Exception:
         tagged = []
 
@@ -534,6 +566,97 @@ def recap_entity(name: str, conn) -> str | None:
 
 
 # ---------------------------------------------------------------------------
+# Person insight (40-01)
+# ---------------------------------------------------------------------------
+
+def generate_person_insight(conn, person_path: str, force: bool = False) -> str:
+    """Return a 24h-cached AI insight for a person note.
+
+    Checks person_insights cache first. Regenerates via Ollama adapter when:
+    - No cache entry exists
+    - Cache is older than 24 hours
+    - force=True
+
+    Returns the insight string. Returns a fallback string on any exception.
+    """
+    import datetime
+    try:
+        import sqlite3 as _sqlite3
+        orig_factory = conn.row_factory
+        conn.row_factory = None  # use plain tuples for cache check
+
+        cache_row = conn.execute(
+            "SELECT insight, generated_at FROM person_insights WHERE person_path=?",
+            (person_path,),
+        ).fetchone()
+
+        if cache_row and not force:
+            insight_cached, generated_at_str = cache_row[0], cache_row[1]
+            try:
+                generated_at = datetime.datetime.fromisoformat(
+                    generated_at_str.replace("Z", "+00:00")
+                )
+                age = datetime.datetime.now(datetime.timezone.utc) - generated_at
+                if age < datetime.timedelta(hours=24):
+                    conn.row_factory = orig_factory
+                    return insight_cached
+            except (ValueError, AttributeError):
+                pass
+
+        # Regenerate
+        conn.row_factory = _sqlite3.Row
+
+        person_row = conn.execute(
+            "SELECT title, body FROM notes WHERE path=?", (person_path,)
+        ).fetchone()
+        person_title = person_row["title"] if person_row else ""
+        person_body = (person_row["body"] or "")[:500] if person_row else ""
+
+        related_rows = conn.execute(
+            "SELECT n.title, n.body, n.type, substr(n.created_at,1,10) AS date "
+            "FROM notes n JOIN note_people np ON np.note_path=n.path "
+            "WHERE np.person LIKE ? ORDER BY n.updated_at DESC LIMIT 15",
+            (f"%{person_title}%",),
+        ).fetchall() if person_title else []
+
+        open_action_count = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM action_items WHERE assignee_path=? AND done=0",
+            (person_path,),
+        ).fetchone()["cnt"]
+
+        conn.row_factory = orig_factory
+
+        parts = []
+        if person_body:
+            parts.append(f"Person profile:\n{person_body}")
+        if related_rows:
+            snippets = "\n\n".join(
+                f"[{r['date']}] {r['title']} ({r['type']}): {(r['body'] or '')[:300]}"
+                for r in related_rows
+            )
+            parts.append(f"Related notes:\n{snippets}")
+        parts.append(f"Open action items assigned to this person: {open_action_count}")
+
+        text = "\n\n".join(parts) or f"Person: {person_title}"
+
+        from engine.paths import CONFIG_PATH
+        adapter = _router.get_adapter("public", CONFIG_PATH)
+        insight = adapter.generate(user_content=text, system_prompt=PERSON_INSIGHT_SYSTEM_PROMPT)
+
+        conn.execute(
+            "INSERT OR REPLACE INTO person_insights (person_path, insight, generated_at) "
+            "VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))",
+            (person_path, insight),
+        )
+        conn.commit()
+        return insight
+
+    except Exception as exc:
+        logger.warning("generate_person_insight failed for %s: %s", person_path, exc)
+        return f"Insight unavailable: {exc}"
+
+
+# ---------------------------------------------------------------------------
 # On-demand recap (GUIF-02 / ENGL-03)
 # ---------------------------------------------------------------------------
 
@@ -604,6 +727,91 @@ def generate_recap_on_demand(conn, window_days: int | None = None) -> str:
         return overdue_section + ("\n\n".join(parts) if parts else "Recap generation unavailable (AI adapter not responding).")
     except Exception as exc:
         return f"Error generating recap: {exc}"
+
+
+# ---------------------------------------------------------------------------
+# Weekly synthesis (40-02)
+# ---------------------------------------------------------------------------
+
+def generate_weekly_synthesis(conn) -> str:
+    """Generate an AI weekly synthesis from the last 7 days of notes.
+
+    Always regenerates on call (no caching). Follows the same PII-aware adapter
+    pattern as generate_recap_on_demand, but uses a 7-day window, up to 100 notes,
+    and enriches the prompt with top people and recent action items.
+
+    Returns synthesis string. Returns fallback string on empty DB or error.
+    """
+    try:
+        from engine.paths import CONFIG_PATH
+        window_days = 7
+        max_notes = 100
+        body_trunc = 300
+
+        rows = conn.execute(
+            "SELECT title, body, sensitivity FROM notes "
+            "WHERE created_at >= datetime('now', (? || ' days')) "
+            "ORDER BY created_at DESC LIMIT ?",
+            (f"-{window_days}", max_notes),
+        ).fetchall()
+
+        if not rows:
+            return f"No notes captured in the last {window_days} days."
+
+        # Top people mentioned this week
+        top_people = conn.execute(
+            "SELECT np.person, COUNT(*) AS cnt FROM note_people np "
+            "JOIN notes n ON n.path=np.note_path "
+            "WHERE n.created_at >= datetime('now', '-7 days') "
+            "GROUP BY np.person ORDER BY cnt DESC LIMIT 10",
+        ).fetchall()
+
+        # Recent action items created this week
+        recent_actions = conn.execute(
+            "SELECT text, note_path FROM action_items "
+            "WHERE created_at >= datetime('now', '-7 days') "
+            "ORDER BY created_at DESC LIMIT 20",
+        ).fetchall()
+
+        pii_parts = []
+        public_parts = []
+        for title, body, sensitivity in rows:
+            snippet = f"## {title}\n{body[:body_trunc]}"
+            if sensitivity == "pii":
+                pii_parts.append(snippet)
+            else:
+                public_parts.append(snippet)
+
+        # Build enrichment context
+        enrichment_parts = []
+        if top_people:
+            people_list = ", ".join(f"{p[0]} ({p[1]}x)" for p in top_people)
+            enrichment_parts.append(f"Top people this week: {people_list}")
+        if recent_actions:
+            actions_list = "; ".join(a[0] for a in recent_actions[:10])
+            enrichment_parts.append(f"Recent action items: {actions_list}")
+        enrichment = "\n".join(enrichment_parts)
+
+        result_parts = []
+        if public_parts:
+            text = "\n\n".join(public_parts)
+            if enrichment:
+                text = enrichment + "\n\n" + text
+            adapter = _router.get_adapter("public", CONFIG_PATH)
+            result = adapter.generate(user_content=text, system_prompt=WEEKLY_SYNTHESIS_SYSTEM_PROMPT)
+            if result:
+                result_parts.append(result)
+        if pii_parts:
+            text = "\n\n".join(pii_parts)
+            adapter = _router.get_adapter("pii", CONFIG_PATH)
+            result = adapter.generate(user_content=text, system_prompt=WEEKLY_SYNTHESIS_SYSTEM_PROMPT)
+            if result:
+                result_parts.append(result)
+
+        return "\n\n".join(result_parts) if result_parts else "Synthesis generation unavailable (AI adapter not responding)."
+
+    except Exception as exc:
+        return f"Error generating synthesis: {exc}"
 
 
 # ---------------------------------------------------------------------------

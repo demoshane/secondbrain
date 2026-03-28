@@ -81,6 +81,10 @@ def tmp_brain(tmp_path, monkeypatch):
         " VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
         (path_other, "Personal Note", "idea", "Personal content.", '["personal"]'),
     )
+    # Populate note_tags junction table (search uses this, not the JSON tags column)
+    for tag in ("work", "idea"):
+        conn.execute("INSERT OR IGNORE INTO note_tags (note_path, tag) VALUES (?, ?)", (path_work, tag))
+    conn.execute("INSERT OR IGNORE INTO note_tags (note_path, tag) VALUES (?, ?)", (path_other, "personal"))
     conn.commit()
     conn.close()
 

@@ -351,6 +351,12 @@ class TestForgetCascadeDeletesEmbeddings:
         person_file = people_dir / "alice-smith.md"
         person_file.write_text("---\ntype: person\ntitle: Alice Smith\n---\n")
 
+        # Insert parent note row (FK constraint: note_embeddings.note_path REFERENCES notes.path)
+        db_conn.execute(
+            "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+            " VALUES (?, 'Alice Smith', 'person', '', datetime('now'), datetime('now'))",
+            (str(person_file),),
+        )
         # Insert a note_embeddings row for the person file
         blob = struct.pack("4f", 0.1, 0.2, 0.3, 0.4)
         db_conn.execute(

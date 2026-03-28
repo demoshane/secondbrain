@@ -1085,12 +1085,18 @@ def test_recap_includes_overdue_actions(isolated_brain, monkeypatch):
     monkeypatch.setattr(engine.paths, "BRAIN_ROOT", isolated_brain)
     monkeypatch.setattr(mcp_mod, "BRAIN_ROOT", isolated_brain)
 
-    # Insert an overdue action item
+    # Insert an overdue action item (note must exist in notes due to FK constraint)
+    note_path = str(isolated_brain / "note" / "test.md")
     conn = get_connection(str(engine.db.DB_PATH))
+    conn.execute(
+        "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+        " VALUES (?, 'Test Note', 'note', '', datetime('now'), datetime('now'))",
+        (note_path,),
+    )
     conn.execute(
         "INSERT INTO action_items (text, note_path, done, due_date, created_at) "
         "VALUES (?, ?, 0, '2025-01-01', datetime('now'))",
-        ("Write the spec document", str(isolated_brain / "note" / "test.md")),
+        ("Write the spec document", note_path),
     )
     conn.commit()
     conn.close()

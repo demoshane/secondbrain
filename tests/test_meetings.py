@@ -26,6 +26,7 @@ def client(monkeypatch, tmp_path):
     tmp_db = Path(str(tmp_path / "test.db"))
     monkeypatch.setattr(_db, "DB_PATH", tmp_db)
     monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "BRAIN_ROOT", brain)
     monkeypatch.setenv("BRAIN_PATH", str(brain))
 
     conn = get_connection()
@@ -93,4 +94,66 @@ def test_meeting_detail(client):
     assert "participants" in data
     assert isinstance(data["participants"], list)
     assert "open_actions" in data
+
+
+def test_participant_objects_with_person(client):
+    """GET /meetings/<path> returns participants as [{name, path}] when person note exists."""
+    from engine.db import get_connection
+    c, brain = client
+    conn = get_connection()
+
+    now = "2026-03-01 09:00:00"
+    person_rel = "people/alice.md"
+    meeting_rel = "meetings/sync.md"
+
+    conn.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?)",
+        (person_rel, "Alice", "person", "", "[]", now, now),
+    )
+    conn.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, people, tags, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?,?)",
+        (meeting_rel, "Sync", "meeting", "", '["Alice"]', "[]", now, now),
+    )
+    conn.commit()
+    conn.close()
+
+    abs_meeting = str(brain / meeting_rel)
+    enc = abs_meeting.lstrip("/")
+    resp = c.get(f"/meetings/{enc}")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert isinstance(data["participants"], list)
+    assert len(data["participants"]) == 1
+    p = data["participants"][0]
+    assert p["name"] == "Alice"
+    assert p["path"] == person_rel
+
+
+def test_participant_objects_no_person(client):
+    """GET /meetings/<path> returns participants with path=null when no person note exists."""
+    from engine.db import get_connection
+    c, brain = client
+    conn = get_connection()
+
+    now = "2026-03-01 09:00:00"
+    meeting_rel = "meetings/mystery.md"
+    conn.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, people, tags, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?,?)",
+        (meeting_rel, "Mystery", "meeting", "", '["Unknown Person"]', "[]", now, now),
+    )
+    conn.commit()
+    conn.close()
+
+    abs_meeting = str(brain / meeting_rel)
+    enc = abs_meeting.lstrip("/")
+    resp = c.get(f"/meetings/{enc}")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert len(data["participants"]) == 1
+    p = data["participants"][0]
+    assert p["name"] == "Unknown Person"
+    assert p["path"] is None
     assert isinstance(data["open_actions"], int)

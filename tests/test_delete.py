@@ -56,7 +56,12 @@ def note_file(tmp_path, initialized_db, monkeypatch):
         " VALUES (?, ?, ?, 0)",
         (path_str, b"\x00" * 4, "hash_test"),
     )
-    # relationships rows
+    # relationships rows — both paths must exist in notes (FK constraint)
+    initialized_db.execute(
+        "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+        " VALUES (?, ?, 'note', '', datetime('now'), datetime('now'))",
+        ("other/note.md", "Other Note"),
+    )
     initialized_db.execute(
         "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type)"
         " VALUES (?, ?, ?)",
@@ -316,6 +321,10 @@ def test_delete_person_note_nulls_assignee_path(tmp_path, initialized_db, monkey
         (path_str,),
     )
     initialized_db.execute(
+        "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+        " VALUES ('other.md', 'Other', 'note', '', datetime('now'), datetime('now'))",
+    )
+    initialized_db.execute(
         "INSERT INTO action_items (note_path, text, assignee_path) VALUES ('other.md', 'Do thing', ?)",
         (path_str,),
     )
@@ -378,6 +387,10 @@ def test_get_delete_impact_counts(tmp_path, initialized_db):
     )
     initialized_db.execute(
         "INSERT INTO action_items (note_path, text) VALUES (?, 'A2')", (path_str,)
+    )
+    initialized_db.execute(
+        "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+        " VALUES ('x.md', 'X Note', 'note', '', datetime('now'), datetime('now'))",
     )
     initialized_db.execute(
         "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?, 'x.md', 'link')",

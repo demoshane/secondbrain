@@ -535,6 +535,13 @@ def isolated_link_brain(tmp_path, monkeypatch):
 
     conn = _db.get_connection()
     init_schema(conn)
+    # Seed notes that relationship tests will link — required by FK CASCADE on relationships
+    for path in ("notes/a.md", "notes/b.md"):
+        conn.execute(
+            "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+            " VALUES (?, ?, 'note', '', datetime('now'), datetime('now'))",
+            (path, path),
+        )
     conn.commit()
     conn.close()
 
@@ -665,6 +672,11 @@ def isolated_action_db(tmp_path, monkeypatch):
 
     conn = _db.get_connection()
     init_schema(conn)
+    # Seed parent note first — required by FK CASCADE on action_items.note_path
+    conn.execute(
+        "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+        " VALUES ('/brain/note/test.md', 'Test Note', 'note', '', datetime('now'), datetime('now'))"
+    )
     conn.execute(
         "INSERT INTO action_items (id, note_path, text, done) "
         "VALUES (1, '/brain/note/test.md', 'Test action', 0)"
@@ -1469,3 +1481,22 @@ def test_capture_search_read_integration(isolated_mcp_brain):
     note = mcp_mod.sb_read(note_path)
     assert "content" in note
     assert unique_term in note["content"]
+
+
+def test_capture_creates_audit_log_entry(isolated_mcp_brain):
+    """COV-10: sb_capture writes an audit_log row with event_type='mcp_capture'."""
+    from engine.db import get_connection
+
+    mcp_mod.sb_capture("Audit Test Note", "Body for audit verification", note_type="note")
+
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT event_type, note_path FROM audit_log "
+        "WHERE event_type='mcp_capture' ORDER BY id DESC LIMIT 5"
+    ).fetchall()
+    conn.close()
+
+    assert len(rows) >= 1
+    paths = [r[1] for r in rows]
+    # At least one audit row references a path containing the note title slug
+    assert any("audit-test-note" in (p or "") for p in paths)

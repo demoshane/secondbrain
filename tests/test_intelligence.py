@@ -78,6 +78,12 @@ class TestExtractActionItems:
         conn = _make_db()
         note = tmp_path / "note.md"
         note.write_text("I will call Alice tomorrow and review the PR by Friday.")
+        # Insert the note into notes table first to satisfy FK on action_items.note_path
+        conn.execute(
+            "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+            " VALUES ('note.md', 'Note', 'note', '', datetime('now'), datetime('now'))"
+        )
+        conn.commit()
         with patch("engine.intelligence._router") as mock_router:
             mock_adapter = MagicMock()
             mock_adapter.generate.return_value = "Call Alice tomorrow\nReview PR by Friday"
@@ -106,6 +112,11 @@ class TestActionsList:
         """sb-actions with open items prints table header and rows."""
         from engine.intelligence import actions_main
         conn = _make_db()
+        # Insert parent note first to satisfy FK constraint
+        conn.execute(
+            "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+            " VALUES ('/n/note.md', 'Note', 'note', '', datetime('now'), datetime('now'))"
+        )
         conn.execute(
             "INSERT INTO action_items (note_path, text) VALUES (?, ?)",
             ("/n/note.md", "Call Alice"),
@@ -125,6 +136,11 @@ class TestActionsDone:
         """sb-actions --done <id> sets done=1 for that id."""
         from engine.intelligence import actions_main
         conn = _make_db()
+        # Insert parent note first to satisfy FK constraint
+        conn.execute(
+            "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+            " VALUES ('/n/note.md', 'Note', 'note', '', datetime('now'), datetime('now'))"
+        )
         conn.execute(
             "INSERT INTO action_items (note_path, text) VALUES (?, ?)",
             ("/n/note.md", "Call Alice"),
@@ -452,6 +468,11 @@ def api_client_actions(tmp_path, monkeypatch):
 
     conn = _db.get_connection()
     init_schema(conn)
+    # Insert parent note first to satisfy FK constraint on action_items.note_path
+    conn.execute(
+        "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+        " VALUES ('/brain/note/test.md', 'Test Note', 'note', '', datetime('now'), datetime('now'))"
+    )
     conn.execute(
         "INSERT INTO action_items (id, note_path, text, done) "
         "VALUES (1, '/brain/note/test.md', 'Test action', 0)"
@@ -480,6 +501,15 @@ def test_put_action_due_date(api_client_actions):
     assert row[0] == "2026-04-01"
 
 
+def _make_note(conn, path):
+    """Insert a parent notes row for tests that need to satisfy FK on action_items.note_path."""
+    conn.execute(
+        "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+        " VALUES (?, '', 'note', '', datetime('now'), datetime('now'))",
+        (path,),
+    )
+
+
 def test_overdue_in_recap():
     """generate_recap_on_demand() prepends ## Overdue Actions when overdue items exist."""
     from engine.intelligence import generate_recap_on_demand
@@ -493,6 +523,10 @@ def test_overdue_in_recap():
     yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
     tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
 
+    # Insert parent notes first to satisfy FK constraints
+    _make_note(conn, "/brain/note/overdue.md")
+    _make_note(conn, "/brain/note/future.md")
+    _make_note(conn, "/brain/note/done.md")
     conn.execute(
         "INSERT INTO action_items (note_path, text, done, due_date) VALUES (?, ?, 0, ?)",
         ("/brain/note/overdue.md", "Overdue task", yesterday),
@@ -523,6 +557,7 @@ def test_overdue_not_in_recap_when_none():
     init_schema(conn)
 
     tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+    _make_note(conn, "/brain/note/future.md")
     conn.execute(
         "INSERT INTO action_items (note_path, text, done, due_date) VALUES (?, ?, 0, ?)",
         ("/brain/note/future.md", "Future task", tomorrow),
@@ -542,6 +577,7 @@ def test_list_actions_includes_due_date():
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
     init_schema(conn)
+    _make_note(conn, "/brain/note/test.md")
     conn.execute(
         "INSERT INTO action_items (note_path, text, done, due_date) VALUES (?, ?, 0, ?)",
         ("/brain/note/test.md", "Test task", "2026-04-01"),
@@ -718,3 +754,70 @@ class TestRecapWindowDays:
         assert note_count <= 50, (
             f"Hard cap violated: {note_count} notes passed to adapter (max 50 allowed)"
         )
+
+
+# ---------------------------------------------------------------------------
+# Phase 40-02: Weekly synthesis
+# ---------------------------------------------------------------------------
+
+def test_synthesis_returns_string():
+    """generate_weekly_synthesis returns adapter output when notes exist."""
+    from engine.intelligence import generate_weekly_synthesis
+
+    conn = _make_db()
+    for i in range(2):
+        conn.execute(
+            "INSERT INTO notes (path, type, title, body, tags, people, sensitivity, created_at, updated_at)"
+            " VALUES (?,?,?,?,?,?,?,datetime('now'),datetime('now'))",
+            (f"/n/note{i}.md", "note", f"Note {i}", f"Body {i}", "[]", "[]", "public"),
+        )
+    conn.commit()
+
+    with patch("engine.intelligence._router") as mock_router:
+        mock_adapter = MagicMock()
+        mock_adapter.generate.return_value = "Weekly summary text"
+        mock_router.get_adapter.return_value = mock_adapter
+        result = generate_weekly_synthesis(conn)
+
+    assert "Weekly summary text" in result
+
+
+def test_synthesis_empty_db():
+    """generate_weekly_synthesis returns fallback when no notes exist."""
+    from engine.intelligence import generate_weekly_synthesis
+
+    conn = _make_db()
+    result = generate_weekly_synthesis(conn)
+    assert "No notes captured" in result
+
+
+def test_synthesis_endpoint(tmp_path, monkeypatch):
+    """GET /intelligence/synthesis returns 200 with synthesis key."""
+    import engine.db as _db
+    import engine.paths as _paths
+    import engine.intelligence as _intel
+    from engine.api import app as flask_app
+    from engine.db import init_schema
+
+    brain = tmp_path / "brain"
+    brain.mkdir()
+    tmp_db = tmp_path / "test.db"
+
+    monkeypatch.setattr(_db, "DB_PATH", tmp_db)
+    monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+    monkeypatch.setenv("BRAIN_PATH", str(brain))
+
+    conn = _db.get_connection()
+    init_schema(conn)
+    conn.close()
+
+    monkeypatch.setattr(_intel, "generate_weekly_synthesis", lambda conn: "Test synthesis")
+
+    flask_app.config["TESTING"] = True
+    with flask_app.test_client() as c:
+        resp = c.get("/intelligence/synthesis")
+
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert "synthesis" in data
+    assert data["synthesis"] == "Test synthesis"

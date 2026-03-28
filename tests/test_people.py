@@ -215,6 +215,131 @@ def test_create_person_missing_name(client):
     assert "error" in data
 
 
+def test_person_insight_cache(client, monkeypatch):
+    """GET /persons/<path>/insight uses cached insight when generated_at < 24h ago."""
+    import engine.intelligence as _intel
+    from engine.db import get_connection
+
+    c, brain = client
+
+    person_path_obj = brain / "person" / "alice.md"
+    person_path_obj.write_text("---\ntitle: Alice\ntype: person\n---\n", encoding="utf-8")
+    from engine.paths import store_path as _sp
+    person_rel = _sp(person_path_obj.resolve())
+    now = datetime.datetime.utcnow().isoformat()
+
+    conn = get_connection()
+    conn.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?)",
+        (person_rel, "Alice", "person", "Alice is a colleague.", "[]", now, now),
+    )
+    conn.execute(
+        "INSERT OR REPLACE INTO person_insights (person_path, insight, generated_at)"
+        " VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))",
+        (person_rel, "Cached insight about Alice."),
+    )
+    conn.commit()
+    conn.close()
+
+    generate_calls = []
+
+    class _FakeAdapter:
+        def generate(self, **kw):
+            generate_calls.append(kw)
+            return "Fresh insight"
+
+    monkeypatch.setattr(_intel._router, "get_adapter", lambda *a, **kw: _FakeAdapter())
+
+    encoded = str(person_path_obj).lstrip("/")
+    resp = c.get(f"/persons/{encoded}/insight")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data["insight"] == "Cached insight about Alice."
+    assert len(generate_calls) == 0, "adapter.generate should NOT be called for fresh cache"
+
+
+def test_person_insight_regen(client, monkeypatch):
+    """GET /persons/<path>/insight regenerates when generated_at is older than 24h."""
+    import engine.intelligence as _intel
+    from engine.db import get_connection
+
+    c, brain = client
+
+    person_path_obj = brain / "person" / "bob.md"
+    person_path_obj.write_text("---\ntitle: Bob\ntype: person\n---\n", encoding="utf-8")
+    from engine.paths import store_path as _sp
+    person_rel = _sp(person_path_obj.resolve())
+    now = datetime.datetime.utcnow().isoformat()
+    stale_ts = "2020-01-01T00:00:00Z"
+
+    conn = get_connection()
+    conn.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?)",
+        (person_rel, "Bob", "person", "Bob is a colleague.", "[]", now, now),
+    )
+    conn.execute(
+        "INSERT OR REPLACE INTO person_insights (person_path, insight, generated_at)"
+        " VALUES (?, ?, ?)",
+        (person_rel, "Old insight.", stale_ts),
+    )
+    conn.commit()
+    conn.close()
+
+    generate_calls = []
+
+    class _FakeAdapter:
+        def generate(self, **kw):
+            generate_calls.append(kw)
+            return "Regenerated insight about Bob."
+
+    monkeypatch.setattr(_intel._router, "get_adapter", lambda *a, **kw: _FakeAdapter())
+
+    encoded = str(person_path_obj).lstrip("/")
+    resp = c.get(f"/persons/{encoded}/insight")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data["insight"] == "Regenerated insight about Bob."
+    assert len(generate_calls) == 1, "adapter.generate must be called for stale cache"
+
+
+def test_person_insight_fresh(client, monkeypatch):
+    """GET /persons/<path>/insight generates fresh insight when no cache exists."""
+    import engine.intelligence as _intel
+    from engine.db import get_connection
+
+    c, brain = client
+
+    person_path_obj = brain / "person" / "carol.md"
+    person_path_obj.write_text("---\ntitle: Carol\ntype: person\n---\n", encoding="utf-8")
+    from engine.paths import store_path as _sp
+    person_rel = _sp(person_path_obj.resolve())
+    now = datetime.datetime.utcnow().isoformat()
+
+    conn = get_connection()
+    conn.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?)",
+        (person_rel, "Carol", "person", "Carol runs product.", "[]", now, now),
+    )
+    conn.commit()
+    conn.close()
+
+    class _FakeAdapter:
+        def generate(self, **kw):
+            return "Test insight about Carol."
+
+    monkeypatch.setattr(_intel._router, "get_adapter", lambda *a, **kw: _FakeAdapter())
+
+    encoded = str(person_path_obj).lstrip("/")
+    resp = c.get(f"/persons/{encoded}/insight")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert "Test insight about Carol." in data["insight"]
+    assert "person_path" in data
+
+
 def test_delete_person_clears_assignee(client):
     """DELETE /persons/<path> NULLs assignee_path in action_items before deleting note."""
     from engine.db import get_connection

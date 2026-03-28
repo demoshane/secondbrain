@@ -1793,6 +1793,7 @@ name = "second-brain"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "cryptography" },
     { name = "fastmcp" },
     { name = "flask" },
     { name = "flask-cors" },
@@ -1817,6 +1818,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography", specifier = ">=42.0" },
     { name = "detect-secrets", marker = "extra == 'dev'", specifier = ">=1.5.0" },
     { name = "fastmcp", specifier = ">=3.1.1" },
     { name = "flask", specifier = ">=3.0" },

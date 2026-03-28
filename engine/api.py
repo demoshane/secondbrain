@@ -21,6 +21,7 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
 from engine.db import PERSON_TYPES, PERSON_TYPES_PH, _escape_like, get_connection
+import engine.paths as _engine_paths
 from engine.paths import BRAIN_ROOT, store_path
 from engine.search import search_notes, _apply_filters
 from engine.intelligence import list_actions
@@ -232,16 +233,18 @@ def search():
             """
             rows = conn.execute(sql, (first_tag,)).fetchall()
             if rest_tags:
-                # For each candidate, fetch its tags from junction table and check all required tags present
-                filtered_rows = []
-                for r in rows:
-                    note_tags_rows = conn.execute(
-                        "SELECT tag FROM note_tags WHERE note_path=?", (r["path"],)
+                # F-16: batch IN-clause instead of N+1 per-row queries
+                candidate_paths = [r["path"] for r in rows]
+                if candidate_paths:
+                    placeholders = ",".join("?" * len(candidate_paths))
+                    tag_rows = conn.execute(
+                        f"SELECT note_path, tag FROM note_tags WHERE note_path IN ({placeholders})",  # noqa: S608
+                        candidate_paths,
                     ).fetchall()
-                    note_tag_set = {nt["tag"] for nt in note_tags_rows}
-                    if rest_tags.issubset(note_tag_set):
-                        filtered_rows.append(r)
-                rows = filtered_rows
+                    path_tags: dict[str, set[str]] = {}
+                    for tr in tag_rows:
+                        path_tags.setdefault(tr["note_path"], set()).add(tr["tag"])
+                    rows = [r for r in rows if rest_tags.issubset(path_tags.get(r["path"], set()))]
             results = [
                 {
                     "path": r["path"],
@@ -255,17 +258,19 @@ def search():
         else:
             results = search_notes(conn, query)
             if tags_filter:
-                # Post-filter FTS results using note_tags junction table (semgrep-safe: no dynamic SQL)
+                # F-16: batch IN-clause instead of N+1 per-row queries
                 tags_set = set(tags_filter)
-                filtered = []
-                for r in results:
-                    note_tags_rows = conn.execute(
-                        "SELECT tag FROM note_tags WHERE note_path=?", (r["path"],)
+                candidate_paths = [r["path"] for r in results]
+                if candidate_paths:
+                    placeholders = ",".join("?" * len(candidate_paths))
+                    tag_rows = conn.execute(
+                        f"SELECT note_path, tag FROM note_tags WHERE note_path IN ({placeholders})",  # noqa: S608
+                        candidate_paths,
                     ).fetchall()
-                    note_tag_set = {nt["tag"] for nt in note_tags_rows}
-                    if tags_set.issubset(note_tag_set):
-                        filtered.append(r)
-                results = filtered
+                    path_tags: dict[str, set[str]] = {}
+                    for tr in tag_rows:
+                        path_tags.setdefault(tr["note_path"], set()).add(tr["tag"])
+                    results = [r for r in results if tags_set.issubset(path_tags.get(r["path"], set()))]
         # Apply entity filters (person, tag, note_type, from_date, to_date) — AND logic
         results = _apply_filters(
             results, conn,
@@ -297,6 +302,14 @@ def _resolve_note_path(note_path: str) -> tuple[Path, Path]:
     if not p.is_relative_to(brain_root):
         raise ValueError("path traversal")
     return p, brain_root
+
+
+def _resolve_participant(conn, name: str) -> dict:
+    """Best-effort resolve a participant name to a person note path. Path is null if no match."""
+    row = conn.execute(
+        "SELECT path FROM notes WHERE type IN ('person') AND title=?", (name,)
+    ).fetchone()
+    return {"name": name, "path": row["path"] if row else None}
 
 
 @app.get("/notes/<path:note_path>")
@@ -396,7 +409,8 @@ def get_meeting(note_path):
         if row is None:
             return jsonify({"error": "not found"}), 404
         try:
-            participants = json.loads(row["people"] or "[]")
+            raw_participants = json.loads(row["people"] or "[]")
+            participants = [_resolve_participant(conn, name) for name in raw_participants]
         except Exception:
             participants = []
         open_actions = conn.execute(
@@ -426,8 +440,12 @@ def list_projects():
             "SELECT COUNT(*) FROM notes WHERE type = 'projects'"
         ).fetchone()[0]
         rows = conn.execute(
-            "SELECT n.path, n.title, substr(n.updated_at,1,10) AS updated_at, "
-            "  (SELECT COUNT(*) FROM action_items a WHERE a.note_path=n.path AND a.done=0) AS open_actions "
+            "SELECT n.path, n.title, n.status, substr(n.updated_at,1,10) AS updated_at, "
+            "  (SELECT COUNT(*) FROM action_items a WHERE a.note_path=n.path AND a.done=0) AS open_actions, "
+            "  (SELECT COUNT(DISTINCT m.path) FROM notes m "
+            "   JOIN relationships r ON (r.source_path=m.path OR r.target_path=m.path) "
+            "   WHERE (r.source_path=n.path OR r.target_path=n.path) AND m.type='meeting') "
+            "  AS linked_meetings_count "
             "FROM notes n WHERE n.type = 'projects' ORDER BY n.updated_at DESC LIMIT ? OFFSET ?",
             (limit, offset),
         ).fetchall()
@@ -445,25 +463,79 @@ def get_project(note_path):
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     try:
+        sp = store_path(abs_path)
         row = conn.execute(
-            "SELECT path, title, body, substr(updated_at,1,10) AS updated_at FROM notes WHERE path=?",
-            (store_path(abs_path),)
+            "SELECT path, title, body, status, substr(updated_at,1,10) AS updated_at FROM notes WHERE path=?",
+            (sp,)
         ).fetchone()
         if row is None:
             return jsonify({"error": "not found"}), 404
         open_actions = conn.execute(
             "SELECT COUNT(*) FROM action_items WHERE note_path=? AND done=0",
-            (store_path(abs_path),)
+            (sp,)
         ).fetchone()[0]
+        related_notes_count = conn.execute(
+            "SELECT COUNT(*) FROM relationships WHERE source_path=? OR target_path=?",
+            (sp, sp)
+        ).fetchone()[0]
+        linked_meetings_count = conn.execute(
+            "SELECT COUNT(DISTINCT n.path) FROM notes n "
+            "JOIN relationships r ON (r.source_path=n.path OR r.target_path=n.path) "
+            "WHERE (r.source_path=? OR r.target_path=?) AND n.type='meeting'",
+            (sp, sp)
+        ).fetchone()[0]
+        linked_meetings_rows = conn.execute(
+            "SELECT DISTINCT n.path, n.title, substr(n.created_at,1,10) AS meeting_date "
+            "FROM notes n "
+            "JOIN relationships r ON (r.source_path=n.path OR r.target_path=n.path) "
+            "WHERE (r.source_path=? OR r.target_path=?) AND n.type='meeting' "
+            "ORDER BY n.created_at DESC",
+            (sp, sp),
+        ).fetchall()
+        linked_meetings = [
+            {"path": m["path"], "title": m["title"] or "", "meeting_date": m["meeting_date"] or ""}
+            for m in linked_meetings_rows
+        ]
     finally:
         conn.close()
     return jsonify({
         "path": row["path"],
         "title": row["title"] or "",
         "body": row["body"] or "",
+        "status": row["status"] or "active",
         "updated_at": row["updated_at"] or "",
         "open_actions": open_actions,
+        "related_notes_count": related_notes_count,
+        "linked_meetings_count": linked_meetings_count,
+        "linked_meetings": linked_meetings,
     })
+
+
+@app.put("/projects/<path:note_path>/status")
+def update_project_status(note_path):
+    try:
+        abs_path, _brain_root = _resolve_note_path(note_path)
+    except ValueError:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.get_json(force=True) or {}
+    status = data.get("status", "")
+    if status not in VALID_PROJECT_STATUSES:
+        return jsonify({"error": f"status must be one of {sorted(VALID_PROJECT_STATUSES)}"}), 400
+    conn = get_connection()
+    try:
+        sp = store_path(abs_path)
+        row = conn.execute("SELECT id FROM notes WHERE path=?", (sp,)).fetchone()
+        if row is None:
+            return jsonify({"error": "not found"}), 404
+        conn.execute(
+            "UPDATE notes SET status=?, updated_at=strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE path=?",
+            (status, sp),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    _broadcast({"type": "notes_changed"})
+    return jsonify({"status": status, "path": sp})
 
 
 @app.post("/persons")
@@ -582,6 +654,29 @@ def get_person_links(note_path):
     finally:
         conn.close()
     return jsonify({"meeting_count": mention_count, "action_count": action_count})
+
+
+@app.get("/persons/<path:note_path>/insight")
+def get_person_insight(note_path):
+    try:
+        abs_path, _brain_root = _resolve_note_path(note_path)
+    except ValueError:
+        return jsonify({"error": "forbidden"}), 403
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    try:
+        sp = store_path(abs_path)
+        row = conn.execute("SELECT type FROM notes WHERE path=?", (sp,)).fetchone()
+        if row is None:
+            return jsonify({"error": "not found"}), 404
+        if row["type"] not in ("person",):
+            return jsonify({"error": "not a person note"}), 400
+        force = request.args.get("force", "0") == "1"
+        from engine.intelligence import generate_person_insight
+        insight = generate_person_insight(conn, sp, force=force)
+        return jsonify({"insight": insight, "person_path": sp})
+    finally:
+        conn.close()
 
 
 @app.delete("/persons/<path:note_path>")
@@ -765,6 +860,47 @@ def get_actions():
     return jsonify({"actions": paginated, "total": total, "limit": limit, "offset": offset})
 
 
+@app.get("/actions/grouped")
+def get_actions_grouped():
+    """Action items grouped by source note (per D-18)."""
+    done = request.args.get("done", "0") == "1"
+    assignee = request.args.get("assignee") or None
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    try:
+        actions = list_actions(conn, done=done, assignee=assignee)
+
+        note_paths = list({a["note_path"] for a in actions if a.get("note_path")})
+        title_map = {}
+        if note_paths:
+            placeholders = ",".join("?" for _ in note_paths)
+            title_rows = conn.execute(
+                f"SELECT path, title FROM notes WHERE path IN ({placeholders})",
+                note_paths,
+            ).fetchall()
+            title_map = {r["path"]: r["title"] or r["path"] for r in title_rows}
+    finally:
+        conn.close()
+
+    from collections import defaultdict
+    groups_map = defaultdict(list)
+    for a in actions:
+        np = a.get("note_path") or ""
+        groups_map[np].append(a)
+
+    groups = [
+        {
+            "note_path": np,
+            "note_title": title_map.get(np, np),
+            "actions": items,
+        }
+        for np, items in groups_map.items()
+    ]
+    groups.sort(key=lambda g: g["note_title"].lower())
+
+    return jsonify({"groups": groups, "total": len(actions)})
+
+
 _PREFS_FILE = _Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))) / ".sb-gui-prefs.json"
 
 
@@ -945,6 +1081,8 @@ def save_note(note_path):
     return jsonify({"saved": True, "path": str(p)})
 
 
+VALID_PROJECT_STATUSES = {"active", "paused", "completed"}
+
 VALID_NOTE_TYPES = {
     "note", "meeting", "person", "idea", "link",
     "project", "coding", "strategy", "personal", "files",
@@ -1048,15 +1186,14 @@ def note_meta(note_path):
         title_row = conn.execute(
             "SELECT title FROM notes WHERE path=?", (db_path,)
         ).fetchone()
-        if title_row and title_row["title"]:
-            rows = conn.execute(
-                "SELECT path, title FROM notes "
-                "WHERE path != ? AND LOWER(body) LIKE LOWER(?)",
-                (db_path, f"%{title_row['title']}%"),
-            ).fetchall()
-            backlinks = [dict(r) for r in rows]
-        else:
-            backlinks = []
+        # F-05: use pre-computed relationships table instead of full-table body LIKE scan
+        backlink_rows = conn.execute(
+            "SELECT r.source_path AS path, n.title FROM relationships r "
+            "JOIN notes n ON n.path = r.source_path "
+            "WHERE r.target_path = ? AND r.rel_type = 'backlink'",
+            (db_path,)
+        ).fetchall()
+        backlinks = [{"path": r["path"], "title": r["title"]} for r in backlink_rows]
         related = []
         if title_row:
             related_rows = search_notes(conn, title_row["title"])
@@ -1205,8 +1342,8 @@ def move_file():
     src_p = _Path(src).resolve()
     dst_p = _Path(dst).resolve()
     # ARCH-07: path traversal guard — both src and dst must be within BRAIN_ROOT
-    from engine.paths import BRAIN_ROOT
-    if not src_p.is_relative_to(BRAIN_ROOT) or not dst_p.is_relative_to(BRAIN_ROOT):
+    # Use _engine_paths.BRAIN_ROOT (module attribute) so monkeypatched test values are picked up
+    if not src_p.is_relative_to(_engine_paths.BRAIN_ROOT) or not dst_p.is_relative_to(_engine_paths.BRAIN_ROOT):
         return jsonify({"error": "Path outside brain directory"}), 403
     if not src_p.exists():
         return jsonify({"error": "src not found"}), 404
@@ -1463,6 +1600,20 @@ def intelligence_recap():
         conn.close()
 
 
+@app.get("/intelligence/synthesis")
+def intelligence_synthesis():
+    """On-demand weekly synthesis. Regenerated on every call (per D-09)."""
+    conn = get_connection()
+    try:
+        from engine.intelligence import generate_weekly_synthesis
+        text = generate_weekly_synthesis(conn)
+        return jsonify({"synthesis": text})
+    except Exception as exc:
+        return jsonify({"synthesis": f"Error: {exc}"}), 500
+    finally:
+        conn.close()
+
+
 @app.get("/inbox")
 def get_inbox():
     """Return inbox items: unassigned actions, unprocessed notes, empty notes."""
@@ -1595,7 +1746,6 @@ def smart_capture():
 
     from engine.segmenter import segment_blob
     from engine.capture import capture_note
-    from engine.paths import BRAIN_ROOT
     import uuid
 
     source_url = data.get("source_url", "")
@@ -1611,7 +1761,7 @@ def smart_capture():
                 path = capture_note(
                     note_type=seg["type"], title=seg["title"], body=seg["body"],
                     tags=[], people=seg.get("entities", {}).get("people", []),
-                    content_sensitivity="public", brain_root=BRAIN_ROOT, conn=conn,
+                    content_sensitivity="public", brain_root=_engine_paths.BRAIN_ROOT, conn=conn,
                     url=source_url or None, source_type=source_type or None,
                 )
                 saved.append({"title": seg["title"], "type": seg["type"], "path": str(path)})
@@ -1651,13 +1801,12 @@ def brain_health_endpoint():
             archive_old_action_items,
         )
         from engine.links import check_links
-        from engine.paths import BRAIN_ROOT
         total = conn.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
         orphans = get_orphan_notes(conn)
         empty = get_empty_notes(conn)
         stubs = get_stub_notes(conn)
         missing_files = get_missing_file_notes(conn)
-        broken = check_links(BRAIN_ROOT, conn)
+        broken = check_links(_engine_paths.BRAIN_ROOT, conn)
         duplicates = get_duplicate_candidates(conn)
         archived_count = archive_old_action_items(conn)
         score = compute_health_score(

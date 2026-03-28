@@ -31,11 +31,18 @@ def client(monkeypatch, tmp_path):
 
     now = datetime.datetime.utcnow().isoformat()
 
+    # Seed: parent note for action item (FK constraint requires note to exist)
+    action_note_path = str(brain / "ideas" / "some-idea.md")
+    conn.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (action_note_path, "Some Idea", "ideas", "Action source.", "[]", now, now),
+    )
     # Seed: one unassigned open action item
     conn.execute(
         "INSERT INTO action_items (note_path, text, done, assignee_path)"
         " VALUES (?, ?, ?, ?)",
-        (str(brain / "ideas" / "some-idea.md"), "Do something important", 0, None),
+        (action_note_path, "Do something important", 0, None),
     )
 
     # Seed: one unprocessed note (type='ideas', recent, no tags, no relationships)
@@ -163,6 +170,15 @@ def test_relationships_create(client):
     c, brain, unprocessed_path, _ep = client
 
     target_path = str(brain / "ideas" / "target-note.md")
+    now = datetime.datetime.utcnow().isoformat()
+    conn = get_connection()
+    conn.execute(
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (target_path, "Target Note", "ideas", "", "[]", now, now),
+    )
+    conn.commit()
+    conn.close()
     resp = c.post(
         "/relationships",
         data=json.dumps({"source_path": unprocessed_path, "target_path": target_path}),

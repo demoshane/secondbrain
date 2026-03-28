@@ -6,10 +6,14 @@ This module checks brain data quality: orphans, broken links, duplicate notes.
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 from pathlib import Path
 
 from engine.paths import CONFIG_PATH
+
+logger = logging.getLogger(__name__)
+_ORPHAN_CHECK_CAP = 10000
 
 
 def get_orphan_notes(conn: sqlite3.Connection) -> list[dict]:
@@ -34,10 +38,12 @@ def get_orphan_notes(conn: sqlite3.Connection) -> list[dict]:
     return [{"path": row[0], "title": row[1]} for row in rows]
 
 
-def get_missing_file_notes(conn: sqlite3.Connection) -> list[dict]:
+def get_missing_file_notes(conn: sqlite3.Connection, cap: int = _ORPHAN_CHECK_CAP) -> list[dict]:
     """Return DB rows whose file no longer exists on disk (disk orphans)."""
     import os
-    rows = conn.execute("SELECT path, title FROM notes LIMIT 500").fetchall()
+    rows = conn.execute("SELECT path, title FROM notes WHERE archived = 0 LIMIT ?", (cap,)).fetchall()
+    if len(rows) == cap:
+        logger.warning("Orphan check truncated at %d rows — increase cap for full coverage", cap)
     return [{"path": r[0], "title": r[1]} for r in rows if not os.path.exists(r[0])]
 
 

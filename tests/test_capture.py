@@ -80,20 +80,7 @@ def test_rollback_on_index_failure(tmp_path, initialized_db):
     assert leftovers == [], f"Temp files leaked: {leftovers}"
 
 
-def test_template_applied(tmp_path, initialized_db):
-    from engine.templates import load_template, render_template
-
-    # Write a minimal template file to a temp templates dir
-    templates_dir = tmp_path / "templates"
-    templates_dir.mkdir()
-    template_file = templates_dir / "meeting.md"
-    template_file.write_text("## Attendees\n\n${people}\n\n## Notes\n\n${body}\n")
-
-    tmpl = load_template("meeting", templates_dir=templates_dir)
-    rendered = render_template(tmpl, {"title": "Sprint Review", "body": "We reviewed the sprint.", "people": "Alice, Bob"})
-
-    assert "Alice, Bob" in rendered
-    assert "We reviewed the sprint." in rendered
+# templates.py tests removed — module deleted in Phase 39 remediation (F-02)
 
 
 def test_error_message_no_body_content(tmp_path, initialized_db):

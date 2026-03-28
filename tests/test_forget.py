@@ -145,6 +145,17 @@ def test_forget_removes_relationships_from_db(brain_tmp):
     brain_root, conn = brain_tmp
     person_path = str(brain_root / "people" / "alice-smith.md")
     other_path = str(brain_root / "notes" / "other.md")
+    # Insert parent notes rows first to satisfy FK constraints on relationships
+    conn.execute(
+        "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+        " VALUES (?, 'Alice Smith', 'person', '', datetime('now'), datetime('now'))",
+        (person_path,),
+    )
+    conn.execute(
+        "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+        " VALUES (?, 'Other Note', 'note', '', datetime('now'), datetime('now'))",
+        (other_path,),
+    )
     conn.execute(
         "INSERT INTO relationships (source_path, target_path) VALUES (?, ?)",
         (person_path, other_path),
@@ -265,6 +276,11 @@ def test_forget_person_nulls_assignee_path(brain_tmp):
         "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
         " VALUES (?, 'Dave Smith', 'person', '', datetime('now'), datetime('now'))",
         (person_path,),
+    )
+    # Insert parent note for 'other.md' to satisfy FK on action_items.note_path
+    conn.execute(
+        "INSERT OR IGNORE INTO notes (path, title, type, body, created_at, updated_at)"
+        " VALUES ('other.md', 'Other Note', 'note', '', datetime('now'), datetime('now'))"
     )
     conn.execute(
         "INSERT INTO action_items (note_path, text, assignee_path) VALUES ('other.md', 'Task', ?)",
