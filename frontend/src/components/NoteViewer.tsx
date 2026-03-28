@@ -1,111 +1,69 @@
 import { useState, useEffect } from 'react'
-import MDEditor from '@uiw/react-md-editor'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { Pencil, Upload, Trash2, Paperclip } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Edit, Paperclip, Plus, X } from 'lucide-react'
+import { NoteTypeBadge } from '@/components/ui/note-type-badge'
+import { TagBadge } from '@/components/ui/tag-badge'
+import { PersonBadge } from '@/components/ui/person-badge'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { NoteEditor } from './NoteEditor'
 import { useNoteContext } from '@/contexts/NoteContext'
 import { useSearchContext } from '@/contexts/SearchContext'
-import { NoteEditor } from './NoteEditor'
-import { ActionItemList } from './ActionItemList'
-import { TagAutocomplete } from './TagAutocomplete'
-import { PersonAutocomplete } from './PersonAutocomplete'
 import { getAPI, encodePath } from '@/lib/utils'
 import { toast } from 'sonner'
-import type { Note, Attachment, ActionItem } from '@/types'
+import type { Note, Attachment } from '@/types'
 
 interface Props {
   note: Note
 }
 
+function relativeTime(dateStr: string): string {
+  if (!dateStr) return ''
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const seconds = Math.floor(diff / 1000)
+  if (seconds < 60) return 'just now'
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days} day${days !== 1 ? 's' : ''} ago`
+  const weeks = Math.floor(days / 7)
+  if (weeks < 5) return `${weeks} week${weeks !== 1 ? 's' : ''} ago`
+  const months = Math.floor(days / 30)
+  if (months < 12) return `${months} month${months !== 1 ? 's' : ''} ago`
+  return `${Math.floor(months / 12)} year${Math.floor(months / 12) !== 1 ? 's' : ''} ago`
+}
+
 export function NoteViewer({ note }: Props) {
   const [editing, setEditing] = useState(false)
   const [attachments, setAttachments] = useState<Attachment[]>([])
-  const [localTags, setLocalTags] = useState<string[]>(note.tags ?? [])
-  const [editingTag, setEditingTag] = useState<string | null>(null)
-  const [addingTag, setAddingTag] = useState(false)
-  const [newTag, setNewTag] = useState('')
-  const [localPeople, setLocalPeople] = useState<string[]>(note.people ?? [])
-  const [addingPerson, setAddingPerson] = useState(false)
-  const [noteActions, setNoteActions] = useState<ActionItem[]>([])
-  const [actionPeople, setActionPeople] = useState<Note[]>([])
-  const { setIsDirty } = useNoteContext()
+  const [showDelete, setShowDelete] = useState(false)
+  const { loadNotes, setIsDirty } = useNoteContext()
   const { setTagFilter } = useSearchContext()
-
-  const savePeopleFieldLevel = (newPeople: string[]) => {
-    const prev = localPeople
-    setLocalPeople(newPeople)
-    fetch(`${getAPI()}/notes/${encodePath(note.path)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ people: newPeople }),
-    })
-      .then(() => toast.success('People saved'))
-      .catch(() => { toast.error('Something went wrong -- try again'); setLocalPeople(prev) })
-  }
-
-  const saveTagsFieldLevel = (newTags: string[]) => {
-    fetch(`${getAPI()}/notes/${encodePath(note.path)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tags: newTags }),
-    })
-      .then(() => toast.success('Tags saved'))
-      .catch(() => toast.error('Something went wrong -- try again'))
-  }
 
   useEffect(() => {
     setEditing(false)
-    setLocalTags(note.tags ?? [])
-    setEditingTag(null)
-    setAddingTag(false)
-    setNewTag('')
-    setLocalPeople(note.people ?? [])
-    setAddingPerson(false)
+    setShowDelete(false)
     fetch(`${getAPI()}/notes/attachments?path=${encodeURIComponent(note.path)}`)
       .then(r => r.json())
       .then(d => setAttachments(d.attachments ?? []))
       .catch(() => setAttachments([]))
-    // Fetch actions for this note (client-side filter by note_path)
-    fetch(`${getAPI()}/actions`)
-      .then(r => r.json())
-      .then(d => {
-        const all: ActionItem[] = d.actions ?? []
-        setNoteActions(all.filter(a => a.note_path === note.path))
-      })
-      .catch(() => setNoteActions([]))
-    // Fetch people for assignee picker
-    fetch(`${getAPI()}/notes`)
-      .then(r => r.json())
-      .then(d => setActionPeople((d.notes ?? []).filter((n: Note) => n.type === 'person')))
-      .catch(() => setActionPeople([]))
   }, [note.path])
 
-  const reloadNoteActions = () => {
-    fetch(`${getAPI()}/actions`)
-      .then(r => r.json())
-      .then(d => {
-        const all: ActionItem[] = d.actions ?? []
-        setNoteActions(all.filter(a => a.note_path === note.path))
-      })
-      .catch(() => {})
-  }
-
-  const toggleDone = async (action: ActionItem) => {
-    await fetch(`${getAPI()}/actions/${action.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ done: !action.done }),
-    })
-    reloadNoteActions()
-  }
-
-  const assignTo = async (action: ActionItem, assigneePath: string) => {
-    await fetch(`${getAPI()}/actions/${action.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ assignee_path: assigneePath === 'none' ? null : assigneePath }),
-    })
-    reloadNoteActions()
+  const handleDelete = async () => {
+    try {
+      const res = await fetch(`${getAPI()}/notes/${encodePath(note.path)}`, { method: 'DELETE' })
+      if (res.ok) {
+        toast.success('Note deleted')
+        await loadNotes()
+      } else {
+        toast.error('Delete failed. Try again or check the app logs.')
+      }
+    } catch {
+      toast.error('Delete failed. Try again or check the app logs.')
+    }
   }
 
   if (editing) {
@@ -118,143 +76,87 @@ export function NoteViewer({ note }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" data-testid="note-viewer">
-      <div className="flex items-center justify-between px-4 py-2 border-b">
-        <h1 className="text-lg font-semibold truncate" data-testid="note-title">{note.title}</h1>
-        <Button size="sm" variant="ghost" onClick={() => setEditing(true)} data-testid="edit-btn">
-          <Edit className="h-4 w-4" />
-        </Button>
+    <div className="flex-1 overflow-y-auto p-6 bg-background" data-testid="note-viewer">
+      {/* Title */}
+      <h1 className="text-xl font-semibold text-foreground mb-1" data-testid="note-title">
+        {note.title}
+      </h1>
+
+      {/* Metadata row */}
+      <div className="flex items-center gap-3 text-xs text-muted-foreground mb-4">
+        <NoteTypeBadge type={note.type || 'note'} />
+        {note.updated_at && (
+          <span title={note.updated_at}>{relativeTime(note.updated_at)}</span>
+        )}
+        {note.created_at && (
+          <span title={note.created_at}>Created {relativeTime(note.created_at)}</span>
+        )}
       </div>
-      <div className="flex flex-wrap gap-1 items-center px-4 py-1 border-b" data-testid="tag-chips">
-        {localTags.map(tag => (
-          editingTag === tag ? (
-            <input
+
+      {/* Tags row */}
+      {note.tags && note.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-3">
+          {note.tags.map(tag => (
+            <TagBadge
               key={tag}
-              className="tag-chip-input text-xs border rounded px-1 w-20 bg-background text-foreground"
-              autoFocus
-              defaultValue={tag}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const newTag = (e.target as HTMLInputElement).value.trim()
-                  if (newTag && newTag !== tag) {
-                    const newTags = localTags.map(t => t === tag ? newTag : t)
-                    setLocalTags(newTags)
-                    saveTagsFieldLevel(newTags)
-                  }
-                  setEditingTag(null)
-                } else if (e.key === 'Escape') {
-                  setEditingTag(null)
-                }
-              }}
-              onBlur={() => setEditingTag(null)}
-            />
-          ) : (
-            <Badge
-              key={tag}
-              variant="secondary"
-              className="cursor-pointer hover:bg-accent group"
-              data-testid={`tag-${tag}`}
+              tag={tag}
               onClick={() => setTagFilter(tag)}
-              onDoubleClick={() => setEditingTag(tag)}
-            >
-              {tag}
-              <button
-                className="ml-1 opacity-0 group-hover:opacity-100 hover:text-destructive"
-                onClick={e => {
-                  e.stopPropagation()
-                  const newTags = localTags.filter(t => t !== tag)
-                  setLocalTags(newTags)
-                  saveTagsFieldLevel(newTags)
-                }}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          )
-        ))}
-        {addingTag ? (
-          <TagAutocomplete
-            value={newTag}
-            onChange={setNewTag}
-            onSelect={(tag) => {
-              if (tag && !localTags.includes(tag)) {
-                const newTags = [...localTags, tag]
-                setLocalTags(newTags)
-                saveTagsFieldLevel(newTags)
-              }
-              setNewTag('')
-              setAddingTag(false)
-            }}
-            onBlur={() => setAddingTag(false)}
-            placeholder="Add tag..."
-          />
-        ) : (
-          <button
-            className="text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => setAddingTag(true)}
-          >
-            <Plus className="h-3 w-3" />
-          </button>
-        )}
-      </div>
-      <div className="flex flex-wrap gap-1 items-center px-4 py-1 border-b" data-testid="people-chips">
-        {localPeople.map(personPath => (
-          <Badge
-            key={personPath}
-            variant="secondary"
-            className="cursor-default group"
-            data-testid={`person-${personPath.replace(/[^a-z0-9]/gi, '-').toLowerCase()}`}
-          >
-            {personPath.split('/').pop()?.replace('.md', '').replace(/-/g, ' ') ?? personPath}
-            <button
-              className="ml-1 opacity-0 group-hover:opacity-100 hover:text-destructive"
-              aria-label={`Remove ${personPath}`}
-              onClick={e => {
-                e.stopPropagation()
-                savePeopleFieldLevel(localPeople.filter(p => p !== personPath))
-              }}
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </Badge>
-        ))}
-        {addingPerson ? (
-          <PersonAutocomplete
-            existingPeople={localPeople}
-            onAdd={personPath => {
-              if (!localPeople.includes(personPath)) {
-                savePeopleFieldLevel([...localPeople, personPath])
-              }
-              setAddingPerson(false)
-            }}
-            onBlur={() => setAddingPerson(false)}
-          />
-        ) : (
-          <button
-            className="text-xs text-muted-foreground hover:text-foreground"
-            aria-label="Add person"
-            onClick={() => setAddingPerson(true)}
-          >
-            <Plus className="h-3 w-3" />
-          </button>
-        )}
-      </div>
-      <div className="flex-1 overflow-auto px-4 py-3" data-testid="note-body" data-color-mode={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}>
-        <MDEditor.Markdown source={note.body ?? ''} style={{ background: 'transparent', padding: 0 }} />
-      </div>
-      {noteActions.length > 0 && (
-        <div className="px-4 py-3 border-t" data-testid="note-action-items">
-          <h3 className="text-lg font-semibold mb-2">Action Items</h3>
-          <ActionItemList
-            actions={noteActions}
-            people={actionPeople}
-            onToggle={toggleDone}
-            onAssign={assignTo}
-          />
+            />
+          ))}
         </div>
       )}
+
+      {/* People row */}
+      {note.people && note.people.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-3">
+          {note.people.map(personPath => (
+            <PersonBadge
+              key={personPath}
+              name={personPath.split('/').pop()?.replace('.md', '').replace(/-/g, ' ') ?? personPath}
+              path={personPath}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Action bar */}
+      <div className="flex items-center gap-1 mb-4 border-b border-border pb-3 group">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setEditing(true)}
+          data-testid="edit-btn"
+        >
+          <Pencil className="h-4 w-4 mr-1" />
+          Edit Note
+        </Button>
+        <Button variant="ghost" size="sm">
+          <Upload className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-destructive opacity-0 group-hover:opacity-100"
+          onClick={() => setShowDelete(true)}
+          data-testid="delete-btn"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Markdown body */}
+      <div
+        className="text-sm leading-relaxed text-foreground [&_h1]:text-lg [&_h1]:font-semibold [&_h1]:mt-4 [&_h1]:mb-2 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1 [&_a]:text-primary [&_a]:underline [&_code]:bg-muted [&_code]:px-1 [&_code]:rounded [&_pre]:bg-muted [&_pre]:p-3 [&_pre]:rounded [&_ul]:list-disc [&_ul]:ml-4 [&_ol]:list-decimal [&_ol]:ml-4 [&_blockquote]:border-l-2 [&_blockquote]:border-primary [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground"
+        data-testid="note-body"
+      >
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          {note.body ?? ''}
+        </ReactMarkdown>
+      </div>
+
+      {/* Attachments section */}
       {attachments.length > 0 && (
-        <div className="px-4 py-2 border-t" data-testid="attachment-list">
+        <div className="mt-4 pt-3 border-t border-border" data-testid="attachment-list">
           <div className="flex items-center gap-1 mb-1 text-xs font-semibold uppercase text-muted-foreground">
             <Paperclip className="h-3 w-3" />
             Attachments
@@ -270,6 +172,18 @@ export function NoteViewer({ note }: Props) {
           </ul>
         </div>
       )}
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        onConfirm={handleDelete}
+        title={`Delete '${note.title}'?`}
+        description="This cannot be undone. Backlinks, attachments, and action items will also be removed."
+        confirmLabel="Delete Note"
+        cancelLabel="Keep Note"
+        variant="destructive"
+      />
     </div>
   )
 }
