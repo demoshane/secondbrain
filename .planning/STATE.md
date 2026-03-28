@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
-status: Ready to execute
-stopped_at: "Completed 41.1-03-PLAN.md — Intelligence page: Priority Actions, Quick Capture, stale notes days-badges"
-last_updated: "2026-03-28T13:10:45.744Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 41.1-02-PLAN.md — ActionsPage source-note grouping + MeetingsPage date chips
+last_updated: "2026-03-28T13:12:21.282Z"
 progress:
   total_phases: 15
-  completed_phases: 10
+  completed_phases: 11
   total_plans: 68
-  completed_plans: 66
+  completed_plans: 67
 ---
 
 # Project State
@@ -70,6 +70,7 @@ Plan: 4 of 4
 | Phase 41.1-visual-fidelity P01 | 83 | 2 tasks | 2 files |
 | Phase 41.1 P04 | 96 | 2 tasks | 3 files |
 | Phase 41.1 P03 | 115 | 2 tasks | 1 files |
+| Phase 41.1 P02 | 691 | 2 tasks | 2 files |
 
 ### Decisions
 
@@ -158,6 +159,8 @@ Active decisions affecting upcoming work:
 - [Phase 41.1]: ProjectsPage stat tiles placed inside header block with mt-4 — tiles feel attached to header
 - [Phase 41.1]: Priority Actions urgency computed client-side: overdue=High(red), <=7d=Med(amber), >7d=Low(green)
 - [Phase 41.1]: Quick Capture on IntelligencePage POSTs to /capture with note_type:note — same contract as other capture paths
+- [Phase 41.1]: ActionsPage per-group collapse uses Map<string, boolean> with allCollapsed as fallback default
+- [Phase 41.1]: MeetingsPage date chip uses formatDateChip() helper returning {month, day} with MONTH_ABBR lookup
 
 ### Pending Todos
 
@@ -189,8 +192,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-28T13:10:45.732Z
-Stopped at: Completed 41.1-03-PLAN.md — Intelligence page: Priority Actions, Quick Capture, stale notes days-badges
+Last session: 2026-03-28T13:12:21.271Z
+Stopped at: Completed 41.1-02-PLAN.md — ActionsPage source-note grouping + MeetingsPage date chips
 Resume file: None
 
 ### Next action

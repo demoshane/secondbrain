@@ -2,6 +2,18 @@ import { useState, useEffect } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Calendar, Plus, Trash2 } from 'lucide-react'
+
+const MONTH_ABBR = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+
+function formatDateChip(dateStr: string): { month: string; day: string } | null {
+  if (!dateStr) return null
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return null
+  return {
+    month: MONTH_ABBR[d.getMonth()].toUpperCase(),
+    day: String(d.getDate()),
+  }
+}
 import { cn, getAPI, encodePath } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -164,22 +176,30 @@ export function MeetingsPage() {
                   onClick={() => setSelectedPath(m.path)}
                   data-testid="meeting-row"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground truncate">{m.title}</span>
-                    <div className="flex items-center gap-1 shrink-0 ml-2">
-                      {m.participant_count > 0 && (
-                        <span className="text-xs text-muted-foreground">{m.participant_count}</span>
-                      )}
-                      {m.open_actions > 0 && (
-                        <span className="inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-xs w-5 h-5">
-                          {m.open_actions}
+                  <div className="flex items-center gap-2.5">
+                    {formatDateChip(m.meeting_date) && (() => {
+                      const chip = formatDateChip(m.meeting_date)!
+                      return (
+                        <span className="inline-flex flex-col items-center justify-center w-10 h-10 rounded-md bg-primary/15 text-primary shrink-0">
+                          <span className="text-[10px] font-semibold leading-none">{chip.month}</span>
+                          <span className="text-sm font-bold leading-none">{chip.day}</span>
                         </span>
-                      )}
+                      )
+                    })()}
+                    <div className="flex flex-1 items-center justify-between min-w-0">
+                      <span className="text-sm font-medium text-foreground truncate">{m.title}</span>
+                      <div className="flex items-center gap-1 shrink-0 ml-2">
+                        {m.participant_count > 0 && (
+                          <span className="text-xs text-muted-foreground">{m.participant_count}</span>
+                        )}
+                        {m.open_actions > 0 && (
+                          <span className="inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-xs w-5 h-5">
+                            {m.open_actions}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  {m.meeting_date && (
-                    <div className="text-xs text-muted-foreground mt-0.5">{m.meeting_date}</div>
-                  )}
                 </div>
               ))}
             </div>
