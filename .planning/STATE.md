@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Ready to execute
-stopped_at: Completed 41.1-01-PLAN.md — HealthScoreGauge SVG arc + Sidebar two-level folder grouping
-last_updated: "2026-03-28T13:10:10.004Z"
+stopped_at: Completed 41.1-04-PLAN.md — PeoplePage avatar initials + Profile & Context, ProjectsPage stat tiles, LinksPage Open as Note
+last_updated: "2026-03-28T13:10:34.992Z"
 progress:
   total_phases: 15
   completed_phases: 10
   total_plans: 68
-  completed_plans: 65
+  completed_plans: 66
 ---
 
 # Project State
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 41.1 (visual-fidelity) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 
 ## Performance Metrics
 
@@ -68,6 +68,7 @@ Plan: 3 of 4
 | Phase 41 P05 | 233 | 2 tasks | 4 files |
 | Phase 41 P03 | 3 | 3 tasks | 4 files |
 | Phase 41.1-visual-fidelity P01 | 83 | 2 tasks | 2 files |
+| Phase 41.1 P04 | 96 | 2 tasks | 3 files |
 
 ### Decisions
 
@@ -152,6 +153,8 @@ Active decisions affecting upcoming work:
 - [Phase 41]: RightPanel collapse persisted to localStorage 'rp-collapsed' key — survives page refresh
 - [Phase 41.1]: HealthScoreGauge uses hex color values (#22c55e, #fbbf24, #ef4444) for SVG stroke — Tailwind class names don't apply to SVG attributes
 - [Phase 41.1]: Sidebar groupByFolderThenType extracts folder from first path segment (indexOf('/') == -1 -> 'other'); FOLDER_ORDER drives sort
+- [Phase 41.1]: AvatarInitials inlined in PeoplePage — single consumer, extract later if needed by other pages
+- [Phase 41.1]: ProjectsPage stat tiles placed inside header block with mt-4 — tiles feel attached to header
 
 ### Pending Todos
 
@@ -183,8 +186,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-28T13:10:04.968Z
-Stopped at: Completed 41.1-01-PLAN.md — HealthScoreGauge SVG arc + Sidebar two-level folder grouping
+Last session: 2026-03-28T13:10:24.290Z
+Stopped at: Completed 41.1-04-PLAN.md — PeoplePage avatar initials + Profile & Context, ProjectsPage stat tiles, LinksPage Open as Note
 Resume file: None
 
 ### Next action

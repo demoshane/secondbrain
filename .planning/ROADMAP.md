@@ -296,12 +296,12 @@ Plans:
 **Goal:** Close all visual and functional gaps between the current implementation and the Visily mockups: circular health score gauge, sidebar folder grouping, actions grouped by source note, Intelligence right-column sections, People avatars and profile context, Projects rich header stats, and minor fixes across Links and Meetings pages.
 **Depends on:** Phase 41
 **Milestone:** v4.0
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 - [x] 41.1-01-PLAN.md — HealthScoreGauge SVG arc + Sidebar folder grouping
 - [ ] 41.1-02-PLAN.md — ActionsPage source-note grouping + MeetingsPage date chips
-- [ ] 41.1-03-PLAN.md — IntelligencePage right column: Priority Actions, Quick Capture, stale days-badge
+- [x] 41.1-03-PLAN.md — IntelligencePage right column: Priority Actions, Quick Capture, stale days-badge
 - [x] 41.1-04-PLAN.md — PeoplePage avatar + profile display, ProjectsPage stat tiles, LinksPage "Open as Note"
 
 ### Phase 42: Add importance field to notes
