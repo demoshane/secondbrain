@@ -19,6 +19,10 @@ interface Nudge {
   updated_at: string
 }
 
+function daysSince(dateStr: string): number {
+  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
+}
+
 function getUrgency(dueDate: string | null): { label: string; className: string } | null {
   if (!dueDate) return null
   const due = new Date(dueDate)
@@ -37,6 +41,8 @@ export function IntelligencePage() {
   const [healthLoading, setHealthLoading] = useState(true)
   const [nudges, setNudges] = useState<Nudge[]>([])
   const [priorityActions, setPriorityActions] = useState<ActionItem[]>([])
+  const [captureText, setCaptureText] = useState('')
+  const [capturing, setCapturing] = useState(false)
 
   const fetchPriorityActions = useCallback(() => {
     fetch(`${getAPI()}/actions?done=0&limit=5`)
@@ -73,6 +79,25 @@ export function IntelligencePage() {
     await fetch(`${getAPI()}/actions/${id}`, { method: 'DELETE' })
     fetchPriorityActions()
   }, [fetchPriorityActions])
+
+  const handleQuickCapture = useCallback(async () => {
+    if (!captureText.trim()) return
+    setCapturing(true)
+    try {
+      const res = await fetch(`${getAPI()}/capture`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: captureText, note_type: 'note' }),
+      })
+      if (!res.ok) throw new Error('capture failed')
+      toast.success('Note saved')
+      setCaptureText('')
+    } catch {
+      toast.error('Capture failed. Check the app connection and try again.')
+    } finally {
+      setCapturing(false)
+    }
+  }, [captureText])
 
   const handleMerge = useCallback(async (dc: { a: string; b: string; similarity: number }) => {
     const choice = window.confirm(
@@ -244,9 +269,11 @@ export function IntelligencePage() {
             ) : (
               <ul className="space-y-2">
                 {nudges.map(n => (
-                  <li key={n.path} className="text-sm flex items-baseline gap-2">
-                    <span className="font-medium text-foreground">{n.title}</span>
-                    <span className="text-xs text-muted-foreground">{n.updated_at}</span>
+                  <li key={n.path} className="text-sm flex items-center gap-2">
+                    <span className="font-medium text-foreground flex-1 min-w-0 truncate">{n.title}</span>
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/15 text-amber-400 shrink-0">
+                      {daysSince(n.updated_at)}d
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -321,6 +348,26 @@ export function IntelligencePage() {
               </button>
             </>
           )}
+        </div>
+
+        {/* Quick Capture card */}
+        <div className="bg-card rounded-lg border border-border p-6 mb-6">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Quick Capture</h3>
+          <textarea
+            value={captureText}
+            onChange={e => setCaptureText(e.target.value)}
+            placeholder="Drop a thought, task, or link here..."
+            className="w-full rounded-md border border-input bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring resize-none"
+            rows={3}
+          />
+          <Button
+            size="sm"
+            className="mt-2 w-full"
+            onClick={handleQuickCapture}
+            disabled={capturing || !captureText.trim()}
+          >
+            {capturing ? 'Saving...' : 'Save to Inbox'}
+          </Button>
         </div>
 
         {/* Quick Actions */}
