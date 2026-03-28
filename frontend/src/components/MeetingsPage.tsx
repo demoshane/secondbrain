@@ -49,7 +49,14 @@ export function MeetingsPage() {
     participants: string[]
   } | null>(null)
   const [actions, setActions] = useState<ActionItem[]>([])
+  const [tags, setTags] = useState<string[]>([])
   const [detailLoading, setDetailLoading] = useState(false)
+  const [showAddAction, setShowAddAction] = useState(false)
+  const [newActionText, setNewActionText] = useState('')
+  const [savingAction, setSavingAction] = useState(false)
+  const [showAddParticipant, setShowAddParticipant] = useState(false)
+  const [newParticipant, setNewParticipant] = useState('')
+  const [savingParticipant, setSavingParticipant] = useState(false)
 
   const loadMeetings = () => {
     setLoading(true)
@@ -71,14 +78,19 @@ export function MeetingsPage() {
     Promise.all([
       fetch(`${getAPI()}/meetings/${enc}`).then(r => r.json()),
       fetch(`${getAPI()}/actions?note_path=${enc}`).then(r => r.json()),
-    ]).then(([detail, acts]) => {
+      fetch(`${getAPI()}/notes/${enc}`).then(r => r.json()),
+    ]).then(([detail, acts, noteData]) => {
       setMeetingDetail({
         body: detail.body ?? '',
         title: detail.title ?? '',
         meeting_date: detail.meeting_date ?? '',
-        participants: detail.participants ?? [],
+        participants: (detail.participants ?? []).map(
+          (p: { name?: string; path?: string } | string) =>
+            typeof p === 'string' ? p : (p.name ?? '')
+        ).filter(Boolean),
       })
       setActions(acts.actions ?? [])
+      setTags(noteData.tags ?? [])
     }).catch(() => {})
       .finally(() => setDetailLoading(false))
   }, [selectedPath])
@@ -115,6 +127,52 @@ export function MeetingsPage() {
       reloadActions()
     } catch {
       toast.error('Something went wrong. Try again.')
+    }
+  }
+
+  const handleAddAction = async () => {
+    const text = newActionText.trim()
+    if (!text || !selectedPath) return
+    setSavingAction(true)
+    try {
+      const res = await fetch(`${getAPI()}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, note_path: selectedPath }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Action added')
+      setNewActionText('')
+      setShowAddAction(false)
+      reloadActions()
+    } catch {
+      toast.error('Failed to add action. Try again.')
+    } finally {
+      setSavingAction(false)
+    }
+  }
+
+  const handleAddParticipant = async () => {
+    const name = newParticipant.trim()
+    if (!name || !selectedPath || !meetingDetail) return
+    setSavingParticipant(true)
+    try {
+      const enc = encodePath(selectedPath)
+      const updatedPeople = [...meetingDetail.participants, name]
+      const res = await fetch(`${getAPI()}/notes/${enc}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ people: updatedPeople }),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Participant added')
+      setNewParticipant('')
+      setShowAddParticipant(false)
+      setMeetingDetail(prev => prev ? { ...prev, participants: updatedPeople } : prev)
+    } catch {
+      toast.error('Failed to add participant. Try again.')
+    } finally {
+      setSavingParticipant(false)
     }
   }
 
@@ -254,6 +312,27 @@ export function MeetingsPage() {
                       ))}
                     </div>
                   )}
+                  {showAddParticipant ? (
+                    <div className="flex items-center gap-2 mt-2">
+                      <input
+                        autoFocus
+                        value={newParticipant}
+                        onChange={e => setNewParticipant(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleAddParticipant(); if (e.key === 'Escape') setShowAddParticipant(false) }}
+                        placeholder="Participant name"
+                        className="flex-1 rounded-md border border-input bg-input px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
+                      />
+                      <Button size="sm" onClick={handleAddParticipant} disabled={savingParticipant || !newParticipant.trim()}>
+                        {savingParticipant ? 'Saving…' : 'Add'}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setShowAddParticipant(false)}>Cancel</Button>
+                    </div>
+                  ) : (
+                    <Button variant="outline" size="sm" className="mt-2" onClick={() => setShowAddParticipant(true)}>
+                      <Plus className="h-3.5 w-3.5 mr-1.5" />
+                      Add Participant
+                    </Button>
+                  )}
                 </div>
               </CollapsibleSection>
 
@@ -275,6 +354,50 @@ export function MeetingsPage() {
                           onToggle={handleToggleAction}
                           onDelete={handleDeleteAction}
                         />
+                      ))}
+                    </div>
+                  )}
+                  {showAddAction ? (
+                    <div className="flex items-center gap-2 px-4 py-2 border-t border-border">
+                      <input
+                        autoFocus
+                        value={newActionText}
+                        onChange={e => setNewActionText(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleAddAction(); if (e.key === 'Escape') setShowAddAction(false) }}
+                        placeholder="What needs to be done?"
+                        className="flex-1 rounded-md border border-input bg-input px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
+                      />
+                      <Button size="sm" onClick={handleAddAction} disabled={savingAction || !newActionText.trim()}>
+                        {savingAction ? 'Saving…' : 'Add'}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setShowAddAction(false)}>Cancel</Button>
+                    </div>
+                  ) : (
+                    <div className="px-4 pb-3">
+                      <Button variant="outline" size="sm" onClick={() => setShowAddAction(true)}>
+                        <Plus className="h-3.5 w-3.5 mr-1.5" />
+                        Add Action
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CollapsibleSection>
+
+              <CollapsibleSection
+                title="Tags"
+                count={tags.length}
+                sectionId={`meetings-tags-${selectedPath}`}
+                defaultOpen={tags.length > 0}
+              >
+                <div className="px-4 py-3">
+                  {tags.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No tags</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {tags.map(tag => (
+                        <span key={tag} className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
+                          #{tag}
+                        </span>
                       ))}
                     </div>
                   )}
