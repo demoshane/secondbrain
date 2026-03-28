@@ -1,46 +1,82 @@
-import { ChevronDown, ChevronRight, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
+import { CollapsibleSection } from '@/components/ui/collapsible-section'
+import { NoteTypeBadge } from '@/components/ui/note-type-badge'
 import { useNoteContext } from '@/contexts/NoteContext'
 import { useSearchContext } from '@/contexts/SearchContext'
-import { useCollapseState } from '@/hooks/useCollapseState'
 import { cn } from '@/lib/utils'
 import type { Note } from '@/types'
 
-function groupNotes(notes: Note[]): Map<string, Map<string, Note[]>> {
-  const grouped = new Map<string, Map<string, Note[]>>()
+const TYPE_ORDER = ['meeting', 'people', 'projects', 'idea', 'note', 'strategy', 'coding', 'personal', 'link', 'files']
+
+function groupByType(notes: Note[]): Map<string, Note[]> {
+  const grouped = new Map<string, Note[]>()
   for (const note of notes) {
-    const folder = note.folder || 'other'
     const type = note.type || 'note'
-    if (!grouped.has(folder)) grouped.set(folder, new Map())
-    const byType = grouped.get(folder)!
-    if (!byType.has(type)) byType.set(type, [])
-    byType.get(type)!.push(note)
+    if (!grouped.has(type)) grouped.set(type, [])
+    grouped.get(type)!.push(note)
   }
-  return grouped
+  // Sort by TYPE_ORDER
+  const sorted = new Map<string, Note[]>()
+  for (const t of TYPE_ORDER) {
+    if (grouped.has(t)) sorted.set(t, grouped.get(t)!)
+  }
+  // Append any types not in TYPE_ORDER
+  for (const [t, typeNotes] of grouped) {
+    if (!sorted.has(t)) sorted.set(t, typeNotes)
+  }
+  return sorted
+}
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+interface NoteRowProps {
+  note: Note
+  isActive: boolean
+  onClick: () => void
+}
+
+function NoteRow({ note, isActive, onClick }: NoteRowProps) {
+  return (
+    <button
+      className={cn(
+        'w-full flex items-center gap-2 px-3 py-1.5 cursor-pointer text-sm truncate group text-left',
+        isActive
+          ? 'bg-secondary text-foreground border-l-2 border-primary'
+          : 'text-muted-foreground hover:bg-secondary/50'
+      )}
+      onClick={onClick}
+      data-testid={`note-row-${encodeURIComponent(note.path)}`}
+    >
+      <NoteTypeBadge type={note.type || 'note'} className="text-[10px] shrink-0" />
+      <span className="truncate">{note.title || note.path.split('/').pop()}</span>
+    </button>
+  )
 }
 
 export function Sidebar() {
   const { notes, currentPath, openNote } = useNoteContext()
   const { results, tagFilter, setTagFilter, clearSearch } = useSearchContext()
-  const { prefs, toggle } = useCollapseState()
 
   const displayNotes = results ?? notes
   const filtered = tagFilter
     ? displayNotes.filter(n => n.tags?.includes(tagFilter))
     : displayNotes
 
-  const grouped = groupNotes(filtered)
+  const grouped = groupByType(filtered)
 
   return (
-    <div className="w-56 border-r flex flex-col" data-testid="sidebar">
+    <div className="w-64 border-r border-border flex flex-col bg-card" data-testid="sidebar">
       {tagFilter && (
         <div className="flex items-center gap-1 px-2 py-1 bg-muted text-xs" data-testid="tag-filter-banner">
-          <span>Filtering: {tagFilter}</span>
+          <span className="truncate text-muted-foreground">Filtering: {tagFilter}</span>
           <Button
             variant="ghost"
             size="icon"
-            className="h-4 w-4 ml-auto"
+            className="h-4 w-4 ml-auto shrink-0"
             onClick={() => { setTagFilter(null); clearSearch() }}
           >
             <X className="h-3 w-3" />
@@ -48,49 +84,23 @@ export function Sidebar() {
         </div>
       )}
       <ScrollArea className="flex-1">
-        {Array.from(grouped.entries()).map(([folder, byType]) => (
-          <div key={folder} data-testid={`folder-section-${folder}`} data-collapsed={!!prefs[`folder:${folder}`]}>
-            <button
-              className="w-full flex items-center gap-1 px-2 py-1 text-xs font-semibold uppercase text-muted-foreground hover:bg-muted"
-              onClick={() => toggle(`folder:${folder}`)}
-              data-testid={`folder-header-${folder}`}
-            >
-              {prefs[`folder:${folder}`]
-                ? <ChevronRight className="h-3 w-3" />
-                : <ChevronDown className="h-3 w-3" />
-              }
-              {folder}
-            </button>
-            {!prefs[`folder:${folder}`] && Array.from(byType.entries()).map(([type, typeNotes]) => (
-              <div key={type}>
-                <button
-                  className="w-full flex items-center gap-1 pl-4 pr-2 py-0.5 text-xs text-muted-foreground hover:bg-muted"
-                  onClick={() => toggle(`type:${folder}:${type}`)}
-                  data-testid={`collapse-type-${type}`}
-                >
-                  {prefs[`type:${folder}:${type}`]
-                    ? <ChevronRight className="h-3 w-3" />
-                    : <ChevronDown className="h-3 w-3" />
-                  }
-                  {type}
-                </button>
-                {!prefs[`type:${folder}:${type}`] && typeNotes.map(note => (
-                  <button
-                    key={note.path}
-                    data-testid="note-item"
-                    data-path={note.path}
-                    onClick={() => openNote(note.path)}
-                    className={cn(
-                      'w-full text-left pl-7 pr-2 py-0.5 text-sm truncate hover:bg-muted',
-                      currentPath === note.path && 'bg-accent text-accent-foreground font-medium'
-                    )}
-                  >
-                    {note.title || note.path.split('/').pop()}
-                  </button>
-                ))}
-              </div>
+        {Array.from(grouped.entries()).map(([type, typeNotes]) => (
+          <CollapsibleSection
+            key={type}
+            title={capitalize(type)}
+            count={typeNotes.length}
+            sectionId={`sidebar-${type}`}
+            defaultOpen={true}
+          >
+            {typeNotes.map(note => (
+              <NoteRow
+                key={note.path}
+                note={note}
+                isActive={note.path === currentPath}
+                onClick={() => openNote(note.path)}
+              />
             ))}
-          </div>
+          </CollapsibleSection>
         ))}
       </ScrollArea>
     </div>
