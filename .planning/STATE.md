@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
-status: Ready to plan
-stopped_at: "Completed 41-03-PLAN.md — Notes view rebuilt: Sidebar type grouping, NoteViewer markdown rendering, NoteEditor textarea, RightPanel collapsible"
-last_updated: "2026-03-28T12:18:18.187Z"
+status: Ready to execute
+stopped_at: Completed 41.1-01-PLAN.md — HealthScoreGauge SVG arc + Sidebar two-level folder grouping
+last_updated: "2026-03-28T13:10:10.004Z"
 progress:
-  total_phases: 14
+  total_phases: 15
   completed_phases: 10
-  total_plans: 64
-  completed_plans: 63
+  total_plans: 68
+  completed_plans: 65
 ---
 
 # Project State
@@ -22,8 +22,8 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-Phase: 42
-Plan: Not started
+Phase: 41.1 (visual-fidelity) — EXECUTING
+Plan: 3 of 4
 
 ## Performance Metrics
 
@@ -67,6 +67,7 @@ Plan: Not started
 | Phase 41 P04 | 203 | 2 tasks | 4 files |
 | Phase 41 P05 | 233 | 2 tasks | 4 files |
 | Phase 41 P03 | 3 | 3 tasks | 4 files |
+| Phase 41.1-visual-fidelity P01 | 83 | 2 tasks | 2 files |
 
 ### Decisions
 
@@ -149,6 +150,8 @@ Active decisions affecting upcoming work:
 - [Phase 41]: NoteViewer delete uses direct fetch DELETE + loadNotes() refresh — context.deleteNote does not exist
 - [Phase 41]: NoteEditor replaces MDEditor with plain textarea — matches Visily mockup
 - [Phase 41]: RightPanel collapse persisted to localStorage 'rp-collapsed' key — survives page refresh
+- [Phase 41.1]: HealthScoreGauge uses hex color values (#22c55e, #fbbf24, #ef4444) for SVG stroke — Tailwind class names don't apply to SVG attributes
+- [Phase 41.1]: Sidebar groupByFolderThenType extracts folder from first path segment (indexOf('/') == -1 -> 'other'); FOLDER_ORDER drives sort
 
 ### Pending Todos
 
@@ -180,8 +183,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-28T12:12:27.425Z
-Stopped at: Completed 41-03-PLAN.md — Notes view rebuilt: Sidebar type grouping, NoteViewer markdown rendering, NoteEditor textarea, RightPanel collapsible
+Last session: 2026-03-28T13:10:04.968Z
+Stopped at: Completed 41.1-01-PLAN.md — HealthScoreGauge SVG arc + Sidebar two-level folder grouping
 Resume file: None
 
 ### Next action
