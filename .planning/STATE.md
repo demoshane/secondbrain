@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Ready to execute
-stopped_at: Completed 41.3-05-PLAN.md — Connections panel tags and people add/remove
-last_updated: "2026-03-28T16:09:23.920Z"
+stopped_at: Completed 41.3-06-PLAN.md — Attachments section on all detail panels
+last_updated: "2026-03-28T16:15:03.152Z"
 progress:
   total_phases: 18
   completed_phases: 12
   total_plans: 82
-  completed_plans: 78
+  completed_plans: 79
 ---
 
 # Project State
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 41.3 (ui-polish) — EXECUTING
-Plan: 6 of 8
+Plan: 7 of 8
 
 ## Performance Metrics
 
@@ -82,6 +82,7 @@ Plan: 6 of 8
 | Phase 41.3 P03 | 98 | 3 tasks | 3 files |
 | Phase 41.3 P04 | 300 | 1 tasks | 4 files |
 | Phase 41.3 P05 | 600 | 3 tasks | 2 files |
+| Phase 41.3 P06 | 12 | 1 tasks | 7 files |
 
 ### Decisions
 
@@ -186,6 +187,8 @@ Active decisions affecting upcoming work:
 - [Phase 41.3]: Inline edit uses PUT /notes/{path} with {body:...} — body-only branch already in api.py, no PATCH route needed
 - [Phase 41.3]: meta endpoint omits unresolved plain-text people entries (path: None) — noise from old entity extraction
 - [Phase 41.3]: Tags section always visible in RightPanel when note is open — discoverable even when empty
+- [Phase 41.3]: AttachmentsSection always visible (no length > 0 gate) — discoverable even when empty
+- [Phase 41.3]: FileUploadModal.notePath prop overrides NoteContext.currentPath — required for entity pages where selected path != NoteContext currentPath
 
 ### Pending Todos
 
@@ -218,8 +221,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-28T16:09:23.909Z
-Stopped at: Completed 41.3-05-PLAN.md — Connections panel tags and people add/remove
+Last session: 2026-03-28T16:15:03.139Z
+Stopped at: Completed 41.3-06-PLAN.md — Attachments section on all detail panels
 Resume file: None
 
 ### Next action
