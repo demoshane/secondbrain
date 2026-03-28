@@ -319,3 +319,15 @@ Plans:
 | 39 | v4.0 | 8/13 | In Progress|  |
 | 40 | v4.0 | 0/5 | Not started | - |
 | 41 | v4.0 | 0/5 | Not started | - |
+
+
+## Backlog
+
+### Phase 999.1: Fix pre-existing test failures (BACKLOG)
+
+**Goal:** Fix 4 tests that have been failing since before phase 40: `test_delete_endpoint_404` (Flask returns 308 instead of 404), `test_bidirectional_relationships`, `TestSimilarRelationshipAutoLink::test_similar_relationship_inserted_on_confirm`, and `test_smart_capture_golden_path` (sb_capture_smart relationship writing broken).
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
