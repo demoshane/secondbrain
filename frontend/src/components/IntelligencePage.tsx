@@ -145,7 +145,7 @@ export function IntelligencePage() {
         </div>
         <div className="p-4">
           {recap ? (
-            <div className="prose prose-sm dark:prose-invert max-w-none">
+            <div className="prose prose-sm prose-invert max-w-none">
               <Markdown remarkPlugins={[remarkGfm]}>{recap}</Markdown>
             </div>
           ) : (

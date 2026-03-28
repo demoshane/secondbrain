@@ -265,7 +265,7 @@ export function PeoplePage() {
             </div>
 
             <Section title="Note" count={personNote?.body ? 1 : 0}>
-              <div data-testid="note-body-section" className="prose prose-sm dark:prose-invert max-w-none py-2">
+              <div data-testid="note-body-section" className="prose prose-sm prose-invert max-w-none py-2">
                 <Markdown remarkPlugins={[remarkGfm]}>{personNote?.body ?? ''}</Markdown>
               </div>
             </Section>

@@ -173,7 +173,7 @@ export function MeetingsPage() {
             </div>
 
             <Section title="Note" count={meetingDetail?.body ? 1 : 0}>
-              <div className="prose prose-sm dark:prose-invert max-w-none py-2">
+              <div className="prose prose-sm prose-invert max-w-none py-2">
                 <Markdown remarkPlugins={[remarkGfm]}>{meetingDetail?.body ?? ''}</Markdown>
               </div>
             </Section>

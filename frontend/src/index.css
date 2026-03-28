@@ -4,48 +4,43 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
-  }
+    /* Background layers */
+    --background: 220 20% 7%;          /* #0f1117 — app background, main content area */
+    --card: 222 22% 11%;               /* #151b27 — sidebar, panels, cards */
+    --popover: 222 24% 13%;            /* #181f2e — command palette, dropdowns */
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    /* Foreground */
+    --foreground: 215 25% 87%;         /* #d4dae8 — primary text */
+    --card-foreground: 215 25% 87%;
+    --popover-foreground: 215 25% 87%;
+
+    /* Primary action (blue-indigo) */
+    --primary: 231 87% 65%;            /* #5b6cf7 — primary buttons, active tab underline, links */
+    --primary-foreground: 0 0% 100%;   /* #ffffff */
+
+    /* Secondary surface */
+    --secondary: 222 22% 16%;          /* #1e2535 — secondary buttons bg, hover states */
+    --secondary-foreground: 215 25% 87%;
+
+    /* Muted text and surfaces */
+    --muted: 222 22% 14%;              /* #191f2d — muted backgrounds */
+    --muted-foreground: 215 15% 52%;   /* #7a8499 — timestamps, metadata, muted labels */
+
+    /* Accent (orange — Smart Capture, sparkles, AI features only) */
+    --accent: 25 95% 53%;              /* #f97316 — Smart Capture button, AI sparkles icon, Brain Insight card */
+    --accent-foreground: 0 0% 100%;
+
+    /* Borders and inputs */
+    --border: 222 20% 20%;             /* #2a3245 — dividers, card borders, table row borders */
+    --input: 222 22% 14%;              /* #191f2d — input backgrounds */
+    --ring: 231 87% 65%;               /* matches --primary for focus rings */
+
+    /* Destructive */
+    --destructive: 0 84% 60%;          /* #ef4444 — Delete buttons, error states */
+    --destructive-foreground: 0 0% 100%;
+
+    /* Radius */
+    --radius: 0.375rem;                /* 6px — tighter than shadcn default 8px, per mockup */
   }
 }
 

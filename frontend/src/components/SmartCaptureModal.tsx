@@ -17,12 +17,16 @@ interface Props {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  meeting: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  person: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  project: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-  idea: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  link: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
-  note: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
+  meeting: 'bg-[#1a2f1a] text-[#4ade80]',
+  person: 'bg-[#2a1f1f] text-[#f87171]',
+  people: 'bg-[#2a1f1f] text-[#f87171]',
+  project: 'bg-[#2f1f0e] text-[#fb923c]',
+  idea: 'bg-[#1f2a1a] text-[#86efac]',
+  link: 'bg-[#1a2a2a] text-[#2dd4bf]',
+  strategy: 'bg-[#1a1f3a] text-[#818cf8]',
+  research: 'bg-[#2d1f5e] text-[#a78bfa]',
+  design: 'bg-[#1e3a5f] text-[#60a5fa]',
+  note: 'bg-secondary text-[#94a3b8]',
 }
 
 export function SmartCaptureModal({ open, onClose }: Props) {
