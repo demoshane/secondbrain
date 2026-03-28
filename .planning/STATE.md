@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Ready to execute
-stopped_at: Completed 41.1-04-PLAN.md — PeoplePage avatar initials + Profile & Context, ProjectsPage stat tiles, LinksPage Open as Note
-last_updated: "2026-03-28T13:10:34.992Z"
+stopped_at: "Completed 41.1-03-PLAN.md — Intelligence page: Priority Actions, Quick Capture, stale notes days-badges"
+last_updated: "2026-03-28T13:10:45.744Z"
 progress:
   total_phases: 15
   completed_phases: 10
@@ -69,6 +69,7 @@ Plan: 4 of 4
 | Phase 41 P03 | 3 | 3 tasks | 4 files |
 | Phase 41.1-visual-fidelity P01 | 83 | 2 tasks | 2 files |
 | Phase 41.1 P04 | 96 | 2 tasks | 3 files |
+| Phase 41.1 P03 | 115 | 2 tasks | 1 files |
 
 ### Decisions
 
@@ -155,6 +156,8 @@ Active decisions affecting upcoming work:
 - [Phase 41.1]: Sidebar groupByFolderThenType extracts folder from first path segment (indexOf('/') == -1 -> 'other'); FOLDER_ORDER drives sort
 - [Phase 41.1]: AvatarInitials inlined in PeoplePage — single consumer, extract later if needed by other pages
 - [Phase 41.1]: ProjectsPage stat tiles placed inside header block with mt-4 — tiles feel attached to header
+- [Phase 41.1]: Priority Actions urgency computed client-side: overdue=High(red), <=7d=Med(amber), >7d=Low(green)
+- [Phase 41.1]: Quick Capture on IntelligencePage POSTs to /capture with note_type:note — same contract as other capture paths
 
 ### Pending Todos
 
@@ -186,8 +189,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-28T13:10:24.290Z
-Stopped at: Completed 41.1-04-PLAN.md — PeoplePage avatar initials + Profile & Context, ProjectsPage stat tiles, LinksPage Open as Note
+Last session: 2026-03-28T13:10:45.732Z
+Stopped at: Completed 41.1-03-PLAN.md — Intelligence page: Priority Actions, Quick Capture, stale notes days-badges
 Resume file: None
 
 ### Next action
