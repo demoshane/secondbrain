@@ -8,8 +8,10 @@ import { HealthScoreGauge } from '@/components/ui/health-score-gauge'
 import { CollapsibleSection } from '@/components/ui/collapsible-section'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SkeletonList } from '@/components/ui/skeleton-list'
+import { ActionItemRow } from '@/components/ui/action-item-row'
+import { useUIContext } from '@/contexts/UIContext'
 import { toast } from 'sonner'
-import type { BrainHealth, ActionItem, Note } from '@/types'
+import type { BrainHealth, ActionItem } from '@/types'
 
 interface Nudge {
   path: string
@@ -17,33 +19,30 @@ interface Nudge {
   updated_at: string
 }
 
+function getUrgency(dueDate: string | null): { label: string; className: string } | null {
+  if (!dueDate) return null
+  const due = new Date(dueDate)
+  const now = new Date()
+  if (due < now) return { label: 'High', className: 'bg-red-500/15 text-red-400' }
+  const sevenDays = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+  if (due <= sevenDays) return { label: 'Med', className: 'bg-amber-500/15 text-amber-400' }
+  return { label: 'Low', className: 'bg-green-500/15 text-green-400' }
+}
+
 export function IntelligencePage() {
+  const { setCurrentView } = useUIContext()
   const [recap, setRecap] = useState<string>('')
   const [generatingRecap, setGeneratingRecap] = useState(false)
   const [health, setHealth] = useState<BrainHealth | null>(null)
   const [healthLoading, setHealthLoading] = useState(true)
   const [nudges, setNudges] = useState<Nudge[]>([])
-  const [actions, setActions] = useState<ActionItem[]>([])
-  const [people, setPeople] = useState<Note[]>([])
+  const [priorityActions, setPriorityActions] = useState<ActionItem[]>([])
 
-  const loadActions = useCallback(async () => {
-    try {
-      const res = await fetch(getAPI() + '/actions')
-      const data = await res.json()
-      setActions(data.items || data.actions || [])
-    } catch {
-      // ignore
-    }
-  }, [])
-
-  const loadPeople = useCallback(async () => {
-    try {
-      const res = await fetch(getAPI() + '/people')
-      const data = await res.json()
-      setPeople(data.people || [])
-    } catch {
-      // ignore
-    }
+  const fetchPriorityActions = useCallback(() => {
+    fetch(`${getAPI()}/actions?done=0&limit=5`)
+      .then(r => r.json())
+      .then(d => setPriorityActions(d.actions ?? []))
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -56,9 +55,24 @@ export function IntelligencePage() {
       .then(r => r.json())
       .then(d => setNudges(d.nudges ?? []))
       .catch(() => {})
-    loadActions()
-    loadPeople()
-  }, [loadActions, loadPeople])
+    fetchPriorityActions()
+  }, [fetchPriorityActions])
+
+  const togglePriorityAction = useCallback(async (id: number) => {
+    const action = priorityActions.find(a => a.id === id)
+    if (!action) return
+    await fetch(`${getAPI()}/actions/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ done: !action.done }),
+    })
+    fetchPriorityActions()
+  }, [priorityActions, fetchPriorityActions])
+
+  const deletePriorityAction = useCallback(async (id: number) => {
+    await fetch(`${getAPI()}/actions/${id}`, { method: 'DELETE' })
+    fetchPriorityActions()
+  }, [fetchPriorityActions])
 
   const handleMerge = useCallback(async (dc: { a: string; b: string; similarity: number }) => {
     const choice = window.confirm(
@@ -274,6 +288,38 @@ export function IntelligencePage() {
               actionLabel="Generate Recap"
               onAction={generateRecap}
             />
+          )}
+        </div>
+
+        {/* Priority Actions card */}
+        <div className="bg-card rounded-lg border border-border p-6 mb-6">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Priority Actions</h3>
+          {priorityActions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No open actions</p>
+          ) : (
+            <>
+              {priorityActions.map(a => {
+                const urgency = getUrgency(a.due_date)
+                return (
+                  <div key={a.id} className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <ActionItemRow item={a} onToggle={togglePriorityAction} onDelete={deletePriorityAction} />
+                    </div>
+                    {urgency !== null && (
+                      <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0', urgency.className)}>
+                        {urgency.label}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+              <button
+                onClick={() => setCurrentView('actions')}
+                className="text-xs text-primary hover:underline mt-2 block"
+              >
+                Go to Actions View
+              </button>
+            </>
           )}
         </div>
 
