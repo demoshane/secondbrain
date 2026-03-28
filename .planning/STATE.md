@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Ready to execute
-stopped_at: Completed 41.3-04-PLAN.md — Inline note editing on detail pages
-last_updated: "2026-03-28T16:04:27.106Z"
+stopped_at: Completed 41.3-05-PLAN.md — Connections panel tags and people add/remove
+last_updated: "2026-03-28T16:09:23.920Z"
 progress:
   total_phases: 18
   completed_phases: 12
   total_plans: 82
-  completed_plans: 77
+  completed_plans: 78
 ---
 
 # Project State
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 41.3 (ui-polish) — EXECUTING
-Plan: 5 of 8
+Plan: 6 of 8
 
 ## Performance Metrics
 
@@ -81,6 +81,7 @@ Plan: 5 of 8
 | Phase 41.3 P02 | 65 | 1 tasks | 2 files |
 | Phase 41.3 P03 | 98 | 3 tasks | 3 files |
 | Phase 41.3 P04 | 300 | 1 tasks | 4 files |
+| Phase 41.3 P05 | 600 | 3 tasks | 2 files |
 
 ### Decisions
 
@@ -183,6 +184,8 @@ Active decisions affecting upcoming work:
 - [Phase 41.3]: ActionItemRow 'Set deadline' ghost uses group-hover visibility — only shown on row hover to avoid clutter
 - [Phase 41.3]: ProjectsPage Notes section added (body was missing from detail panel entirely) — Notes CollapsibleSection now shows/edits body, Related Notes section kept for backlinks
 - [Phase 41.3]: Inline edit uses PUT /notes/{path} with {body:...} — body-only branch already in api.py, no PATCH route needed
+- [Phase 41.3]: meta endpoint omits unresolved plain-text people entries (path: None) — noise from old entity extraction
+- [Phase 41.3]: Tags section always visible in RightPanel when note is open — discoverable even when empty
 
 ### Pending Todos
 
@@ -215,8 +218,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-28T16:04:27.094Z
-Stopped at: Completed 41.3-04-PLAN.md — Inline note editing on detail pages
+Last session: 2026-03-28T16:09:23.909Z
+Stopped at: Completed 41.3-05-PLAN.md — Connections panel tags and people add/remove
 Resume file: None
 
 ### Next action
