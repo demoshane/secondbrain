@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
-status: Ready to execute
-stopped_at: Completed 41.2-03-PLAN.md — Fix link_meeting_to_project endpoint
-last_updated: "2026-03-28T14:49:21.291Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 41.2-06-PLAN.md — Fix critical note save data loss (frontmatter preservation)
+last_updated: "2026-03-28T14:52:19.641Z"
 progress:
   total_phases: 16
-  completed_phases: 11
+  completed_phases: 12
   total_plans: 74
-  completed_plans: 72
+  completed_plans: 73
 ---
 
 # Project State
@@ -76,6 +76,7 @@ Plan: 6 of 6
 | Phase 41.2 P02 | 8 | 1 tasks | 1 files |
 | Phase 41.2 P04 | 5 | 1 tasks | 1 files |
 | Phase 41.2-interactive-gaps P03 | 5 | 1 tasks | 1 files |
+| Phase 41.2 P06 | 1 | 2 tasks | 3 files |
 
 ### Decisions
 
@@ -171,6 +172,8 @@ Active decisions affecting upcoming work:
 - [Phase 41.2]: MeetingsPage participants mapped from {name,path} objects to name strings at fetch boundary — type declaration stays string[], normalization at fetch time
 - [Phase 41.2]: PeoplePage Link Note uses Link icon (not Plus) to distinguish linking existing notes from new creation
 - [Phase 41.2]: link_meeting_to_project: two-pass DB lookup pattern — try store_path(relative) first, fall back to raw meeting_path for pre-Phase-32 absolute-path rows; row_factory=sqlite3.Row added for diagnostic type access
+- [Phase 41.2]: title_and_body_title / title_and_body_body key names chosen to avoid collision with existing single-field branches
+- [Phase 41.2]: NoteEditor saveNote sends {body} not {content} when title absent — body-only branch preserves frontmatter
 
 ### Pending Todos
 
@@ -202,8 +205,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-28T14:49:21.280Z
-Stopped at: Completed 41.2-03-PLAN.md — Fix link_meeting_to_project endpoint
+Last session: 2026-03-28T14:52:19.629Z
+Stopped at: Completed 41.2-06-PLAN.md — Fix critical note save data loss (frontmatter preservation)
 Resume file: None
 
 ### Next action
