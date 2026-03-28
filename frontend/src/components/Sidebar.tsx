@@ -10,47 +10,28 @@ import type { Note } from '@/types'
 
 const TYPE_ORDER = ['meeting', 'people', 'projects', 'idea', 'note', 'strategy', 'coding', 'personal', 'link', 'files']
 
-const FOLDER_ORDER = ['meetings', 'people', 'person', 'projects', 'ideas', 'notes', 'strategy', 'coding', 'personal', 'links', 'files']
-
-function groupByFolderThenType(notes: Note[]): Map<string, Map<string, Note[]>> {
-  const folderMap = new Map<string, Map<string, Note[]>>()
+function groupByType(notes: Note[]): Map<string, Note[]> {
+  const typeMap = new Map<string, Note[]>()
 
   for (const note of notes) {
-    const slashIdx = note.path.indexOf('/')
-    const folder = slashIdx !== -1 ? note.path.slice(0, slashIdx) : 'other'
     const type = note.type || 'note'
-
-    if (!folderMap.has(folder)) folderMap.set(folder, new Map<string, Note[]>())
-    const typeMap = folderMap.get(folder)!
     if (!typeMap.has(type)) typeMap.set(type, [])
     typeMap.get(type)!.push(note)
   }
 
-  // Sort folders by FOLDER_ORDER, remainder alphabetically
-  const sortedFolders = new Map<string, Map<string, Note[]>>()
-  for (const f of FOLDER_ORDER) {
-    if (folderMap.has(f)) sortedFolders.set(f, folderMap.get(f)!)
+  // Sort by TYPE_ORDER, remainder alphabetically
+  const sorted = new Map<string, Note[]>()
+  for (const t of TYPE_ORDER) {
+    if (typeMap.has(t)) sorted.set(t, typeMap.get(t)!)
   }
-  const remaining = Array.from(folderMap.keys())
-    .filter(f => !FOLDER_ORDER.includes(f))
+  const remaining = Array.from(typeMap.keys())
+    .filter(t => !TYPE_ORDER.includes(t))
     .sort()
-  for (const f of remaining) {
-    sortedFolders.set(f, folderMap.get(f)!)
+  for (const t of remaining) {
+    sorted.set(t, typeMap.get(t)!)
   }
 
-  // Sort types within each folder by TYPE_ORDER
-  for (const [folder, typeMap] of sortedFolders) {
-    const sortedTypes = new Map<string, Note[]>()
-    for (const t of TYPE_ORDER) {
-      if (typeMap.has(t)) sortedTypes.set(t, typeMap.get(t)!)
-    }
-    for (const [t, typeNotes] of typeMap) {
-      if (!sortedTypes.has(t)) sortedTypes.set(t, typeNotes)
-    }
-    sortedFolders.set(folder, sortedTypes)
-  }
-
-  return sortedFolders
+  return sorted
 }
 
 function capitalize(s: string): string {
@@ -90,7 +71,7 @@ export function Sidebar() {
     ? displayNotes.filter(n => n.tags?.includes(tagFilter))
     : displayNotes
 
-  const grouped = groupByFolderThenType(filtered)
+  const grouped = groupByType(filtered)
 
   return (
     <div className="w-64 border-r border-border flex flex-col bg-card" data-testid="sidebar">
@@ -108,32 +89,21 @@ export function Sidebar() {
         </div>
       )}
       <ScrollArea className="flex-1">
-        {Array.from(grouped.entries()).map(([folder, typeMap]) => (
+        {Array.from(grouped.entries()).map(([type, typeNotes]) => (
           <CollapsibleSection
-            key={folder}
-            title={capitalize(folder)}
-            count={Array.from(typeMap.values()).reduce((sum, notes) => sum + notes.length, 0)}
-            sectionId={`sidebar-folder-${folder}`}
+            key={type}
+            title={capitalize(type)}
+            count={typeNotes.length}
+            sectionId={`sidebar-type-${type}`}
             defaultOpen={true}
           >
-            {Array.from(typeMap.entries()).map(([type, typeNotes]) => (
-              <div key={type} className="pl-2">
-                <CollapsibleSection
-                  title={capitalize(type)}
-                  count={typeNotes.length}
-                  sectionId={`sidebar-${folder}-${type}`}
-                  defaultOpen={true}
-                >
-                  {typeNotes.map(note => (
-                    <NoteRow
-                      key={note.path}
-                      note={note}
-                      isActive={note.path === currentPath}
-                      onClick={() => openNote(note.path)}
-                    />
-                  ))}
-                </CollapsibleSection>
-              </div>
+            {typeNotes.map(note => (
+              <NoteRow
+                key={note.path}
+                note={note}
+                isActive={note.path === currentPath}
+                onClick={() => openNote(note.path)}
+              />
             ))}
           </CollapsibleSection>
         ))}
