@@ -300,6 +300,16 @@ Plans:
 Plans:
 - [ ] TBD (run /gsd:plan-phase 42 to break down)
 
+### Phase 43: Fix pre-existing test failures
+
+**Goal:** Fix 4 tests that have been failing since before phase 40: `test_delete_endpoint_404` (Flask returns 308 instead of 404), `test_bidirectional_relationships`, `TestSimilarRelationshipAutoLink::test_similar_relationship_inserted_on_confirm`, and `test_smart_capture_golden_path` (sb_capture_smart relationship writing broken).
+**Requirements:** TBD
+**Depends on:** Phase 42
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 43 to break down)
+
 ---
 
 ## Progress
@@ -316,18 +326,8 @@ Plans:
 | 36 | v4.0 | 4/4 | Complete | 2026-03-25 |
 | 37 | v4.0 | 11/11 | Complete | 2026-03-26 |
 | 38 | v4.0 | 7/7 | Complete | 2026-03-27 |
-| 39 | v4.0 | 8/13 | In Progress|  |
-| 40 | v4.0 | 0/5 | Not started | - |
+| 39 | v4.0 | 13/13 | Complete | 2026-03-28 |
+| 40 | v4.0 | 5/5 | Complete | 2026-03-28 |
 | 41 | v4.0 | 0/5 | Not started | - |
-
-
-## Backlog
-
-### Phase 999.1: Fix pre-existing test failures (BACKLOG)
-
-**Goal:** Fix 4 tests that have been failing since before phase 40: `test_delete_endpoint_404` (Flask returns 308 instead of 404), `test_bidirectional_relationships`, `TestSimilarRelationshipAutoLink::test_similar_relationship_inserted_on_confirm`, and `test_smart_capture_golden_path` (sb_capture_smart relationship writing broken).
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (promote with /gsd:review-backlog when ready)
+| 42 | v4.0 | 0/? | Not started | - |
+| 43 | v4.0 | 0/? | Not started | - |
