@@ -56,6 +56,8 @@ export function PeoplePage() {
   const [allNotes, setAllNotes] = useState<{ path: string; title: string }[]>([])
   const [selectedNoteToLink, setSelectedNoteToLink] = useState('')
   const [linkingNote, setLinkingNote] = useState(false)
+  const [showAddAction, setShowAddAction] = useState(false)
+  const [newActionText, setNewActionText] = useState('')
 
   const loadPeople = () => {
     setLoading(true)
@@ -128,6 +130,35 @@ export function PeoplePage() {
       reloadActions()
     } catch {
       toast.error('Something went wrong. Try again.')
+    }
+  }
+
+  const handleSetDue = async (id: number, date: string | null) => {
+    try {
+      await fetch(`${getAPI()}/actions/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ due_date: date }),
+      })
+      reloadActions()
+    } catch {
+      toast.error('Failed to update deadline')
+    }
+  }
+
+  const handleAddAction = async () => {
+    if (!newActionText.trim() || !selectedPath) return
+    try {
+      await fetch(`${getAPI()}/actions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: newActionText.trim(), note_path: selectedPath }),
+      })
+      setNewActionText('')
+      setShowAddAction(false)
+      reloadActions()
+    } catch {
+      toast.error('Failed to add action')
     }
   }
 
@@ -317,10 +348,29 @@ export function PeoplePage() {
                           item={action}
                           onToggle={handleToggleAction}
                           onDelete={handleDeleteAction}
+                          onSetDue={handleSetDue}
                         />
                       ))}
                     </div>
                   )}
+                  <div className="px-3 py-2">
+                    {showAddAction ? (
+                      <div className="flex gap-2">
+                        <input
+                          autoFocus
+                          className="flex-1 text-sm bg-input border border-border rounded px-2 py-1 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                          placeholder="New action item…"
+                          value={newActionText}
+                          onChange={e => setNewActionText(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') handleAddAction(); if (e.key === 'Escape') setShowAddAction(false) }}
+                        />
+                        <button type="button" onClick={handleAddAction} className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded">Add</button>
+                        <button type="button" onClick={() => setShowAddAction(false)} className="text-xs px-2 py-1 text-muted-foreground">Cancel</button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => setShowAddAction(true)} className="text-xs text-muted-foreground hover:text-foreground">+ Add action</button>
+                    )}
+                  </div>
                 </div>
               </CollapsibleSection>
 
