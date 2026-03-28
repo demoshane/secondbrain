@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
-status: Ready to plan
-stopped_at: Completed 40-05-PLAN.md (phase 40 closed)
-last_updated: "2026-03-28"
+status: Ready to execute
+stopped_at: Completed 41-01-PLAN.md — design tokens and shared components
+last_updated: "2026-03-28T11:50:35.444Z"
 progress:
-  total_phases: 13
+  total_phases: 14
   completed_phases: 9
-  total_plans: 59
+  total_plans: 64
   completed_plans: 59
 ---
 
@@ -22,10 +22,8 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-Phase: 41 (next)
-Plan: Not started
-
-Phase 40 (ui-feature-completeness) closed 2026-03-28 — all 5 plans complete, VALIDATION signed off.
+Phase: 41 (visual-redesign) — EXECUTING
+Plan: 2 of 5
 
 ## Performance Metrics
 
@@ -64,6 +62,7 @@ Phase 40 (ui-feature-completeness) closed 2026-03-28 — all 5 plans complete, V
 | Phase 39 P06 | 180 | 1 tasks | 1 files |
 | Phase 39 P08 | 30 | 2 tasks | 4 files |
 | Phase 39 P12 | 15 | 2 tasks | 1 files |
+| Phase 41 P01 | 193 | 3 tasks | 17 files |
 
 ### Decisions
 
@@ -134,6 +133,8 @@ Active decisions affecting upcoming work:
 - [Phase 39]: _int_param uses abort(400) — consistent with Flask error handling; min/max clamping preserves existing behaviour while adding bad-input rejection
 - [Phase 39]: sb_files subfolder traversal guard uses resolve()+is_relative_to() pattern — resolves symlinks before comparison to prevent bypass
 - [Phase 39]: sb_anonymize scrub check uses frontmatter.load() to parse past YAML; sb_actions_done idempotent: SQLite UPDATE rowcount=1 even on already-done row
+- [Phase 41]: prose-invert always applied (not dark:prose-invert) since app is always dark — dark conditionals are dead code
+- [Phase 41]: noteTypeColorMap exported from badge.tsx so downstream components can import without re-declaring the hex pairs
 
 ### Pending Todos
 
@@ -165,8 +166,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-28
-Stopped at: Phase 40 closed. Next: plan phase 41.
+Last session: 2026-03-28T11:50:35.431Z
+Stopped at: Completed 41-01-PLAN.md — design tokens and shared components
 Resume file: None
 
 ### Next action
