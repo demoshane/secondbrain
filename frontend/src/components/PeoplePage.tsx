@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Users, Plus, Trash2 } from 'lucide-react'
+import { Users, Plus, Trash2, Link } from 'lucide-react'
 import { cn, getAPI, encodePath } from '@/lib/utils'
 
 function AvatarInitials({ name, size = 'lg' }: { name: string; size?: 'sm' | 'lg' }) {
@@ -51,6 +51,11 @@ export function PeoplePage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ name: string; path: string } | null>(null)
   const [showDeleteEntity, setShowDeleteEntity] = useState(false)
+  const [showLinkNote, setShowLinkNote] = useState(false)
+  const [linkNoteSearch, setLinkNoteSearch] = useState('')
+  const [allNotes, setAllNotes] = useState<{ path: string; title: string }[]>([])
+  const [selectedNoteToLink, setSelectedNoteToLink] = useState('')
+  const [linkingNote, setLinkingNote] = useState(false)
 
   const loadPeople = () => {
     setLoading(true)
@@ -130,6 +135,47 @@ export function PeoplePage() {
     if (!selectedPath) return
     await openNote(selectedPath)
     setCurrentView('notes')
+  }
+
+  const handleShowLinkNote = () => {
+    fetch(`${getAPI()}/notes?limit=100`)
+      .then(r => r.json())
+      .then(d => setAllNotes((d.results ?? []).map((n: { path: string; title: string }) => ({ path: n.path, title: n.title }))))
+      .catch(() => {})
+    setLinkNoteSearch('')
+    setSelectedNoteToLink('')
+    setShowLinkNote(true)
+  }
+
+  const handleLinkNote = async () => {
+    if (!selectedPath || !selectedNoteToLink || linkingNote) return
+    setLinkingNote(true)
+    try {
+      const res = await fetch(`${getAPI()}/relationships`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source_path: selectedPath,
+          target_path: selectedNoteToLink,
+          rel_type: 'manual',
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        toast.error(err.error ?? 'Failed to link note')
+        return
+      }
+      toast.success('Note linked')
+      setShowLinkNote(false)
+      // Reload person detail to refresh backlinks
+      const enc = encodePath(selectedPath)
+      const meta = await fetch(`${getAPI()}/notes/${enc}/meta`).then(r => r.json())
+      setBacklinks(meta.backlinks ?? [])
+    } catch {
+      toast.error('Something went wrong. Try again.')
+    } finally {
+      setLinkingNote(false)
+    }
   }
 
   const filtered = people.filter(p =>
@@ -298,6 +344,47 @@ export function PeoplePage() {
                     </ul>
                   )}
                 </div>
+                {!showLinkNote ? (
+                  <div className="px-4 pb-3">
+                    <Button variant="outline" size="sm" onClick={handleShowLinkNote}>
+                      <Link className="h-3.5 w-3.5 mr-1.5" />
+                      Link Note
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2 px-4 pb-3">
+                    <input
+                      placeholder="Search notes..."
+                      value={linkNoteSearch}
+                      onChange={e => setLinkNoteSearch(e.target.value)}
+                      className="rounded-md border border-input bg-input px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
+                    />
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={selectedNoteToLink}
+                        onChange={e => setSelectedNoteToLink(e.target.value)}
+                        className="flex-1 rounded-md border border-input bg-input px-3 py-1.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-ring"
+                      >
+                        <option value="">Select a note...</option>
+                        {allNotes
+                          .filter(n => !linkNoteSearch || n.title.toLowerCase().includes(linkNoteSearch.toLowerCase()))
+                          .map(n => (
+                            <option key={n.path} value={n.path}>{n.title}</option>
+                          ))}
+                      </select>
+                      <Button
+                        size="sm"
+                        onClick={handleLinkNote}
+                        disabled={!selectedNoteToLink || linkingNote}
+                      >
+                        Link
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setShowLinkNote(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CollapsibleSection>
             </div>
 
