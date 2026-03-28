@@ -324,13 +324,13 @@ Plans:
 **Goal:** UI polish pass discovered during Phase 41.2 execution: collapse sidebar grouping, retheme Chrome extension, make action items fully interactive, inline editing on detail pages, connections panel cleanup, attachments visibility, chrome page summarisation, and wiki-link navigation.
 **Depends on:** Phase 41.2
 **Milestone:** v4.0
-**Plans:** 3/8 plans executed
+**Plans:** 4/8 plans executed
 
 Plans:
 - [x] 41.3-01-PLAN.md — Sidebar: collapse folder→type grouping to single-level by type
 - [x] 41.3-02-PLAN.md — Chrome extension: retheme popup to dark Visily design tokens
 - [x] 41.3-03-PLAN.md — Action items: mark done + set deadline + add new in all detail views
-- [ ] 41.3-04-PLAN.md — Inline note editing on all detail-panel pages
+- [x] 41.3-04-PLAN.md — Inline note editing on all detail-panel pages
 - [ ] 41.3-05-PLAN.md — Connections panel: proper sections, tags, add/remove
 - [ ] 41.3-06-PLAN.md — Attachments section on all detail panels
 - [ ] 41.3-07-PLAN.md — Chrome extension: page summarisation (LLM summary → Add to brain)

@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Ready to execute
-stopped_at: Completed 41.3-03-PLAN.md — Action items interactive everywhere
-last_updated: "2026-03-28T15:58:27.713Z"
+stopped_at: Completed 41.3-04-PLAN.md — Inline note editing on detail pages
+last_updated: "2026-03-28T16:04:27.106Z"
 progress:
   total_phases: 18
   completed_phases: 12
   total_plans: 82
-  completed_plans: 76
+  completed_plans: 77
 ---
 
 # Project State
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 41.3 (ui-polish) — EXECUTING
-Plan: 4 of 8
+Plan: 5 of 8
 
 ## Performance Metrics
 
@@ -80,6 +80,7 @@ Plan: 4 of 8
 | Phase 41.3 P01 | 5 | 1 tasks | 1 files |
 | Phase 41.3 P02 | 65 | 1 tasks | 2 files |
 | Phase 41.3 P03 | 98 | 3 tasks | 3 files |
+| Phase 41.3 P04 | 300 | 1 tasks | 4 files |
 
 ### Decisions
 
@@ -180,6 +181,8 @@ Active decisions affecting upcoming work:
 - [Phase 41.3]: Sidebar single-level type grouping: remove FOLDER_ORDER, replace groupByFolderThenType with groupByType returning flat Map<string, Note[]>
 - [Phase 41.3]: Select appearance:none + SVG data-URI chevron chosen over OS-default styling for native-dark look in Chrome extension popup
 - [Phase 41.3]: ActionItemRow 'Set deadline' ghost uses group-hover visibility — only shown on row hover to avoid clutter
+- [Phase 41.3]: ProjectsPage Notes section added (body was missing from detail panel entirely) — Notes CollapsibleSection now shows/edits body, Related Notes section kept for backlinks
+- [Phase 41.3]: Inline edit uses PUT /notes/{path} with {body:...} — body-only branch already in api.py, no PATCH route needed
 
 ### Pending Todos
 
@@ -212,8 +215,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-28T15:58:27.701Z
-Stopped at: Completed 41.3-03-PLAN.md — Action items interactive everywhere
+Last session: 2026-03-28T16:04:27.094Z
+Stopped at: Completed 41.3-04-PLAN.md — Inline note editing on detail pages
 Resume file: None
 
 ### Next action
