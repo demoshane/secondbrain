@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react'
-import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { Briefcase, Plus, Trash2, Link } from 'lucide-react'
 import { cn, getAPI, encodePath } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -19,6 +17,19 @@ import { toast } from 'sonner'
 import type { ProjectSummary, ActionItem, MeetingSummary } from '@/types'
 
 type LinkedMeeting = { path: string; title: string; meeting_date: string }
+
+function timeAgo(dateStr: string): string {
+  if (!dateStr) return '—'
+  const ms = Date.now() - new Date(dateStr).getTime()
+  if (isNaN(ms)) return '—'
+  const mins = Math.floor(ms / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  return `${days}d ago`
+}
 
 export function ProjectsPage() {
   const { setCurrentView } = useUIContext()
@@ -274,6 +285,24 @@ export function ProjectsPage() {
                 <Button size="sm" variant="outline" onClick={handleOpenInNotes}>
                   Open in Notes
                 </Button>
+              </div>
+              <div className="flex items-center gap-4 mt-4" data-testid="stat-tiles">
+                <div className="flex-1 rounded-lg border border-border bg-card p-3 text-center">
+                  <div className="text-lg font-semibold text-foreground">{backlinks.length}</div>
+                  <div className="text-xs text-muted-foreground">Related Notes</div>
+                </div>
+                <div className="flex-1 rounded-lg border border-border bg-card p-3 text-center">
+                  <div className="text-lg font-semibold text-foreground">{actions.filter(a => !a.done).length}</div>
+                  <div className="text-xs text-muted-foreground">Open Actions</div>
+                </div>
+                <div className="flex-1 rounded-lg border border-border bg-card p-3 text-center">
+                  <div className="text-lg font-semibold text-foreground">{projectDetail?.linked_meetings.length ?? 0}</div>
+                  <div className="text-xs text-muted-foreground">Linked Meetings</div>
+                </div>
+                <div className="flex-1 rounded-lg border border-border bg-card p-3 text-center">
+                  <div className="text-lg font-semibold text-foreground">{timeAgo(projectDetail?.updated_at ?? '')}</div>
+                  <div className="text-xs text-muted-foreground">Last Updated</div>
+                </div>
               </div>
             </div>
 

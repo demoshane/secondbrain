@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Link, ExternalLink, Trash2 } from 'lucide-react'
+import { Link, ExternalLink, FileText, Trash2 } from 'lucide-react'
 import { cn, getAPI, encodePath } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -10,6 +10,8 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { SkeletonList } from '@/components/ui/skeleton-list'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { toast } from 'sonner'
+import { useUIContext } from '@/contexts/UIContext'
+import { useNoteContext } from '@/contexts/NoteContext'
 
 interface LinkSummary {
   path: string
@@ -42,6 +44,9 @@ function parseTags(raw: string): string[] {
 }
 
 export function LinksPage() {
+  const { setCurrentView } = useUIContext()
+  const { openNote } = useNoteContext()
+
   const [links, setLinks] = useState<LinkSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedLink, setSelectedLink] = useState<LinkSummary | null>(null)
@@ -222,6 +227,18 @@ export function LinksPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    if (!selectedLink) return
+                    await openNote(selectedLink.path)
+                    setCurrentView('notes')
+                  }}
+                >
+                  <FileText className="h-4 w-4 mr-1" />
+                  Open as Note
+                </Button>
                 <Button
                   size="sm"
                   variant="default"
