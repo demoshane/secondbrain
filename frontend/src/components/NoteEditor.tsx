@@ -23,7 +23,7 @@ export function NoteEditor({ note, onClose }: Props) {
 
   const handleSave = async () => {
     setSaving(true)
-    const ok = await saveNote(note.path, content)
+    const ok = await saveNote(note.path, content, title)
     setSaving(false)
     if (ok) {
       toast.success('Note saved')

@@ -2,12 +2,15 @@ import { useCallback } from 'react'
 import { getAPI, encodePath } from '@/lib/utils'
 
 export function useNoteActions() {
-  const saveNote = useCallback(async (path: string, content: string) => {
+  const saveNote = useCallback(async (path: string, body: string, title?: string) => {
     const encoded = encodePath(path)
+    const payload = title !== undefined
+      ? { title_and_body_title: title, title_and_body_body: body }
+      : { body }
     const res = await fetch(`${getAPI()}/notes/${encoded}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify(payload),
     })
     return res.ok
   }, [])
