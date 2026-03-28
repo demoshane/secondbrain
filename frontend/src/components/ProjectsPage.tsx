@@ -52,6 +52,8 @@ export function ProjectsPage() {
   } | null>(null)
   const [backlinks, setBacklinks] = useState<{ path: string; title: string }[]>([])
   const [actions, setActions] = useState<ActionItem[]>([])
+  const [tags, setTags] = useState<string[]>([])
+  const [detailPeople, setDetailPeople] = useState<{ path: string; title: string }[]>([])
   const [detailLoading, setDetailLoading] = useState(false)
 
   // Link meeting UI state
@@ -75,12 +77,15 @@ export function ProjectsPage() {
 
   const loadProjectDetail = (path: string) => {
     setDetailLoading(true)
+    setTags([])
+    setDetailPeople([])
     const enc = encodePath(path)
     Promise.all([
       fetch(`${getAPI()}/projects/${enc}`).then(r => r.json()),
       fetch(`${getAPI()}/notes/${enc}/meta`).then(r => r.json()),
       fetch(`${getAPI()}/actions?note_path=${enc}`).then(r => r.json()),
-    ]).then(([detail, meta, acts]) => {
+      fetch(`${getAPI()}/notes/${enc}`).then(r => r.json()),
+    ]).then(([detail, meta, acts, noteData]) => {
       setProjectDetail({
         body: detail.body ?? '',
         title: detail.title ?? '',
@@ -90,6 +95,8 @@ export function ProjectsPage() {
       })
       setBacklinks(meta.backlinks ?? [])
       setActions(acts.actions ?? [])
+      setTags(noteData.tags ?? [])
+      setDetailPeople(meta.people ?? [])
     }).catch(() => {})
       .finally(() => setDetailLoading(false))
   }
@@ -389,6 +396,48 @@ export function ProjectsPage() {
                       >
                         Cancel
                       </Button>
+                    </div>
+                  )}
+                </div>
+              </CollapsibleSection>
+
+              <CollapsibleSection
+                title="Tags"
+                count={tags.length}
+                sectionId={`projects-tags-${selectedPath}`}
+                defaultOpen={tags.length > 0}
+              >
+                <div className="px-4 py-3">
+                  {tags.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No tags</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {tags.map(tag => (
+                        <span key={tag} className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CollapsibleSection>
+
+              <CollapsibleSection
+                title="People"
+                count={detailPeople.length}
+                sectionId={`projects-people-${selectedPath}`}
+                defaultOpen={detailPeople.length > 0}
+              >
+                <div className="px-4 py-3">
+                  {detailPeople.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No people linked</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {detailPeople.map(p => (
+                        <span key={p.path} className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium">
+                          {p.title}
+                        </span>
+                      ))}
                     </div>
                   )}
                 </div>
