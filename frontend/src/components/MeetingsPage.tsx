@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Calendar, Plus, Trash2 } from 'lucide-react'
+import { Calendar, Plus, Trash2, Pencil } from 'lucide-react'
 
 const MONTH_ABBR = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
 
@@ -57,6 +57,8 @@ export function MeetingsPage() {
   const [showAddParticipant, setShowAddParticipant] = useState(false)
   const [newParticipant, setNewParticipant] = useState('')
   const [savingParticipant, setSavingParticipant] = useState(false)
+  const [editingBody, setEditingBody] = useState<string | null>(null)
+  const [savingBody, setSavingBody] = useState(false)
 
   const loadMeetings = () => {
     setLoading(true)
@@ -74,6 +76,7 @@ export function MeetingsPage() {
   useEffect(() => {
     if (!selectedPath) return
     setDetailLoading(true)
+    setEditingBody(null)
     const enc = encodePath(selectedPath)
     Promise.all([
       fetch(`${getAPI()}/meetings/${enc}`).then(r => r.json()),
@@ -180,6 +183,27 @@ export function MeetingsPage() {
     if (!selectedPath) return
     await openNote(selectedPath)
     setCurrentView('notes')
+  }
+
+  const handleSaveBody = async () => {
+    if (editingBody === null || !selectedPath || savingBody) return
+    setSavingBody(true)
+    try {
+      const enc = encodePath(selectedPath)
+      const res = await fetch(`${getAPI()}/notes/${enc}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: editingBody }),
+      })
+      if (!res.ok) throw new Error('Save failed')
+      setMeetingDetail(prev => prev ? { ...prev, body: editingBody } : prev)
+      setEditingBody(null)
+      toast.success('Meeting notes saved')
+    } catch {
+      toast.error('Failed to save. Try again.')
+    } finally {
+      setSavingBody(false)
+    }
   }
 
   const filtered = meetings.filter(m =>
@@ -289,9 +313,17 @@ export function MeetingsPage() {
                     <p className="text-sm text-muted-foreground mt-0.5">{meetingDetail.meeting_date}</p>
                   )}
                 </div>
-                <Button size="sm" variant="outline" onClick={handleOpenInNotes}>
-                  Open in Notes
-                </Button>
+                <div className="flex items-center gap-2">
+                  {editingBody === null && (
+                    <Button size="sm" variant="outline" onClick={() => setEditingBody(meetingDetail?.body ?? '')}>
+                      <Pencil className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" onClick={handleOpenInNotes}>
+                    Open in Notes
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -404,18 +436,41 @@ export function MeetingsPage() {
                 </div>
               </CollapsibleSection>
 
-              {meetingDetail?.body && (
-                <CollapsibleSection
-                  title="Notes"
-                  count={1}
-                  sectionId={`meetings-notes-${selectedPath}`}
-                  defaultOpen={true}
-                >
-                  <div className="px-4 py-3 prose prose-sm prose-invert max-w-none leading-relaxed">
-                    <Markdown remarkPlugins={[remarkGfm]}>{meetingDetail.body}</Markdown>
+              <CollapsibleSection
+                title="Notes"
+                count={1}
+                sectionId={`meetings-notes-${selectedPath}`}
+                defaultOpen={true}
+              >
+                {editingBody !== null ? (
+                  <div className="px-4 py-3 flex flex-col gap-3">
+                    <textarea
+                      autoFocus
+                      className="w-full min-h-[300px] font-mono text-sm bg-input border border-border rounded px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                      value={editingBody}
+                      onChange={e => setEditingBody(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSaveBody() }
+                        if (e.key === 'Escape') { e.preventDefault(); setEditingBody(null) }
+                      }}
+                    />
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" onClick={handleSaveBody} disabled={savingBody}>
+                        {savingBody ? 'Saving…' : 'Save'}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingBody(null)}>Cancel</Button>
+                      <span className="text-xs text-muted-foreground">Cmd+Enter to save · Esc to cancel</span>
+                    </div>
                   </div>
-                </CollapsibleSection>
-              )}
+                ) : (
+                  <div className="px-4 py-3 prose prose-sm prose-invert max-w-none leading-relaxed">
+                    {meetingDetail?.body
+                      ? <Markdown remarkPlugins={[remarkGfm]}>{meetingDetail.body}</Markdown>
+                      : <p className="text-sm text-muted-foreground">No meeting notes yet.</p>
+                    }
+                  </div>
+                )}
+              </CollapsibleSection>
             </div>
 
             <div className="px-6 py-4 border-t border-border shrink-0">

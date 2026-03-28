@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Link, ExternalLink, FileText, Trash2 } from 'lucide-react'
+import { Link, ExternalLink, FileText, Trash2, Pencil } from 'lucide-react'
 import { cn, getAPI, encodePath } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -55,6 +55,8 @@ export function LinksPage() {
   const [tagFilter, setTagFilter] = useState('')
   const [pendingDelete, setPendingDelete] = useState<LinkSummary | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [editingBody, setEditingBody] = useState<string | null>(null)
+  const [savingBody, setSavingBody] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -66,6 +68,7 @@ export function LinksPage() {
 
   useEffect(() => {
     if (!selectedLink) { setLinkDetail(null); return }
+    setEditingBody(null)
     const enc = encodePath(selectedLink.path)
     fetch(`${getAPI()}/links/${enc}`)
       .then(r => r.json())
@@ -100,6 +103,27 @@ export function LinksPage() {
       toast.error('Delete failed. Try again or check the app logs.')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const handleSaveBody = async () => {
+    if (editingBody === null || !selectedLink || savingBody) return
+    setSavingBody(true)
+    try {
+      const enc = encodePath(selectedLink.path)
+      const res = await fetch(`${getAPI()}/notes/${enc}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: editingBody }),
+      })
+      if (!res.ok) throw new Error('Save failed')
+      setLinkDetail(prev => prev ? { ...prev, body: editingBody } : prev)
+      setEditingBody(null)
+      toast.success('Link note saved')
+    } catch {
+      toast.error('Failed to save. Try again.')
+    } finally {
+      setSavingBody(false)
     }
   }
 
@@ -227,6 +251,16 @@ export function LinksPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
+                {editingBody === null && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setEditingBody(linkDetail?.body ?? '')}
+                  >
+                    <Pencil className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="outline"
@@ -270,13 +304,33 @@ export function LinksPage() {
             )}
 
             {/* Body */}
-            {linkDetail?.body && (
+            {editingBody !== null ? (
+              <div className="px-6 py-4 flex flex-col gap-3">
+                <textarea
+                  autoFocus
+                  className="w-full min-h-[300px] flex-1 font-mono text-sm bg-input border border-border rounded px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                  value={editingBody}
+                  onChange={e => setEditingBody(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSaveBody() }
+                    if (e.key === 'Escape') { e.preventDefault(); setEditingBody(null) }
+                  }}
+                />
+                <div className="flex items-center gap-2">
+                  <Button size="sm" onClick={handleSaveBody} disabled={savingBody}>
+                    {savingBody ? 'Saving…' : 'Save'}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditingBody(null)}>Cancel</Button>
+                  <span className="text-xs text-muted-foreground">Cmd+Enter to save · Esc to cancel</span>
+                </div>
+              </div>
+            ) : linkDetail?.body ? (
               <div className="px-6 py-4">
                 <div className="prose prose-sm prose-invert max-w-none">
                   <Markdown remarkPlugins={[remarkGfm]}>{linkDetail.body}</Markdown>
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
         )}
       </div>

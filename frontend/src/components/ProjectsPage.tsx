@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Briefcase, Plus, Trash2, Link } from 'lucide-react'
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { Briefcase, Plus, Trash2, Link, Pencil } from 'lucide-react'
 import { cn, getAPI, encodePath } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -60,6 +62,10 @@ export function ProjectsPage() {
   const [showAddAction, setShowAddAction] = useState(false)
   const [newActionText, setNewActionText] = useState('')
 
+  // Inline body editing
+  const [editingBody, setEditingBody] = useState<string | null>(null)
+  const [savingBody, setSavingBody] = useState(false)
+
   // Link meeting UI state
   const [showLinkMeeting, setShowLinkMeeting] = useState(false)
   const [availableMeetings, setAvailableMeetings] = useState<MeetingSummary[]>([])
@@ -107,6 +113,7 @@ export function ProjectsPage() {
 
   useEffect(() => {
     if (!selectedPath) return
+    setEditingBody(null)
     loadProjectDetail(selectedPath)
   }, [selectedPath])
 
@@ -178,6 +185,27 @@ export function ProjectsPage() {
     if (!selectedPath) return
     await openNote(selectedPath)
     setCurrentView('notes')
+  }
+
+  const handleSaveBody = async () => {
+    if (editingBody === null || !selectedPath || savingBody) return
+    setSavingBody(true)
+    try {
+      const enc = encodePath(selectedPath)
+      const res = await fetch(`${getAPI()}/notes/${enc}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: editingBody }),
+      })
+      if (!res.ok) throw new Error('Save failed')
+      setProjectDetail(prev => prev ? { ...prev, body: editingBody } : prev)
+      setEditingBody(null)
+      toast.success('Project notes saved')
+    } catch {
+      toast.error('Failed to save. Try again.')
+    } finally {
+      setSavingBody(false)
+    }
   }
 
   const handleShowLinkMeeting = () => {
@@ -322,9 +350,17 @@ export function ProjectsPage() {
                     </span>
                   )}
                 </div>
-                <Button size="sm" variant="outline" onClick={handleOpenInNotes}>
-                  Open in Notes
-                </Button>
+                <div className="flex items-center gap-2">
+                  {editingBody === null && (
+                    <Button size="sm" variant="outline" onClick={() => setEditingBody(projectDetail?.body ?? '')}>
+                      <Pencil className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" onClick={handleOpenInNotes}>
+                    Open in Notes
+                  </Button>
+                </div>
               </div>
               <div className="flex items-center gap-4 mt-4" data-testid="stat-tiles">
                 <div className="flex-1 rounded-lg border border-border bg-card p-3 text-center">
@@ -495,26 +531,60 @@ export function ProjectsPage() {
                 </div>
               </CollapsibleSection>
 
-              {projectDetail?.body && (
-                <CollapsibleSection
-                  title="Related Notes"
-                  count={backlinks.length}
-                  sectionId={`projects-related-${selectedPath}`}
-                  defaultOpen={false}
-                >
-                  <div data-testid="project-backlinks-section" className="px-4 py-3">
-                    {backlinks.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No related notes</p>
-                    ) : (
-                      <ul className="space-y-1.5">
-                        {backlinks.map(b => (
-                          <li key={b.path} className="text-sm text-foreground">{b.title}</li>
-                        ))}
-                      </ul>
-                    )}
+              <CollapsibleSection
+                title="Notes"
+                count={1}
+                sectionId={`projects-notes-${selectedPath}`}
+                defaultOpen={true}
+              >
+                {editingBody !== null ? (
+                  <div className="px-4 py-3 flex flex-col gap-3">
+                    <textarea
+                      autoFocus
+                      className="w-full min-h-[300px] font-mono text-sm bg-input border border-border rounded px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                      value={editingBody}
+                      onChange={e => setEditingBody(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSaveBody() }
+                        if (e.key === 'Escape') { e.preventDefault(); setEditingBody(null) }
+                      }}
+                    />
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" onClick={handleSaveBody} disabled={savingBody}>
+                        {savingBody ? 'Saving…' : 'Save'}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingBody(null)}>Cancel</Button>
+                      <span className="text-xs text-muted-foreground">Cmd+Enter to save · Esc to cancel</span>
+                    </div>
                   </div>
-                </CollapsibleSection>
-              )}
+                ) : (
+                  <div className="px-4 py-3 prose prose-sm prose-invert max-w-none leading-relaxed">
+                    {projectDetail?.body
+                      ? <Markdown remarkPlugins={[remarkGfm]}>{projectDetail.body}</Markdown>
+                      : <p className="text-sm text-muted-foreground">No project notes yet.</p>
+                    }
+                  </div>
+                )}
+              </CollapsibleSection>
+
+              <CollapsibleSection
+                title="Related Notes"
+                count={backlinks.length}
+                sectionId={`projects-related-${selectedPath}`}
+                defaultOpen={false}
+              >
+                <div data-testid="project-backlinks-section" className="px-4 py-3">
+                  {backlinks.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No related notes</p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {backlinks.map(b => (
+                        <li key={b.path} className="text-sm text-foreground">{b.title}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </CollapsibleSection>
             </div>
 
             <div className="px-6 py-4 border-t border-border shrink-0">

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Users, Plus, Trash2, Link } from 'lucide-react'
+import { Users, Plus, Trash2, Link, Pencil } from 'lucide-react'
 import { cn, getAPI, encodePath } from '@/lib/utils'
 
 function AvatarInitials({ name, size = 'lg' }: { name: string; size?: 'sm' | 'lg' }) {
@@ -58,6 +58,8 @@ export function PeoplePage() {
   const [linkingNote, setLinkingNote] = useState(false)
   const [showAddAction, setShowAddAction] = useState(false)
   const [newActionText, setNewActionText] = useState('')
+  const [editingBody, setEditingBody] = useState<string | null>(null)
+  const [savingBody, setSavingBody] = useState(false)
 
   const loadPeople = () => {
     setLoading(true)
@@ -75,6 +77,7 @@ export function PeoplePage() {
   useEffect(() => {
     if (!selectedPath) return
     setDetailLoading(true)
+    setEditingBody(null)
     const person = people.find(p => p.path === selectedPath) ?? null
     setSelectedPerson(person)
     const enc = encodePath(selectedPath)
@@ -166,6 +169,27 @@ export function PeoplePage() {
     if (!selectedPath) return
     await openNote(selectedPath)
     setCurrentView('notes')
+  }
+
+  const handleSaveBody = async () => {
+    if (editingBody === null || !selectedPath || savingBody) return
+    setSavingBody(true)
+    try {
+      const enc = encodePath(selectedPath)
+      const res = await fetch(`${getAPI()}/notes/${enc}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: editingBody }),
+      })
+      if (!res.ok) throw new Error('Save failed')
+      setPersonNote(prev => prev ? { ...prev, body: editingBody } : prev)
+      setEditingBody(null)
+      toast.success('Person note saved')
+    } catch {
+      toast.error('Failed to save. Try again.')
+    } finally {
+      setSavingBody(false)
+    }
   }
 
   const handleShowLinkNote = () => {
@@ -311,25 +335,56 @@ export function PeoplePage() {
                     )}
                   </div>
                 </div>
-                <Button size="sm" variant="outline" onClick={handleOpenInNotes}>
-                  Open in Notes
-                </Button>
+                <div className="flex items-center gap-2">
+                  {editingBody === null && (
+                    <Button size="sm" variant="outline" onClick={() => setEditingBody(personNote?.body ?? '')}>
+                      <Pencil className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" onClick={handleOpenInNotes}>
+                    Open in Notes
+                  </Button>
+                </div>
               </div>
             </div>
 
             <div className="flex-1 divide-y divide-border">
-              {personNote?.body && (
-                <CollapsibleSection
-                  title="Profile & Context"
-                  count={1}
-                  sectionId={`people-insight-${selectedPath}`}
-                  defaultOpen={true}
-                >
-                  <div className="px-4 py-3 prose prose-sm prose-invert max-w-none leading-relaxed">
-                    <Markdown remarkPlugins={[remarkGfm]}>{personNote.body}</Markdown>
+              <CollapsibleSection
+                title="Profile & Context"
+                count={1}
+                sectionId={`people-insight-${selectedPath}`}
+                defaultOpen={true}
+              >
+                {editingBody !== null ? (
+                  <div className="px-4 py-3 flex flex-col gap-3">
+                    <textarea
+                      autoFocus
+                      className="w-full min-h-[300px] font-mono text-sm bg-input border border-border rounded px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                      value={editingBody}
+                      onChange={e => setEditingBody(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSaveBody() }
+                        if (e.key === 'Escape') { e.preventDefault(); setEditingBody(null) }
+                      }}
+                    />
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" onClick={handleSaveBody} disabled={savingBody}>
+                        {savingBody ? 'Saving…' : 'Save'}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingBody(null)}>Cancel</Button>
+                      <span className="text-xs text-muted-foreground">Cmd+Enter to save · Esc to cancel</span>
+                    </div>
                   </div>
-                </CollapsibleSection>
-              )}
+                ) : (
+                  <div className="px-4 py-3 prose prose-sm prose-invert max-w-none leading-relaxed">
+                    {personNote?.body
+                      ? <Markdown remarkPlugins={[remarkGfm]}>{personNote.body}</Markdown>
+                      : <p className="text-sm text-muted-foreground">No profile written yet.</p>
+                    }
+                  </div>
+                )}
+              </CollapsibleSection>
 
               <CollapsibleSection
                 title="Actions"
