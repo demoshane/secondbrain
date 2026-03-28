@@ -15,6 +15,8 @@ import { useUIContext } from '@/contexts/UIContext'
 import { useNoteContext } from '@/contexts/NoteContext'
 import { NewEntityModal } from './NewEntityModal'
 import { DeleteEntityModal } from './DeleteEntityModal'
+import { FileUploadModal } from './FileUploadModal'
+import { AttachmentsSection } from '@/components/ui/attachments-section'
 import { toast } from 'sonner'
 import type { ProjectSummary, ActionItem, MeetingSummary } from '@/types'
 
@@ -66,6 +68,10 @@ export function ProjectsPage() {
   const [editingBody, setEditingBody] = useState<string | null>(null)
   const [savingBody, setSavingBody] = useState(false)
 
+  // Attachments
+  const [showUpload, setShowUpload] = useState(false)
+  const [attachRefreshTick, setAttachRefreshTick] = useState(0)
+
   // Link meeting UI state
   const [showLinkMeeting, setShowLinkMeeting] = useState(false)
   const [availableMeetings, setAvailableMeetings] = useState<MeetingSummary[]>([])
@@ -114,6 +120,7 @@ export function ProjectsPage() {
   useEffect(() => {
     if (!selectedPath) return
     setEditingBody(null)
+    setAttachRefreshTick(0)
     loadProjectDetail(selectedPath)
   }, [selectedPath])
 
@@ -587,6 +594,15 @@ export function ProjectsPage() {
               </CollapsibleSection>
             </div>
 
+            {/* Attachments */}
+            <div className="px-6 py-3 border-t border-border">
+              <AttachmentsSection
+                notePath={selectedPath}
+                refreshTick={attachRefreshTick}
+                onUploadClick={() => setShowUpload(true)}
+              />
+            </div>
+
             <div className="px-6 py-4 border-t border-border shrink-0">
               <Button
                 variant="ghost"
@@ -604,6 +620,15 @@ export function ProjectsPage() {
           </div>
         )}
       </div>
+
+      {selectedPath && (
+        <FileUploadModal
+          open={showUpload}
+          onClose={() => setShowUpload(false)}
+          onUploaded={() => setAttachRefreshTick(t => t + 1)}
+          notePath={selectedPath}
+        />
+      )}
 
       <NewEntityModal
         open={showNewEntity}

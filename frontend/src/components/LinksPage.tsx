@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SkeletonList } from '@/components/ui/skeleton-list'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { AttachmentsSection } from '@/components/ui/attachments-section'
+import { FileUploadModal } from './FileUploadModal'
 import { toast } from 'sonner'
 import { useUIContext } from '@/contexts/UIContext'
 import { useNoteContext } from '@/contexts/NoteContext'
@@ -57,6 +59,8 @@ export function LinksPage() {
   const [deleting, setDeleting] = useState(false)
   const [editingBody, setEditingBody] = useState<string | null>(null)
   const [savingBody, setSavingBody] = useState(false)
+  const [showUpload, setShowUpload] = useState(false)
+  const [attachRefreshTick, setAttachRefreshTick] = useState(0)
 
   useEffect(() => {
     setLoading(true)
@@ -69,6 +73,7 @@ export function LinksPage() {
   useEffect(() => {
     if (!selectedLink) { setLinkDetail(null); return }
     setEditingBody(null)
+    setAttachRefreshTick(0)
     const enc = encodePath(selectedLink.path)
     fetch(`${getAPI()}/links/${enc}`)
       .then(r => r.json())
@@ -331,9 +336,27 @@ export function LinksPage() {
                 </div>
               </div>
             ) : null}
+
+            {/* Attachments */}
+            <div className="px-6">
+              <AttachmentsSection
+                notePath={selectedLink.path}
+                refreshTick={attachRefreshTick}
+                onUploadClick={() => setShowUpload(true)}
+              />
+            </div>
           </div>
         )}
       </div>
+
+      {selectedLink && (
+        <FileUploadModal
+          open={showUpload}
+          onClose={() => setShowUpload(false)}
+          onUploaded={() => setAttachRefreshTick(t => t + 1)}
+          notePath={selectedLink.path}
+        />
+      )}
 
       <ConfirmDialog
         open={!!pendingDelete}

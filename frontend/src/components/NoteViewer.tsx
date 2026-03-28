@@ -1,19 +1,20 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Pencil, Upload, Trash2, Paperclip } from 'lucide-react'
+import { Pencil, Upload, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { NoteTypeBadge } from '@/components/ui/note-type-badge'
 import { TagBadge } from '@/components/ui/tag-badge'
 import { PersonBadge } from '@/components/ui/person-badge'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { AttachmentsSection } from '@/components/ui/attachments-section'
 import { FileUploadModal } from './FileUploadModal'
 import { NoteEditor } from './NoteEditor'
 import { useNoteContext } from '@/contexts/NoteContext'
 import { useSearchContext } from '@/contexts/SearchContext'
 import { getAPI, encodePath } from '@/lib/utils'
 import { toast } from 'sonner'
-import type { Note, Attachment } from '@/types'
+import type { Note } from '@/types'
 
 interface Props {
   note: Note
@@ -39,19 +40,19 @@ function relativeTime(dateStr: string): string {
 
 export function NoteViewer({ note }: Props) {
   const [editing, setEditing] = useState(false)
-  const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [refreshTick, setRefreshTick] = useState(0)
   const [showDelete, setShowDelete] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
-  const { loadNotes, setIsDirty } = useNoteContext()
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [titleDraft, setTitleDraft] = useState('')
+  const titleEscaped = useRef(false)
+  const { loadNotes, setIsDirty, openNote } = useNoteContext()
   const { setTagFilter } = useSearchContext()
 
   useEffect(() => {
     setEditing(false)
     setShowDelete(false)
-    fetch(`${getAPI()}/notes/attachments?path=${encodeURIComponent(note.path)}`)
-      .then(r => r.json())
-      .then(d => setAttachments(d.attachments ?? []))
-      .catch(() => setAttachments([]))
+    setRefreshTick(0)
   }, [note.path])
 
   const handleDelete = async () => {
@@ -68,6 +69,42 @@ export function NoteViewer({ note }: Props) {
     }
   }
 
+  const handleTitleBlur = async () => {
+    if (titleEscaped.current) {
+      titleEscaped.current = false
+      return
+    }
+    setEditingTitle(false)
+    const newTitle = titleDraft.trim()
+    if (!newTitle || newTitle === note.title) return
+    try {
+      const res = await fetch(`${getAPI()}/notes/${encodePath(note.path)}/rename`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        toast.success('Title updated')
+        await loadNotes()
+        await openNote(data.renamed_file ? data.new_path : note.path)
+      } else {
+        toast.error('Failed to update title')
+      }
+    } catch {
+      toast.error('Failed to update title')
+    }
+  }
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.currentTarget.blur()
+    } else if (e.key === 'Escape') {
+      titleEscaped.current = true
+      setEditingTitle(false)
+    }
+  }
+
   if (editing) {
     return (
       <NoteEditor
@@ -79,10 +116,34 @@ export function NoteViewer({ note }: Props) {
 
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-background" data-testid="note-viewer">
-      {/* Title */}
-      <h1 className="text-xl font-semibold text-foreground mb-1" data-testid="note-title">
-        {note.title}
-      </h1>
+      {/* Title — click pencil to edit inline */}
+      <div className="flex items-center gap-2 mb-1 group/title">
+        {editingTitle ? (
+          <input
+            autoFocus
+            className="text-xl font-semibold text-foreground bg-transparent border-b border-primary outline-none w-full"
+            value={titleDraft}
+            onChange={e => setTitleDraft(e.target.value)}
+            onKeyDown={handleTitleKeyDown}
+            onBlur={handleTitleBlur}
+            data-testid="title-input"
+          />
+        ) : (
+          <>
+            <h1 className="text-xl font-semibold text-foreground" data-testid="note-title">
+              {note.title}
+            </h1>
+            <button
+              className="opacity-0 group-hover/title:opacity-100 text-muted-foreground hover:text-foreground transition-opacity shrink-0"
+              onClick={() => { setTitleDraft(note.title); setEditingTitle(true) }}
+              title="Edit title"
+              data-testid="edit-title-btn"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          </>
+        )}
+      </div>
 
       {/* Metadata row */}
       <div className="flex items-center gap-3 text-xs text-muted-foreground mb-4">
@@ -156,26 +217,16 @@ export function NoteViewer({ note }: Props) {
         </ReactMarkdown>
       </div>
 
-      {/* Attachments section */}
-      {attachments.length > 0 && (
-        <div className="mt-4 pt-3 border-t border-border" data-testid="attachment-list">
-          <div className="flex items-center gap-1 mb-1 text-xs font-semibold uppercase text-muted-foreground">
-            <Paperclip className="h-3 w-3" />
-            Attachments
-          </div>
-          <ul className="space-y-0.5">
-            {attachments.map(a => (
-              <li key={a.filename} className="text-xs text-muted-foreground truncate">
-                <a href={a.file_path} target="_blank" rel="noreferrer" className="hover:text-foreground hover:underline">
-                  {a.filename}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <AttachmentsSection
+        notePath={note.path}
+        refreshTick={refreshTick}
+      />
 
-      <FileUploadModal open={showUpload} onClose={() => setShowUpload(false)} />
+      <FileUploadModal
+        open={showUpload}
+        onClose={() => setShowUpload(false)}
+        onUploaded={() => setRefreshTick(t => t + 1)}
+      />
 
       {/* Delete confirmation */}
       <ConfirmDialog

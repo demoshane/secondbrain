@@ -27,6 +27,9 @@ import { useUIContext } from '@/contexts/UIContext'
 import { useNoteContext } from '@/contexts/NoteContext'
 import { NewEntityModal } from './NewEntityModal'
 import { DeleteEntityModal } from './DeleteEntityModal'
+import { PersonAutocomplete } from './PersonAutocomplete'
+import { FileUploadModal } from './FileUploadModal'
+import { AttachmentsSection } from '@/components/ui/attachments-section'
 import { toast } from 'sonner'
 import type { MeetingSummary, ActionItem } from '@/types'
 
@@ -55,10 +58,10 @@ export function MeetingsPage() {
   const [newActionText, setNewActionText] = useState('')
   const [savingAction, setSavingAction] = useState(false)
   const [showAddParticipant, setShowAddParticipant] = useState(false)
-  const [newParticipant, setNewParticipant] = useState('')
-  const [savingParticipant, setSavingParticipant] = useState(false)
   const [editingBody, setEditingBody] = useState<string | null>(null)
   const [savingBody, setSavingBody] = useState(false)
+  const [showUpload, setShowUpload] = useState(false)
+  const [attachRefreshTick, setAttachRefreshTick] = useState(0)
 
   const loadMeetings = () => {
     setLoading(true)
@@ -77,6 +80,7 @@ export function MeetingsPage() {
     if (!selectedPath) return
     setDetailLoading(true)
     setEditingBody(null)
+    setAttachRefreshTick(0)
     const enc = encodePath(selectedPath)
     Promise.all([
       fetch(`${getAPI()}/meetings/${enc}`).then(r => r.json()),
@@ -155,10 +159,8 @@ export function MeetingsPage() {
     }
   }
 
-  const handleAddParticipant = async () => {
-    const name = newParticipant.trim()
+  const handleAddParticipant = async (name: string) => {
     if (!name || !selectedPath || !meetingDetail) return
-    setSavingParticipant(true)
     try {
       const enc = encodePath(selectedPath)
       const updatedPeople = [...meetingDetail.participants, name]
@@ -169,13 +171,10 @@ export function MeetingsPage() {
       })
       if (!res.ok) throw new Error()
       toast.success('Participant added')
-      setNewParticipant('')
       setShowAddParticipant(false)
       setMeetingDetail(prev => prev ? { ...prev, participants: updatedPeople } : prev)
     } catch {
       toast.error('Failed to add participant. Try again.')
-    } finally {
-      setSavingParticipant(false)
     }
   }
 
@@ -346,17 +345,11 @@ export function MeetingsPage() {
                   )}
                   {showAddParticipant ? (
                     <div className="flex items-center gap-2 mt-2">
-                      <input
-                        autoFocus
-                        value={newParticipant}
-                        onChange={e => setNewParticipant(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleAddParticipant(); if (e.key === 'Escape') setShowAddParticipant(false) }}
-                        placeholder="Participant name"
-                        className="flex-1 rounded-md border border-input bg-input px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
+                      <PersonAutocomplete
+                        existingPeople={meetingDetail?.participants ?? []}
+                        onAdd={handleAddParticipant}
+                        onBlur={() => setShowAddParticipant(false)}
                       />
-                      <Button size="sm" onClick={handleAddParticipant} disabled={savingParticipant || !newParticipant.trim()}>
-                        {savingParticipant ? 'Saving…' : 'Add'}
-                      </Button>
                       <Button size="sm" variant="ghost" onClick={() => setShowAddParticipant(false)}>Cancel</Button>
                     </div>
                   ) : (
@@ -473,6 +466,15 @@ export function MeetingsPage() {
               </CollapsibleSection>
             </div>
 
+            {/* Attachments */}
+            <div className="px-6 py-3 border-t border-border">
+              <AttachmentsSection
+                notePath={selectedPath}
+                refreshTick={attachRefreshTick}
+                onUploadClick={() => setShowUpload(true)}
+              />
+            </div>
+
             <div className="px-6 py-4 border-t border-border shrink-0">
               <Button
                 variant="ghost"
@@ -490,6 +492,15 @@ export function MeetingsPage() {
           </div>
         )}
       </div>
+
+      {selectedPath && (
+        <FileUploadModal
+          open={showUpload}
+          onClose={() => setShowUpload(false)}
+          onUploaded={() => setAttachRefreshTick(t => t + 1)}
+          notePath={selectedPath}
+        />
+      )}
 
       <NewEntityModal
         open={showNewEntity}
