@@ -1,40 +1,28 @@
 import { useState, useEffect } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { ChevronDown, Plus, Trash2 } from 'lucide-react'
+import { Users, Plus, Trash2 } from 'lucide-react'
 import { cn, getAPI, encodePath } from '@/lib/utils'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { EmptyState } from '@/components/ui/empty-state'
+import { CollapsibleSection } from '@/components/ui/collapsible-section'
+import { ActionItemRow } from '@/components/ui/action-item-row'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { SkeletonList } from '@/components/ui/skeleton-list'
 import { useUIContext } from '@/contexts/UIContext'
 import { useNoteContext } from '@/contexts/NoteContext'
-import { ActionItemList } from './ActionItemList'
 import { NewEntityModal } from './NewEntityModal'
 import { DeleteEntityModal } from './DeleteEntityModal'
 import { toast } from 'sonner'
-import type { PersonSummary, ActionItem, Note } from '@/types'
-
-function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
-  const [open, setOpen] = useState(true)
-  return (
-    <div className="border-b">
-      <button
-        className="flex w-full items-center justify-between px-4 py-2 text-sm font-medium hover:bg-accent"
-        onClick={() => setOpen(o => !o)}
-      >
-        <span>{title} ({count})</span>
-        <ChevronDown className={cn('h-4 w-4 transition-transform', open ? 'rotate-180' : '')} />
-      </button>
-      {open && <div className="px-4 pb-3">{children}</div>}
-    </div>
-  )
-}
+import type { PersonSummary, ActionItem } from '@/types'
 
 export function PeoplePage() {
   const { setCurrentView } = useUIContext()
   const { openNote } = useNoteContext()
 
   const [people, setPeople] = useState<PersonSummary[]>([])
-  const [peopleNotes, setPeopleNotes] = useState<Note[]>([])
+  const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('')
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [selectedPerson, setSelectedPerson] = useState<PersonSummary | null>(null)
@@ -42,31 +30,28 @@ export function PeoplePage() {
   const [meetings, setMeetings] = useState<{ path: string; title: string }[]>([])
   const [backlinks, setBacklinks] = useState<{ path: string; title: string }[]>([])
   const [actions, setActions] = useState<ActionItem[]>([])
+  const [detailLoading, setDetailLoading] = useState(false)
   const [showNewEntity, setShowNewEntity] = useState(false)
-  const [showDeleteEntity, setShowDeleteEntity] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ name: string; path: string } | null>(null)
-  const [newActionText, setNewActionText] = useState('')
-  const [addingAction, setAddingAction] = useState(false)
+  const [showDeleteEntity, setShowDeleteEntity] = useState(false)
 
   const loadPeople = () => {
+    setLoading(true)
     fetch(`${getAPI()}/persons`)
       .then(r => r.json())
       .then(d => setPeople(d.people ?? []))
       .catch(() => {})
-    fetch(`${getAPI()}/notes`)
-      .then(r => r.json())
-      .then(d => setPeopleNotes((d.notes ?? []).filter((n: Note) => n.type === 'person')))
-      .catch(() => {})
+      .finally(() => setLoading(false))
   }
 
-  // Fetch people list on mount
   useEffect(() => {
     loadPeople()
   }, [])
 
-  // Fetch person detail on selectedPath change
   useEffect(() => {
     if (!selectedPath) return
+    setDetailLoading(true)
     const person = people.find(p => p.path === selectedPath) ?? null
     setSelectedPerson(person)
     const enc = encodePath(selectedPath)
@@ -76,20 +61,18 @@ export function PeoplePage() {
       fetch(`${getAPI()}/actions?assignee=${enc}`).then(r => r.json()),
     ]).then(([note, meta, acts]) => {
       setPersonNote({ body: note.body ?? '', title: note.title ?? '' })
-      // Use meta.meetings if available (type='meeting' filtered server-side),
-      // otherwise fall back to filtering backlinks by type
       const metaMeetings: { path: string; title: string }[] = meta.meetings ?? []
       const bl: { path: string; title: string }[] = meta.backlinks ?? []
       if (metaMeetings.length > 0) {
         setMeetings(metaMeetings)
         setBacklinks(bl)
       } else {
-        // Fallback: filter backlinks by type field if available, else path heuristic
         setMeetings(bl.filter(b => (b as { path: string; title: string; type?: string }).type === 'meeting'))
         setBacklinks(bl.filter(b => (b as { path: string; title: string; type?: string }).type !== 'meeting'))
       }
       setActions(acts.actions ?? [])
     }).catch(() => {})
+      .finally(() => setDetailLoading(false))
   }, [selectedPath, people])
 
   const reloadActions = () => {
@@ -101,29 +84,11 @@ export function PeoplePage() {
       .catch(() => {})
   }
 
-  const createAction = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const text = newActionText.trim()
-    if (!text || !selectedPath) return
-    setAddingAction(true)
+  const handleToggleAction = async (id: number) => {
+    const action = actions.find(a => a.id === id)
+    if (!action) return
     try {
-      await fetch(`${getAPI()}/actions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, assignee_path: selectedPath, note_path: selectedPath }),
-      })
-      setNewActionText('')
-      reloadActions()
-    } catch {
-      toast.error('Failed to create action item')
-    } finally {
-      setAddingAction(false)
-    }
-  }
-
-  const toggleDone = async (action: ActionItem) => {
-    try {
-      await fetch(`${getAPI()}/actions/${action.id}`, {
+      await fetch(`${getAPI()}/actions/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ done: !action.done }),
@@ -131,17 +96,18 @@ export function PeoplePage() {
       toast.success(action.done ? 'Marked open' : 'Marked complete')
       reloadActions()
     } catch {
-      toast.error('Something went wrong -- try again')
+      toast.error('Something went wrong. Try again.')
     }
   }
 
-  const assignTo = async (action: ActionItem, assigneePath: string) => {
-    await fetch(`${getAPI()}/actions/${action.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ assignee_path: assigneePath === 'none' ? null : assigneePath }),
-    })
-    reloadActions()
+  const handleDeleteAction = async (id: number) => {
+    try {
+      await fetch(`${getAPI()}/actions/${id}`, { method: 'DELETE' })
+      toast.success('Action item removed')
+      reloadActions()
+    } catch {
+      toast.error('Something went wrong. Try again.')
+    }
   }
 
   async function handleOpenInNotes() {
@@ -155,171 +121,176 @@ export function PeoplePage() {
   )
 
   return (
-    <div className="flex h-full" data-testid="people-page">
-      {/* Left column — directory */}
-      <div className="w-72 border-r overflow-y-auto flex flex-col">
-        <div className="p-2 border-b flex gap-2">
-          <input
-            placeholder="Filter by name..."
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
-            className="flex-1 rounded-md border border-input bg-background px-3 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
-          />
+    <div className="flex flex-1 overflow-hidden" data-testid="people-page">
+      {/* List column */}
+      <div className="w-80 border-r border-border bg-card flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+          <span className="text-sm font-semibold text-foreground">People</span>
           <Button
+            variant="default"
             size="sm"
             onClick={() => setShowNewEntity(true)}
             data-testid="new-person-button"
           >
-            <Plus size={16} className="mr-1" /> New Person
+            <Plus className="h-4 w-4 mr-1" />
+            New Person
           </Button>
         </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Org</TableHead>
-              <TableHead className="w-24">Last Interaction</TableHead>
-              <TableHead className="w-16 text-right">Actions</TableHead>
-              <TableHead className="w-8" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map(p => (
-              <TableRow
-                key={p.path}
-                className={cn('cursor-pointer group', selectedPath === p.path && 'bg-accent')}
-                onClick={() => setSelectedPath(p.path)}
-              >
-                <TableCell className="font-medium">{p.title}</TableCell>
-                <TableCell className="text-muted-foreground">{p.org || '—'}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {p.last_interaction ? p.last_interaction.slice(0, 10) : '—'}
-                </TableCell>
-                <TableCell className="text-right">
-                  {p.open_actions > 0 ? (
-                    <span className="inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-xs w-5 h-5">
-                      {p.open_actions}
-                    </span>
-                  ) : '—'}
-                </TableCell>
-                <TableCell>
-                  <button
-                    className="opacity-0 group-hover:opacity-100 hover:text-destructive p-1 rounded"
-                    onClick={e => {
-                      e.stopPropagation()
-                      setDeleteTarget({ name: p.title, path: p.path })
-                      setShowDeleteEntity(true)
-                    }}
-                    data-testid="delete-person-button"
-                    title={`Delete ${p.title}`}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filtered.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-4">
-                  No people found
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Right column — detail panel */}
-      <div className="flex-1 overflow-y-auto">
-        {!selectedPath ? (
-          <div className="flex h-full items-center justify-center text-muted-foreground">
-            Select a person to view details
-          </div>
-        ) : (
-          <div>
-            <div className="flex items-center justify-between px-4 py-3 border-b">
-              <div>
-                <h2 className="text-lg font-semibold">{personNote?.title ?? ''}</h2>
-                <div className="flex gap-4 mt-1 text-sm text-muted-foreground">
-                  {selectedPerson?.org && (
-                    <span>
-                      <span className="font-medium">Organization:</span> {selectedPerson.org}
-                    </span>
+        <div className="px-3 py-2 border-b border-border shrink-0">
+          <input
+            placeholder="Filter by name..."
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            className="w-full rounded-md border border-input bg-input px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
+        <ScrollArea className="flex-1">
+          {loading ? (
+            <SkeletonList count={6} rowHeight="h-12" />
+          ) : filtered.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              heading="No people yet"
+              body="Add people to your brain to track relationships and interactions."
+              actionLabel="New Person"
+              onAction={() => setShowNewEntity(true)}
+              className="py-8"
+            />
+          ) : (
+            <div>
+              {filtered.map(p => (
+                <div
+                  key={p.path}
+                  className={cn(
+                    'px-4 py-2.5 cursor-pointer border-b border-border hover:bg-secondary/50 transition-colors',
+                    selectedPath === p.path && 'bg-secondary'
                   )}
-                  {selectedPerson?.last_interaction && (
-                    <span>
-                      <span className="font-medium">Last Interaction:</span>{' '}
-                      {selectedPerson.last_interaction.slice(0, 10)}
-                    </span>
-                  )}
-                  {selectedPerson !== null && (
-                    <span>
-                      <span className="font-medium">Mentions:</span> {selectedPerson.mention_count}
-                    </span>
+                  onClick={() => setSelectedPath(p.path)}
+                  data-testid="person-row"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-foreground truncate">{p.title}</span>
+                    {p.open_actions > 0 && (
+                      <span className="inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-xs w-5 h-5 shrink-0 ml-2">
+                        {p.open_actions}
+                      </span>
+                    )}
+                  </div>
+                  {p.org && (
+                    <div className="text-xs text-muted-foreground truncate mt-0.5">{p.org}</div>
                   )}
                 </div>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </div>
+
+      {/* Detail column */}
+      <div className="flex-1 bg-background overflow-y-auto">
+        {!selectedPath ? (
+          <div className="flex h-full items-center justify-center">
+            <EmptyState
+              icon={Users}
+              heading="Select a person"
+              body="Choose someone from the list to see their profile and connections."
+            />
+          </div>
+        ) : detailLoading ? (
+          <div className="p-6">
+            <SkeletonList count={4} rowHeight="h-8" />
+          </div>
+        ) : (
+          <div className="flex flex-col h-full">
+            <div className="px-6 py-4 border-b border-border shrink-0">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h1 className="text-xl font-semibold text-foreground">{personNote?.title ?? ''}</h1>
+                  {selectedPerson?.org && (
+                    <p className="text-sm text-muted-foreground mt-0.5">{selectedPerson.org}</p>
+                  )}
+                </div>
+                <Button size="sm" variant="outline" onClick={handleOpenInNotes}>
+                  Open in Notes
+                </Button>
               </div>
-              <Button size="sm" variant="outline" onClick={handleOpenInNotes}>
-                Open in Notes
-              </Button>
             </div>
 
-            <Section title="Note" count={personNote?.body ? 1 : 0}>
-              <div data-testid="note-body-section" className="prose prose-sm prose-invert max-w-none py-2">
-                <Markdown remarkPlugins={[remarkGfm]}>{personNote?.body ?? ''}</Markdown>
-              </div>
-            </Section>
+            <div className="flex-1 divide-y divide-border">
+              {personNote?.body && (
+                <CollapsibleSection
+                  title="Brain Insight"
+                  count={1}
+                  sectionId={`people-insight-${selectedPath}`}
+                  defaultOpen={true}
+                >
+                  <div className="px-4 py-3 prose prose-sm prose-invert max-w-none leading-relaxed">
+                    <Markdown remarkPlugins={[remarkGfm]}>{personNote.body}</Markdown>
+                  </div>
+                </CollapsibleSection>
+              )}
 
-            <Section title="Meetings" count={meetings.length}>
-              <div data-testid="meetings-section">
-                {meetings.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-1">No meetings yet</p>
-                ) : (
-                  <ul className="space-y-1">
-                    {meetings.map(m => (
-                      <li key={m.path} className="text-sm">{m.title}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </Section>
+              <CollapsibleSection
+                title="Actions"
+                count={actions.filter(a => !a.done).length}
+                sectionId={`people-actions-${selectedPath}`}
+                defaultOpen={true}
+              >
+                <div data-testid="actions-section">
+                  {actions.filter(a => !a.done).length === 0 ? (
+                    <p className="px-4 py-3 text-sm text-muted-foreground">No open actions</p>
+                  ) : (
+                    <div>
+                      {actions.filter(a => !a.done).map(action => (
+                        <ActionItemRow
+                          key={action.id}
+                          item={action}
+                          onToggle={handleToggleAction}
+                          onDelete={handleDeleteAction}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CollapsibleSection>
 
-            <Section title="Backlinks" count={backlinks.length}>
-              <div data-testid="backlinks-section">
-                {backlinks.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-1">No backlinks</p>
-                ) : (
-                  <ul className="space-y-1">
-                    {backlinks.map(b => (
-                      <li key={b.path} className="text-sm">{b.title}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </Section>
+              <CollapsibleSection
+                title="Related Notes"
+                count={backlinks.length + meetings.length}
+                sectionId={`people-related-${selectedPath}`}
+                defaultOpen={true}
+              >
+                <div data-testid="backlinks-section" className="px-4 py-3">
+                  {meetings.length === 0 && backlinks.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No related notes</p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {meetings.map(m => (
+                        <li key={m.path} className="text-sm text-foreground">{m.title}</li>
+                      ))}
+                      {backlinks.map(b => (
+                        <li key={b.path} className="text-sm text-foreground">{b.title}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </CollapsibleSection>
+            </div>
 
-            <Section title="Open Actions" count={actions.filter(a => !a.done).length}>
-              <div data-testid="actions-section">
-                <form onSubmit={createAction} className="flex gap-2 mb-3">
-                  <input
-                    placeholder="Add action item…"
-                    value={newActionText}
-                    onChange={e => setNewActionText(e.target.value)}
-                    className="flex-1 rounded-md border border-input bg-background px-3 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
-                    data-testid="new-action-input"
-                  />
-                  <Button size="sm" type="submit" disabled={addingAction || !newActionText.trim()}>
-                    <Plus size={14} className="mr-1" /> Add
-                  </Button>
-                </form>
-                <ActionItemList
-                  actions={actions.filter(a => !a.done)}
-                  people={peopleNotes}
-                  onToggle={toggleDone}
-                  onAssign={assignTo}
-                />
-              </div>
-            </Section>
+            <div className="px-6 py-4 border-t border-border shrink-0">
+              <Button
+                variant="ghost"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => {
+                  if (!selectedPerson) return
+                  setDeleteTarget({ name: selectedPerson.title, path: selectedPath })
+                  setShowDeleteConfirm(true)
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Person
+              </Button>
+            </div>
           </div>
         )}
       </div>
@@ -330,18 +301,34 @@ export function PeoplePage() {
         entityType="persons"
         onCreated={loadPeople}
       />
+
       {deleteTarget && (
-        <DeleteEntityModal
-          open={showDeleteEntity}
-          onClose={() => { setShowDeleteEntity(false); setDeleteTarget(null) }}
-          entityType="persons"
-          entityName={deleteTarget.name}
-          entityPath={deleteTarget.path}
-          onDeleted={() => {
-            loadPeople()
-            if (selectedPath === deleteTarget.path) setSelectedPath(null)
-          }}
-        />
+        <>
+          <ConfirmDialog
+            open={showDeleteConfirm}
+            onClose={() => { setShowDeleteConfirm(false) }}
+            onConfirm={() => {
+              setShowDeleteConfirm(false)
+              setShowDeleteEntity(true)
+            }}
+            title={`Delete '${deleteTarget.name}'?`}
+            description="Their profile note and all associated data will be removed."
+            confirmLabel="Delete Person"
+            cancelLabel="Keep Person"
+            variant="destructive"
+          />
+          <DeleteEntityModal
+            open={showDeleteEntity}
+            onClose={() => { setShowDeleteEntity(false); setDeleteTarget(null) }}
+            entityType="persons"
+            entityName={deleteTarget.name}
+            entityPath={deleteTarget.path}
+            onDeleted={() => {
+              loadPeople()
+              if (selectedPath === deleteTarget.path) setSelectedPath(null)
+            }}
+          />
+        </>
       )}
     </div>
   )

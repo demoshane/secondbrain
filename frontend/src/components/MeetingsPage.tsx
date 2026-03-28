@@ -1,40 +1,33 @@
 import { useState, useEffect } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { ChevronDown, Plus, Trash2 } from 'lucide-react'
+import { Calendar, Plus, Trash2 } from 'lucide-react'
 import { cn, getAPI, encodePath } from '@/lib/utils'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { EmptyState } from '@/components/ui/empty-state'
+import { CollapsibleSection } from '@/components/ui/collapsible-section'
+import { ActionItemRow } from '@/components/ui/action-item-row'
+import { PersonBadge } from '@/components/ui/person-badge'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { SkeletonList } from '@/components/ui/skeleton-list'
 import { useUIContext } from '@/contexts/UIContext'
 import { useNoteContext } from '@/contexts/NoteContext'
 import { NewEntityModal } from './NewEntityModal'
 import { DeleteEntityModal } from './DeleteEntityModal'
+import { toast } from 'sonner'
 import type { MeetingSummary, ActionItem } from '@/types'
-
-function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
-  const [open, setOpen] = useState(true)
-  return (
-    <div className="border-b">
-      <button
-        className="flex w-full items-center justify-between px-4 py-2 text-sm font-medium hover:bg-accent"
-        onClick={() => setOpen(o => !o)}
-      >
-        <span>{title} ({count})</span>
-        <ChevronDown className={cn('h-4 w-4 transition-transform', open ? 'rotate-180' : '')} />
-      </button>
-      {open && <div className="px-4 pb-3">{children}</div>}
-    </div>
-  )
-}
 
 export function MeetingsPage() {
   const { setCurrentView } = useUIContext()
   const { openNote } = useNoteContext()
 
   const [meetings, setMeetings] = useState<MeetingSummary[]>([])
+  const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('')
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [showNewEntity, setShowNewEntity] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showDeleteEntity, setShowDeleteEntity] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ name: string; path: string } | null>(null)
   const [meetingDetail, setMeetingDetail] = useState<{
@@ -42,43 +35,76 @@ export function MeetingsPage() {
     title: string
     meeting_date: string
     participants: string[]
-    open_actions: number
   } | null>(null)
-  const [backlinks, setBacklinks] = useState<{ path: string; title: string }[]>([])
   const [actions, setActions] = useState<ActionItem[]>([])
+  const [detailLoading, setDetailLoading] = useState(false)
 
   const loadMeetings = () => {
+    setLoading(true)
     fetch(`${getAPI()}/meetings`)
       .then(r => r.json())
       .then(d => setMeetings(d.meetings ?? []))
       .catch(() => {})
+      .finally(() => setLoading(false))
   }
 
-  // Fetch meetings list on mount
   useEffect(() => {
     loadMeetings()
   }, [])
 
-  // Fetch meeting detail on selectedPath change
   useEffect(() => {
     if (!selectedPath) return
+    setDetailLoading(true)
     const enc = encodePath(selectedPath)
     Promise.all([
       fetch(`${getAPI()}/meetings/${enc}`).then(r => r.json()),
-      fetch(`${getAPI()}/notes/${enc}/meta`).then(r => r.json()),
       fetch(`${getAPI()}/actions?note_path=${enc}`).then(r => r.json()),
-    ]).then(([detail, meta, acts]) => {
+    ]).then(([detail, acts]) => {
       setMeetingDetail({
         body: detail.body ?? '',
         title: detail.title ?? '',
         meeting_date: detail.meeting_date ?? '',
         participants: detail.participants ?? [],
-        open_actions: detail.open_actions ?? 0,
       })
-      setBacklinks(meta.backlinks ?? [])
       setActions(acts.actions ?? [])
     }).catch(() => {})
+      .finally(() => setDetailLoading(false))
   }, [selectedPath])
+
+  const reloadActions = () => {
+    if (!selectedPath) return
+    const enc = encodePath(selectedPath)
+    fetch(`${getAPI()}/actions?note_path=${enc}`)
+      .then(r => r.json())
+      .then(d => setActions(d.actions ?? []))
+      .catch(() => {})
+  }
+
+  const handleToggleAction = async (id: number) => {
+    const action = actions.find(a => a.id === id)
+    if (!action) return
+    try {
+      await fetch(`${getAPI()}/actions/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ done: !action.done }),
+      })
+      toast.success(action.done ? 'Marked open' : 'Marked complete')
+      reloadActions()
+    } catch {
+      toast.error('Something went wrong. Try again.')
+    }
+  }
+
+  const handleDeleteAction = async (id: number) => {
+    try {
+      await fetch(`${getAPI()}/actions/${id}`, { method: 'DELETE' })
+      toast.success('Action item removed')
+      reloadActions()
+    } catch {
+      toast.error('Something went wrong. Try again.')
+    }
+  }
 
   async function handleOpenInNotes() {
     if (!selectedPath) return
@@ -91,142 +117,178 @@ export function MeetingsPage() {
   )
 
   return (
-    <div className="flex h-full" data-testid="meetings-page">
-      {/* Left column — meeting list */}
-      <div className="w-80 border-r overflow-y-auto flex flex-col">
-        <div className="p-2 border-b flex gap-2">
-          <input
-            placeholder="Filter by title..."
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
-            className="flex-1 rounded-md border border-input bg-background px-3 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
-          />
+    <div className="flex flex-1 overflow-hidden" data-testid="meetings-page">
+      {/* List column */}
+      <div className="w-80 border-r border-border bg-card flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+          <span className="text-sm font-semibold text-foreground">Meetings</span>
           <Button
+            variant="default"
             size="sm"
             onClick={() => setShowNewEntity(true)}
             data-testid="new-meeting-button"
           >
-            <Plus size={16} className="mr-1" /> New Meeting
+            <Plus className="h-4 w-4 mr-1" />
+            New Meeting
           </Button>
         </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Title</TableHead>
-              <TableHead className="w-16 text-right">People</TableHead>
-              <TableHead className="w-24">Date</TableHead>
-              <TableHead className="w-16 text-right">Actions</TableHead>
-              <TableHead className="w-8" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map(m => (
-              <TableRow
-                key={m.path}
-                className={cn('cursor-pointer', selectedPath === m.path && 'bg-accent')}
-                onClick={() => setSelectedPath(m.path)}
-              >
-                <TableCell className="font-medium">{m.title}</TableCell>
-                <TableCell className="text-right">{m.participant_count}</TableCell>
-                <TableCell className="text-muted-foreground">{m.meeting_date}</TableCell>
-                <TableCell className="text-right">{m.open_actions}</TableCell>
-                <TableCell>
-                  <button
-                    className="opacity-0 group-hover:opacity-100 hover:text-destructive p-1 rounded"
-                    onClick={e => {
-                      e.stopPropagation()
-                      setDeleteTarget({ name: m.title, path: m.path })
-                      setShowDeleteEntity(true)
-                    }}
-                    data-testid="delete-meeting-button"
-                    title={`Delete ${m.title}`}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filtered.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-4">
-                  No meetings found
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+        <div className="px-3 py-2 border-b border-border shrink-0">
+          <input
+            placeholder="Filter by title..."
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            className="w-full rounded-md border border-input bg-input px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
+        <ScrollArea className="flex-1">
+          {loading ? (
+            <SkeletonList count={6} rowHeight="h-12" />
+          ) : filtered.length === 0 ? (
+            <EmptyState
+              icon={Calendar}
+              heading="No meetings yet"
+              body="Capture your first meeting note."
+              actionLabel="New Meeting"
+              onAction={() => setShowNewEntity(true)}
+              className="py-8"
+            />
+          ) : (
+            <div>
+              {filtered.map(m => (
+                <div
+                  key={m.path}
+                  className={cn(
+                    'px-4 py-2.5 cursor-pointer border-b border-border hover:bg-secondary/50 transition-colors',
+                    selectedPath === m.path && 'bg-secondary'
+                  )}
+                  onClick={() => setSelectedPath(m.path)}
+                  data-testid="meeting-row"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-foreground truncate">{m.title}</span>
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      {m.participant_count > 0 && (
+                        <span className="text-xs text-muted-foreground">{m.participant_count}</span>
+                      )}
+                      {m.open_actions > 0 && (
+                        <span className="inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-xs w-5 h-5">
+                          {m.open_actions}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {m.meeting_date && (
+                    <div className="text-xs text-muted-foreground mt-0.5">{m.meeting_date}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
       </div>
 
-      {/* Right column — detail panel */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Detail column */}
+      <div className="flex-1 bg-background overflow-y-auto">
         {!selectedPath ? (
-          <div className="flex h-full items-center justify-center text-muted-foreground">
-            Select a meeting to view details
+          <div className="flex h-full items-center justify-center">
+            <EmptyState
+              icon={Calendar}
+              heading="Select a meeting"
+              body="Choose a meeting to see notes, participants, and action items."
+            />
+          </div>
+        ) : detailLoading ? (
+          <div className="p-6">
+            <SkeletonList count={4} rowHeight="h-8" />
           </div>
         ) : (
-          <div>
-            <div className="flex items-center justify-between px-4 py-3 border-b">
-              <h2 className="text-lg font-semibold">{meetingDetail?.title ?? ''}</h2>
-              <Button size="sm" variant="outline" onClick={handleOpenInNotes}>
-                Open in Notes
-              </Button>
+          <div className="flex flex-col h-full">
+            <div className="px-6 py-4 border-b border-border shrink-0">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h1 className="text-xl font-semibold text-foreground">{meetingDetail?.title ?? ''}</h1>
+                  {meetingDetail?.meeting_date && (
+                    <p className="text-sm text-muted-foreground mt-0.5">{meetingDetail.meeting_date}</p>
+                  )}
+                </div>
+                <Button size="sm" variant="outline" onClick={handleOpenInNotes}>
+                  Open in Notes
+                </Button>
+              </div>
             </div>
 
-            <Section title="Note" count={meetingDetail?.body ? 1 : 0}>
-              <div className="prose prose-sm prose-invert max-w-none py-2">
-                <Markdown remarkPlugins={[remarkGfm]}>{meetingDetail?.body ?? ''}</Markdown>
-              </div>
-            </Section>
+            <div className="flex-1 divide-y divide-border">
+              <CollapsibleSection
+                title="Participants"
+                count={meetingDetail?.participants.length ?? 0}
+                sectionId={`meetings-participants-${selectedPath}`}
+                defaultOpen={true}
+              >
+                <div data-testid="participants-section" className="px-4 py-3">
+                  {(meetingDetail?.participants.length ?? 0) === 0 ? (
+                    <p className="text-sm text-muted-foreground">No participants listed</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {meetingDetail!.participants.map((p, i) => (
+                        <PersonBadge key={i} name={p} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CollapsibleSection>
 
-            <Section title="Participants" count={meetingDetail?.participants.length ?? 0}>
-              <div data-testid="participants-section">
-                {(meetingDetail?.participants.length ?? 0) === 0 ? (
-                  <p className="text-sm text-muted-foreground py-1">No participants listed</p>
-                ) : (
-                  <ul className="space-y-1">
-                    {meetingDetail!.participants.map((p, i) => (
-                      <li key={i} className="text-sm">{p}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </Section>
+              <CollapsibleSection
+                title="Actions"
+                count={actions.filter(a => !a.done).length}
+                sectionId={`meetings-actions-${selectedPath}`}
+                defaultOpen={true}
+              >
+                <div data-testid="meeting-actions-section">
+                  {actions.filter(a => !a.done).length === 0 ? (
+                    <p className="px-4 py-3 text-sm text-muted-foreground">No open actions</p>
+                  ) : (
+                    <div>
+                      {actions.filter(a => !a.done).map(action => (
+                        <ActionItemRow
+                          key={action.id}
+                          item={action}
+                          onToggle={handleToggleAction}
+                          onDelete={handleDeleteAction}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CollapsibleSection>
 
-            <Section title="Action Items" count={actions.filter(a => !a.done).length}>
-              <div data-testid="meeting-actions-section">
-                {actions.filter(a => !a.done).length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-1">No open actions</p>
-                ) : (
-                  <ul className="space-y-1">
-                    {actions.filter(a => !a.done).map(a => (
-                      <li key={a.id} className="flex items-start gap-2 text-sm">
-                        <input type="checkbox" disabled checked={a.done} className="mt-0.5" />
-                        <span>
-                          {a.text}
-                          {a.due_date && (
-                            <span className="ml-2 text-muted-foreground">{a.due_date}</span>
-                          )}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </Section>
+              {meetingDetail?.body && (
+                <CollapsibleSection
+                  title="Notes"
+                  count={1}
+                  sectionId={`meetings-notes-${selectedPath}`}
+                  defaultOpen={true}
+                >
+                  <div className="px-4 py-3 prose prose-sm prose-invert max-w-none leading-relaxed">
+                    <Markdown remarkPlugins={[remarkGfm]}>{meetingDetail.body}</Markdown>
+                  </div>
+                </CollapsibleSection>
+              )}
+            </div>
 
-            <Section title="Backlinks" count={backlinks.length}>
-              <div data-testid="meeting-backlinks-section">
-                {backlinks.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-1">No backlinks</p>
-                ) : (
-                  <ul className="space-y-1">
-                    {backlinks.map(b => (
-                      <li key={b.path} className="text-sm">{b.title}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </Section>
+            <div className="px-6 py-4 border-t border-border shrink-0">
+              <Button
+                variant="ghost"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => {
+                  if (!meetingDetail) return
+                  setDeleteTarget({ name: meetingDetail.title, path: selectedPath })
+                  setShowDeleteConfirm(true)
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Meeting
+              </Button>
+            </div>
           </div>
         )}
       </div>
@@ -237,18 +299,34 @@ export function MeetingsPage() {
         entityType="meetings"
         onCreated={loadMeetings}
       />
+
       {deleteTarget && (
-        <DeleteEntityModal
-          open={showDeleteEntity}
-          onClose={() => { setShowDeleteEntity(false); setDeleteTarget(null) }}
-          entityType="meetings"
-          entityName={deleteTarget.name}
-          entityPath={deleteTarget.path}
-          onDeleted={() => {
-            loadMeetings()
-            if (selectedPath === deleteTarget.path) setSelectedPath(null)
-          }}
-        />
+        <>
+          <ConfirmDialog
+            open={showDeleteConfirm}
+            onClose={() => setShowDeleteConfirm(false)}
+            onConfirm={() => {
+              setShowDeleteConfirm(false)
+              setShowDeleteEntity(true)
+            }}
+            title={`Delete '${deleteTarget.name}'?`}
+            description="This cannot be undone."
+            confirmLabel="Delete Meeting"
+            cancelLabel="Keep Meeting"
+            variant="destructive"
+          />
+          <DeleteEntityModal
+            open={showDeleteEntity}
+            onClose={() => { setShowDeleteEntity(false); setDeleteTarget(null) }}
+            entityType="meetings"
+            entityName={deleteTarget.name}
+            entityPath={deleteTarget.path}
+            onDeleted={() => {
+              loadMeetings()
+              if (selectedPath === deleteTarget.path) setSelectedPath(null)
+            }}
+          />
+        </>
       )}
     </div>
   )
