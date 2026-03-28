@@ -29,10 +29,10 @@ _MIN_SEGMENT_LINES = 2
 _MAX_SEGMENTS = 20
 
 # Structural split markers (compiled multiline pattern)
-# Splits BEFORE: # headings, --- horizontal rules, date stamps (YYYY-MM-DD),
-# RE: / Subject: email markers
+# Splits BEFORE: # h1 headings only (## and ### are subheadings within a note, not boundaries),
+# --- horizontal rules, date stamps (YYYY-MM-DD), RE: / Subject: email markers
 _STRUCTURAL_SPLIT = re.compile(
-    r'(?m)^(?=#{1,3}\s|---\s*$|\d{4}-\d{2}-\d{2}|RE:\s|Subject:\s)',
+    r'(?m)^(?=#\s|---\s*$|\d{4}-\d{2}-\d{2}|RE:\s|Subject:\s)',
 )
 
 # URL detection
@@ -109,24 +109,15 @@ def _split_at_safe_positions(content: str, protected: list[tuple[int, int]]) -> 
 # Segment classification
 # ---------------------------------------------------------------------------
 
-def _classify_segment(text: str) -> str:
-    """Classify segment into a note type based on content signals."""
-    # URL check takes priority
-    if _URL_PAT.search(text):
-        return "link"
+def _classify_segment(text: str) -> tuple[str, float]:
+    """Classify segment into a note type with confidence score.
 
-    low = text.lower()
-    if re.search(r'\bmeeting\b|\bdiscussed\b|\battendees\b|\bagenda\b|\bstandup\b|\bsync\b|\bretro\b', low):
-        return "meeting"
-    # Person: capitalized bigram + contact/role signal
-    if re.search(r'[A-Z][a-z]+ [A-Z][a-z]+', text[:200]) and \
-            re.search(r'\brole\b|\bcontact\b|\bemail\b|\bphone\b|\blinkedin\b|\btitle\b', low):
-        return "person"
-    if re.search(r'\bproject\b|\bmilestone\b|\bdeadline\b|\bsprint\b|\broadmap\b', low):
-        return "project"
-    if re.search(r'\bidea\b|\bwhat if\b|\bmaybe\b|\bconsider\b|\bbrainstorm\b', low):
-        return "idea"
-    return "note"
+    Returns:
+        (note_type, confidence) — delegates to engine.typeclassifier.
+    """
+    from engine.typeclassifier import classify_note_type
+    title = _derive_title(text)
+    return classify_note_type(title, text)
 
 
 def _derive_title(text: str) -> str:
@@ -283,19 +274,20 @@ def segment_blob(content: str) -> list[dict[str, Any]]:
     for seg in all_segments:
         if not seg.strip():
             continue
-        seg_type = _classify_segment(seg)
         title = _derive_title(seg)
+        seg_type, confidence = _classify_segment(seg)
         entities = extract_entities(title, seg)
         result.append({
             "title": title,
             "type": seg_type,
+            "confidence": confidence,
             "body": seg.strip(),
             "links": [],
             "entities": entities,
         })
 
     if not result:
-        result = [{"title": "Untitled", "type": "note", "body": content.strip(), "links": [], "entities": {}}]
+        result = [{"title": "Untitled", "type": "note", "confidence": 0.90, "body": content.strip(), "links": [], "entities": {}}]
 
     return result
 
