@@ -1135,6 +1135,33 @@ def save_note(note_path):
             conn.close()
         return jsonify({"saved": True, "path": str(p)})
 
+    # Title+Body combined branch: update both title and body preserving all other frontmatter
+    title_b = body.get("title_and_body_title")
+    body_b = body.get("title_and_body_body")
+    if title_b is not None and body_b is not None and "content" not in body:
+        raw = p.read_text(encoding="utf-8")
+        post = _fm.loads(raw)
+        post.metadata["title"] = title_b
+        post.content = body_b
+        updated_text = _fm.dumps(post)
+        with tempfile.NamedTemporaryFile("w", dir=p.parent, delete=False, suffix=".tmp", encoding="utf-8") as f:
+            f.write(updated_text)
+            tmp = f.name
+        suppress_next_delete(str(p))
+        os.replace(tmp, p)
+        now = datetime.datetime.utcnow().isoformat()
+        path_str = store_path(p)
+        conn = get_connection()
+        try:
+            conn.execute(
+                "UPDATE notes SET title=?, body=?, updated_at=? WHERE path=?",
+                (title_b, body_b, now, path_str)
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return jsonify({"saved": True, "path": str(p)})
+
     content = body.get("content", "")
     with tempfile.NamedTemporaryFile("w", dir=p.parent, delete=False, suffix=".tmp", encoding="utf-8") as f:
         f.write(content)
