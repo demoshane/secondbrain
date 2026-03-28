@@ -21,7 +21,13 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
   const [query, setQuery] = useState('')
   const [mode, setMode] = useState<'hybrid' | 'bm25' | 'semantic'>('hybrid')
   const [results, setResults] = useState<Note[] | null>(null)
-  const [tagFilter, setTagFilter] = useState<string | null>(null)
+  const [tagFilter, setTagFilterRaw] = useState<string | null>(null)
+
+  // Clicking a tag clears any active search results so the full notes list is used
+  const setTagFilter = useCallback((t: string | null) => {
+    setTagFilterRaw(t)
+    if (t !== null) setResults(null)
+  }, [])
 
   const search = useCallback(async (q: string, m = mode, tag = tagFilter) => {
     const body: Record<string, unknown> = { query: q, mode: m }
@@ -38,7 +44,7 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
   const clearSearch = useCallback(() => {
     setQuery('')
     setResults(null)
-    setTagFilter(null)
+    setTagFilterRaw(null)
   }, [])
 
   return (

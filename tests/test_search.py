@@ -236,3 +236,47 @@ class TestApplyFilters:
         out = _apply_filters(results, seeded_db, note_type="meeting", from_date="2024-01-01")
         assert len(out) == 1
         assert out[0]["path"] == "filter/note2.md"
+
+    def test_apply_filters_importance_high(self, seeded_db):
+        """_apply_filters(importance='high') returns only high-importance notes."""
+        from engine.search import _apply_filters
+
+        seeded_db.execute(
+            "INSERT INTO notes (path, type, title, body, tags, people, importance) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("filter/imp_high.md", "note", "High Note", "body", "[]", "[]", "high"),
+        )
+        seeded_db.execute(
+            "INSERT INTO notes (path, type, title, body, tags, people, importance) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("filter/imp_medium.md", "note", "Medium Note", "body", "[]", "[]", "medium"),
+        )
+        seeded_db.commit()
+
+        results = [
+            {"path": "filter/imp_high.md", "type": "note", "title": "High Note", "score": 1.0, "created_at": "2024-01-01"},
+            {"path": "filter/imp_medium.md", "type": "note", "title": "Medium Note", "score": 1.0, "created_at": "2024-01-01"},
+        ]
+        out = _apply_filters(results, seeded_db, importance="high")
+        paths = [r["path"] for r in out]
+        assert "filter/imp_high.md" in paths
+        assert "filter/imp_medium.md" not in paths
+
+    def test_apply_filters_importance_none(self, seeded_db):
+        """_apply_filters(importance=None) returns all results unchanged."""
+        from engine.search import _apply_filters
+
+        seeded_db.execute(
+            "INSERT INTO notes (path, type, title, body, tags, people, importance) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("filter/imp2_high.md", "note", "High2", "body", "[]", "[]", "high"),
+        )
+        seeded_db.execute(
+            "INSERT INTO notes (path, type, title, body, tags, people, importance) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("filter/imp2_low.md", "note", "Low2", "body", "[]", "[]", "low"),
+        )
+        seeded_db.commit()
+
+        results = [
+            {"path": "filter/imp2_high.md", "type": "note", "title": "High2", "score": 1.0, "created_at": "2024-01-01"},
+            {"path": "filter/imp2_low.md", "type": "note", "title": "Low2", "score": 1.0, "created_at": "2024-01-01"},
+        ]
+        out = _apply_filters(results, seeded_db, importance=None)
+        assert len(out) == 2

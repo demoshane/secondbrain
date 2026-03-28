@@ -17,6 +17,8 @@ import { DeleteNoteModal } from './components/DeleteNoteModal'
 import { FileUploadModal } from './components/FileUploadModal'
 import { BatchCaptureModal } from './components/BatchCaptureModal'
 import { SmartCaptureModal } from './components/SmartCaptureModal'
+import { AskBrainModal } from './components/AskBrainModal'
+import { SettingsModal } from './components/SettingsModal'
 import { CommandPalette } from './components/CommandPalette'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useNoteContext } from './contexts/NoteContext'
@@ -32,6 +34,8 @@ export default function App() {
   const [showUpload, setShowUpload] = useState(false)
   const [showBatch, setShowBatch] = useState(false)
   const [showSmartCapture, setShowSmartCapture] = useState(false)
+  const [showAskBrain, setShowAskBrain] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [showPalette, setShowPalette] = useState(false)
 
   useEffect(() => { loadNotes() }, [loadNotes])
@@ -64,6 +68,8 @@ export default function App() {
         onNewNote={() => setShowNewNote(true)}
         onBatchCapture={() => setShowBatch(true)}
         onSmartCapture={() => setShowSmartCapture(true)}
+        onAskBrain={() => setShowAskBrain(true)}
+        onSettings={() => setShowSettings(true)}
       />
       <TabBar />
       <div className="flex flex-1 overflow-hidden">
@@ -110,6 +116,8 @@ export default function App() {
       <FileUploadModal open={showUpload} onClose={() => setShowUpload(false)} />
       <BatchCaptureModal open={showBatch} onClose={() => setShowBatch(false)} />
       <SmartCaptureModal open={showSmartCapture} onClose={() => setShowSmartCapture(false)} />
+      <AskBrainModal open={showAskBrain} onClose={() => setShowAskBrain(false)} />
+      <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
       <CommandPalette
         open={showPalette}
         onClose={() => setShowPalette(false)}

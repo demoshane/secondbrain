@@ -2,6 +2,7 @@
 import json
 import datetime
 import logging
+import re
 import subprocess
 import time
 
@@ -55,6 +56,14 @@ WEEKLY_SYNTHESIS_SYSTEM_PROMPT = (
     "(4) Open threads, pending actions, or risks to watch. "
     "Use 2-3 short paragraphs. Be specific — mention note titles, people, "
     "and project names. Output plain prose with section headers."
+)
+
+ASK_BRAIN_SYSTEM_PROMPT = (
+    "You are a personal knowledge assistant answering questions about the user's second brain notes. "
+    "Answer based ONLY on the notes provided as context. "
+    "If the question cannot be answered from the notes, say so clearly. "
+    "Be concise and specific. Cite note titles when relevant. "
+    "Output plain prose, no markdown headers unless the answer is long enough to warrant them."
 )
 
 
@@ -961,3 +970,183 @@ def recap_main(argv=None) -> None:
         print(summary)
     except Exception as exc:
         print(f"Could not generate recap: {exc}")
+
+
+# ---------------------------------------------------------------------------
+# Ask Brain (freeform Q&A over notes)
+# ---------------------------------------------------------------------------
+
+_MD_STRIP = re.compile(
+    r'\[\[.*?\]\]'          # wikilinks [[...]]
+    r'|#{1,6}\s+'           # ATX headers
+    r'|\*{1,2}([^*]*)\*{1,2}'  # bold/italic — keep inner text
+    r'|`[^`]*`'             # inline code
+    r'|\[([^\]]*)\]\([^)]*\)'  # markdown links — keep label
+)
+
+
+def _plain_snippet(body: str, length: int) -> str:
+    """Return a plain-text snippet from a markdown note body."""
+    text = _MD_STRIP.sub(lambda m: m.group(1) or m.group(2) or "", body)
+    text = " ".join(text.split())  # collapse whitespace
+    return text[:length]
+
+
+def _parse_temporal_from_date(question: str) -> str | None:
+    """Detect temporal intent and return an ISO date string (from_date) if found.
+
+    Handles Finnish dd.M[.YYYY] format, English month names, and relative keywords.
+    Returns None when no temporal pattern is detected.
+    """
+    q = question.lower()
+    today = datetime.date.today()
+
+    # "since/after DD.M" or "since/after DD.M.YYYY" (Finnish format, most common)
+    m = re.search(r'(?:since|after|from)\s+(\d{1,2})\.(\d{1,2})(?:\.(\d{4}))?', q)
+    if m:
+        day, month = int(m.group(1)), int(m.group(2))
+        year = int(m.group(3)) if m.group(3) else today.year
+        try:
+            return datetime.date(year, month, day).isoformat()
+        except ValueError:
+            pass
+
+    # "last N days"
+    m = re.search(r'last\s+(\d+)\s+days?', q)
+    if m:
+        return (today - datetime.timedelta(days=int(m.group(1)))).isoformat()
+
+    # Keywords
+    if 'today' in q:
+        return today.isoformat()
+    if 'yesterday' in q:
+        return (today - datetime.timedelta(days=1)).isoformat()
+    if 'this week' in q:
+        return (today - datetime.timedelta(days=today.weekday())).isoformat()
+    if 'last week' in q:
+        return (today - datetime.timedelta(days=today.weekday() + 7)).isoformat()
+    if any(w in q for w in ('recent', 'recently', 'latest', 'what happened', 'what\'s new', 'whats new')):
+        return (today - datetime.timedelta(days=7)).isoformat()
+
+    # "last monday/tuesday/..." or "since/after monday/..."
+    _WEEKDAYS = {
+        'monday': 0, 'tuesday': 1, 'wednesday': 2, 'thursday': 3,
+        'friday': 4, 'saturday': 5, 'sunday': 6,
+    }
+    for name, wd in _WEEKDAYS.items():
+        if f'last {name}' in q or f'since {name}' in q or f'after {name}' in q:
+            days_back = (today.weekday() - wd) % 7 or 7
+            return (today - datetime.timedelta(days=days_back)).isoformat()
+
+    return None
+
+
+def ask_brain(question: str, conn) -> dict:
+    """Answer a natural language question using the brain's notes as context.
+
+    Returns {"answer": str, "sources": [{"title": str, "path": str, "snippet": str}]}.
+    """
+    from engine.search import search_hybrid
+    from engine.paths import CONFIG_PATH
+
+    # --- Temporal injection: for "since X / today / this week" questions ---
+    from_date = _parse_temporal_from_date(question)
+    temporal_results: list[dict] = []
+    if from_date:
+        rows = conn.execute(
+            "SELECT path, title, type, created_at, body, sensitivity FROM notes "
+            "WHERE date(created_at) >= ? ORDER BY created_at DESC LIMIT 25",
+            (from_date,),
+        ).fetchall()
+        temporal_results = [
+            {
+                "path": r[0], "title": r[1], "type": r[2],
+                "created_at": r[3], "body": r[4] or "", "sensitivity": r[5] or "public",
+            }
+            for r in rows
+        ]
+
+    try:
+        semantic = search_hybrid(conn, question, limit=15, natural_language=True)
+    except Exception:
+        semantic = []
+
+    # Fetch body for semantic results
+    if semantic:
+        paths = [r["path"] for r in semantic]
+        placeholders = ",".join("?" * len(paths))
+        body_rows = conn.execute(
+            f"SELECT path, body, sensitivity FROM notes WHERE path IN ({placeholders})",
+            paths,
+        ).fetchall()
+        body_map = {row[0]: (row[1] or "", row[2] or "public") for row in body_rows}
+        for r in semantic:
+            r["body"], r["sensitivity"] = body_map.get(r["path"], ("", "public"))
+
+    # Merge: temporal first (deduped), then semantic fill
+    if temporal_results:
+        temporal_paths = {r["path"] for r in temporal_results}
+        extra = [r for r in semantic if r["path"] not in temporal_paths]
+        results = temporal_results + extra
+    else:
+        results = semantic
+
+    if not results:
+        return {
+            "answer": "No relevant notes found to answer this question.",
+            "sources": [],
+        }
+
+    public_items = [
+        (r.get("title", ""), r["body"][:800], r.get("path", ""), r.get("created_at", "")[:10])
+        for r in results if r.get("sensitivity") != "pii"
+    ]
+    pii_items = [
+        (r.get("title", ""), r["body"][:800], r.get("path", ""), r.get("created_at", "")[:10])
+        for r in results if r.get("sensitivity") == "pii"
+    ]
+
+    answer_parts = []
+
+    if public_items:
+        context = "\n\n".join(
+            f"Note [{date}]: {title}\n{body}" if date else f"Note: {title}\n{body}"
+            for title, body, _, date in public_items[:10]
+        )
+        try:
+            adapter = _router.get_adapter("public", CONFIG_PATH)
+            ans = adapter.generate(
+                user_content=f"Question: {question}\n\nRelevant notes:\n{context}",
+                system_prompt=ASK_BRAIN_SYSTEM_PROMPT,
+            )
+            if ans:
+                answer_parts.append(ans)
+        except Exception:
+            pass
+
+    if pii_items:
+        context = "\n\n".join(
+            f"Note [{date}]: {title}\n{body}" if date else f"Note: {title}\n{body}"
+            for title, body, _, date in pii_items[:5]
+        )
+        try:
+            adapter = _router.get_adapter("pii", CONFIG_PATH)
+            ans = adapter.generate(
+                user_content=f"Question: {question}\n\nRelevant notes:\n{context}",
+                system_prompt=ASK_BRAIN_SYSTEM_PROMPT,
+            )
+            if ans:
+                answer_parts.append(ans)
+        except Exception:
+            pass
+
+    answer = "\n\n".join(answer_parts) or "Unable to generate an answer from the available notes."
+    sources = [
+        {
+            "title": r.get("title", ""),
+            "path": r.get("path", ""),
+            "snippet": _plain_snippet(r["body"], 120),
+        }
+        for r in results[:5]
+    ]
+    return {"answer": answer, "sources": sources}

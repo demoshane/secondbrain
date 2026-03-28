@@ -83,11 +83,12 @@ export function IntelligencePage() {
   const handleQuickCapture = useCallback(async () => {
     if (!captureText.trim()) return
     setCapturing(true)
+    const title = captureText.split('\n')[0].slice(0, 60) || 'Quick capture'
     try {
-      const res = await fetch(`${getAPI()}/capture`, {
+      const res = await fetch(`${getAPI()}/notes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: captureText, note_type: 'note' }),
+        body: JSON.stringify({ body: captureText, type: 'note', title }),
       })
       if (!res.ok) throw new Error('capture failed')
       toast.success('Note saved')
@@ -128,12 +129,14 @@ export function IntelligencePage() {
     try {
       const res = await fetch(`${getAPI()}/intelligence/recap`, { method: 'POST' })
       const data = await res.json()
-      setRecap(data.recap ?? recap)
+      if (data.recap) setRecap(data.recap)
+      else toast.error('Recap generation failed.')
     } catch {
-      // keep existing recap
+      toast.error('Recap failed. Check the app connection and try again.')
+    } finally {
+      setGeneratingRecap(false)
     }
-    setGeneratingRecap(false)
-  }, [recap])
+  }, [])
 
   const runHealthCheck = useCallback(async () => {
     setHealthLoading(true)

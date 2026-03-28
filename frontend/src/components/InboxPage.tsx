@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Inbox } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ActionItemRow } from '@/components/ui/action-item-row'
 import { CollapsibleSection } from '@/components/ui/collapsible-section'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SkeletonList } from '@/components/ui/skeleton-list'
@@ -172,19 +171,6 @@ export function InboxPage() {
     },
     [loadInbox, sourceFilter]
   )
-
-  // ActionItemRow onAssign adapter: (id, path|null) => void
-  const handleAssign = useCallback(
-    (id: number, path: string | null) => {
-      assignAction(id, path)
-    },
-    [assignAction]
-  )
-
-  // ActionItemRow onToggle: no-op for inbox context (not toggling done here)
-  const handleToggle = useCallback((_id: number) => {}, [])
-  // ActionItemRow onDelete: no-op for inbox context
-  const handleDeleteAction = useCallback((_id: number) => {}, [])
 
   const addBacklink = useCallback(
     async (sourcePath: string, targetPath: string) => {

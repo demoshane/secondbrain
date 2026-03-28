@@ -3,6 +3,7 @@ import datetime
 import json as _json
 import logging
 import math
+import re
 import sqlite3
 
 logger = logging.getLogger(__name__)
@@ -33,15 +34,42 @@ def _recency_multiplier(created_at_str: str, half_life_days: int = 30) -> float:
 
 
 def _fts5_query(query: str) -> str:
-    """Wrap a raw user query in FTS5 phrase quotes.
+    """Build an FTS5 query with per-token prefix matching.
 
-    FTS5 treats hyphens as subtraction operators in bare queries (e.g. "alice-smith"
-    parses as "alice" minus column "smith", raising OperationalError).  Wrapping the
-    whole query in double-quotes makes it a phrase search, which is the correct
-    semantics for name/slug lookups.  Internal double-quotes are escaped by doubling.
+    Each whitespace-separated token becomes a prefix term ("token"*), so partial
+    words like "Verifi" match "Verification", "Verified", etc.  Multiple tokens
+    are AND-joined, so "Eino Ki" matches notes containing words starting with
+    both "Eino" and "Ki".  Internal double-quotes are escaped by doubling.
     """
-    escaped = query.replace('"', '""')
-    return f'"{escaped}"'
+    tokens = query.split()
+    if not tokens:
+        return '""'
+    parts = [f'"{t.replace(chr(34), chr(34) + chr(34))}"*' for t in tokens]
+    return " ".join(parts)
+
+
+_QUESTION_STOP_WORDS = frozenset({
+    "who", "what", "when", "where", "why", "how", "is", "are", "was", "were",
+    "do", "does", "did", "tell", "me", "about", "know", "have", "i", "you",
+    "the", "a", "an", "of", "in", "on", "at", "to", "for", "with", "and",
+    "or", "that", "this", "it", "he", "she", "his", "her", "my", "any",
+    "can", "could", "would", "should", "please", "give", "show", "list",
+    "get", "find", "remember",
+})
+
+
+def _fts5_keyword_query(query: str) -> str:
+    """Convert a natural-language question to an AND-joined FTS5 keyword search.
+
+    Strips common question/stop words, then AND-joins the remaining meaningful
+    tokens.  Falls back to a full phrase search if no meaningful tokens remain.
+    """
+    tokens = re.findall(r'\b\w+\b', query.lower())
+    meaningful = [t for t in tokens if t not in _QUESTION_STOP_WORDS and len(t) > 1]
+    if not meaningful:
+        return _fts5_query(query)
+    escaped = [f'"{t.replace(chr(34), chr(34) + chr(34))}"' for t in meaningful]
+    return " AND ".join(escaped)
 
 
 def search_notes(
@@ -49,6 +77,7 @@ def search_notes(
     query: str,
     note_type: str | None = None,
     limit: int = 20,
+    natural_language: bool = False,
 ) -> list[dict]:
     """Search notes using FTS5 BM25 ranking.
 
@@ -61,11 +90,14 @@ def search_notes(
         query: Raw search query (automatically phrase-quoted for FTS5 safety).
         note_type: If provided, restrict results to notes of this type.
         limit: Maximum number of results to return.
+        natural_language: When True, strips question stop words and uses
+            AND-joined keyword search instead of full-phrase matching.
+            Use this for free-form questions (e.g. Ask Brain queries).
 
     Returns:
         List of result dicts, empty list when no notes match.
     """
-    fts_query = _fts5_query(query)
+    fts_query = _fts5_keyword_query(query) if natural_language else _fts5_query(query)
     if note_type is None:
         sql = """
             SELECT n.path, n.type, n.title, n.created_at, bm25(notes_fts, 10.0, 1.0) AS score
@@ -293,6 +325,7 @@ def search_hybrid(
     conn: sqlite3.Connection,
     query: str,
     limit: int = 20,
+    natural_language: bool = False,
 ) -> list[dict]:
     """Hybrid search: merges BM25 and vector results via Reciprocal Rank Fusion.
 
@@ -300,8 +333,12 @@ def search_hybrid(
     - sqlite-vec fails to load.
     - note_embeddings table is empty (prints a notification).
     - search_semantic raises an unexpected exception.
+
+    Args:
+        natural_language: When True, uses keyword AND-search for BM25 instead
+            of full-phrase matching. Pass True for Ask Brain / free-form questions.
     """
-    bm25 = search_notes(conn, query, limit=limit * 2)
+    bm25 = search_notes(conn, query, limit=limit * 2, natural_language=natural_language)
 
     try:
         vec_results = search_semantic(conn, query, limit=limit * 2)
@@ -324,6 +361,7 @@ def _apply_filters(
     note_type: str | None = None,
     from_date: str | None = None,
     to_date: str | None = None,
+    importance: str | None = None,
 ) -> list[dict]:
     """Post-filter search results by entity dimensions. AND logic.
 
@@ -342,7 +380,7 @@ def _apply_filters(
     Returns:
         Filtered list of result dicts.
     """
-    if not any([person, tag, note_type, from_date, to_date]):
+    if not any([person, tag, note_type, from_date, to_date, importance]):
         return results
 
     filtered = []
@@ -366,6 +404,12 @@ def _apply_filters(
             ).fetchone()
             plist = _json.loads(people_row[0] or "[]") if people_row else []
             if not any(person in p or p == person for p in plist):
+                continue
+        if importance:
+            imp_row = conn.execute(
+                "SELECT importance FROM notes WHERE path=?", (r["path"],)
+            ).fetchone()
+            if not imp_row or imp_row[0] != importance:
                 continue
         filtered.append(r)
     return filtered

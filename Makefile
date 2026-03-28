@@ -29,7 +29,7 @@ build-frontend:
 	npm run build --prefix "$(REPO)/frontend"
 
 install:
-	uv tool install --editable --force "$(REPO)"
+	uv tool install --python 3.13 --editable --force "$(REPO)"
 
 dev: build-frontend install
 ifdef IN_CONTAINER
@@ -47,7 +47,7 @@ else
 	@echo "Restarting launchd services..."
 	-launchctl stop com.secondbrain.api   2>/dev/null
 	-launchctl stop com.secondbrain.watch 2>/dev/null
-	uv tool install --editable --force "$(REPO)"
+	uv tool install --python 3.13 --editable --force "$(REPO)"
 	-launchctl start com.secondbrain.api   2>/dev/null
 	-launchctl start com.secondbrain.watch 2>/dev/null
 	@echo "Done. GUI at http://localhost:37491/ui"

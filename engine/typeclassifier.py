@@ -44,6 +44,17 @@ _PRODUCT_WORDS = re.compile(
 # space or hyphen.  Must be the *entire* title — no extra words.
 _PERSON_NAME_PAT = re.compile(r'^[A-Z][a-z]+(?:[\- ][A-Z][a-z]+)+$')
 
+# Importance classification patterns
+_IMPORTANCE_HIGH_PAT = re.compile(
+    r'\b(urgent|critical|p0|p1|emergency|incident|outage|breaking|blocker|showstopper|'
+    r'asap|immediately|time-sensitive|escalat)\b',
+    re.IGNORECASE,
+)
+_IMPORTANCE_LOW_PAT = re.compile(
+    r'\b(fyi|note-to-self|low-priority|someday|maybe|random|shower\s+thought|idle|trivial|minor)\b',
+    re.IGNORECASE,
+)
+
 
 # ---------------------------------------------------------------------------
 # Public API
@@ -222,3 +233,17 @@ def classify_note_type(title: str, body: str) -> tuple[str, float]:
         return ("note", 0.90)
 
     return (best_type, best_score)
+
+
+def classify_importance(title: str, body: str) -> str:
+    """Classify note importance from title+body keywords.
+
+    Returns 'high', 'medium', or 'low'. Rule-based only — no LLM.
+    High patterns take precedence over low.
+    """
+    text = (title + " " + body).lower()
+    if _IMPORTANCE_HIGH_PAT.search(text):
+        return "high"
+    if _IMPORTANCE_LOW_PAT.search(text):
+        return "low"
+    return "medium"

@@ -2,6 +2,45 @@
 import re
 
 # ---------------------------------------------------------------------------
+# Person-context signals — document must contain at least one of these before
+# any name extraction is attempted.  This gates the whole sliding-window
+# bigram extraction: product/tech notes never have these signals; meeting
+# notes, bios, and contact notes always do.
+# ---------------------------------------------------------------------------
+_PERSON_CONTEXT_SIGNALS = re.compile(
+    r'(?:'
+    # Honorifics
+    r'\b(?:mr|ms|mrs|dr|prof)\b'
+    r'|'
+    # Job titles / roles
+    r'\b(?:ceo|cto|coo|cpo|cfo|vp|svp|evp|gm|'
+    r'director|manager|engineer|developer|designer|'
+    r'founder|partner|consultant|analyst|specialist|advisor|'
+    r'coordinator|lead|head|chief|principal|officer|'
+    r'recruiter|researcher|architect|scientist|intern|'
+    r'stakeholder|stakeholders|colleague|coworker|'
+    r'attendee|attendees|participant|participants|'
+    r'contact|contacts|assignee|reviewer|owner)\b'
+    r'|'
+    # Contact / profile keywords
+    r'\b(?:email|phone|linkedin|role|title|works\s+at|joined)\b'
+    r'|'
+    # Person-action verbs (past or present tense)
+    r'\b(?:said|asked|told|mentioned|wrote|sent|emailed|called|'
+    r'messaged|texted|pinged|presented|joined|hired|invited|'
+    r'attended|assigned|delegated|escalated|approved|confirmed|'
+    r'responded|replied|reviewed|facilitated|chaired|hosted|'
+    r'organized|spoke|talked|discussed|met|reached|'
+    r'led|leads|lead|ran|runs|owns|owned|manages|managed|'
+    r'works|worked|reported|introduced|recommended|suggested)\b'
+    r'|'
+    # @mentions
+    r'@\w+'
+    r')',
+    re.IGNORECASE,
+)
+
+# ---------------------------------------------------------------------------
 # English stop words — tokens that look like proper nouns but aren't names
 # ---------------------------------------------------------------------------
 _STOP_WORDS = frozenset([
@@ -25,6 +64,22 @@ _STOP_WORDS = frozenset([
     # Meeting/calendar terms that appear in Title Case
     "Sync", "Call", "Chat", "Weekly", "Daily", "Monthly", "Quarterly",
     "Sprint", "Retro", "Demo", "Standup", "Kickoff",
+    # Product / app / tech terms that appear in Title Case but are never human names
+    "App", "Apps", "Timer", "Timers", "Watch", "Watches",
+    "Shortcut", "Shortcuts", "Plugin", "Plugins",
+    "Bot", "Bots", "Extension", "Extensions",
+    "Platform", "Dashboard", "Widget", "Widgets",
+    "Hub", "Kit", "Bar", "Card", "Board", "Grid", "Flow",
+    "Library", "Framework", "Module", "Component",
+    "Integration", "Integrations",
+    "Manager", "Tracker", "Monitor", "Analyzer",
+    "Builder", "Runner", "Handler", "Generator",
+    "Assistant", "Project", "Projects", "Idea", "Ideas",
+    "Alert", "Alerts", "Notification", "Notifications", "Preview",
+    # Adjective forms common in product names
+    "Controlled", "Powered", "Based", "Driven", "Enabled",
+    "Voice", "Quick", "Smart", "Easy", "Fast",
+    "Pro", "Plus", "Mini", "Lite", "Air",
 ])
 
 # ---------------------------------------------------------------------------
@@ -114,7 +169,11 @@ def extract_entities(title: str, body: str) -> dict:
         # (e.g. "... Wonderland" title + "Alice ..." body must not yield "Wonderland Alice")
         title_text = title or ""
         body_text = body or ""
-        people = list(set(_extract_people(title_text)) | set(_extract_people(body_text)))
+        # Person-context signals are checked against the combined text so that
+        # a name in the title ("Alice Johnson") is still extracted when signals
+        # are only in the body ("Role: CTO...").
+        combined_text = f"{title_text}\n{body_text}"
+        people = list(set(_extract_people(title_text, combined_text)) | set(_extract_people(body_text, combined_text)))
         topics = list(set(_extract_topics(title_text)) | set(_extract_topics(body_text)))
         places = list(set(_extract_places(title_text, people)) | set(_extract_places(body_text, people)))
         orgs = list(set(_extract_organizations(title_text)) | set(_extract_organizations(body_text)))
@@ -165,8 +224,17 @@ _TOKEN_PAT = re.compile(rf'\b{_NAME_SEG}\b')
 _GAP_PAT = re.compile(rf'^\s+{_PREFIX}$')
 
 
-def _extract_people(text: str) -> list[str]:
+def _extract_people(text: str, signal_text: str | None = None) -> list[str]:
     """Extract two-word names using a sliding window over capitalized tokens.
+
+    Requires at least one person-context signal (role title, action verb,
+    @mention, contact keyword) in `signal_text` (defaults to `text`) before
+    attempting extraction.  This prevents product/tech names from being
+    classified as people — product descriptions never contain these signals.
+
+    `signal_text` should be the full title+body combined so that a name in
+    the title is still detected when signals are only in the body, while name
+    extraction itself still runs on `text` to avoid cross-boundary bigrams.
 
     Uses a sliding window instead of non-overlapping findall so that
     consecutive names like "Met Anna Korhonen" yield both ("Met","Anna")
@@ -176,6 +244,13 @@ def _extract_people(text: str) -> list[str]:
     (gerunds, -tion, -ness, etc.) that commonly appear in title-cased headings.
     Supports compound prefixes (van, von, de, di, la, el) and hyphenated last names.
     """
+    # Document-level gate: skip name extraction entirely if there are no
+    # person-context signals.  This is the primary defence against false
+    # positives from product names, tech terms, and heading bigrams.
+    check_text = signal_text if signal_text is not None else text
+    if not _PERSON_CONTEXT_SIGNALS.search(check_text):
+        return []
+
     tokens = [(m.group(), m.start(), m.end()) for m in _TOKEN_PAT.finditer(text)]
     results = []
     for i in range(len(tokens) - 1):
@@ -184,8 +259,11 @@ def _extract_people(text: str) -> list[str]:
         gap = text[f_end:l_start]
         if not _GAP_PAT.match(gap):
             continue
-        if (first not in _ALL_STOPS
-                and last not in _ALL_STOPS
+        # Hyphenated tokens (e.g. "Voice-Controlled") — check each part against stops
+        first_parts = first.split("-")
+        last_parts = last.split("-")
+        if (not any(p in _ALL_STOPS for p in first_parts)
+                and not any(p in _ALL_STOPS for p in last_parts)
                 and not _is_abstract_noun(first)
                 and not _is_abstract_noun(last)):
             results.append(f"{first} {last}")

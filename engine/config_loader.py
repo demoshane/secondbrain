@@ -7,6 +7,7 @@ DEFAULT_CONFIG = {
         "pii_model": "ollama/llama3.2",
         "private_model": "claude",
         "public_model": "claude",
+        "fallback_model": "ollama/llama3.2",
     },
     "ollama": {
         "host": "http://host.docker.internal:11434",

@@ -1500,3 +1500,79 @@ def test_capture_creates_audit_log_entry(isolated_mcp_brain):
     paths = [r[1] for r in rows]
     # At least one audit row references a path containing the note title slug
     assert any("audit-test-note" in (p or "") for p in paths)
+
+
+# ---------------------------------------------------------------------------
+# Phase 42: importance field — MCP tests
+# ---------------------------------------------------------------------------
+
+def test_sb_capture_importance_high(isolated_mcp_brain):
+    """sb_capture with importance='high' writes importance=high to DB."""
+    import engine.db as _db
+    result = mcp_mod.sb_capture("High Priority Note", "prod is down now", importance="high")
+    assert result["status"] == "created"
+    conn = _db.get_connection()
+    row = conn.execute("SELECT importance FROM notes WHERE title='High Priority Note'").fetchone()
+    conn.close()
+    assert row is not None
+    assert row[0] == "high"
+
+
+def test_sb_capture_importance_default(isolated_mcp_brain):
+    """sb_capture without importance writes importance=medium (default)."""
+    import engine.db as _db
+    result = mcp_mod.sb_capture("Default Importance Note", "just a regular note")
+    assert result["status"] == "created"
+    conn = _db.get_connection()
+    row = conn.execute("SELECT importance FROM notes WHERE title='Default Importance Note'").fetchone()
+    conn.close()
+    assert row is not None
+    assert row[0] == "medium"
+
+
+def test_sb_edit_importance(isolated_mcp_brain):
+    """sb_edit with importance='low' updates DB and frontmatter."""
+    import engine.db as _db
+    mcp_mod.sb_capture("Edit Importance Note", "initial body", importance="medium")
+    conn = _db.get_connection()
+    row = conn.execute("SELECT path FROM notes WHERE title='Edit Importance Note'").fetchone()
+    conn.close()
+    assert row is not None
+    note_path = row[0]
+    # Use absolute path for sb_edit
+    from engine.paths import resolve_path
+    abs_path = str(resolve_path(note_path))
+    mcp_mod.sb_edit(abs_path, "updated body", importance="low")
+    conn = _db.get_connection()
+    row2 = conn.execute("SELECT importance FROM notes WHERE title='Edit Importance Note'").fetchone()
+    conn.close()
+    assert row2[0] == "low"
+
+
+def test_sb_edit_importance_none_preserves(isolated_mcp_brain):
+    """sb_edit without importance does NOT change existing importance value."""
+    import engine.db as _db
+    mcp_mod.sb_capture("Preserve Importance Note", "initial body", importance="high")
+    conn = _db.get_connection()
+    row = conn.execute("SELECT path FROM notes WHERE title='Preserve Importance Note'").fetchone()
+    conn.close()
+    note_path = row[0]
+    from engine.paths import resolve_path
+    abs_path = str(resolve_path(note_path))
+    mcp_mod.sb_edit(abs_path, "updated body")  # no importance
+    conn = _db.get_connection()
+    row2 = conn.execute("SELECT importance FROM notes WHERE title='Preserve Importance Note'").fetchone()
+    conn.close()
+    assert row2[0] == "high"
+
+
+def test_classify_importance_urgent():
+    """classify_importance with urgent keywords returns 'high'."""
+    from engine.typeclassifier import classify_importance
+    assert classify_importance("URGENT fix", "prod is down") == "high"
+
+
+def test_classify_importance_default():
+    """classify_importance with neutral content returns 'medium'."""
+    from engine.typeclassifier import classify_importance
+    assert classify_importance("meeting notes", "discussed roadmap items") == "medium"

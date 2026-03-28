@@ -912,3 +912,69 @@ class TestCreateNoteSourceUrl:
 
         content = Path(data["path"]).read_text(encoding="utf-8")
         assert "url: https://example.com" in content
+
+
+# ---------------------------------------------------------------------------
+# Phase 42: importance field — API tests
+# ---------------------------------------------------------------------------
+
+class TestNoteImportance:
+    def test_update_note_importance_valid(self, tmp_note, client):
+        """PUT /notes/<path>/importance with valid value returns 200 and updates DB."""
+        import engine.db as _db
+        from urllib.parse import quote
+
+        # Get the relative path from DB
+        conn = _db.get_connection()
+        row = conn.execute("SELECT path FROM notes WHERE title='Original Title'").fetchone()
+        conn.close()
+        assert row is not None
+        rel_path = row[0]
+
+        response = client.put(
+            f"/notes/{rel_path}/importance",
+            json={"importance": "high"},
+        )
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["importance"] == "high"
+
+        # Verify DB updated
+        conn = _db.get_connection()
+        row = conn.execute("SELECT importance FROM notes WHERE path=?", (rel_path,)).fetchone()
+        conn.close()
+        assert row[0] == "high"
+
+    def test_update_note_importance_invalid(self, tmp_note, client):
+        """PUT /notes/<path>/importance with invalid value returns 400."""
+        import engine.db as _db
+        conn = _db.get_connection()
+        row = conn.execute("SELECT path FROM notes WHERE title='Original Title'").fetchone()
+        conn.close()
+        rel_path = row[0]
+
+        response = client.put(
+            f"/notes/{rel_path}/importance",
+            json={"importance": "critical"},
+        )
+        assert response.status_code == 400
+
+    def test_update_note_importance_not_found(self, client):
+        """PUT /notes/<path>/importance on non-existent path returns 404."""
+        import os
+        import engine.paths as _paths
+        brain = str(_paths.BRAIN_ROOT)
+        fake_rel = "note/nonexistent-note.md"
+        response = client.put(
+            f"/notes/{fake_rel}/importance",
+            json={"importance": "low"},
+        )
+        assert response.status_code == 404
+
+    def test_list_notes_includes_importance(self, tmp_note, client):
+        """GET /notes response includes 'importance' key in note objects."""
+        response = client.get("/notes")
+        assert response.status_code == 200
+        notes = response.get_json()["notes"]
+        if notes:
+            assert "importance" in notes[0]

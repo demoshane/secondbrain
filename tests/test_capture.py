@@ -619,6 +619,63 @@ class TestJunctionTableDualWrite:
         conn.close()
 
 
+# ---------------------------------------------------------------------------
+# Phase 42: importance field
+# ---------------------------------------------------------------------------
+
+def test_build_post_importance_default():
+    """build_post() without importance produces post['importance'] == 'medium'."""
+    from engine.capture import build_post
+    post = build_post("note", "t", "b", [], [])
+    assert post["importance"] == "medium"
+
+
+def test_build_post_importance_high():
+    """build_post(importance='high') sets post['importance'] == 'high'."""
+    from engine.capture import build_post
+    post = build_post("note", "t", "b", [], [], importance="high")
+    assert post["importance"] == "high"
+
+
+def test_capture_note_importance_in_db(tmp_path, monkeypatch):
+    """capture_note(importance='high') writes importance='high' to DB."""
+    import engine.db as db_mod
+    import engine.paths as paths_mod
+
+    brain = tmp_path / "SecondBrain"
+    brain.mkdir()
+    tmp_db = tmp_path / "brain.db"
+    monkeypatch.setattr(db_mod, "DB_PATH", tmp_db)
+    monkeypatch.setattr(paths_mod, "DB_PATH", tmp_db)
+    monkeypatch.setattr(paths_mod, "BRAIN_ROOT", brain)
+    monkeypatch.setenv("BRAIN_PATH", str(brain))
+
+    from engine.db import get_connection, init_schema
+    from engine.capture import capture_note
+
+    conn = get_connection(str(tmp_db))
+    init_schema(conn)
+
+    capture_note("note", "Importance Test", "body", [], [], "public", brain, conn, importance="high")
+    conn.commit()
+
+    row = conn.execute("SELECT importance FROM notes WHERE title='Importance Test'").fetchone()
+    assert row is not None
+    assert row[0] == "high"
+    conn.close()
+
+
+def test_importance_migration_idempotent(tmp_path):
+    """migrate_add_importance_column() called twice does not raise."""
+    import sqlite3
+    from engine.db import migrate_add_importance_column, init_schema
+
+    conn = sqlite3.connect(str(tmp_path / "brain.db"))
+    init_schema(conn)
+    migrate_add_importance_column(conn)  # second call — must be idempotent
+    conn.close()
+
+
 def test_update_note_re_extracts_entities(tmp_path, monkeypatch):
     """ARCH-13: update_note() re-runs entity extraction and updates entities+people columns."""
     import engine.db as db_mod

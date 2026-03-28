@@ -122,6 +122,7 @@ def event_stream():
 
     def generate():
         try:
+            yield ": heartbeat\n\n"  # flush initial connection immediately (Waitress needs first chunk)
             while True:
                 try:
                     data = q.get(timeout=15)
@@ -186,13 +187,13 @@ def list_notes():
         if include_archived:
             total = conn.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
             rows = conn.execute(
-                "SELECT path, title, type, created_at, tags FROM notes ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                "SELECT path, title, type, created_at, tags, importance FROM notes ORDER BY created_at DESC LIMIT ? OFFSET ?",
                 (limit, offset),
             ).fetchall()
         else:
             total = conn.execute("SELECT COUNT(*) FROM notes WHERE archived = 0").fetchone()[0]
             rows = conn.execute(
-                "SELECT path, title, type, created_at, tags FROM notes WHERE archived = 0 ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                "SELECT path, title, type, created_at, tags, importance FROM notes WHERE archived = 0 ORDER BY created_at DESC LIMIT ? OFFSET ?",
                 (limit, offset),
             ).fetchall()
     finally:
@@ -216,6 +217,7 @@ def search():
     note_type = body.get("note_type")  # str | None
     from_date = body.get("from_date")  # str | None — ISO date YYYY-MM-DD
     to_date = body.get("to_date")      # str | None — ISO date YYYY-MM-DD
+    importance = body.get("importance")  # str | None
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     try:
@@ -279,6 +281,7 @@ def search():
             note_type=note_type,
             from_date=from_date,
             to_date=to_date,
+            importance=importance,
         )
     finally:
         conn.close()
@@ -320,25 +323,41 @@ def read_note(note_path):
         return jsonify({"error": "Forbidden"}), 403
     if not p.exists():
         return jsonify({"error": "Not found"}), 404
-    raw = p.read_text(encoding="utf-8")
-    if request.args.get("raw"):
-        return jsonify({"content": raw, "path": str(p)})
-    post = _fm.loads(raw)
-    meta = post.metadata or {}
-    tags = meta.get("tags", [])
-    if isinstance(tags, str):
-        import json as _json
-        try:
-            tags = _json.loads(tags)
-        except Exception:
-            tags = []
-    return jsonify({
-        "body": post.content,
-        "path": str(p),
-        "title": meta.get("title", p.stem),
-        "type": meta.get("type", "note"),
-        "tags": tags,
-    })
+    try:
+        raw = p.read_text(encoding="utf-8")
+        if request.args.get("raw"):
+            return jsonify({"content": raw, "path": store_path(p)})
+        post = _fm.loads(raw)
+        meta = post.metadata or {}
+        tags = meta.get("tags", [])
+        if isinstance(tags, str):
+            import json as _json
+            try:
+                tags = _json.loads(tags)
+            except Exception:
+                tags = []
+        people = meta.get("people", [])
+        if isinstance(people, str):
+            import json as _json
+            try:
+                people = _json.loads(people)
+            except Exception:
+                people = []
+        rel_path = store_path(p)
+        return jsonify({
+            "body": post.content,
+            "path": rel_path,
+            "title": meta.get("title", p.stem),
+            "type": meta.get("type", "note"),
+            "tags": tags,
+            "people": people,
+            "folder": _note_folder(rel_path),
+            "created_at": meta.get("created_at", ""),
+            "updated_at": meta.get("updated_at", ""),
+            "importance": meta.get("importance", "medium"),
+        })
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
 
 
 @app.get("/persons")
@@ -370,9 +389,10 @@ def list_meetings():
             "SELECT COUNT(*) FROM notes WHERE type = 'meeting'"
         ).fetchone()[0]
         rows = conn.execute(
-            "SELECT n.path, n.title, substr(n.created_at,1,10) AS meeting_date, n.people, "
+            "SELECT n.path, n.title, "
+            "  COALESCE(n.meeting_date, substr(n.created_at,1,10)) AS meeting_date, n.people, "
             "  (SELECT COUNT(*) FROM action_items a WHERE a.note_path=n.path AND a.done=0) AS open_actions "
-            "FROM notes n WHERE n.type = 'meeting' ORDER BY n.created_at DESC LIMIT ? OFFSET ?",
+            "FROM notes n WHERE n.type = 'meeting' ORDER BY COALESCE(n.meeting_date, substr(n.created_at,1,10)) DESC LIMIT ? OFFSET ?",
             (limit, offset),
         ).fetchall()
     finally:
@@ -403,7 +423,9 @@ def get_meeting(note_path):
     conn.row_factory = sqlite3.Row
     try:
         row = conn.execute(
-            "SELECT path, title, body, people, substr(created_at,1,10) AS meeting_date FROM notes WHERE path=?",
+            "SELECT path, title, body, people, "
+            "  COALESCE(meeting_date, substr(created_at,1,10)) AS meeting_date "
+            "FROM notes WHERE path=?",
             (store_path(abs_path),)
         ).fetchone()
         if row is None:
@@ -440,7 +462,7 @@ def list_projects():
             "SELECT COUNT(*) FROM notes WHERE type = 'projects'"
         ).fetchone()[0]
         rows = conn.execute(
-            "SELECT n.path, n.title, n.status, substr(n.updated_at,1,10) AS updated_at, "
+            "SELECT n.path, n.title, n.status, n.deadline, substr(n.updated_at,1,10) AS updated_at, "
             "  (SELECT COUNT(*) FROM action_items a WHERE a.note_path=n.path AND a.done=0) AS open_actions, "
             "  (SELECT COUNT(DISTINCT m.path) FROM notes m "
             "   JOIN relationships r ON (r.source_path=m.path OR r.target_path=m.path) "
@@ -465,7 +487,7 @@ def get_project(note_path):
     try:
         sp = store_path(abs_path)
         row = conn.execute(
-            "SELECT path, title, body, status, substr(updated_at,1,10) AS updated_at FROM notes WHERE path=?",
+            "SELECT path, title, body, status, deadline, substr(updated_at,1,10) AS updated_at FROM notes WHERE path=?",
             (sp,)
         ).fetchone()
         if row is None:
@@ -485,11 +507,12 @@ def get_project(note_path):
             (sp, sp)
         ).fetchone()[0]
         linked_meetings_rows = conn.execute(
-            "SELECT DISTINCT n.path, n.title, substr(n.created_at,1,10) AS meeting_date "
+            "SELECT DISTINCT n.path, n.title, "
+            "  COALESCE(n.meeting_date, substr(n.created_at,1,10)) AS meeting_date "
             "FROM notes n "
             "JOIN relationships r ON (r.source_path=n.path OR r.target_path=n.path) "
             "WHERE (r.source_path=? OR r.target_path=?) AND n.type='meeting' "
-            "ORDER BY n.created_at DESC",
+            "ORDER BY COALESCE(n.meeting_date, substr(n.created_at,1,10)) DESC",
             (sp, sp),
         ).fetchall()
         linked_meetings = [
@@ -503,6 +526,7 @@ def get_project(note_path):
         "title": row["title"] or "",
         "body": row["body"] or "",
         "status": row["status"] or "active",
+        "deadline": row["deadline"] or None,
         "updated_at": row["updated_at"] or "",
         "open_actions": open_actions,
         "related_notes_count": related_notes_count,
@@ -536,6 +560,39 @@ def update_project_status(note_path):
         conn.close()
     _broadcast({"type": "notes_changed"})
     return jsonify({"status": status, "path": sp})
+
+
+@app.put("/notes/<path:note_path>/importance")
+def update_note_importance(note_path):
+    try:
+        abs_path, _brain_root = _resolve_note_path(note_path)
+    except ValueError:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.get_json(force=True) or {}
+    importance = data.get("importance", "")
+    if importance not in VALID_IMPORTANCE_VALUES:
+        return jsonify({"error": "importance must be low, medium, or high"}), 400
+    conn = get_connection()
+    try:
+        sp = store_path(abs_path)
+        row = conn.execute("SELECT id FROM notes WHERE path=?", (sp,)).fetchone()
+        if row is None:
+            return jsonify({"error": "not found"}), 404
+        conn.execute(
+            "UPDATE notes SET importance=?, updated_at=strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE path=?",
+            (importance, sp),
+        )
+        if abs_path.exists():
+            post = _fm.load(str(abs_path))
+            post["importance"] = importance
+            from engine.capture import write_note_atomic
+            write_note_atomic(abs_path, post, conn, update=True)
+        else:
+            conn.commit()
+    finally:
+        conn.close()
+    _broadcast({"type": "notes_changed"})
+    return jsonify({"importance": importance, "path": sp})
 
 
 @app.post("/projects/<path:note_path>/meetings")
@@ -1178,6 +1235,54 @@ def save_note(note_path):
             conn.close()
         return jsonify({"saved": True, "path": str(p)})
 
+    # Deadline branch: update deadline on project notes (or any note)
+    if "deadline" in body and "content" not in body and "tags" not in body and "title" not in body and "people" not in body:
+        deadline_val = body.get("deadline")  # None clears it, string sets it
+        raw = p.read_text(encoding="utf-8")
+        post = _fm.loads(raw)
+        post.metadata["deadline"] = deadline_val
+        updated_text = _fm.dumps(post)
+        with tempfile.NamedTemporaryFile("w", dir=p.parent, delete=False, suffix=".tmp", encoding="utf-8") as f:
+            f.write(updated_text)
+            tmp = f.name
+        suppress_next_delete(str(p))
+        os.replace(tmp, p)
+        now = datetime.datetime.utcnow().isoformat()
+        conn = get_connection()
+        try:
+            conn.execute(
+                "UPDATE notes SET deadline=?, updated_at=? WHERE path=?",
+                (deadline_val, now, store_path(p))
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return jsonify({"saved": True, "path": str(p)})
+
+    # Meeting date branch: update meeting_date on meeting notes
+    if "meeting_date" in body and "content" not in body and "tags" not in body and "title" not in body and "people" not in body:
+        meeting_date_val = body.get("meeting_date")
+        raw = p.read_text(encoding="utf-8")
+        post = _fm.loads(raw)
+        post.metadata["meeting_date"] = meeting_date_val
+        updated_text = _fm.dumps(post)
+        with tempfile.NamedTemporaryFile("w", dir=p.parent, delete=False, suffix=".tmp", encoding="utf-8") as f:
+            f.write(updated_text)
+            tmp = f.name
+        suppress_next_delete(str(p))
+        os.replace(tmp, p)
+        now = datetime.datetime.utcnow().isoformat()
+        conn = get_connection()
+        try:
+            conn.execute(
+                "UPDATE notes SET meeting_date=?, updated_at=? WHERE path=?",
+                (meeting_date_val, now, store_path(p))
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return jsonify({"saved": True, "path": str(p)})
+
     # Title+Body combined branch: update both title and body preserving all other frontmatter
     title_b = body.get("title_and_body_title")
     body_b = body.get("title_and_body_body")
@@ -1253,6 +1358,7 @@ def rename_note_route(note_path):
 
 
 VALID_PROJECT_STATUSES = {"active", "paused", "completed"}
+VALID_IMPORTANCE_VALUES = frozenset({"low", "medium", "high"})
 
 VALID_NOTE_TYPES = {
     "note", "meeting", "person", "idea", "link",
@@ -1325,6 +1431,7 @@ def delete_note_endpoint(note_path):
         return jsonify({"error": type(e).__name__}), 500
     finally:
         conn.close()
+    _broadcast({"type": "notes_changed"})
     return jsonify(result), 200
 
 
@@ -1365,6 +1472,15 @@ def note_meta(note_path):
             (db_path,)
         ).fetchall()
         backlinks = [{"path": r["path"], "title": r["title"]} for r in backlink_rows]
+        # Manual connections — bidirectional rel_type='connection'
+        connection_rows = conn.execute(
+            "SELECT CASE WHEN r.source_path=? THEN r.target_path ELSE r.source_path END AS path, "
+            "n.title FROM relationships r "
+            "JOIN notes n ON n.path = CASE WHEN r.source_path=? THEN r.target_path ELSE r.source_path END "
+            "WHERE (r.source_path=? OR r.target_path=?) AND r.rel_type='connection'",
+            (db_path, db_path, db_path, db_path)
+        ).fetchall()
+        connections = [{"path": r["path"], "title": r["title"]} for r in connection_rows]
         related = []
         if title_row:
             related_rows = search_notes(conn, title_row["title"])
@@ -1419,7 +1535,56 @@ def note_meta(note_path):
                 # Unresolved plain-text name — omit (noise from old entity extraction)
     finally:
         conn.close()
-    return jsonify({"backlinks": backlinks, "related": related, "people": people, "tags": note_tags})
+    return jsonify({"backlinks": backlinks, "connections": connections, "related": related, "people": people, "tags": note_tags})
+
+
+@app.post("/notes/<path:note_path>/connections")
+def add_note_connection(note_path):
+    try:
+        p, _ = _resolve_note_path(note_path)
+    except ValueError:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.get_json(force=True) or {}
+    target_path = data.get("target_path", "").strip()
+    if not target_path:
+        return jsonify({"error": "target_path required"}), 400
+    conn = get_connection()
+    try:
+        source = store_path(p)
+        conn.execute(
+            "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+            (source, target_path, "connection"),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    _broadcast({"type": "notes_changed"})
+    return jsonify({"status": "connected", "source": source, "target": target_path})
+
+
+@app.delete("/notes/<path:note_path>/connections")
+def remove_note_connection(note_path):
+    try:
+        p, _ = _resolve_note_path(note_path)
+    except ValueError:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.get_json(force=True) or {}
+    target_path = data.get("target_path", "").strip()
+    if not target_path:
+        return jsonify({"error": "target_path required"}), 400
+    conn = get_connection()
+    try:
+        source = store_path(p)
+        conn.execute(
+            "DELETE FROM relationships WHERE rel_type='connection' AND "
+            "((source_path=? AND target_path=?) OR (source_path=? AND target_path=?))",
+            (source, target_path, target_path, source),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    _broadcast({"type": "notes_changed"})
+    return jsonify({"status": "disconnected"})
 
 
 @app.get("/files")
@@ -1461,6 +1626,32 @@ def file_usages():
     finally:
         conn.close()
     return jsonify({"usages": [{"note_path": r[0], "title": r[1]} for r in rows]})
+
+
+@app.get("/files/download")
+def download_file():
+    """Serve a file from the brain's files/ directory.
+
+    Query param: path (absolute path, must be inside BRAIN_PATH/files/).
+    """
+    from flask import send_file as _send_file
+    file_path = request.args.get("path", "")
+    if not file_path:
+        return jsonify({"error": "path required"}), 400
+
+    brain_path = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
+    files_dir = _Path(brain_path) / "files"
+    target = _Path(file_path).resolve()
+
+    try:
+        target.relative_to(files_dir.resolve())
+    except ValueError:
+        return jsonify({"error": "Path outside files directory"}), 403
+
+    if not target.exists():
+        return jsonify({"error": "File not found"}), 404
+
+    return _send_file(str(target), as_attachment=False)
 
 
 @app.delete("/files")

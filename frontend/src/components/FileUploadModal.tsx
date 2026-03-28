@@ -16,7 +16,7 @@ interface Props {
 export function FileUploadModal({ open, onClose, onUploaded, notePath: notePathProp }: Props) {
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
-  const { currentPath, openNote } = useNoteContext()
+  const { currentPath } = useNoteContext()
   const resolvedPath = notePathProp ?? currentPath
 
   const handleUpload = async () => {
@@ -29,7 +29,6 @@ export function FileUploadModal({ open, onClose, onUploaded, notePath: notePathP
     const res = await fetch(`${getAPI()}/files/upload`, { method: 'POST', body: form })
     setUploading(false)
     if (res.ok) {
-      await openNote(resolvedPath)
       toast.success('File uploaded')
       onUploaded?.()
       onClose()

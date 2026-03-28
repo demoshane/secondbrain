@@ -8,6 +8,7 @@ export interface Note {
   folder: string
   created_at: string
   updated_at: string
+  importance?: string
 }
 
 export interface ActionItem {

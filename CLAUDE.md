@@ -4,7 +4,36 @@
 
 **Before any implementation, debugging, or testing: read `.claude/LEARNINGS.md`.**
 
+## Non-negotiable frontend rules — apply to every plan and every task, no exceptions
+
+These are not guidelines. Skipping any of these is not acceptable.
+
+**1. New UI must follow Visily designs.**
+Before planning or implementing any new frontend feature, locate and read the relevant
+Visily design. Do not invent layouts, components, or visual patterns. If no design exists,
+stop and ask before proceeding.
+
+**2. Before touching existing frontend code, fully understand how it works.**
+Read the component, trace its data flow, state, API calls, and side effects end to end.
+Identify every place the code is used and what depends on it. A change that looks local
+often breaks something upstream or downstream. Do not write a single line until you have
+this picture.
+
+**3. Understand the business context and user workflow before implementing.**
+Know why the change exists, which user problem it solves, how it connects to the rest of
+the app, and what the expected user journey looks like. Every change must feel native —
+consistent interaction patterns, coherent information hierarchy, no jarring transitions.
+If you cannot articulate the "why" and the "big picture", you are not ready to implement.
+
+**When fixing a bug:** before writing any code, identify every place the same bug can appear — other components, pages, or code paths that share the same pattern or call the same function. Fix all of them. Don't patch the one instance you found first and stop.
+
 **After resolving a bug:** only add to LEARNINGS.md if the rule is **universally applicable** to future work in this project AND not already covered by CLAUDE.md. One-time fixes, generic coding mistakes, and already-fixed code patterns belong in git history, not LEARNINGS.md. Keep the file under 80 lines.
+
+**After implementing any fix or feature:** verify it actually works from the user's point of view before declaring done.
+- Backend changes: run a focused pytest (`-k filter`) or make a direct API call to confirm the behaviour.
+- Frontend changes: use Playwright to exercise the real UI flow — click through the feature, confirm the visible result.
+- If `make dev` hasn't been run yet, say so explicitly and list what needs deploying before verification is possible.
+- Do not rely on "code looks correct" alone — a fix that works in source but fails at runtime (stale service, missing migration, wrong env) is not done.
 
 ## What this is
 
@@ -157,6 +186,7 @@ make test     # run full test suite
 `make dev` is the single command for all code changes. Always use it instead of
 `uv tool install .` (which uses a cached wheel and may not pick up source changes).
 Launchd service names: `com.secondbrain.api`, `com.secondbrain.watch`.
+
 
 ## Key gotchas
 

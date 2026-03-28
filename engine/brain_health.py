@@ -63,6 +63,9 @@ def get_empty_notes(conn: sqlite3.Connection) -> list[dict]:
     return [{"path": row[0], "title": row[1]} for row in rows]
 
 
+_DUPLICATE_CHECK_CAP = 100
+
+
 def get_duplicate_candidates(
     conn: sqlite3.Connection, threshold: float = 0.92
 ) -> list[dict]:
@@ -70,12 +73,14 @@ def get_duplicate_candidates(
 
     Returns [] silently if sqlite-vec is unavailable or embeddings table is empty.
     Threshold 0.92 chosen to surface likely duplicates, not merely related notes.
+    Capped at _DUPLICATE_CHECK_CAP notes to avoid O(N²) scan on large brains.
     """
     try:
         from engine.intelligence import find_similar
 
         paths_rows = conn.execute(
-            "SELECT note_path FROM note_embeddings"
+            "SELECT note_path FROM note_embeddings ORDER BY rowid DESC LIMIT ?",
+            (_DUPLICATE_CHECK_CAP,),
         ).fetchall()
         paths = [r[0] for r in paths_rows]
         seen: set[tuple[str, str]] = set()

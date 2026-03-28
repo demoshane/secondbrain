@@ -2,7 +2,6 @@
 import datetime
 import json
 import os
-import re
 import sqlite3
 import tempfile
 from pathlib import Path
@@ -17,27 +16,20 @@ TYPE_TO_DIR: dict[str, str] = {
     "link": "links",
 }
 
-_MEETING_KEYWORDS = {"meeting", "standup", "sync", "retro", "review", "1:1"}
-
-
 def _suggest_note_type_from_title(title: str) -> str | None:
-    """Suggest a note type based on title heuristics. Returns None if no match.
+    """Suggest a note type based on title heuristics. Returns None if confidence is low.
 
-    Best-effort: never blocks capture, never raises.
-
-    Rules (in priority order):
-    1. If title contains a meeting/sync keyword → suggest 'meeting'
-    2. If title matches 'Firstname Lastname' (two capitalized words) → suggest 'person'
+    Uses classify_note_type with title-only input.  Requires confidence >= 0.80
+    (higher bar than the general threshold because no body context is available).
 
     Returns:
-        'meeting', 'person', or None.
+        note_type string if confident, or None if type is unclear.
     """
-    title_lower = title.lower()
-    if any(kw in title_lower for kw in _MEETING_KEYWORDS):
-        return "meeting"
-    if re.match(r"^[A-Z][a-z]+ [A-Z][a-z]+$", title.strip()):
-        return "person"
-    return None
+    from engine.typeclassifier import classify_note_type
+    note_type, confidence = classify_note_type(title, "")
+    if note_type == "note" or confidence < 0.80:
+        return None
+    return note_type
 
 
 def _embed_texts_for_dedup(texts: list[str]) -> list:
@@ -103,6 +95,7 @@ def build_post(
     tags: list,
     people: list,
     content_sensitivity: str = "public",
+    importance: str = "medium",
 ) -> frontmatter.Post:
     """Build a frontmatter.Post with all 8 required fields.
 
@@ -129,6 +122,11 @@ def build_post(
     post["created_at"] = now
     post["updated_at"] = now
     post["content_sensitivity"] = content_sensitivity
+    post["importance"] = importance
+    if note_type in ("projects", "project"):
+        post["deadline"] = None
+    if note_type in ("meeting", "meetings"):
+        post["meeting_date"] = today
     return post
 
 
@@ -190,6 +188,9 @@ def write_note_atomic(
         created_at = post.get("created_at", datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
         updated_at = post.get("updated_at", created_at)
         sensitivity = post.get("content_sensitivity", "public")
+        deadline = post.get("deadline") or None
+        meeting_date = post.get("meeting_date") or None
+        importance = post.get("importance", "medium")
 
         # ARCH-01: store relative path in DB for portability.
         # Fall back to absolute resolved path if target is outside BRAIN_ROOT
@@ -200,8 +201,9 @@ def write_note_atomic(
             resolved_path = str(target.resolve())
         sql_verb = "INSERT OR REPLACE" if update else "INSERT"
         conn.execute(
-            f"{sql_verb} INTO notes (path, type, title, body, tags, people, created_at, updated_at, sensitivity, url)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            f"{sql_verb} INTO notes"
+            " (path, type, title, body, tags, people, created_at, updated_at, sensitivity, url, deadline, meeting_date, importance)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 resolved_path,
                 post.get("type", "note"),
@@ -213,6 +215,9 @@ def write_note_atomic(
                 updated_at,
                 sensitivity,
                 str(url) if url else None,
+                deadline,
+                meeting_date,
+                importance,
             ),
         )
         log_audit(conn, "update" if update else "create", resolved_path)
@@ -457,6 +462,7 @@ def capture_note(
     *,
     url: str | None = None,
     source_type: str | None = None,
+    importance: str = "medium",
 ) -> Path:
     """Build and atomically write a note, returning its final path.
 
@@ -516,7 +522,7 @@ def capture_note(
     extracted_people = entities.get("people", [])
     merged_people = list(dict.fromkeys(people + extracted_people))
 
-    post = build_post(note_type, title, body, tags, merged_people, content_sensitivity)
+    post = build_post(note_type, title, body, tags, merged_people, content_sensitivity, importance=importance)
     if url:
         post["url"] = url
     if source_type:

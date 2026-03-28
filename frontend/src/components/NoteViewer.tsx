@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm'
 import { Pencil, Upload, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { NoteTypeBadge } from '@/components/ui/note-type-badge'
+import { ImportanceBadge } from '@/components/ui/importance-badge'
 import { TagBadge } from '@/components/ui/tag-badge'
 import { PersonBadge } from '@/components/ui/person-badge'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -210,6 +211,7 @@ export function NoteViewer({ note }: Props) {
       {/* Metadata row */}
       <div className="flex items-center gap-3 text-xs text-muted-foreground mb-4">
         <NoteTypeBadge type={note.type || 'note'} />
+        <ImportanceBadge importance={note.importance} />
         {note.updated_at && (
           <span title={note.updated_at}>{relativeTime(note.updated_at)}</span>
         )}

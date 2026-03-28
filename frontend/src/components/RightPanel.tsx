@@ -6,21 +6,38 @@ import { TagBadge } from '@/components/ui/tag-badge'
 import { ActionItemRow } from '@/components/ui/action-item-row'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useNoteContext } from '@/contexts/NoteContext'
+import { useSearchContext } from '@/contexts/SearchContext'
 import { getAPI, encodePath } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { Note, ActionItem } from '@/types'
 
 export function RightPanel() {
-  const { currentPath, openNote } = useNoteContext()
+  const { currentPath, openNote, notes } = useNoteContext()
+  const { setTagFilter } = useSearchContext()
   const [backlinks, setBacklinks] = useState<Note[]>([])
+  const [connections, setConnections] = useState<Note[]>([])
+  const [connQuery, setConnQuery] = useState('')
+  const [connResults, setConnResults] = useState<Note[]>([])
+  const [showConnDropdown, setShowConnDropdown] = useState(false)
+  const connSearchRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const connInputRef = useRef<HTMLInputElement>(null)
+  const [connDropdownRect, setConnDropdownRect] = useState<DOMRect | null>(null)
   const [people, setPeople] = useState<Note[]>([])
   const [tags, setTags] = useState<string[]>([])
   const [noteActions, setNoteActions] = useState<ActionItem[]>([])
+  const [importance, setImportance] = useState<string>('medium')
   const [tagInput, setTagInput] = useState('')
+  const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
+  const [showTagDropdown, setShowTagDropdown] = useState(false)
+  const tagSearchRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const tagInputRef = useRef<HTMLInputElement>(null)
+  const [tagDropdownRect, setTagDropdownRect] = useState<DOMRect | null>(null)
   const [personQuery, setPersonQuery] = useState('')
   const [personResults, setPersonResults] = useState<Note[]>([])
   const [showPersonDropdown, setShowPersonDropdown] = useState(false)
   const personSearchRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const personInputRef = useRef<HTMLInputElement>(null)
+  const [personDropdownRect, setPersonDropdownRect] = useState<DOMRect | null>(null)
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try {
       return localStorage.getItem('rp-collapsed') === 'true'
@@ -36,6 +53,7 @@ export function RightPanel() {
       .then(r => r.json())
       .then(d => {
         setBacklinks(d.backlinks ?? [])
+        setConnections(d.connections ?? [])
         setPeople(d.people ?? [])
         setTags(d.tags ?? [])
       })
@@ -45,6 +63,11 @@ export function RightPanel() {
         setTags([])
       })
   }, [currentPath])
+
+  useEffect(() => {
+    const note = notes.find(n => n.path === currentPath)
+    if (note) setImportance(note.importance || 'medium')
+  }, [currentPath, notes])
 
   useEffect(() => {
     if (!currentPath) return
@@ -164,6 +187,92 @@ export function RightPanel() {
     }
   }
 
+  const addConnection = async (targetPath: string) => {
+    if (!currentPath) return
+    if (connections.some(c => c.path === targetPath)) return
+    const encoded = encodePath(currentPath)
+    try {
+      await fetch(`${getAPI()}/notes/${encoded}/connections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_path: targetPath }),
+      })
+      setConnQuery('')
+      setConnResults([])
+      setShowConnDropdown(false)
+      reloadMeta()
+    } catch {
+      toast.error('Failed to add connection')
+    }
+  }
+
+  const removeConnection = async (targetPath: string) => {
+    if (!currentPath) return
+    const encoded = encodePath(currentPath)
+    try {
+      await fetch(`${getAPI()}/notes/${encoded}/connections`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_path: targetPath }),
+      })
+      reloadMeta()
+    } catch {
+      toast.error('Failed to remove connection')
+    }
+  }
+
+  const handleConnQueryChange = (q: string) => {
+    setConnQuery(q)
+    if (connSearchRef.current) clearTimeout(connSearchRef.current)
+    if (!q.trim()) {
+      setConnResults([])
+      setShowConnDropdown(false)
+      return
+    }
+    if (connInputRef.current) setConnDropdownRect(connInputRef.current.getBoundingClientRect())
+    connSearchRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`${getAPI()}/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: q, limit: 5 }),
+        })
+        const data = await res.json()
+        const filtered = (data.results ?? []).filter((r: { path: string }) =>
+          r.path !== currentPath && !connections.some(c => c.path === r.path)
+        )
+        setConnResults(filtered)
+        setShowConnDropdown(filtered.length > 0)
+      } catch {
+        setConnResults([])
+      }
+    }, 250)
+  }
+
+  const handleTagQueryChange = (q: string) => {
+    setTagInput(q)
+    if (tagSearchRef.current) clearTimeout(tagSearchRef.current)
+    if (!q.trim()) {
+      setTagSuggestions([])
+      setShowTagDropdown(false)
+      return
+    }
+    if (tagInputRef.current) setTagDropdownRect(tagInputRef.current.getBoundingClientRect())
+    tagSearchRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`${getAPI()}/tags`)
+        const data = await res.json()
+        const allTags: string[] = data.tags ?? []
+        const lower = q.toLowerCase()
+        const filtered = allTags.filter(t => t.toLowerCase().includes(lower) && !tags.includes(t))
+        setTagSuggestions(filtered.slice(0, 8))
+        setShowTagDropdown(filtered.length > 0)
+      } catch {
+        setTagSuggestions([])
+      }
+    }, 150)
+  }
+
   const handlePersonQueryChange = (q: string) => {
     setPersonQuery(q)
     if (personSearchRef.current) clearTimeout(personSearchRef.current)
@@ -172,6 +281,7 @@ export function RightPanel() {
       setShowPersonDropdown(false)
       return
     }
+    if (personInputRef.current) setPersonDropdownRect(personInputRef.current.getBoundingClientRect())
     personSearchRef.current = setTimeout(async () => {
       try {
         const res = await fetch(`${getAPI()}/search`, {
@@ -200,8 +310,8 @@ export function RightPanel() {
     })
   }
 
-  // Panel is "empty" only when nothing to show AND no note selected (tags section always visible when a note is open)
-  const allEmpty = !currentPath && backlinks.length === 0 && people.length === 0 && noteActions.length === 0
+  // Only show empty state when no note is selected at all
+  const allEmpty = !currentPath
 
   if (collapsed) {
     return (
@@ -251,11 +361,41 @@ export function RightPanel() {
         </button>
       </div>
 
+      {currentPath && (
+        <div className="flex items-center justify-between px-4 py-2 border-b border-border">
+          <span className="text-xs text-muted-foreground font-medium">Importance</span>
+          <select
+            value={importance}
+            onChange={async (e) => {
+              const val = e.target.value
+              const API = getAPI()
+              const enc = encodePath(currentPath)
+              try {
+                const res = await fetch(`${API}/notes/${enc}/importance`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ importance: val }),
+                })
+                if (res.ok) {
+                  setImportance(val)
+                  toast.success(`Importance set to ${val}`)
+                }
+              } catch { toast.error('Failed to update importance') }
+            }}
+            className="bg-secondary text-foreground text-xs rounded px-2 py-1 border border-border appearance-none cursor-pointer"
+          >
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+      )}
+
       {allEmpty ? (
         <EmptyState
           icon={Unlink}
-          heading="No connections yet"
-          body="Add tags or link this note to others to see backlinks, people, and actions here."
+          heading="No note selected"
+          body="Open a note to see its tags, linked people, backlinks, and actions."
         />
       ) : (
         <div className="flex flex-col">
@@ -279,6 +419,63 @@ export function RightPanel() {
             </CollapsibleSection>
           )}
 
+          {/* Connections section */}
+          {currentPath && (
+            <CollapsibleSection
+              title="Connections"
+              count={connections.length}
+              sectionId="rp-connections"
+              defaultOpen={true}
+            >
+              {connections.map(c => (
+                <div key={c.path} className="flex items-center group px-3 py-1.5 hover:bg-secondary/50">
+                  <button
+                    className="flex-1 text-left text-sm truncate text-muted-foreground hover:text-foreground"
+                    onClick={() => openNote(c.path)}
+                  >
+                    {c.title}
+                  </button>
+                  <button
+                    type="button"
+                    className="ml-1 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                    onClick={() => removeConnection(c.path)}
+                    aria-label="Remove connection"
+                  >
+                    <Unlink className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              <div className="px-3 pb-2">
+                <input
+                  ref={connInputRef}
+                  type="text"
+                  placeholder="+ connect note"
+                  value={connQuery}
+                  className="w-full text-xs bg-transparent border border-border rounded px-2 py-1 text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
+                  onChange={e => handleConnQueryChange(e.target.value)}
+                  onBlur={() => setTimeout(() => setShowConnDropdown(false), 150)}
+                />
+                {showConnDropdown && connResults.length > 0 && connDropdownRect && (
+                  <div
+                    style={{ position: 'fixed', top: connDropdownRect.bottom + 2, left: connDropdownRect.left, width: connDropdownRect.width, zIndex: 9999 }}
+                    className="bg-card border border-border rounded shadow-lg max-h-40 overflow-y-auto"
+                  >
+                    {connResults.map(r => (
+                      <button
+                        key={r.path}
+                        type="button"
+                        className="block w-full text-left px-2 py-1.5 text-xs hover:bg-secondary/50 text-foreground truncate"
+                        onMouseDown={() => addConnection(r.path)}
+                      >
+                        {r.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CollapsibleSection>
+          )}
+
           {/* Tags section — always visible when a note is open */}
           {currentPath && (
             <CollapsibleSection
@@ -292,30 +489,48 @@ export function RightPanel() {
                   <TagBadge
                     key={t}
                     tag={t}
+                    onClick={() => setTagFilter(t)}
                     onRemove={() => removeTag(t)}
                   />
                 ))}
               </div>
               <div className="px-3 pb-2">
                 <input
+                  ref={tagInputRef}
                   type="text"
                   placeholder="+ tag"
                   value={tagInput}
                   className="w-full text-xs bg-transparent border border-border rounded px-2 py-1 text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
-                  onChange={e => setTagInput(e.target.value)}
+                  onChange={e => handleTagQueryChange(e.target.value)}
                   onKeyDown={e => {
                     if (e.key === 'Enter') {
                       addTag(tagInput)
                       setTagInput('')
+                      setShowTagDropdown(false)
                     }
                   }}
-                  onBlur={() => {
-                    if (tagInput.trim()) {
-                      addTag(tagInput)
-                      setTagInput('')
-                    }
-                  }}
+                  onBlur={() => setTimeout(() => {
+                    setTagInput('')
+                    setShowTagDropdown(false)
+                  }, 150)}
                 />
+                {showTagDropdown && tagSuggestions.length > 0 && tagDropdownRect && (
+                  <div
+                    style={{ position: 'fixed', top: tagDropdownRect.bottom + 2, left: tagDropdownRect.left, width: tagDropdownRect.width, zIndex: 9999 }}
+                    className="bg-card border border-border rounded shadow-lg max-h-40 overflow-y-auto"
+                  >
+                    {tagSuggestions.map(t => (
+                      <button
+                        key={t}
+                        type="button"
+                        className="block w-full text-left px-2 py-1.5 text-xs hover:bg-secondary/50 text-foreground truncate"
+                        onMouseDown={() => { addTag(t); setTagInput(''); setShowTagDropdown(false) }}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </CollapsibleSection>
           )}
@@ -339,17 +554,26 @@ export function RightPanel() {
                   />
                 ))}
               </div>
-              <div className="px-3 pb-2 relative">
+              <div className="px-3 pb-2">
                 <input
+                  ref={personInputRef}
                   type="text"
                   placeholder="+ person"
                   value={personQuery}
                   className="w-full text-xs bg-transparent border border-border rounded px-2 py-1 text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
                   onChange={e => handlePersonQueryChange(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && personResults.length > 0) {
+                      addPerson(personResults[0].path)
+                    }
+                  }}
                   onBlur={() => setTimeout(() => setShowPersonDropdown(false), 150)}
                 />
-                {showPersonDropdown && personResults.length > 0 && (
-                  <div className="absolute left-3 right-3 top-full mt-0.5 bg-card border border-border rounded shadow-lg z-50 max-h-40 overflow-y-auto">
+                {showPersonDropdown && personResults.length > 0 && personDropdownRect && (
+                  <div
+                    style={{ position: 'fixed', top: personDropdownRect.bottom + 2, left: personDropdownRect.left, width: personDropdownRect.width, zIndex: 9999 }}
+                    className="bg-card border border-border rounded shadow-lg max-h-40 overflow-y-auto"
+                  >
                     {personResults.map(r => (
                       <button
                         key={r.path}

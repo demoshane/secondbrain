@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Paperclip, Upload } from 'lucide-react'
-import { getAPI } from '@/lib/utils'
+import { getAPI, encodePath } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import type { Attachment } from '@/types'
 
@@ -47,7 +47,7 @@ export function AttachmentsSection({ notePath, refreshTick = 0, onUploadClick }:
           {attachments.map(a => (
             <li key={a.filename} className="text-xs text-muted-foreground truncate">
               <a
-                href={a.file_path}
+                href={`${getAPI()}/files/download?path=${encodePath(a.file_path)}`}
                 target="_blank"
                 rel="noreferrer"
                 className="hover:text-foreground hover:underline"

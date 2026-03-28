@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Search, Plus, FolderUp, Sparkles, SlidersHorizontal } from 'lucide-react'
+import { Search, Plus, FolderUp, Sparkles, SlidersHorizontal, Brain, Settings } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -12,9 +12,11 @@ interface Props {
   onNewNote: () => void
   onBatchCapture: () => void
   onSmartCapture: () => void
+  onAskBrain: () => void
+  onSettings: () => void
 }
 
-export function Topbar({ onNewNote, onBatchCapture, onSmartCapture }: Props) {
+export function Topbar({ onNewNote, onBatchCapture, onSmartCapture, onAskBrain, onSettings }: Props) {
   const { query, setQuery, mode, setMode, search, clearSearch } = useSearchContext()
   const { connected } = useSSEContext()
   const { loadNotes } = useNoteContext()
@@ -80,6 +82,13 @@ export function Topbar({ onNewNote, onBatchCapture, onSmartCapture }: Props) {
       <Button size="sm" variant="ghost" data-testid="batch-capture-btn" onClick={onBatchCapture}>
         <FolderUp className="h-4 w-4 mr-1" />
         Batch
+      </Button>
+      <Button size="sm" variant="outline" data-testid="ask-brain-btn" onClick={onAskBrain} className="border-violet-800/50 text-violet-300 hover:bg-violet-900/20 hover:text-violet-200">
+        <Brain className="h-4 w-4 mr-1" />
+        Ask Brain
+      </Button>
+      <Button size="sm" variant="ghost" data-testid="settings-btn" onClick={onSettings} className="h-8 w-8 p-0" title="Settings">
+        <Settings className="h-4 w-4 text-muted-foreground" />
       </Button>
       <div
         data-testid="sse-status-dot"

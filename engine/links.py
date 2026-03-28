@@ -43,20 +43,44 @@ def update_wiki_link_relationships(
         pass  # best-effort; never blocks capture or reindex
 
 
-def ensure_person_profile(slug: str, brain_root: Path) -> Path:
-    """Return path to brain_root/people/{slug}.md, creating a skeleton if absent.
+def ensure_person_profile(
+    slug: str, brain_root: Path, conn: sqlite3.Connection | None = None
+) -> Path:
+    """Return path to an existing or newly-created person note for slug.
 
-    - Idempotent: existing files are never modified.
-    - Skeleton format: "# {Display Name}\\n\\n## Backlinks\\n"
-      where display_name = slug.replace('-', ' ').title()
+    Resolution order:
+    1. brain_root/person/{slug}.md already exists → return it (idempotent).
+    2. conn provided → search DB for any note with type='person' and matching
+       title (case-insensitive). If found, return that file's path so backlinks
+       land on the canonical note instead of spawning a duplicate skeleton.
+    3. No match → create brain_root/person/{slug}.md with full frontmatter
+       (type: person) so it is immediately indexed correctly.
     """
     person_file = brain_root / "person" / f"{slug}.md"
-    if not person_file.exists():
-        person_file.parent.mkdir(parents=True, exist_ok=True)
-        display_name = slug.replace("-", " ").title()
-        person_file.write_text(
-            f"# {display_name}\n\n## Backlinks\n", encoding="utf-8"
-        )
+    if person_file.exists():
+        return person_file
+
+    display_name = slug.replace("-", " ").title()
+
+    if conn is not None:
+        try:
+            row = conn.execute(
+                "SELECT path FROM notes WHERE type='person' AND LOWER(title)=LOWER(?)",
+                (display_name,),
+            ).fetchone()
+            if row:
+                return brain_root / row[0]
+        except Exception:
+            pass  # best-effort; fall through to skeleton creation
+
+    person_file.parent.mkdir(parents=True, exist_ok=True)
+    now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    person_file.write_text(
+        f"---\ntitle: {display_name}\ntype: person\n"
+        f"created_at: '{now}'\nupdated_at: '{now}'\n"
+        f"people: []\ntags: []\ncontent_sensitivity: public\n---\n\n",
+        encoding="utf-8",
+    )
     return person_file
 
 
@@ -76,7 +100,7 @@ def add_backlinks(
     """
     for person_raw in people:
         slug = person_raw.strip().lower().replace(" ", "-")
-        person_file = ensure_person_profile(slug, brain_root)
+        person_file = ensure_person_profile(slug, brain_root, conn)
         text = person_file.read_text(encoding="utf-8")
         backlink = f"\n- [[{note_path}]]"
         if str(note_path) not in text:

@@ -196,6 +196,16 @@ def migrate_add_url_column(conn: sqlite3.Connection) -> None:
         pass  # column already exists
 
 
+def migrate_add_deadline_column(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: add 'deadline' and 'meeting_date' TEXT columns to notes if absent."""
+    for col in ("deadline", "meeting_date"):
+        try:
+            conn.execute(f"ALTER TABLE notes ADD COLUMN {col} TEXT NULL")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # column already exists
+
+
 def migrate_add_action_items_archive_table(conn: sqlite3.Connection) -> None:
     """Idempotent migration: create action_items_archive table if absent.
 
@@ -506,6 +516,14 @@ def migrate_add_status_column(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
+def migrate_add_importance_column(conn: sqlite3.Connection) -> None:
+    """Idempotent: add 'importance' TEXT column to notes if absent."""
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(notes)").fetchall()}
+    if "importance" not in cols:
+        conn.execute("ALTER TABLE notes ADD COLUMN importance TEXT NOT NULL DEFAULT 'medium'")
+        conn.commit()
+
+
 def migrate_create_person_insights(conn: sqlite3.Connection) -> None:
     """Idempotent migration: create person_insights table for 24h-cached AI insights."""
     conn.execute("""
@@ -656,6 +674,7 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     migrate_add_done_at(conn)
     migrate_add_dismissed_inbox_items_table(conn)
     migrate_add_url_column(conn)
+    migrate_add_deadline_column(conn)
     migrate_add_action_items_archive_table(conn)
     # ARCH-01: Convert absolute paths to relative — must run before junction table migrations
     migrate_paths_to_relative(conn)
@@ -670,6 +689,7 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     migrate_add_summary_column(conn)
     migrate_add_status_column(conn)
     migrate_create_person_insights(conn)
+    migrate_add_importance_column(conn)
     # F-10: Add FK CASCADE constraints to note_embeddings, action_items, relationships
     _migrate_fk_cascade(conn)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)")

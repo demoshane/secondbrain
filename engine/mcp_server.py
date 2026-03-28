@@ -145,6 +145,7 @@ def sb_search(
     note_type: str | None = None,
     from_date: str | None = None,
     to_date: str | None = None,
+    importance: str | None = None,
 ) -> dict:
     """Search brain notes by keyword, semantic, or hybrid mode.
 
@@ -179,6 +180,7 @@ def sb_search(
             note_type=note_type,
             from_date=from_date,
             to_date=to_date,
+            importance=importance,
         )
     finally:
         conn.close()
@@ -198,6 +200,7 @@ def sb_capture(
     tags: str | list[str] | None = None,
     sensitivity: str = "public",
     confirm_token: str = "",
+    importance: str = "medium",
 ) -> dict:
     """Capture a new note. Idempotent — identical title+body returns existing note.
 
@@ -235,6 +238,8 @@ def sb_capture(
         from engine.smart_classifier import classify_smart as _cs
         effective_sensitivity, _sensitivity_reason = _cs(body, sensitivity)
 
+        if importance not in ("low", "medium", "high"):
+            raise ValueError("importance must be low, medium, or high")
         path = capture_note(
             note_type=note_type,
             title=title,
@@ -244,6 +249,7 @@ def sb_capture(
             content_sensitivity=effective_sensitivity,
             brain_root=BRAIN_ROOT,
             conn=conn,
+            importance=importance,
         )
         conn.commit()
 
@@ -320,6 +326,7 @@ def sb_capture_batch(notes: list[dict]) -> dict:
                      if isinstance(note.get("people"), str) \
                      else list(note.get("people") or [])
             user_sensitivity = note.get("sensitivity", "public")
+            importance = note.get("importance", "medium")
 
             # Auto-classify sensitivity (never downgrade)
             effective_sensitivity, _reason = _classify_smart(body, user_sensitivity)
@@ -338,7 +345,7 @@ def sb_capture_batch(notes: list[dict]) -> dict:
             if matches:
                 dedup_warnings.append({"index": i, "intra_batch_match": matches[0]})
 
-            path = _capture_note(note_type, title, body, tags, people, effective_sensitivity, _BRAIN_ROOT, conn)
+            path = _capture_note(note_type, title, body, tags, people, effective_sensitivity, _BRAIN_ROOT, conn, importance=importance)
             succeeded.append({"index": i, "path": str(path)})
             seen_titles.append(title)
         except Exception as e:
@@ -546,17 +553,21 @@ def sb_read(path: str) -> dict:
 
 
 @mcp.tool()
-def sb_edit(path: str, body: str) -> dict:
-    """Edit an existing note's body. Writes atomically."""
+def sb_edit(path: str, body: str, importance: str | None = None) -> dict:
+    """Edit an existing note's body. Writes atomically. Optionally updates importance."""
     import frontmatter as _fm
     p = _safe_path(path)
     if len(body) > _MAX_BODY_LEN:
         raise ValueError(f"BODY_TOO_LARGE: body exceeds {_MAX_BODY_LEN} characters.")
     if not p.exists():
         raise ValueError(f"NOTE_NOT_FOUND: {path!r} does not exist.")
+    if importance is not None and importance not in ("low", "medium", "high"):
+        raise ValueError("importance must be low, medium, or high")
     # Load existing frontmatter, update body, write atomically via engine helper
     post = _fm.load(str(p))
     post.content = body
+    if importance is not None:
+        post["importance"] = importance
     conn = get_connection()
     try:
         write_note_atomic(p, post, conn, update=True)
@@ -564,6 +575,45 @@ def sb_edit(path: str, body: str) -> dict:
         conn.close()
     _log_mcp_audit("mcp_edit", path)
     return {"status": "edited", "path": str(p)}
+
+
+@mcp.tool()
+def sb_rename(path: str, title: str) -> dict:
+    """Rename a note's title.
+
+    For person notes, also renames the file (slug derived from new title) and
+    cascades the path change across all relationships, backlinks, attachments,
+    tags, people, action items, and embeddings. Wiki-link text in other notes
+    is rewritten to reference the new path.
+
+    For all other note types, only the title field is updated (frontmatter +
+    DB) — the filename is unchanged so all connections remain intact.
+
+    Args:
+        path: Relative or absolute path to the note (e.g. "person/john-smith.md").
+        title: New title string (must not be blank).
+
+    Returns:
+        {
+            "new_path": str,           # absolute path of the (possibly renamed) file
+            "renamed_file": bool,      # True if the file was physically renamed
+            "wiki_links_updated": int  # notes whose body was rewritten
+        }
+    """
+    from engine.rename import rename_note
+    p = _safe_path(path)
+    if not p.exists():
+        raise ValueError(f"NOTE_NOT_FOUND: {path!r}")
+    title = title.strip()
+    if not title:
+        raise ValueError("TITLE_EMPTY: title must not be blank")
+    conn = get_connection()
+    try:
+        result = rename_note(p, title, BRAIN_ROOT, conn)
+        _log_mcp_audit("mcp_rename", path)
+        return result
+    finally:
+        conn.close()
 
 
 @mcp.tool()
@@ -805,6 +855,7 @@ def sb_capture_smart(content: str) -> dict:
 
     from engine.segmenter import dedup_segment, resolve_entities, segment_blob
     from engine.smart_classifier import classify_smart
+    from engine.typeclassifier import CONFIDENCE_THRESHOLD
 
     _ensure_ready()
 
@@ -816,6 +867,7 @@ def sb_capture_smart(content: str) -> dict:
             "count": 0,
             "ambiguous_segments": [],
             "dormant_notes": [],
+            "pending_review": [],
         }
 
     capture_session = str(uuid.uuid4())
@@ -824,6 +876,7 @@ def sb_capture_smart(content: str) -> dict:
     conn = get_connection()
     saved_notes: list[dict] = []
     ambiguous_segments: list[dict] = []
+    pending_review: list[dict] = []
 
     try:
         # Step 1: Resolve entity stubs BEFORE saving main segments so links can resolve.
@@ -858,13 +911,27 @@ def sb_capture_smart(content: str) -> dict:
         for seg in segments:
             title = seg["title"]
             note_type = seg["type"]
+            confidence = seg.get("confidence", 1.0)
             body = seg["body"]
             entities = seg.get("entities", {})
             seg_links = list(seg.get("links", []))
             resolved_links = seg.get("_resolved_links", [])
 
+            # Low-confidence type → ask caller instead of auto-saving
+            if confidence < CONFIDENCE_THRESHOLD:
+                pending_review.append({
+                    "title": title,
+                    "body": body,
+                    "suggested_type": note_type,
+                    "confidence": round(confidence, 2),
+                    "people": entities.get("people", []),
+                })
+                continue
+
             sensitivity, _reason = classify_smart(body)
             people = entities.get("people", [])
+            from engine.typeclassifier import classify_importance as _classify_importance
+            seg_importance = _classify_importance(title, body)
 
             dedup_result = dedup_segment(title, body, conn, BRAIN_ROOT)
             action = dedup_result["action"]
@@ -934,6 +1001,7 @@ def sb_capture_smart(content: str) -> dict:
                     content_sensitivity=sensitivity,
                     brain_root=BRAIN_ROOT,
                     conn=conn,
+                    importance=seg_importance,
                 )
                 if similar_path:
                     try:
@@ -966,6 +1034,7 @@ def sb_capture_smart(content: str) -> dict:
                 content_sensitivity=sensitivity,
                 brain_root=BRAIN_ROOT,
                 conn=conn,
+                importance=seg_importance,
             )
 
             saved_notes.append({
@@ -1016,6 +1085,7 @@ def sb_capture_smart(content: str) -> dict:
         "count": len(saved_notes),
         "dormant_notes": dormant_notes,
         "ambiguous_segments": ambiguous_segments,
+        "pending_review": pending_review,
     }
 
 

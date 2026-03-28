@@ -15,6 +15,7 @@ dependencies = [
     "tenacity>=9.1.4",
     "hnswlib>=0.8.0",
     "cryptography>=42.0",
+    "tomli-w>=1.0",
 ]
 
 [project.optional-dependencies]
