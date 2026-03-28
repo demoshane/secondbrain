@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Ready to execute
-stopped_at: Completed 41.3-02-PLAN.md — Chrome extension dark Visily retheme
-last_updated: "2026-03-28T15:57:33.175Z"
+stopped_at: Completed 41.3-03-PLAN.md — Action items interactive everywhere
+last_updated: "2026-03-28T15:58:27.713Z"
 progress:
   total_phases: 18
   completed_phases: 12
   total_plans: 82
-  completed_plans: 75
+  completed_plans: 76
 ---
 
 # Project State
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 41.3 (ui-polish) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 
 ## Performance Metrics
 
@@ -79,6 +79,7 @@ Plan: 3 of 8
 | Phase 41.2 P06 | 1 | 2 tasks | 3 files |
 | Phase 41.3 P01 | 5 | 1 tasks | 1 files |
 | Phase 41.3 P02 | 65 | 1 tasks | 2 files |
+| Phase 41.3 P03 | 98 | 3 tasks | 3 files |
 
 ### Decisions
 
@@ -178,6 +179,7 @@ Active decisions affecting upcoming work:
 - [Phase 41.2]: NoteEditor saveNote sends {body} not {content} when title absent — body-only branch preserves frontmatter
 - [Phase 41.3]: Sidebar single-level type grouping: remove FOLDER_ORDER, replace groupByFolderThenType with groupByType returning flat Map<string, Note[]>
 - [Phase 41.3]: Select appearance:none + SVG data-URI chevron chosen over OS-default styling for native-dark look in Chrome extension popup
+- [Phase 41.3]: ActionItemRow 'Set deadline' ghost uses group-hover visibility — only shown on row hover to avoid clutter
 
 ### Pending Todos
 
@@ -210,8 +212,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-28T15:57:33.161Z
-Stopped at: Completed 41.3-02-PLAN.md — Chrome extension dark Visily retheme
+Last session: 2026-03-28T15:58:27.701Z
+Stopped at: Completed 41.3-03-PLAN.md — Action items interactive everywhere
 Resume file: None
 
 ### Next action
