@@ -253,4 +253,4 @@ Model routing configurable per content-type in `.meta/config.toml`.
 
 ---
 
-*Last updated: 2026-03-28 — Phase 41 complete (Visily UI redesign: dark palette token system, 9 shared UI components, app shell, command palette, all 8 page redesigns — Notes, Actions, People, Meetings, Projects, Intelligence, Inbox, Links)*
+*Last updated: 2026-03-28 — Phase 41.1 complete (Visual fidelity gap closure: SVG circular health gauge, sidebar folder+type grouping, ActionsPage source-note grouping, Intelligence Priority Actions + Quick Capture + stale badges, PeoplePage avatar initials, ProjectsPage stat tiles, LinksPage "Open as Note")*
