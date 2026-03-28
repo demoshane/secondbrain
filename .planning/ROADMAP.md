@@ -338,13 +338,15 @@ Plans:
 
 ### Phase 42: Add importance field to notes
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Add an optional importance field (low/medium/high) to notes across all four layers — DB schema, capture/edit pipeline + MCP tools, Flask API + search filter, and React frontend (sidebar badges + detail panel dropdown + sort option)
+**Requirements**: IMP-01 through IMP-08
 **Depends on:** Phase 41.1
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 42 to break down)
+- [ ] 42-01-PLAN.md — DB migration + capture pipeline + MCP tools (IMP-01, IMP-02, IMP-03)
+- [ ] 42-02-PLAN.md — API endpoint + search filter (IMP-04, IMP-05)
+- [ ] 42-03-PLAN.md — Frontend badges + dropdown + sort (IMP-06, IMP-07, IMP-08)
 
 ### Phase 43: Fix pre-existing test failures
 
@@ -385,5 +387,5 @@ Plans:
 | 39 | v4.0 | 13/13 | Complete | 2026-03-28 |
 | 40 | v4.0 | 5/5 | Complete | 2026-03-28 |
 | 41 | v4.0 | 5/5 | Complete    | 2026-03-28 |
-| 42 | v4.0 | 0/? | Not started | - |
+| 42 | v4.0 | 0/3 | Not started | - |
 | 43 | v4.0 | 0/? | Not started | - |
