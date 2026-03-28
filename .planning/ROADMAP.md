@@ -319,6 +319,18 @@ Plans:
 - [x] 41.2-05-PLAN.md — NoteEditor: markdown preview toggle
 - [x] 41.2-06-PLAN.md — CRITICAL: Fix note save data loss (frontmatter overwritten) + title not saved
 
+### Phase 41.3: UI Polish — Sidebar, Chrome Extension & Action Item Interactivity
+
+**Goal:** Three targeted UI improvements discovered during Phase 41.2 execution: collapse the redundant two-level sidebar grouping to a single type-level list; retheme the Chrome extension popup to match the app's dark Visily design tokens; make action items fully interactive (mark done, set deadlines, add new) in every view that shows them — People, Meetings, Projects, and the Right Panel.
+**Depends on:** Phase 41.2
+**Milestone:** v4.0
+**Plans:** 0/3 complete
+
+Plans:
+- [ ] 41.3-01-PLAN.md — Sidebar: collapse folder→type grouping to single-level by type
+- [ ] 41.3-02-PLAN.md — Chrome extension: retheme popup to dark Visily design tokens
+- [ ] 41.3-03-PLAN.md — Action items: mark done + set deadline + add new in all detail views
+
 ### Phase 42: Add importance field to notes
 
 **Goal:** [To be planned]
