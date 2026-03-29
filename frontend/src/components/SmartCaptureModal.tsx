@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Loader2, Sparkles, Check, AlertCircle } from 'lucide-react'
+import { Loader2, Sparkles, Check, AlertCircle, User } from 'lucide-react'
 import { getAPI } from '@/lib/utils'
 
 interface SavedNote {
@@ -9,6 +9,12 @@ interface SavedNote {
   type: string
   path?: string
   error?: string
+}
+
+interface PersonStub {
+  name: string
+  type: string
+  path?: string
 }
 
 interface PendingNote {
@@ -49,6 +55,7 @@ export function SmartCaptureModal({ open, onClose }: Props) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState<SavedNote[] | null>(null)
   const [pending, setPending] = useState<PendingNote[] | null>(null)
+  const [personStubs, setPersonStubs] = useState<PersonStub[]>([])
   // Track user-selected types for pending items
   const [pendingTypes, setPendingTypes] = useState<Record<number, string>>({})
 
@@ -63,6 +70,7 @@ export function SmartCaptureModal({ open, onClose }: Props) {
       })
       const data = await res.json()
       setSaved(data.notes ?? [])
+      setPersonStubs(data.person_stubs || [])
       const pendingItems: PendingNote[] = data.pending_review ?? []
       setPending(pendingItems.length > 0 ? pendingItems : null)
       // Initialise type selections to the suggestions
@@ -72,6 +80,7 @@ export function SmartCaptureModal({ open, onClose }: Props) {
     } catch {
       setSaved([])
       setPending(null)
+      setPersonStubs([])
     } finally {
       setLoading(false)
     }
@@ -106,6 +115,7 @@ export function SmartCaptureModal({ open, onClose }: Props) {
     setContent('')
     setSaved(null)
     setPending(null)
+    setPersonStubs([])
     setPendingTypes({})
     setLoading(false)
     setSaving(false)
@@ -175,6 +185,22 @@ export function SmartCaptureModal({ open, onClose }: Props) {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Person stubs created */}
+            {personStubs.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-sm text-muted-foreground">
+                  {personStubs.length} person stub{personStubs.length !== 1 ? 's' : ''} created
+                </p>
+                {personStubs.map((stub, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="px-1.5 py-0.5 rounded text-xs bg-[#2a1f1f] text-[#f87171]">person</span>
+                    <span className="truncate">{stub.name}</span>
+                  </div>
+                ))}
               </div>
             )}
 
