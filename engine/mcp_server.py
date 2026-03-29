@@ -830,9 +830,9 @@ def sb_anonymize(path: str, tokens: list[str] | None = None, confirm_token: str 
 def sb_capture_smart(content: str) -> dict:
     """Segment freeform text into typed notes and save them atomically.
 
-    Two-pass segmentation splits the blob on structural markers (headings, ---,
-    date stamps) and name-cluster shifts.  Each segment is classified, PII-scanned,
-    and saved immediately — no confirm round-trip required.
+    Multi-pass decomposition (engine.passes) splits the blob on structural markers
+    (headings, ---, date stamps) and name-cluster shifts.  Each segment is classified,
+    PII-scanned, and saved immediately — no confirm round-trip required.
 
     Co-captured notes are linked via 'co-captured' relationships and share a
     capture_session UUID so they can be retrieved as a group.
@@ -853,9 +853,9 @@ def sb_capture_smart(content: str) -> dict:
 
     import frontmatter as _frontmatter
 
-    from engine.segmenter import dedup_segment, resolve_entities, segment_blob
+    from engine.segmenter import dedup_segment
+    from engine.passes import decompose, CONFIDENCE_THRESHOLD
     from engine.smart_classifier import classify_smart
-    from engine.typeclassifier import CONFIDENCE_THRESHOLD
 
     _ensure_ready()
 
@@ -871,25 +871,62 @@ def sb_capture_smart(content: str) -> dict:
         }
 
     capture_session = str(uuid.uuid4())
-    segments = segment_blob(content)
 
     conn = get_connection()
+    # decompose() runs Pass 1-5 including entity resolution (Pass 5) when conn+brain_root provided
+    results = decompose(content, conn=conn, brain_root=BRAIN_ROOT)
+
     saved_notes: list[dict] = []
     ambiguous_segments: list[dict] = []
     pending_review: list[dict] = []
+    stub_paths_created: dict[str, str] = {}  # name → path of created stub
 
     try:
-        # Step 1: Resolve entity stubs BEFORE saving main segments so links can resolve.
-        stub_paths: dict[str, str] = {}  # name → path of created stub
-        for seg in segments:
-            entities = seg.get("entities", {})
-            resolution = resolve_entities(entities, conn, BRAIN_ROOT)
-            for stub in resolution["new_stubs"]:
+        for result in results:
+            title = result.primary_title
+            note_type = result.primary_type
+            confidence = result.confidence
+            body = result.primary_body
+            entities = result.entities
+
+            # Resolved links from Pass 5 existing_people
+            resolved_links = [e["path"] for e in result.existing_people if e.get("path")]
+
+            # Link notes from Pass 2 (saved first per D-04)
+            for link in result.link_notes:
+                try:
+                    _link_path = capture_note(
+                        note_type="link",
+                        title=link.title,
+                        body=link.body,
+                        tags=[],
+                        people=[],
+                        content_sensitivity="public",
+                        brain_root=BRAIN_ROOT,
+                        conn=conn,
+                        url=link.url,
+                    )
+                    resolved_links.append(str(_link_path))
+                    saved_notes.append({
+                        "title": link.title,
+                        "type": "link",
+                        "path": str(_link_path),
+                        "sensitivity": "public",
+                        "links": [],
+                        "entities": {},
+                        "capture_session": capture_session,
+                    })
+                except Exception:
+                    pass  # Non-fatal
+
+            # Person stubs from Pass 5 (per D-12)
+            for stub in result.person_stubs:
                 stub_name = stub["name"]
-                if stub_name in stub_paths:
+                if stub_name in stub_paths_created:
+                    resolved_links.append(stub_paths_created[stub_name])
                     continue
                 try:
-                    stub_path = capture_note(
+                    _stub_path = capture_note(
                         note_type=stub["type"],
                         title=stub_name,
                         body="",
@@ -899,23 +936,10 @@ def sb_capture_smart(content: str) -> dict:
                         brain_root=BRAIN_ROOT,
                         conn=conn,
                     )
-                    stub_paths[stub_name] = str(stub_path)
+                    stub_paths_created[stub_name] = str(_stub_path)
+                    resolved_links.append(str(_stub_path))
                 except Exception:
                     pass  # Non-fatal
-
-            seg["_resolved_links"] = [
-                e["path"] for e in resolution["existing"] if e.get("path")
-            ] + list(stub_paths.values())
-
-        # Step 2: Save segments with dedup check
-        for seg in segments:
-            title = seg["title"]
-            note_type = seg["type"]
-            confidence = seg.get("confidence", 1.0)
-            body = seg["body"]
-            entities = seg.get("entities", {})
-            seg_links = list(seg.get("links", []))
-            resolved_links = seg.get("_resolved_links", [])
 
             # Low-confidence type → ask caller instead of auto-saving
             if confidence < CONFIDENCE_THRESHOLD:
@@ -981,7 +1005,7 @@ def sb_capture_smart(content: str) -> dict:
                             "type": note_type,
                             "path": existing_path,
                             "sensitivity": sensitivity,
-                            "links": seg_links + resolved_links,
+                            "links": resolved_links,
                             "entities": entities,
                             "capture_session": capture_session,
                             "dedup_action": "updated_existing",
@@ -1016,12 +1040,23 @@ def sb_capture_smart(content: str) -> dict:
                     "type": note_type,
                     "path": str(note_path),
                     "sensitivity": sensitivity,
-                    "links": seg_links + resolved_links,
+                    "links": resolved_links,
                     "entities": entities,
                     "capture_session": capture_session,
                     "dedup_action": "saved_complementary",
                     "relationships": [{"type": "similar", "path": similar_path}] if similar_path else [],
                 })
+                # Keyword action items (per D-08)
+                for _ai in result.action_items:
+                    try:
+                        conn.execute(
+                            "INSERT OR IGNORE INTO action_items"
+                            " (note_path, item_text, status, created_at)"
+                            " VALUES (?, ?, 'open', datetime('now'))",
+                            (str(note_path), _ai.text),
+                        )
+                    except Exception:
+                        pass
                 continue
 
             # Default: save_new
@@ -1037,12 +1072,24 @@ def sb_capture_smart(content: str) -> dict:
                 importance=seg_importance,
             )
 
+            # Keyword action items (per D-08)
+            for _ai in result.action_items:
+                try:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO action_items"
+                        " (note_path, item_text, status, created_at)"
+                        " VALUES (?, ?, 'open', datetime('now'))",
+                        (str(note_path), _ai.text),
+                    )
+                except Exception:
+                    pass
+
             saved_notes.append({
                 "title": title,
                 "type": note_type,
                 "path": str(note_path),
                 "sensitivity": sensitivity,
-                "links": seg_links + resolved_links,
+                "links": resolved_links,
                 "entities": entities,
                 "capture_session": capture_session,
             })
