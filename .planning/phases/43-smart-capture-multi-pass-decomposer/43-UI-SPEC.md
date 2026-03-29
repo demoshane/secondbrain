@@ -1,10 +1,11 @@
 ---
 phase: 43
 slug: smart-capture-multi-pass-decomposer
-status: draft
+status: approved
 shadcn_initialized: true
 preset: default/slate/dark/cssVariables
 created: 2026-03-29
+reviewed_at: 2026-03-29
 ---
 
 # Phase 43 — UI Design Contract
@@ -42,7 +43,7 @@ Declared values (multiples of 4 — standard 8-point scale):
 | 3xl | 64px | Not used in modal context |
 
 Exceptions:
-- Marker tag chips: 6px vertical padding (`py-1.5`) — sits between sm and md, per existing badge pattern
+- Marker tag chips: 4px vertical padding (`py-1`) — tight chip, keeps chip height consistent with xs scale
 - Action-item marker input height: 32px (`h-8`) — matches existing Input/Select height in SettingsModal
 - Scrollable list max-height: 160px (`max-h-40`) for saved notes list; 192px (`max-h-48`) for pending review list — matches SmartCaptureModal pattern
 
@@ -53,13 +54,13 @@ Exceptions:
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body | 14px (text-sm) | 400 (regular) | 1.5 |
-| Label | 12px (text-xs) | 500 (medium) | 1.4 |
-| Section heading | 14px (text-sm) | 500 (medium) | 1.4 |
+| Label | 12px (text-xs) | 600 (semibold) | 1.4 |
+| Section heading | 14px (text-sm) | 600 (semibold) | 1.4 |
 | Dialog title | 16px (text-base) | 600 (semibold) | 1.2 |
 
-Source: Derived from existing `SettingsModal.tsx` patterns (`text-sm font-medium`, `text-xs font-medium`, `text-xs text-muted-foreground`) and shadcn DialogTitle defaults.
+Source: Derived from existing `SettingsModal.tsx` patterns and shadcn DialogTitle defaults.
 
-Weights used: 400 (regular) and 500/600 (medium/semibold). Only two visual weight tiers — regular for body/descriptions, medium-semibold for labels/headings/titles.
+Weights used: 400 (regular) and 600 (semibold). Two tiers only — regular for body/descriptions, semibold for labels/headings/titles.
 
 ---
 
@@ -113,11 +114,11 @@ When `result.link_notes` is non-empty, display as a sub-section within the saved
 
 Add a third section to `SettingsModal.tsx` below the existing "Ollama" section.
 
-**Section header:** `"Capture"` — matches existing section header pattern (`text-sm font-medium mb-3`)
+**Section header:** `"Capture"` — matches existing section header pattern (`text-sm font-semibold mb-3`)
 
 **Action-item markers subsection:**
-- Label: `"Action-item markers"` (`text-xs font-medium text-foreground`)
-- Description: `"Keywords that flag a line as an action item during smart capture"` (`text-xs text-muted-foreground mb-1.5`)
+- Label: `"Action-item markers"` (`text-xs font-semibold text-foreground`)
+- Description: `"Keywords that flag a line as an action item during smart capture"` (`text-xs text-muted-foreground mb-2`)
 - Marker list: horizontal flex-wrap of tag chips
   - Each chip: `inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-secondary border border-border`
   - Remove button inside chip: `<X className="h-3 w-3" />` with `hover:text-destructive` transition; aria-label `"Remove marker {name}"`
@@ -145,8 +146,8 @@ Add a third section to `SettingsModal.tsx` below the existing "Ollama" section.
 | Duplicate marker error | input border: destructive; no tooltip/message (inline visual only) |
 | Default marker tooltip (if hovered) | "Default marker — cannot be removed" (title attribute only, no custom tooltip component) |
 | Empty markers state | Not possible — defaults are always present; no empty state needed |
-| Error state (config load fail) | "Could not load config." — unchanged from existing SettingsModal pattern |
-| Error state (save fail) | "Save failed" — unchanged from existing SettingsModal pattern |
+| Error state (config load fail) | "Could not load config — restart the app or check ~/SecondBrain/.meta/config.toml." |
+| Error state (save fail) | "Save failed — check your connection and try again." |
 | Saved confirmation | "Saved" (green text) — unchanged from existing SettingsModal pattern |
 | Person stub label in capture result | "{N} person stub{s} created" in `text-sm text-muted-foreground` |
 
