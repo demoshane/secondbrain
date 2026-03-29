@@ -612,10 +612,16 @@ def link_meeting_to_project(note_path):
     conn.row_factory = sqlite3.Row
     try:
         sp = store_path(abs_path)
-        # Try relative path first; fall back to raw note_path for pre-Phase-32 absolute-path DBs
         proj = conn.execute(
             "SELECT path, type FROM notes WHERE path=? AND type='projects'", (sp,)
         ).fetchone()
+        if not proj and sp != str(abs_path):
+            # Fallback for pre-Phase-32 DBs that store absolute paths
+            proj = conn.execute(
+                "SELECT path, type FROM notes WHERE path=? AND type='projects'", (str(abs_path),)
+            ).fetchone()
+            if proj:
+                sp = str(abs_path)
         if not proj:
             proj_any = conn.execute(
                 "SELECT path, type FROM notes WHERE path=?", (sp,)
@@ -659,16 +665,64 @@ def link_meeting_to_project(note_path):
             (sp, meeting_sp, meeting_sp, sp),
         ).fetchone()
         if not existing:
-            conn.execute(
-                "INSERT INTO relationships (source_path, target_path, rel_type) VALUES (?, ?, ?)",
-                (sp, meeting_sp, "linked"),
-            )
-            conn.commit()
+            try:
+                conn.execute(
+                    "INSERT INTO relationships (source_path, target_path, rel_type) VALUES (?, ?, ?)",
+                    (sp, meeting_sp, "linked"),
+                )
+                conn.commit()
+            except Exception as exc:
+                return jsonify({"error": f"Failed to link: {type(exc).__name__}: {exc}"}), 500
     finally:
         conn.close()
 
     _broadcast({"type": "notes_changed", "path": sp})
     return jsonify({"project_path": sp, "meeting_path": meeting_sp, "linked": True})
+
+
+@app.delete("/projects/<path:project_path>/meetings/<path:meeting_path>")
+def unlink_meeting_from_project(project_path, meeting_path):
+    """Remove a meeting↔project relationship."""
+    try:
+        abs_proj, _ = _resolve_note_path(project_path)
+        abs_mtg, _ = _resolve_note_path(meeting_path)
+    except ValueError:
+        return jsonify({"error": "forbidden"}), 403
+    sp = store_path(abs_proj)
+    mp = store_path(abs_mtg)
+    conn = get_connection()
+    try:
+        conn.execute(
+            "DELETE FROM relationships WHERE "
+            "(source_path=? AND target_path=?) OR (source_path=? AND target_path=?)",
+            (sp, mp, mp, sp),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    _broadcast({"type": "notes_changed", "path": sp})
+    return jsonify({"unlinked": True})
+
+
+@app.delete("/relationships")
+def delete_relationship():
+    """Remove a specific relationship between two notes."""
+    data = request.get_json(force=True) or {}
+    source = data.get("source_path", "").strip()
+    target = data.get("target_path", "").strip()
+    if not source or not target:
+        return jsonify({"error": "source_path and target_path required"}), 400
+    conn = get_connection()
+    try:
+        conn.execute(
+            "DELETE FROM relationships WHERE "
+            "(source_path=? AND target_path=?) OR (source_path=? AND target_path=?)",
+            (source, target, target, source),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"deleted": True})
 
 
 @app.post("/persons")
@@ -974,7 +1028,11 @@ def list_tags():
 
 @app.get("/actions")
 def get_actions():
-    done = request.args.get("done", "0") == "1"
+    done_param = request.args.get("done")
+    if done_param is None:
+        done = None  # no filter — return all
+    else:
+        done = done_param == "1"
     assignee = request.args.get("assignee") or None
     note_path = request.args.get("note_path") or None
     limit = _int_param("limit", 50, min_val=1, max_val=200)
@@ -982,13 +1040,15 @@ def get_actions():
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     try:
-        total = conn.execute(
-            "SELECT COUNT(*) FROM action_items WHERE done=?", (1 if done else 0,)
-        ).fetchone()[0]
+        if done is None:
+            total = conn.execute("SELECT COUNT(*) FROM action_items").fetchone()[0]
+        else:
+            total = conn.execute(
+                "SELECT COUNT(*) FROM action_items WHERE done=?", (1 if done else 0,)
+            ).fetchone()[0]
         actions = list_actions(conn, done=done, assignee=assignee, note_path=note_path)
     finally:
         conn.close()
-    # Apply limit/offset in Python (list_actions returns all matching rows)
     paginated = actions[offset:offset + limit]
     return jsonify({"actions": paginated, "total": total, "limit": limit, "offset": offset})
 
@@ -1103,6 +1163,38 @@ def put_config():
         with open(CONFIG_PATH, "wb") as f:
             tomli_w.dump(cfg, f)
 
+        return jsonify({"saved": True})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.get("/config/action-item-markers")
+def get_action_item_markers():
+    """Return current custom action-item markers + built-in defaults."""
+    from engine.config_loader import load_config
+    from engine.passes.p4_actions import DEFAULT_MARKERS
+    from engine.paths import CONFIG_PATH
+    config = load_config(CONFIG_PATH)
+    markers = config.get("action_items", {}).get("custom_markers", [])
+    return jsonify({"custom_markers": markers, "defaults": DEFAULT_MARKERS})
+
+
+@app.put("/config/action-item-markers")
+def put_action_item_markers():
+    """Persist custom action-item markers to config.toml [action_items] section."""
+    import tomli_w
+    from engine.config_loader import load_config
+    from engine.paths import CONFIG_PATH
+    data = request.get_json(force=True, silent=True) or {}
+    markers = data.get("custom_markers", [])
+    if not isinstance(markers, list):
+        return jsonify({"error": "custom_markers must be a list"}), 400
+    try:
+        cfg = load_config(CONFIG_PATH)
+        cfg.setdefault("action_items", {})["custom_markers"] = markers
+        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(CONFIG_PATH, "wb") as f:
+            tomli_w.dump(cfg, f)
         return jsonify({"saved": True})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
@@ -1862,19 +1954,21 @@ def create_action():
     text = (data.get("text") or "").strip()
     if not text:
         return jsonify({"error": "text is required"}), 400
-    note_path = data.get("note_path") or data.get("assignee_path") or ""
+    note_path = data.get("note_path") or None
     assignee_path = data.get("assignee_path") or None
+    due_date = data.get("due_date") or None
+    description = data.get("description") or None
     conn = get_connection()
     try:
         cur = conn.execute(
-            "INSERT INTO action_items (note_path, text, assignee_path) VALUES (?, ?, ?)",
-            (note_path, text, assignee_path),
+            "INSERT INTO action_items (note_path, text, assignee_path, due_date, description) VALUES (?, ?, ?, ?, ?)",
+            (note_path, text, assignee_path, due_date, description),
         )
         conn.commit()
         action_id = cur.lastrowid
     finally:
         conn.close()
-    return jsonify({"id": action_id, "text": text, "note_path": note_path, "assignee_path": assignee_path, "done": False}), 201
+    return jsonify({"id": action_id, "text": text, "note_path": note_path, "assignee_path": assignee_path, "due_date": due_date, "description": description, "done": False}), 201
 
 
 @app.post("/actions/<int:action_id>/done")
@@ -1894,6 +1988,11 @@ def update_action(action_id):
     data = request.get_json(force=True)
     conn = get_connection()
     try:
+        if "note_path" in data:
+            conn.execute(
+                "UPDATE action_items SET note_path=? WHERE id=?",
+                (data["note_path"] or None, action_id),
+            )
         if "assignee_path" in data:
             conn.execute(
                 "UPDATE action_items SET assignee_path=? WHERE id=?",
@@ -1909,6 +2008,18 @@ def update_action(action_id):
                 "UPDATE action_items SET due_date=? WHERE id=?",
                 (data["due_date"], action_id),
             )
+        if "description" in data:
+            conn.execute(
+                "UPDATE action_items SET description=? WHERE id=?",
+                (data["description"] or None, action_id),
+            )
+        if "text" in data:
+            new_text = (data["text"] or "").strip()
+            if new_text:
+                conn.execute(
+                    "UPDATE action_items SET text=? WHERE id=?",
+                    (new_text, action_id),
+                )
         conn.commit()
     finally:
         conn.close()
@@ -2094,17 +2205,18 @@ def dismiss_inbox_item():
 
 @app.post("/relationships")
 def create_relationship():
-    """Insert a link relationship between two notes."""
+    """Insert a relationship between two notes. rel_type defaults to 'connection'."""
     data = request.get_json(force=True) or {}
     source = data.get("source_path", "")
     target = data.get("target_path", "")
+    rel_type = data.get("rel_type", "connection")
     if not source or not target:
         return jsonify({"error": "source_path and target_path required"}), 400
     conn = get_connection()
     try:
         conn.execute(
-            "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?, ?, 'link')",
-            (source, target),
+            "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?, ?, ?)",
+            (source, target, rel_type),
         )
         conn.commit()
     finally:
@@ -2119,6 +2231,10 @@ def smart_capture():
     High-confidence segments (>= CONFIDENCE_THRESHOLD) are saved immediately.
     Low-confidence segments are returned as 'pending_review' for the caller to
     confirm the type before saving via POST /smart-capture/confirm.
+
+    Uses the multi-pass decompose() pipeline (Pass 1-5) instead of the legacy
+    segment_blob(). Produces person stubs, link notes, and keyword action items
+    at capture time (GUI/MCP parity).
     """
     import itertools
     data = request.get_json() or {}
@@ -2126,52 +2242,128 @@ def smart_capture():
     if not content:
         return jsonify({"error": "content is required"}), 400
 
-    from engine.segmenter import segment_blob
+    from engine.passes import decompose, CONFIDENCE_THRESHOLD
     from engine.capture import capture_note
-    from engine.typeclassifier import CONFIDENCE_THRESHOLD
     import uuid
 
     source_url = data.get("source_url", "")
     source_type = data.get("source_type", "")
-    segments = segment_blob(content)
     session_id = str(uuid.uuid4())
     conn = get_connection()
+    results = decompose(content, conn=conn, brain_root=_engine_paths.BRAIN_ROOT)
 
     saved = []
     pending_review = []
+    person_stubs_created: list[str] = []
+
     try:
-        for seg in segments:
-            confidence = seg.get("confidence", 1.0)
+        for result in results:
+            confidence = result.confidence
             if confidence < CONFIDENCE_THRESHOLD:
                 # Return to caller for type confirmation
                 pending_review.append({
-                    "title": seg["title"],
-                    "body": seg["body"],
-                    "suggested_type": seg["type"],
+                    "title": result.primary_title,
+                    "body": result.primary_body,
+                    "suggested_type": result.primary_type,
                     "confidence": round(confidence, 2),
-                    "people": seg.get("entities", {}).get("people", []),
+                    "people": result.entities.get("people", []),
                 })
                 continue
+
+            # (a) Link notes first (per D-04)
+            for link in result.link_notes:
+                try:
+                    link_path = capture_note(
+                        note_type="link",
+                        title=link.title,
+                        body=link.body,
+                        tags=[],
+                        people=[],
+                        content_sensitivity="public",
+                        brain_root=_engine_paths.BRAIN_ROOT,
+                        conn=conn,
+                        url=link.url,
+                        source_type=source_type or None,
+                    )
+                    saved.append({
+                        "title": link.title,
+                        "type": "link",
+                        "confidence": 1.0,
+                        "path": str(link_path),
+                    })
+                except Exception:
+                    pass  # Non-fatal
+
+            # (b) Person stubs (per D-12 — GUI/MCP parity)
+            for stub in result.person_stubs:
+                stub_name = stub["name"]
+                if stub_name in person_stubs_created:
+                    continue
+                try:
+                    stub_path = capture_note(
+                        note_type=stub["type"],
+                        title=stub_name,
+                        body="",
+                        tags=[],
+                        people=[],
+                        content_sensitivity="public",
+                        brain_root=_engine_paths.BRAIN_ROOT,
+                        conn=conn,
+                    )
+                    person_stubs_created.append(stub_name)
+                    saved.append({
+                        "title": stub_name,
+                        "type": stub["type"],
+                        "confidence": 1.0,
+                        "path": str(stub_path),
+                        "is_stub": True,
+                    })
+                except Exception:
+                    pass  # Non-fatal
+
+            # (c) Primary note
             try:
                 path = capture_note(
-                    note_type=seg["type"], title=seg["title"], body=seg["body"],
-                    tags=[], people=seg.get("entities", {}).get("people", []),
-                    content_sensitivity="public", brain_root=_engine_paths.BRAIN_ROOT, conn=conn,
-                    url=source_url or None, source_type=source_type or None,
+                    note_type=result.primary_type,
+                    title=result.primary_title,
+                    body=result.primary_body,
+                    tags=[],
+                    people=result.entities.get("people", []),
+                    content_sensitivity="public",
+                    brain_root=_engine_paths.BRAIN_ROOT,
+                    conn=conn,
+                    url=source_url or None,
+                    source_type=source_type or None,
                 )
                 saved.append({
-                    "title": seg["title"],
-                    "type": seg["type"],
+                    "title": result.primary_title,
+                    "type": result.primary_type,
                     "confidence": round(confidence, 2),
                     "path": str(path),
                 })
-            except Exception as e:
-                saved.append({"title": seg["title"], "type": seg["type"], "error": str(e)})
 
-        # Co-captured relationships between auto-saved notes
-        paths = [s["path"] for s in saved if "path" in s]
-        now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-        for a, b in itertools.combinations(paths, 2):
+                # (d) Keyword action items from Pass 4 (per D-08)
+                for ai in result.action_items:
+                    try:
+                        conn.execute(
+                            "INSERT OR IGNORE INTO action_items"
+                            " (note_path, item_text, status, created_at)"
+                            " VALUES (?, ?, 'open', datetime('now'))",
+                            (str(path), ai.text),
+                        )
+                    except Exception:
+                        pass  # Non-fatal
+
+            except Exception as e:
+                saved.append({
+                    "title": result.primary_title,
+                    "type": result.primary_type,
+                    "error": str(e),
+                })
+
+        # Co-captured relationships between all saved notes
+        all_paths = [s["path"] for s in saved if "path" in s]
+        for a, b in itertools.combinations(all_paths, 2):
             conn.execute(
                 "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
                 (a, b, "co-captured"),
@@ -2186,6 +2378,7 @@ def smart_capture():
         "capture_session": session_id,
         "count": len(saved),
         "pending_review": pending_review,
+        "person_stubs": person_stubs_created,
     })
 
 
