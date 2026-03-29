@@ -351,12 +351,15 @@ Plans:
 ### Phase 43: Smart Capture Multi-Pass Decomposer
 
 **Goal:** Refactor smart capture from a single-pass segmenter into a modular multi-pass decomposer. Current architecture forces every blob into one type and lets URL presence override all other signals. New architecture: Pass 1 extracts entities (people, links, dates) unconditionally; Pass 2 pulls URLs out as separate link notes; Pass 3 classifies the URL-stripped content (meeting/note/etc.); Pass 4 extracts action items with owner+date; Pass 5 assembles the primary note + link notes + person stubs + action items. Each pass lives in its own module under `engine/passes/` for independent testability and replaceability. Fix URL hard-override in typeclassifier, add conversation-format signal (Name [HH:MM] pattern), align GUI path with MCP path for person stub creation.
-**Requirements:** TBD
+**Requirements:** D-01 through D-13
 **Depends on:** Phase 42
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 43 to break down)
+- [ ] 43-01-PLAN.md — Pass architecture + types + Pass 1-3 + typeclassifier URL fix (D-01, D-02, D-03, D-04, D-05, D-06, D-11)
+- [ ] 43-02-PLAN.md — Pass 4 (keyword actions) + Pass 5 (assembly) + config markers API (D-07, D-08, D-09)
+- [ ] 43-03-PLAN.md — Caller wiring: api.py + mcp_server.py + segment_blob deletion + test migration (D-02, D-08, D-12, D-13)
+- [ ] 43-04-PLAN.md — GUI: SettingsModal markers panel + SmartCaptureModal person stubs display (D-10, D-12)
 
 ### Phase 44: Universal Capture Enrichment
 
@@ -408,5 +411,5 @@ Plans:
 | 40 | v4.0 | 5/5 | Complete | 2026-03-28 |
 | 41 | v4.0 | 5/5 | Complete    | 2026-03-28 |
 | 42 | v4.0 | 0/3 | Not started | - |
-| 43 | v4.0 | 0/? | Not started | - |
+| 43 | v4.0 | 0/4 | Not started | - |
 | 44 | v4.0 | 0/? | Not started | - |
