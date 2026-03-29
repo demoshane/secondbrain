@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Loader2, Settings } from 'lucide-react'
+import { Loader2, Settings, X } from 'lucide-react'
 import { getAPI } from '@/lib/utils'
 
 interface Routing {
@@ -31,6 +31,8 @@ const FIELD_LABELS: Record<keyof Routing, string> = {
   fallback_model: 'Fallback model',
 }
 
+const DEFAULT_MARKERS = ['TODO', 'AP', 'action:', '@owner', 'Action Point']
+
 const FIELD_DESCRIPTIONS: Record<keyof Routing, string> = {
   public_model: 'Used for non-sensitive content — recap, synthesis, Ask Brain',
   private_model: 'Used for private (non-PII) notes',
@@ -44,17 +46,24 @@ export function SettingsModal({ open, onClose }: Props) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [customMarkers, setCustomMarkers] = useState<string[]>([])
+  const [newMarker, setNewMarker] = useState('')
 
   useEffect(() => {
     if (!open) return
     setLoading(true)
     setError(null)
     setSaved(false)
+    setNewMarker('')
     fetch(`${getAPI()}/config`)
       .then(r => r.json())
       .then((data: Config) => setConfig(data))
       .catch(() => setError('Could not load config.'))
       .finally(() => setLoading(false))
+    fetch(`${getAPI()}/config/action-item-markers`)
+      .then(r => r.json())
+      .then(data => setCustomMarkers(data.custom_markers || []))
+      .catch(() => {}) // Non-fatal — defaults still shown
   }, [open])
 
   const modelOptions = config ? Object.keys(config.models) : []
@@ -71,16 +80,34 @@ export function SettingsModal({ open, onClose }: Props) {
     setSaved(false)
   }
 
+  const isDuplicate = [...DEFAULT_MARKERS, ...customMarkers].some(
+    m => m.toLowerCase() === newMarker.trim().toLowerCase()
+  )
+
+  const handleAddMarker = () => {
+    if (!newMarker.trim() || isDuplicate) return
+    setCustomMarkers(prev => [...prev, newMarker.trim()])
+    setNewMarker('')
+    setSaved(false)
+  }
+
   const handleSave = async () => {
     if (!config) return
     setSaving(true)
     setError(null)
     try {
-      const res = await fetch(`${getAPI()}/config`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ routing: config.routing, ollama: config.ollama }),
-      })
+      const [res] = await Promise.all([
+        fetch(`${getAPI()}/config`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ routing: config.routing, ollama: config.ollama }),
+        }),
+        fetch(`${getAPI()}/config/action-item-markers`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ custom_markers: customMarkers }),
+        }),
+      ])
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Save failed'); return }
       setSaved(true)
@@ -148,6 +175,40 @@ export function SettingsModal({ open, onClose }: Props) {
                   className="h-8 font-mono text-sm"
                   placeholder="http://localhost:11434"
                 />
+              </div>
+            </div>
+
+            {/* Capture */}
+            <div>
+              <p className="text-sm font-semibold mb-3">Capture</p>
+              <div>
+                <label className="text-xs font-semibold text-foreground">Action-item markers</label>
+                <p className="text-xs text-muted-foreground mb-2">Keywords that flag a line as an action item during smart capture</p>
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {DEFAULT_MARKERS.map(m => (
+                    <span key={m} className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-secondary border border-border text-muted-foreground" title="Default marker — cannot be removed">
+                      {m}
+                    </span>
+                  ))}
+                  {customMarkers.map(m => (
+                    <span key={m} className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-secondary border border-border text-foreground">
+                      {m}
+                      <button onClick={() => { setCustomMarkers(prev => prev.filter(x => x !== m)); setSaved(false) }} className="hover:text-destructive" aria-label={`Remove marker ${m}`}>
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    value={newMarker}
+                    onChange={e => setNewMarker(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleAddMarker() }}
+                    placeholder="Add marker..."
+                    className={`h-8 flex-1 ${isDuplicate && newMarker.trim() ? 'border-destructive' : ''}`}
+                  />
+                  <Button size="sm" onClick={handleAddMarker} disabled={!newMarker.trim() || isDuplicate}>Add</Button>
+                </div>
               </div>
             </div>
 
