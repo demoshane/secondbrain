@@ -353,17 +353,17 @@ Plans:
 **Goal:** Refactor smart capture from a single-pass segmenter into a modular multi-pass decomposer. Current architecture forces every blob into one type and lets URL presence override all other signals. New architecture: Pass 1 extracts entities (people, links, dates) unconditionally; Pass 2 pulls URLs out as separate link notes; Pass 3 classifies the URL-stripped content (meeting/note/etc.); Pass 4 extracts action items with owner+date; Pass 5 assembles the primary note + link notes + person stubs + action items. Each pass lives in its own module under `engine/passes/` for independent testability and replaceability. Fix URL hard-override in typeclassifier, add conversation-format signal (Name [HH:MM] pattern), align GUI path with MCP path for person stub creation.
 **Requirements:** D-01 through D-13
 **Depends on:** Phase 42
-**Plans:** 4 plans
+**Plans:** 3/4 plans executed
 
 Plans:
-- [ ] 43-01-PLAN.md — Pass architecture + types + Pass 1-3 + typeclassifier URL fix (D-01, D-02, D-03, D-04, D-05, D-06, D-11)
-- [ ] 43-02-PLAN.md — Pass 4 (keyword actions) + Pass 5 (assembly) + config markers API (D-07, D-08, D-09)
-- [ ] 43-03-PLAN.md — Caller wiring: api.py + mcp_server.py + segment_blob deletion + test migration (D-02, D-08, D-12, D-13)
+- [x] 43-01-PLAN.md — Pass architecture + types + Pass 1-3 + typeclassifier URL fix (D-01, D-02, D-03, D-04, D-05, D-06, D-11)
+- [x] 43-02-PLAN.md — Pass 4 (keyword actions) + Pass 5 (assembly) + config markers API (D-07, D-08, D-09)
+- [x] 43-03-PLAN.md — Caller wiring: api.py + mcp_server.py + segment_blob deletion + test migration (D-02, D-08, D-12, D-13)
 - [ ] 43-04-PLAN.md — GUI: SettingsModal markers panel + SmartCaptureModal person stubs display (D-10, D-12)
 
 ### Phase 44: Universal Capture Enrichment
 
-**Goal:** Extend the Phase 43 multi-pass decomposer to all capture paths. Every `capture_note()` call — including `sb_capture`, `sb_capture_batch`, and `sb_capture_link` — runs entity extraction (Pass 1), action item extraction (Pass 4), and person stub creation (Pass 5). This makes memory creation consistent regardless of which capture surface the user uses. Core motivation: the brain must build memories from every note, not only freeform blobs.
+**Goal:** Extend the Phase 43 multi-pass decomposer to all capture paths. Every `capture_note()` call — including `sb_capture`, `sb_capture_batch`, and `sb_capture_link` — runs entity extraction (Pass 1), action item extraction (Pass 4), and person stub creation (Pass 5). This makes memory creation consistent regardless of which capture surface the user uses. Core motivation: the brain must build memories from every note, not only freeform blobs. Also audit and improve context detection at capture time — ensure the pass pipeline correctly identifies note context (source, type signals, existing brain relationships) to improve classification accuracy.
 **Requirements:** TBD
 **Depends on:** Phase 43
 **Plans:** 0 plans
@@ -383,13 +383,23 @@ Plans:
 
 ### Phase 46: Backend Code Cleanup
 
-**Goal:** Eliminate accumulated technical debt flagged in the Phase 39 audit: remove deprecated `/people` route aliases (F-27), replace `datetime.utcnow()` deprecated in Python 3.12+ across 14 files (F-31), consolidate the 13× repeated `os.environ.get("BRAIN_PATH")` pattern (F-28), add a shared `json.loads(col or "[]")` helper (F-29), fix `ensure_person_profile()` writing to wrong path `person/` vs `people/` (F-30), and begin `api.py` Blueprint partitioning (F-22, now 2149 lines).
-**Requirements**: F-22, F-27, F-28, F-29, F-30, F-31 (from 39-FINDINGS.md)
+**Goal:** Eliminate accumulated technical debt flagged in the Phase 39 audit: remove deprecated `/people` route aliases (F-27), replace `datetime.utcnow()` deprecated in Python 3.12+ across 14 files (F-31), consolidate the 13× repeated `os.environ.get("BRAIN_PATH")` pattern (F-28), add a shared `json.loads(col or "[]")` helper (F-29), fix `ensure_person_profile()` writing to wrong path `person/` vs `people/` (F-30), begin `api.py` Blueprint partitioning (F-22, now 2149 lines), and clarify the misleading "circular import" comment in `consolidate.py` lazy import block (F-23).
+**Requirements**: F-22, F-23, F-27, F-28, F-29, F-30, F-31 (from 39-FINDINGS.md)
 **Depends on:** Phase 45
 **Plans:** 0 plans
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 46 to break down)
+
+### Phase 47: Chrome Extension Page Summarisation
+
+**Goal:** Add a page summarisation feature to the Chrome extension: summarise the active page via LLM, show the summary in the extension popup with an "Add to brain" button that saves the summary as a note. Builds on Phase 36 extension infrastructure and Phase 41.3 `/summarise-url` endpoint.
+**Requirements:** TBD
+**Depends on:** Phase 46
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 47 to break down)
 
 ---
 
@@ -411,5 +421,5 @@ Plans:
 | 40 | v4.0 | 5/5 | Complete | 2026-03-28 |
 | 41 | v4.0 | 5/5 | Complete    | 2026-03-28 |
 | 42 | v4.0 | 0/3 | Not started | - |
-| 43 | v4.0 | 0/4 | Not started | - |
+| 43 | v4.0 | 3/4 | In Progress|  |
 | 44 | v4.0 | 0/? | Not started | - |
