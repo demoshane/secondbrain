@@ -22,7 +22,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-Phase: 42
+Phase: 43
 Plan: Not started
 
 ## Performance Metrics
@@ -219,7 +219,9 @@ Active decisions affecting upcoming work:
 
 - Phase 37 added: Scale Architecture (100K Notes) — ANN index, incremental reindex, sharding, tiered storage, chunked embeddings, summarization layer, backup & DR
 - Phase 42 added: Add importance field to notes — optional 250-char field capturing why a note matters, across DB, capture paths, MCP tools, Chrome plugin, and GUI
-- Phase 44 added: Backend code cleanup — F-22 (api.py Blueprint partitioning), F-27 (deprecated /people aliases), F-28 (BRAIN_PATH consolidation), F-29 (json.loads helper), F-30 (ensure_person_profile wrong path), F-31 (datetime.utcnow() → datetime.now(UTC))
+- Phase 43 inserted (2026-03-29): Smart Capture Multi-Pass Decomposer — modular engine/passes/ architecture, URL hard-override fix, conversation-format detection, GUI/MCP parity for person stubs, action item extraction at capture time.
+- Phase 44 inserted (2026-03-29): Universal Capture Enrichment — extend decomposer passes to ALL capture paths (sb_capture, sb_capture_batch, sb_capture_link). Every capture_note() call builds memories. Former 44→45, 45→46.
+- Phase 45 (ex-44) added: Backend code cleanup — F-22 (api.py Blueprint partitioning), F-27 (deprecated /people aliases), F-28 (BRAIN_PATH consolidation), F-29 (json.loads helper), F-30 (ensure_person_profile wrong path), F-31 (datetime.utcnow() → datetime.now(UTC))
 
 ### Blockers/Concerns
 

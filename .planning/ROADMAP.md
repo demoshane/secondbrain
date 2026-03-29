@@ -5,7 +5,7 @@
 - ✅ **v1.5 Second Brain MVP** — Phases 1–13 (shipped 2026-03-15)
 - ✅ **v2.0 Intelligence + GUI Hub** — Phases 14–19 (shipped 2026-03-16)
 - ✅ **v3.0 GUI Overhaul & Polish** — Phases 20–31 (shipped 2026-03-21)
-- 📋 **v4.0 Memory & Reliability** — Phases 32–41 (planned)
+- 📋 **v4.0 Memory & Reliability** — Phases 32–45 (planned)
 
 ## Phases
 
@@ -348,9 +348,9 @@ Plans:
 - [ ] 42-02-PLAN.md — API endpoint + search filter (IMP-04, IMP-05)
 - [ ] 42-03-PLAN.md — Frontend badges + dropdown + sort (IMP-06, IMP-07, IMP-08)
 
-### Phase 43: Fix pre-existing test failures
+### Phase 43: Smart Capture Multi-Pass Decomposer
 
-**Goal:** Fix 4 tests that have been failing since before phase 40: `test_delete_endpoint_404` (Flask returns 308 instead of 404), `test_bidirectional_relationships`, `TestSimilarRelationshipAutoLink::test_similar_relationship_inserted_on_confirm`, and `test_smart_capture_golden_path` (sb_capture_smart relationship writing broken).
+**Goal:** Refactor smart capture from a single-pass segmenter into a modular multi-pass decomposer. Current architecture forces every blob into one type and lets URL presence override all other signals. New architecture: Pass 1 extracts entities (people, links, dates) unconditionally; Pass 2 pulls URLs out as separate link notes; Pass 3 classifies the URL-stripped content (meeting/note/etc.); Pass 4 extracts action items with owner+date; Pass 5 assembles the primary note + link notes + person stubs + action items. Each pass lives in its own module under `engine/passes/` for independent testability and replaceability. Fix URL hard-override in typeclassifier, add conversation-format signal (Name [HH:MM] pattern), align GUI path with MCP path for person stub creation.
 **Requirements:** TBD
 **Depends on:** Phase 42
 **Plans:** 0 plans
@@ -358,15 +358,35 @@ Plans:
 Plans:
 - [ ] TBD (run /gsd:plan-phase 43 to break down)
 
-### Phase 44: Backend Code Cleanup
+### Phase 44: Universal Capture Enrichment
 
-**Goal:** Eliminate accumulated technical debt flagged in the Phase 39 audit: remove deprecated `/people` route aliases (F-27), replace `datetime.utcnow()` deprecated in Python 3.12+ across 14 files (F-31), consolidate the 13× repeated `os.environ.get("BRAIN_PATH")` pattern (F-28), add a shared `json.loads(col or "[]")` helper (F-29), fix `ensure_person_profile()` writing to wrong path `person/` vs `people/` (F-30), and begin `api.py` Blueprint partitioning (F-22, now 2149 lines).
-**Requirements**: F-22, F-27, F-28, F-29, F-30, F-31 (from 39-FINDINGS.md)
+**Goal:** Extend the Phase 43 multi-pass decomposer to all capture paths. Every `capture_note()` call — including `sb_capture`, `sb_capture_batch`, and `sb_capture_link` — runs entity extraction (Pass 1), action item extraction (Pass 4), and person stub creation (Pass 5). This makes memory creation consistent regardless of which capture surface the user uses. Core motivation: the brain must build memories from every note, not only freeform blobs.
+**Requirements:** TBD
 **Depends on:** Phase 43
 **Plans:** 0 plans
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 44 to break down)
+
+### Phase 45: Fix pre-existing test failures
+
+**Goal:** Fix 4 tests that have been failing since before phase 40: `test_delete_endpoint_404` (Flask returns 308 instead of 404), `test_bidirectional_relationships`, `TestSimilarRelationshipAutoLink::test_similar_relationship_inserted_on_confirm`, and `test_smart_capture_golden_path` (sb_capture_smart relationship writing broken).
+**Requirements:** TBD
+**Depends on:** Phase 44
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 45 to break down)
+
+### Phase 46: Backend Code Cleanup
+
+**Goal:** Eliminate accumulated technical debt flagged in the Phase 39 audit: remove deprecated `/people` route aliases (F-27), replace `datetime.utcnow()` deprecated in Python 3.12+ across 14 files (F-31), consolidate the 13× repeated `os.environ.get("BRAIN_PATH")` pattern (F-28), add a shared `json.loads(col or "[]")` helper (F-29), fix `ensure_person_profile()` writing to wrong path `person/` vs `people/` (F-30), and begin `api.py` Blueprint partitioning (F-22, now 2149 lines).
+**Requirements**: F-22, F-27, F-28, F-29, F-30, F-31 (from 39-FINDINGS.md)
+**Depends on:** Phase 45
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 46 to break down)
 
 ---
 
@@ -389,3 +409,4 @@ Plans:
 | 41 | v4.0 | 5/5 | Complete    | 2026-03-28 |
 | 42 | v4.0 | 0/3 | Not started | - |
 | 43 | v4.0 | 0/? | Not started | - |
+| 44 | v4.0 | 0/? | Not started | - |
