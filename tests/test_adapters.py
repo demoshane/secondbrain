@@ -100,3 +100,157 @@ def test_base_adapter_is_abstract():
     from engine.adapters.base import BaseAdapter
     import inspect
     assert inspect.isabstract(BaseAdapter)
+
+
+# ── GroqAdapter tests ──────────────────────────────────────────────────────────
+
+class TestGroqAdapter:
+    def test_generate_calls_groq_endpoint(self):
+        """GroqAdapter.generate() posts to Groq API with correct URL and Bearer header."""
+        from engine.adapters.groq_adapter import GroqAdapter, GROQ_API_URL, GROQ_MODEL
+        adapter = GroqAdapter()
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "choices": [{"message": {"content": "Groq answer"}}]
+        }
+        mock_resp.raise_for_status.return_value = None
+        with patch("keyring.get_password", return_value="gsk_test_key"):
+            with patch("httpx.post", return_value=mock_resp) as mock_post:
+                result = adapter.generate("hello", "be helpful")
+        assert result == "Groq answer"
+        call_kwargs = mock_post.call_args
+        assert call_kwargs[0][0] == GROQ_API_URL
+        headers = call_kwargs[1]["headers"]
+        assert headers["Authorization"] == "Bearer gsk_test_key"
+        body = call_kwargs[1]["json"]
+        assert body["model"] == GROQ_MODEL
+
+    def test_generate_includes_system_prompt(self):
+        """GroqAdapter.generate() includes system prompt as first message when provided."""
+        from engine.adapters.groq_adapter import GroqAdapter
+        adapter = GroqAdapter()
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"choices": [{"message": {"content": "ok"}}]}
+        mock_resp.raise_for_status.return_value = None
+        with patch("keyring.get_password", return_value="gsk_key"):
+            with patch("httpx.post", return_value=mock_resp) as mock_post:
+                adapter.generate("user msg", "sys prompt")
+        messages = mock_post.call_args[1]["json"]["messages"]
+        assert messages[0] == {"role": "system", "content": "sys prompt"}
+        assert messages[1] == {"role": "user", "content": "user msg"}
+
+    def test_generate_omits_system_when_empty(self):
+        """GroqAdapter.generate() sends only user message when system_prompt is empty."""
+        from engine.adapters.groq_adapter import GroqAdapter
+        adapter = GroqAdapter()
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"choices": [{"message": {"content": "ok"}}]}
+        mock_resp.raise_for_status.return_value = None
+        with patch("keyring.get_password", return_value="gsk_key"):
+            with patch("httpx.post", return_value=mock_resp) as mock_post:
+                adapter.generate("user msg")
+        messages = mock_post.call_args[1]["json"]["messages"]
+        assert len(messages) == 1
+        assert messages[0]["role"] == "user"
+
+    def test_generate_raises_when_no_key(self):
+        """GroqAdapter.generate() raises RuntimeError when keyring returns None."""
+        from engine.adapters.groq_adapter import GroqAdapter
+        adapter = GroqAdapter()
+        with patch("keyring.get_password", return_value=None):
+            with pytest.raises(RuntimeError, match="no API key"):
+                adapter.generate("hello")
+
+    def test_generate_raises_on_httpx_error(self):
+        """GroqAdapter.generate() propagates httpx errors."""
+        import httpx
+        from engine.adapters.groq_adapter import GroqAdapter
+        adapter = GroqAdapter()
+        with patch("keyring.get_password", return_value="gsk_key"):
+            with patch("httpx.post", side_effect=httpx.ConnectError("connection refused")):
+                with pytest.raises(httpx.ConnectError):
+                    adapter.generate("hello")
+
+
+# ── FallbackAdapter.used_fallback tracking tests ──────────────────────────────
+
+class TestFallbackAdapterTracking:
+    def test_used_fallback_false_after_primary_succeeds(self):
+        """FallbackAdapter.used_fallback is False after primary succeeds."""
+        from engine.adapters.fallback_adapter import FallbackAdapter
+        primary = MagicMock()
+        primary.generate.return_value = "primary response"
+        fallback = MagicMock()
+        adapter = FallbackAdapter(primary, fallback)
+        result = adapter.generate("input")
+        assert result == "primary response"
+        assert adapter.used_fallback is False
+
+    def test_used_fallback_true_after_primary_fails(self):
+        """FallbackAdapter.used_fallback is True after primary fails and fallback succeeds."""
+        from engine.adapters.fallback_adapter import FallbackAdapter
+        primary = MagicMock()
+        primary.generate.side_effect = RuntimeError("primary down")
+        fallback = MagicMock()
+        fallback.generate.return_value = "fallback response"
+        adapter = FallbackAdapter(primary, fallback)
+        result = adapter.generate("input")
+        assert result == "fallback response"
+        assert adapter.used_fallback is True
+
+    def test_used_fallback_resets_on_subsequent_success(self):
+        """FallbackAdapter.used_fallback resets to False when primary succeeds after a failure."""
+        from engine.adapters.fallback_adapter import FallbackAdapter
+        primary = MagicMock()
+        fallback = MagicMock()
+        adapter = FallbackAdapter(primary, fallback)
+        # First call: primary fails → used_fallback = True
+        primary.generate.side_effect = RuntimeError("down")
+        fallback.generate.return_value = "fallback"
+        adapter.generate("first")
+        assert adapter.used_fallback is True
+        # Second call: primary succeeds → used_fallback = False
+        primary.generate.side_effect = None
+        primary.generate.return_value = "primary"
+        adapter.generate("second")
+        assert adapter.used_fallback is False
+
+
+# ── DEFAULT_CONFIG tests ──────────────────────────────────────────────────────
+
+class TestDefaultConfig:
+    def test_pii_model_uses_llama3(self):
+        """DEFAULT_CONFIG routing.pii_model is ollama/llama3 (not llama3.2)."""
+        from engine.config_loader import DEFAULT_CONFIG
+        assert DEFAULT_CONFIG["routing"]["pii_model"] == "ollama/llama3"
+
+    def test_fallback_model_uses_llama3(self):
+        """DEFAULT_CONFIG routing.fallback_model is ollama/llama3 (not llama3.2)."""
+        from engine.config_loader import DEFAULT_CONFIG
+        assert DEFAULT_CONFIG["routing"]["fallback_model"] == "ollama/llama3"
+
+    def test_models_contains_ollama_llama3(self):
+        """DEFAULT_CONFIG models has ollama/llama3 entry with adapter=ollama and model=llama3."""
+        from engine.config_loader import DEFAULT_CONFIG
+        assert "ollama/llama3" in DEFAULT_CONFIG["models"]
+        entry = DEFAULT_CONFIG["models"]["ollama/llama3"]
+        assert entry["adapter"] == "ollama"
+        assert entry["model"] == "llama3"
+
+    def test_models_still_contains_ollama_llama3_2(self):
+        """DEFAULT_CONFIG still keeps ollama/llama3.2 for backward compat with existing configs."""
+        from engine.config_loader import DEFAULT_CONFIG
+        assert "ollama/llama3.2" in DEFAULT_CONFIG["models"]
+
+    def test_groq_section_present_with_all_false(self):
+        """DEFAULT_CONFIG has a groq section with all feature toggles defaulting to False."""
+        from engine.config_loader import DEFAULT_CONFIG
+        assert "groq" in DEFAULT_CONFIG
+        groq = DEFAULT_CONFIG["groq"]
+        for key in ("ask_brain", "followup_questions", "digest", "person_synthesis"):
+            assert groq[key] is False, f"groq.{key} should be False by default"
+
+    def test_routing_all_local_false(self):
+        """DEFAULT_CONFIG routing.all_local is False by default."""
+        from engine.config_loader import DEFAULT_CONFIG
+        assert DEFAULT_CONFIG["routing"]["all_local"] is False
