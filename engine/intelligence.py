@@ -1145,16 +1145,19 @@ def ask_brain(question: str, conn) -> dict:
     ]
 
     # Build tasks: public and PII calls run in parallel to halve wall-clock time.
+    def _truncate(text: str, max_chars: int = 600) -> str:
+        return text if len(text) <= max_chars else text[:max_chars] + "…"
+
     tasks: list[tuple[str, str, str]] = []  # (key, sensitivity, prompt)
     if public_items:
         ctx = "\n\n".join(
-            f"Note [{date}]: {title}\n{body}" if date else f"Note: {title}\n{body}"
+            f"Note [{date}]: {title}\n{_truncate(body)}" if date else f"Note: {title}\n{_truncate(body)}"
             for title, body, _, date in public_items[:10]
         )
         tasks.append(("public", "public", f"Question: {question}\n\nRelevant notes:\n{ctx}"))
     if pii_items:
         ctx = "\n\n".join(
-            f"Note [{date}]: {title}\n{body}" if date else f"Note: {title}\n{body}"
+            f"Note [{date}]: {title}\n{_truncate(body)}" if date else f"Note: {title}\n{_truncate(body)}"
             for title, body, _, date in pii_items[:5]
         )
         tasks.append(("pii", "pii", f"Question: {question}\n\nRelevant notes:\n{ctx}"))

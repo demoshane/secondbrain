@@ -53,7 +53,9 @@ def get_adapter(sensitivity: str, config_path: Path, feature: str = ""):
     if feature and sensitivity != "pii" and config.get("groq", {}).get(feature, False):
         import keyring as _kr
         if _kr.get_password("second-brain", "groq_api_key"):
-            return FallbackAdapter(GroqAdapter(), ClaudeAdapter())
+            ollama_model = models.get("ollama/llama3", models.get("ollama/llama3.2", {}))
+            fallback = OllamaAdapter(model=ollama_model.get("model", "llama3.2"), host=ollama_host)
+            return FallbackAdapter(GroqAdapter(), fallback)
 
     # Rule 3: existing sensitivity-based routing (backward compatible)
     model_key = routing.get(f"{sensitivity}_model", routing["public_model"])
