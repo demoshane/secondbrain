@@ -1030,14 +1030,16 @@ def _plain_snippet(body: str, length: int) -> str:
     return text[:length]
 
 
-def _parse_temporal_from_date(question: str) -> str | None:
-    """Detect temporal intent and return an ISO date string (from_date) if found.
+def _parse_temporal_from_date(question: str) -> tuple[str, str | None] | None:
+    """Detect temporal intent and return (from_date, until_date) or None.
 
+    until_date is set for bounded ranges (yesterday, last week, last N days).
+    Open-ended ranges (today, this week, recent) leave until_date as None.
     Handles Finnish dd.M[.YYYY] format, English month names, and relative keywords.
-    Returns None when no temporal pattern is detected.
     """
     q = question.lower()
     today = datetime.date.today()
+    tomorrow = today + datetime.timedelta(days=1)
 
     # "since/after DD.M" or "since/after DD.M.YYYY" (Finnish format, most common)
     m = re.search(r'(?:since|after|from)\s+(\d{1,2})\.(\d{1,2})(?:\.(\d{4}))?', q)
@@ -1045,26 +1047,31 @@ def _parse_temporal_from_date(question: str) -> str | None:
         day, month = int(m.group(1)), int(m.group(2))
         year = int(m.group(3)) if m.group(3) else today.year
         try:
-            return datetime.date(year, month, day).isoformat()
+            return datetime.date(year, month, day).isoformat(), None
         except ValueError:
             pass
 
     # "last N days"
     m = re.search(r'last\s+(\d+)\s+days?', q)
     if m:
-        return (today - datetime.timedelta(days=int(m.group(1)))).isoformat()
+        n = int(m.group(1))
+        return (today - datetime.timedelta(days=n)).isoformat(), today.isoformat()
 
-    # Keywords
+    # Keywords — bounded ranges include an until_date
     if 'today' in q:
-        return today.isoformat()
+        return today.isoformat(), tomorrow.isoformat()
     if 'yesterday' in q:
-        return (today - datetime.timedelta(days=1)).isoformat()
+        yesterday = today - datetime.timedelta(days=1)
+        return yesterday.isoformat(), today.isoformat()
     if 'this week' in q:
-        return (today - datetime.timedelta(days=today.weekday())).isoformat()
+        week_start = today - datetime.timedelta(days=today.weekday())
+        return week_start.isoformat(), None
     if 'last week' in q:
-        return (today - datetime.timedelta(days=today.weekday() + 7)).isoformat()
+        this_monday = today - datetime.timedelta(days=today.weekday())
+        last_monday = this_monday - datetime.timedelta(days=7)
+        return last_monday.isoformat(), this_monday.isoformat()
     if any(w in q for w in ('recent', 'recently', 'latest', 'what happened', 'what\'s new', 'whats new')):
-        return (today - datetime.timedelta(days=7)).isoformat()
+        return (today - datetime.timedelta(days=7)).isoformat(), None
 
     # "last monday/tuesday/..." or "since/after monday/..."
     _WEEKDAYS = {
@@ -1074,7 +1081,7 @@ def _parse_temporal_from_date(question: str) -> str | None:
     for name, wd in _WEEKDAYS.items():
         if f'last {name}' in q or f'since {name}' in q or f'after {name}' in q:
             days_back = (today.weekday() - wd) % 7 or 7
-            return (today - datetime.timedelta(days=days_back)).isoformat()
+            return (today - datetime.timedelta(days=days_back)).isoformat(), None
 
     return None
 
@@ -1089,14 +1096,22 @@ def ask_brain(question: str, conn) -> dict:
     from engine.config_loader import load_config as _load_config
 
     # --- Temporal injection: for "since X / today / this week" questions ---
-    from_date = _parse_temporal_from_date(question)
+    _temporal = _parse_temporal_from_date(question)
     temporal_results: list[dict] = []
-    if from_date:
-        rows = conn.execute(
-            "SELECT path, title, type, created_at, body, sensitivity FROM notes "
-            "WHERE date(created_at) >= ? ORDER BY created_at DESC LIMIT 10",
-            (from_date,),
-        ).fetchall()
+    if _temporal:
+        from_date, until_date = _temporal
+        if until_date:
+            rows = conn.execute(
+                "SELECT path, title, type, created_at, body, sensitivity FROM notes "
+                "WHERE date(created_at) >= ? AND date(created_at) < ? ORDER BY created_at DESC LIMIT 10",
+                (from_date, until_date),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT path, title, type, created_at, body, sensitivity FROM notes "
+                "WHERE date(created_at) >= ? ORDER BY created_at DESC LIMIT 10",
+                (from_date,),
+            ).fetchall()
         temporal_results = [
             {
                 "path": r[0], "title": r[1], "type": r[2],
