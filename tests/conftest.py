@@ -284,6 +284,22 @@ def mock_subprocess_claude():
     return patch("subprocess.run", return_value=mock_result)
 
 
+@pytest.fixture
+def mock_keyring():
+    """Patch keyring get/set/delete_password. Returns the mock so tests can configure return values.
+
+    Default: get_password returns None (no key configured).
+    """
+    with patch("keyring.get_password", return_value=None) as mock_get, \
+         patch("keyring.set_password") as mock_set, \
+         patch("keyring.delete_password") as mock_delete:
+        yield {
+            "get_password": mock_get,
+            "set_password": mock_set,
+            "delete_password": mock_delete,
+        }
+
+
 # ---------------------------------------------------------------------------
 # Phase 24: Playwright GUI test fixtures
 # ---------------------------------------------------------------------------

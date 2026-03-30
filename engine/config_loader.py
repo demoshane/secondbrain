@@ -4,21 +4,38 @@ from pathlib import Path
 
 DEFAULT_CONFIG = {
     "routing": {
-        "pii_model": "ollama/llama3.2",
+        "pii_model": "ollama/llama3",
         "private_model": "claude",
         "public_model": "claude",
-        "fallback_model": "ollama/llama3.2",
+        "fallback_model": "ollama/llama3",
+        "all_local": False,
     },
     "ollama": {
         "host": "http://host.docker.internal:11434",
     },
     "models": {
+        # llama3 (8B) — new default for pii/fallback routing (D-07)
+        "ollama/llama3": {"adapter": "ollama", "model": "llama3"},
+        # llama3.2 kept for backward compat — existing config.toml files still resolve (Pitfall 6)
         "ollama/llama3.2": {"adapter": "ollama", "model": "llama3.2"},
         "claude": {"adapter": "claude", "model": ""},
     },
     "embeddings": {
         "provider": "ollama",
         "batch_size": 32,
+    },
+    "action_items": {
+        "custom_markers": [],
+    },
+    "user": {
+        "identity": "",
+    },
+    # Per-feature Groq routing toggles (D-03). All false by default.
+    "groq": {
+        "ask_brain": False,
+        "followup_questions": False,
+        "digest": False,
+        "person_synthesis": False,
     },
 }
 
