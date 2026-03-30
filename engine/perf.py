@@ -176,15 +176,18 @@ def compute_delta(latest: dict, previous: dict | None) -> list[dict]:
 def _time_tool(fn, *args, **kwargs) -> tuple[float, str | None]:
     """Time a single tool call.  Handles both sync and async functions.
 
+    Inspects the return value rather than the function signature to correctly
+    handle FastMCP-decorated functions that may be wrapped as sync even when
+    the underlying implementation is async.
+
     Returns:
         (elapsed_ms, error_or_None)
     """
     start = time.monotonic()
     try:
-        if asyncio.iscoroutinefunction(fn):
-            asyncio.run(fn(*args, **kwargs))
-        else:
-            fn(*args, **kwargs)
+        result = fn(*args, **kwargs)
+        if asyncio.iscoroutine(result):
+            asyncio.run(result)
         elapsed_ms = (time.monotonic() - start) * 1000.0
         return elapsed_ms, None
     except Exception as exc:
@@ -211,16 +214,22 @@ def _benchmark_read_tools() -> list[dict]:
         sb_tag, sb_tools,
     )
     from engine.db import get_connection
+    from engine.paths import BRAIN_ROOT as _BRAIN_ROOT
+
+    def _abs(p: str) -> str:
+        """Return absolute path; prepend BRAIN_ROOT if relative."""
+        from pathlib import Path as _Path
+        return p if _Path(p).is_absolute() else str(_BRAIN_ROOT / p)
 
     # Find a real note path for tools that require one
     conn = get_connection()
     try:
         row = conn.execute("SELECT path FROM notes LIMIT 1").fetchone()
-        note_path = row[0] if row else "notes/test.md"
+        note_path = _abs(row[0]) if row else str(_BRAIN_ROOT / "notes/test.md")
         person_row = conn.execute(
             "SELECT path FROM notes WHERE type='person' LIMIT 1"
         ).fetchone()
-        person_path = person_row[0] if person_row else None
+        person_path = _abs(person_row[0]) if person_row else None
     finally:
         conn.close()
 
@@ -251,9 +260,14 @@ def _benchmark_write_tools() -> list[dict]:
     from engine.mcp_server import (  # noqa: PLC0415
         sb_capture, sb_capture_batch, sb_edit,
         sb_link, sb_unlink, sb_remind,
-        sb_forget, sb_anonymize,
+        sb_anonymize,
     )
     from engine.test_utils import cleanup_test_notes
+    from engine.paths import BRAIN_ROOT as _BRAIN_ROOT
+    from pathlib import Path as _Path
+
+    def _abs(p: str) -> str:
+        return p if _Path(p).is_absolute() else str(_BRAIN_ROOT / p)
 
     # Pre-flight cleanup
     cleanup_test_notes("__perf_test__")
@@ -272,7 +286,6 @@ def _benchmark_write_tools() -> list[dict]:
         )
         results.append(_make_result("sb_capture", elapsed_ms, error))
         if not error:
-            # Find the note path from DB
             from engine.db import get_connection
             conn = get_connection()
             try:
@@ -280,7 +293,7 @@ def _benchmark_write_tools() -> list[dict]:
                     "SELECT path FROM notes WHERE title=? ORDER BY id DESC LIMIT 1",
                     ("__perf_test__capture",),
                 ).fetchone()
-                captured_path = row[0] if row else None
+                captured_path = _abs(row[0]) if row else None
             finally:
                 conn.close()
     except Exception as exc:
@@ -288,11 +301,11 @@ def _benchmark_write_tools() -> list[dict]:
 
     # sb_capture_batch
     try:
-        batch_items = json.dumps([
+        batch_notes = [
             {"title": f"__perf_test__batch{i}", "body": "batch perf test", "note_type": "note"}
             for i in range(3)
-        ])
-        elapsed_ms, error = _time_tool(sb_capture_batch, items=batch_items)
+        ]
+        elapsed_ms, error = _time_tool(sb_capture_batch, notes=batch_notes)
         results.append(_make_result("sb_capture_batch", elapsed_ms, error))
         if not error:
             from engine.db import get_connection
@@ -311,64 +324,66 @@ def _benchmark_write_tools() -> list[dict]:
     if captured_path:
         elapsed_ms, error = _time_tool(
             sb_edit,
-            note_path=captured_path,
+            path=captured_path,
             body="performance test note — edited",
         )
         results.append(_make_result("sb_edit", elapsed_ms, error))
 
     # sb_link / sb_unlink — need two note paths
     if len(batch_paths) >= 2:
-        elapsed_ms, error = _time_tool(sb_link, source=batch_paths[0], target=batch_paths[1])
+        elapsed_ms, error = _time_tool(sb_link, source_path=batch_paths[0], target_path=batch_paths[1])
         results.append(_make_result("sb_link", elapsed_ms, error))
         if not error:
-            elapsed_ms, error = _time_tool(sb_unlink, source=batch_paths[0], target=batch_paths[1])
+            elapsed_ms, error = _time_tool(sb_unlink, source_path=batch_paths[0], target_path=batch_paths[1])
             results.append(_make_result("sb_unlink", elapsed_ms, error))
 
-    # sb_remind
-    if captured_path:
-        remind_at = (datetime.date.today() + datetime.timedelta(days=7)).isoformat()
-        elapsed_ms, error = _time_tool(sb_remind, note_path=captured_path, remind_at=remind_at)
-        results.append(_make_result("sb_remind", elapsed_ms, error))
-
-    # sb_forget (two-step token)
-    if captured_path:
+    # sb_remind — look up any open action item from DB
+    try:
+        from engine.db import get_connection
+        conn = get_connection()
         try:
-            # Step 1: get confirm_token
-            token_result = asyncio.run(sb_forget(note_path=captured_path))
-            # Extract token from result string
-            import re
-            match = re.search(r'"confirm_token":\s*"([^"]+)"', str(token_result))
-            if match:
-                token = match.group(1)
-                elapsed_ms, error = _time_tool(sb_forget, note_path=captured_path, confirm_token=token)
-                results.append(_make_result("sb_forget", elapsed_ms, error))
-        except Exception as exc:
-            results.append(_make_result("sb_forget", 0, str(exc)))
+            row = conn.execute("SELECT id FROM action_items WHERE done=0 LIMIT 1").fetchone()
+            action_id = row[0] if row else None
+        finally:
+            conn.close()
+        if action_id is not None:
+            due_date = (datetime.date.today() + datetime.timedelta(days=7)).isoformat()
+            elapsed_ms, error = _time_tool(sb_remind, action_id=action_id, due_date=due_date)
+        else:
+            elapsed_ms, error = 0.0, "no open action items to benchmark"
+        results.append(_make_result("sb_remind", elapsed_ms, error))
+    except Exception as exc:
+        results.append(_make_result("sb_remind", 0, str(exc)))
 
     # sb_anonymize (two-step token) — capture a fresh note with PII-like content
     try:
-        asyncio.run(sb_capture(
+        sb_capture(
             title="__perf_test__anon",
             body="John Smith attended a meeting at Acme Corp.",
             note_type="note",
-        ))
+        )
         from engine.db import get_connection
         conn = get_connection()
         try:
             row = conn.execute(
                 "SELECT path FROM notes WHERE title='__perf_test__anon' ORDER BY id DESC LIMIT 1"
             ).fetchone()
-            anon_path = row[0] if row else None
+            anon_path = _abs(row[0]) if row else None
         finally:
             conn.close()
 
         if anon_path:
-            token_result = asyncio.run(sb_anonymize(note_path=anon_path))
-            match = re.search(r'"confirm_token":\s*"([^"]+)"', str(token_result))
-            if match:
-                token = match.group(1)
-                elapsed_ms, error = _time_tool(sb_anonymize, note_path=anon_path, confirm_token=token)
+            # Step 1: get confirm_token
+            _r = sb_anonymize(path=anon_path, tokens=["John Smith"])
+            token_result = asyncio.run(_r) if asyncio.iscoroutine(_r) else _r
+            token = token_result.get("confirm_token") if isinstance(token_result, dict) else None
+            if token:
+                elapsed_ms, error = _time_tool(
+                    sb_anonymize, path=anon_path, tokens=["John Smith"], confirm_token=token
+                )
                 results.append(_make_result("sb_anonymize", elapsed_ms, error))
+            else:
+                results.append(_make_result("sb_anonymize", 0, "no confirm_token returned"))
     except Exception as exc:
         results.append(_make_result("sb_anonymize", 0, str(exc)))
 
@@ -385,10 +400,10 @@ def _benchmark_ai_tools() -> list[dict]:
 
     results = []
 
-    elapsed_ms, error = _time_tool(sb_recap, "today")
+    elapsed_ms, error = _time_tool(sb_recap)
     results.append(_make_result("sb_recap", elapsed_ms, error))
 
-    elapsed_ms, error = _time_tool(sb_digest, "week")
+    elapsed_ms, error = _time_tool(sb_digest)
     results.append(_make_result("sb_digest", elapsed_ms, error))
 
     # ask_brain via httpx
@@ -455,7 +470,7 @@ _STATUS_ICON = {
 }
 
 
-def _print_table(result: dict, previous: dict | None) -> None:
+def _print_table(result: dict, previous: dict | None, verbose: bool = False) -> None:
     deltas = compute_delta(result, previous)
     delta_map = {d["tool"]: d for d in deltas}
 
@@ -502,6 +517,8 @@ def _print_table(result: dict, previous: dict | None) -> None:
             f"{tool:<24} {latest_ms:>6.0f}ms {prev_str:>9} {delta_colored:>8} "
             f"{limit_ms:>5}ms {icon}"
         )
+        if verbose and error:
+            print(f"  {_ANSI_RED}{error}{_ANSI_RESET}")
 
     total = len(result.get("tool_results", []))
     passes = total - warns - errors
@@ -520,6 +537,7 @@ def main() -> None:
     parser.add_argument("--tool", metavar="NAME", help="Benchmark a single tool only")
     parser.add_argument("--json", action="store_true", help="Output results as JSON")
     parser.add_argument("--cleanup", action="store_true", help="Purge orphaned __perf_test__ notes")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Show error details in table")
     args = parser.parse_args()
 
     if args.cleanup:
@@ -541,5 +559,5 @@ def main() -> None:
         sys.exit(0)
 
     previous_data = get_latest_with_previous().get("previous")
-    _print_table(result, previous_data)
+    _print_table(result, previous_data, verbose=args.verbose)
     sys.exit(0)

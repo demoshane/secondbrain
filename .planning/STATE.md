@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
-status: Ready to plan
-stopped_at: Completed 44-03-PLAN.md
-last_updated: "2026-03-30T12:20:58.846Z"
+status: Phase 45 complete — ready for Phase 46
+stopped_at: Phase 45 both plans complete, 19/19 tools passing
+last_updated: "2026-03-30"
 progress:
-  total_phases: 21
-  completed_phases: 16
-  total_plans: 92
-  completed_plans: 91
+  total_phases: 24
+  completed_phases: 17
+  total_plans: 94
+  completed_plans: 93
 ---
 
 # Project State
@@ -22,8 +22,8 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-Phase: 45
-Plan: Not started
+Phase: 45 (performance-testing-framework) — COMPLETE
+Next: Phase 46 (universal-capture-enrichment)
 
 ## Performance Metrics
 
@@ -211,7 +211,7 @@ Active decisions affecting upcoming work:
 
 ### Pending Todos
 
-_(F-18/19/20/21 accepted risks, F-24/25/26 known trade-offs — all closed. F-22/23/27/28/29/30/31 → scheduled in Phase 46. Context detection → Phase 44. Chrome summarisation → Phase 47.)_
+_(F-18/19/20/21 accepted risks, F-24/25/26 known trade-offs — all closed. F-22/23/27/28/29/30/31 → scheduled in Phase 48. Context detection → Phase 44. Chrome summarisation → Phase 49.)_
 
 ### Roadmap Evolution
 
@@ -222,7 +222,8 @@ _(F-18/19/20/21 accepted risks, F-24/25/26 known trade-offs — all closed. F-22
 - Phase 45 (ex-44) added: Fix pre-existing test failures — 4 tests broken before Phase 40
 - Phase 46 (ex-45) added: Backend code cleanup — F-22/23/27/28/29/30/31 from Phase 39 audit
 - Phase 48 added then moved to 44: AI provider settings — Groq API key via macOS Keychain, all-local Ollama toggle, auto-routing logic, Settings UI. Former 44→45, 45→46, 46→47, 47→48.
-- Phase 47 added (2026-03-29): Chrome extension page summarisation — LLM summary in popup + "Add to brain"
+- Phase 47 added (2026-03-29): Chrome extension page summarisation → renumbered to 49 (2026-03-30)
+- Phase 45 inserted (2026-03-30): Performance Testing Framework — sb-perf command, soft limits, delta reporting, 30-day history, GUI page. Former 45→46, 46→47, 47→48, 48→49.
 - Phase 44 goal expanded (2026-03-29): includes context detection audit at capture time
 
 ### Blockers/Concerns
@@ -231,10 +232,9 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-30T12:16:41.174Z
-Stopped at: Completed 44-03-PLAN.md
-Resume file: None
+Last session: 2026-03-30
+Stopped at: Phase 45 complete — 19/19 sb-perf tools passing, all tests green
 
 ### Next action
 
-Run /gsd:plan-phase 44 to plan AI provider settings (Groq key, all-local toggle, auto-routing, Settings UI).
+Run /gsd:plan-phase 46 to plan Universal Capture Enrichment.
