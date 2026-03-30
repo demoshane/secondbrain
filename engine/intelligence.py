@@ -1086,6 +1086,7 @@ def ask_brain(question: str, conn) -> dict:
     """
     from engine.search import search_hybrid
     from engine.paths import CONFIG_PATH
+    from engine.config_loader import load_config as _load_config
 
     # --- Temporal injection: for "since X / today / this week" questions ---
     from_date = _parse_temporal_from_date(question)
@@ -1135,11 +1136,16 @@ def ask_brain(question: str, conn) -> dict:
             "sources": [],
         }
 
+    # When all_local=true every sensitivity goes to OllamaAdapter anyway — splitting into
+    # parallel tasks just doubles the slow local calls for no privacy benefit. Merge all
+    # notes into a single "public" task (Rule 1 routes it to Ollama regardless).
+    _all_local = _load_config(CONFIG_PATH).get("routing", {}).get("all_local", False)
+
     public_items = [
         (r.get("title", ""), r["body"][:800], r.get("path", ""), r.get("created_at", "")[:10])
-        for r in results if r.get("sensitivity") != "pii"
+        for r in results if _all_local or r.get("sensitivity") != "pii"
     ]
-    pii_items = [
+    pii_items = [] if _all_local else [
         (r.get("title", ""), r["body"][:800], r.get("path", ""), r.get("created_at", "")[:10])
         for r in results if r.get("sensitivity") == "pii"
     ]

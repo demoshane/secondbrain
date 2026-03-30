@@ -12,7 +12,7 @@ class OllamaAdapter(BaseAdapter):
     On Linux DevContainers, add --add-host=host.docker.internal:host-gateway to devcontainer.json.
     """
 
-    def __init__(self, model: str, host: str = "http://host.docker.internal:11434", timeout: float = 30.0) -> None:
+    def __init__(self, model: str, host: str = "http://host.docker.internal:11434", timeout: float = 120.0) -> None:
         self._model = model
         self._client = ollama.Client(host=host, timeout=httpx.Timeout(timeout))
 
