@@ -709,3 +709,215 @@ def test_update_note_re_extracts_entities(tmp_path, monkeypatch):
     # entities should have been re-extracted (exact content depends on extraction quality)
     assert isinstance(entities, dict), f"entities should be a dict, got: {entities}"
     conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Phase 46: Person stub creation in capture_note background thread (UCE-01/02/03)
+# ---------------------------------------------------------------------------
+
+class _SyncThread:
+    """Runs threading.Thread target synchronously — eliminates race conditions in tests."""
+    def __init__(self, target, daemon=None):
+        self._target = target
+
+    def start(self):
+        self._target()
+
+
+class TestPersonStubCreation:
+    """Verify capture_note() creates person stubs for all capture paths (Phase 46)."""
+
+    def _setup_brain(self, tmp_path, monkeypatch):
+        """Isolated file-based brain + DB. Returns (brain_path, conn)."""
+        import engine.db as db_mod
+        import engine.paths as paths_mod
+
+        brain = tmp_path / "brain"
+        brain.mkdir()
+        tmp_db = tmp_path / "brain.db"
+        monkeypatch.setattr(db_mod, "DB_PATH", tmp_db)
+        monkeypatch.setattr(paths_mod, "DB_PATH", tmp_db)
+        monkeypatch.setattr(paths_mod, "BRAIN_ROOT", brain)
+        monkeypatch.setenv("BRAIN_PATH", str(brain))
+
+        from engine.db import get_connection, init_schema
+        conn = get_connection(str(tmp_db))
+        init_schema(conn)
+        conn.commit()
+        return brain, conn
+
+    def _patch_slow_hooks(self, monkeypatch):
+        """Stub out slow intelligence hooks (avoid subprocess claude calls)."""
+        monkeypatch.setattr("engine.intelligence.check_connections", lambda *a, **kw: None)
+        monkeypatch.setattr("engine.intelligence.extract_action_items", lambda *a, **kw: None)
+
+    def test_stub_created_for_meeting_with_people(self, tmp_path, monkeypatch):
+        """capture_note(meeting) with person in body → resolve_entities called, stub created."""
+        brain, conn = self._setup_brain(tmp_path, monkeypatch)
+        self._patch_slow_hooks(monkeypatch)
+
+        resolve_calls = []
+
+        def fake_resolve(entities, db_conn, brain_root):
+            resolve_calls.append(entities)
+            return {"new_stubs": [{"name": "John Smith", "type": "people"}], "existing": []}
+
+        def fake_extract(title, body):
+            if "John Smith" in body:
+                return {"people": ["John Smith"], "places": [], "topics": [], "orgs": []}
+            return {"people": [], "places": [], "topics": [], "orgs": []}
+
+        monkeypatch.setattr("engine.entities.extract_entities", fake_extract)
+        monkeypatch.setattr("engine.segmenter.resolve_entities", fake_resolve)
+        monkeypatch.setattr("threading.Thread", _SyncThread)
+
+        from engine.capture import capture_note
+        capture_note(
+            note_type="meeting",
+            title="Team Sync",
+            body="Met with John Smith about project",
+            tags=[], people=[], content_sensitivity="public",
+            brain_root=brain, conn=conn,
+        )
+
+        assert len(resolve_calls) == 1, f"Expected 1 resolve_entities call, got {len(resolve_calls)}"
+        assert "John Smith" in resolve_calls[0].get("people", [])
+        people_dir = brain / "people"
+        stub_files = list(people_dir.glob("*.md")) if people_dir.exists() else []
+        assert any("john-smith" in f.name for f in stub_files), (
+            f"Expected john-smith stub in {people_dir}, found: {[f.name for f in stub_files]}"
+        )
+        conn.close()
+
+    def test_stub_skipped_for_coding_type(self, tmp_path, monkeypatch):
+        """capture_note(coding) → resolve_entities NOT called regardless of people in body."""
+        brain, conn = self._setup_brain(tmp_path, monkeypatch)
+        self._patch_slow_hooks(monkeypatch)
+
+        resolve_calls = []
+
+        def fake_resolve(entities, db_conn, brain_root):
+            resolve_calls.append(entities)
+            return {"new_stubs": [], "existing": []}
+
+        monkeypatch.setattr("engine.entities.extract_entities",
+                            lambda t, b: {"people": ["John Smith"], "places": [], "topics": [], "orgs": []})
+        monkeypatch.setattr("engine.segmenter.resolve_entities", fake_resolve)
+        monkeypatch.setattr("threading.Thread", _SyncThread)
+
+        from engine.capture import capture_note
+        capture_note(
+            note_type="coding", title="My Snippet", body="John Smith wrote this",
+            tags=[], people=[], content_sensitivity="public", brain_root=brain, conn=conn,
+        )
+
+        assert len(resolve_calls) == 0, "resolve_entities must not be called for coding type"
+        conn.close()
+
+    def test_stub_skipped_for_link_type(self, tmp_path, monkeypatch):
+        """capture_note(link) → resolve_entities NOT called."""
+        brain, conn = self._setup_brain(tmp_path, monkeypatch)
+        self._patch_slow_hooks(monkeypatch)
+
+        resolve_calls = []
+        monkeypatch.setattr("engine.entities.extract_entities",
+                            lambda t, b: {"people": ["John Smith"], "places": [], "topics": [], "orgs": []})
+        monkeypatch.setattr("engine.segmenter.resolve_entities",
+                            lambda e, c, r: resolve_calls.append(e) or {"new_stubs": [], "existing": []})
+        monkeypatch.setattr("threading.Thread", _SyncThread)
+
+        from engine.capture import capture_note
+        capture_note(
+            note_type="link", title="An Article", body="John Smith shared this",
+            tags=[], people=[], content_sensitivity="public", brain_root=brain, conn=conn,
+        )
+
+        assert len(resolve_calls) == 0, "resolve_entities must not be called for link type"
+        conn.close()
+
+    def test_stub_skipped_for_files_type(self, tmp_path, monkeypatch):
+        """capture_note(files) → resolve_entities NOT called."""
+        brain, conn = self._setup_brain(tmp_path, monkeypatch)
+        self._patch_slow_hooks(monkeypatch)
+
+        resolve_calls = []
+        monkeypatch.setattr("engine.entities.extract_entities",
+                            lambda t, b: {"people": ["John Smith"], "places": [], "topics": [], "orgs": []})
+        monkeypatch.setattr("engine.segmenter.resolve_entities",
+                            lambda e, c, r: resolve_calls.append(e) or {"new_stubs": [], "existing": []})
+        monkeypatch.setattr("threading.Thread", _SyncThread)
+
+        from engine.capture import capture_note
+        capture_note(
+            note_type="files", title="My File", body="John Smith uploaded this",
+            tags=[], people=[], content_sensitivity="public", brain_root=brain, conn=conn,
+        )
+
+        assert len(resolve_calls) == 0, "resolve_entities must not be called for files type"
+        conn.close()
+
+    def test_stub_skipped_when_no_people(self, tmp_path, monkeypatch):
+        """capture_note(meeting) with no extracted people → resolve_entities NOT called."""
+        brain, conn = self._setup_brain(tmp_path, monkeypatch)
+        self._patch_slow_hooks(monkeypatch)
+
+        resolve_calls = []
+        monkeypatch.setattr("engine.entities.extract_entities",
+                            lambda t, b: {"people": [], "places": [], "topics": [], "orgs": []})
+        monkeypatch.setattr("engine.segmenter.resolve_entities",
+                            lambda e, c, r: resolve_calls.append(e) or {"new_stubs": [], "existing": []})
+        monkeypatch.setattr("threading.Thread", _SyncThread)
+
+        from engine.capture import capture_note
+        capture_note(
+            note_type="meeting", title="Team Sync", body="Discussed project updates",
+            tags=[], people=[], content_sensitivity="public", brain_root=brain, conn=conn,
+        )
+
+        assert len(resolve_calls) == 0, "resolve_entities must not be called when no people extracted"
+        conn.close()
+
+    def test_stub_no_recursive_loop(self, tmp_path, monkeypatch):
+        """capture_note(people, body='') → empty people → no resolve_entities call (loop guard)."""
+        brain, conn = self._setup_brain(tmp_path, monkeypatch)
+        self._patch_slow_hooks(monkeypatch)
+
+        resolve_calls = []
+        # Empty body → no people found (simulates real extract_entities behaviour)
+        monkeypatch.setattr("engine.entities.extract_entities",
+                            lambda t, b: {"people": [], "places": [], "topics": [], "orgs": []})
+        monkeypatch.setattr("engine.segmenter.resolve_entities",
+                            lambda e, c, r: resolve_calls.append(e) or {"new_stubs": [], "existing": []})
+        monkeypatch.setattr("threading.Thread", _SyncThread)
+
+        from engine.capture import capture_note
+        capture_note(
+            note_type="people", title="X", body="",
+            tags=[], people=[], content_sensitivity="public", brain_root=brain, conn=conn,
+        )
+
+        assert len(resolve_calls) == 0, "Empty-body stub capture must not trigger resolve_entities"
+        conn.close()
+
+    def test_stub_thread_error_silent(self, tmp_path, monkeypatch):
+        """resolve_entities raising RuntimeError → capture_note still returns a valid Path."""
+        brain, conn = self._setup_brain(tmp_path, monkeypatch)
+        self._patch_slow_hooks(monkeypatch)
+
+        def failing_resolve(entities, db_conn, brain_root):
+            raise RuntimeError("DB failure")
+
+        monkeypatch.setattr("engine.entities.extract_entities",
+                            lambda t, b: {"people": ["John Smith"], "places": [], "topics": [], "orgs": []})
+        monkeypatch.setattr("engine.segmenter.resolve_entities", failing_resolve)
+        monkeypatch.setattr("threading.Thread", _SyncThread)
+
+        from engine.capture import capture_note
+        result = capture_note(
+            note_type="meeting", title="Error Test", body="Met with John Smith",
+            tags=[], people=[], content_sensitivity="public", brain_root=brain, conn=conn,
+        )
+
+        assert isinstance(result, Path), f"capture_note must return Path even on resolve error, got {result!r}"
+        assert result.exists(), "Returned path must exist on disk"
+        conn.close()

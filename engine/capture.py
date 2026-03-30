@@ -582,6 +582,8 @@ def capture_note(
     _body = body
     _sensitivity = content_sensitivity
     _brain_root = brain_root
+    _entities = entities
+    _skip_stubs = note_type in {"coding", "link", "files"} or not entities.get("people")
 
     def _run_intelligence_hooks():
         try:
@@ -608,6 +610,32 @@ def capture_note(
                 _conn2.close()
         except Exception:
             pass
+        if not _skip_stubs:
+            try:
+                from engine.db import get_connection as _get_conn
+                from engine.segmenter import resolve_entities
+                _conn3 = _get_conn()
+                try:
+                    resolution = resolve_entities(_entities, _conn3, _brain_root)
+                    for stub in resolution.get("new_stubs", []):
+                        try:
+                            capture_note(
+                                note_type=stub["type"],
+                                title=stub["name"],
+                                body="",
+                                tags=[],
+                                people=[],
+                                content_sensitivity="public",
+                                brain_root=_brain_root,
+                                conn=_conn3,
+                            )
+                            _conn3.commit()
+                        except Exception:
+                            pass
+                finally:
+                    _conn3.close()
+            except Exception:
+                pass
 
     threading.Thread(target=_run_intelligence_hooks, daemon=True).start()
 
