@@ -1,4 +1,4 @@
-import { FileText, CheckSquare, Users, Calendar, Briefcase, Brain, Inbox, Link } from 'lucide-react'
+import { FileText, CheckSquare, Users, Calendar, Briefcase, Brain, Gauge, Inbox, Link } from 'lucide-react'
 import { useUIContext } from '@/contexts/UIContext'
 import { cn } from '@/lib/utils'
 
@@ -9,6 +9,7 @@ const TABS = [
   { id: 'meetings' as const, label: 'Meetings', icon: Calendar },
   { id: 'projects' as const, label: 'Projects', icon: Briefcase },
   { id: 'intelligence' as const, label: 'Intelligence', icon: Brain },
+  { id: 'performance' as const, label: 'Performance', icon: Gauge },
   { id: 'inbox' as const, label: 'Inbox', icon: Inbox },
   { id: 'links' as const, label: 'Links', icon: Link },
 ]
