@@ -19,12 +19,21 @@ VAULT_GATE = 20  # minimum notes before any proactive offer fires
 _check_connections_last_run: float = 0.0
 _CHECK_CONNECTIONS_COOLDOWN_SECS: int = 30 * 60
 
-ACTION_ITEM_SYSTEM_PROMPT = (
-    "You are an assistant that extracts action items from notes. "
-    "Output ONLY a newline-separated list of action items — one per line. "
-    "Each line must be a concrete, specific commitment or to-do. "
-    "If there are no action items, output exactly: NONE"
-)
+def _action_item_prompt() -> str:
+    today = datetime.date.today().isoformat()
+    return (
+        f"Today's date is {today}. "
+        "You are an assistant that extracts action items from notes. "
+        "Output ONLY a newline-separated list of action items — one per line. "
+        "Each line must be a concrete, specific commitment or to-do. "
+        "Prefix each item with 'ME: ' if it is clearly a first-person action (the note author is responsible — uses 'I', 'my', 'I'll', 'I will', etc.). "
+        "Items assigned to named other people should have no prefix. "
+        "Items with unclear ownership should have no prefix. "
+        "If a due date is mentioned or implied (e.g. 'by Friday', 'end of week', 'before the release'), "
+        "append it as an ISO 8601 date after a pipe character: 'ME: Review contract | 2026-04-05'. "
+        "Omit the pipe entirely if no due date is present. "
+        "If there are no action items, output exactly: NONE"
+    )
 
 RECAP_SYSTEM_PROMPT = (
     "You are a personal assistant reviewing a week of notes. "
@@ -169,10 +178,33 @@ def extract_action_items(note_path: Path, body_or_conn=None, sensitivity: str = 
             body = body_or_conn if isinstance(body_or_conn, str) else ""
 
         from engine.paths import CONFIG_PATH
+        from engine.config_loader import load_config as _load_config
         adapter = _router.get_adapter(sensitivity, CONFIG_PATH)
-        raw = adapter.generate(user_content=body, system_prompt=ACTION_ITEM_SYSTEM_PROMPT)
-        lines = [line.strip() for line in raw.splitlines() if line.strip() and line.strip() != "NONE"]
-        for line in lines:
+        raw = adapter.generate(user_content=body, system_prompt=_action_item_prompt())
+        raw_lines = [line.strip() for line in raw.splitlines() if line.strip() and line.strip() != "NONE"]
+        me_path = _load_config(CONFIG_PATH).get("user", {}).get("identity", "") or None
+        for raw_line in raw_lines:
+            # Parse ownership prefix: "ME: <text>" → assign to me, else no assignee
+            if raw_line.upper().startswith("ME: "):
+                assignee = me_path
+                rest = raw_line[4:].strip()
+            else:
+                assignee = None
+                rest = raw_line
+
+            # Parse optional due date suffix: "<text> | YYYY-MM-DD"
+            due_date = None
+            if " | " in rest:
+                text_part, date_part = rest.rsplit(" | ", 1)
+                date_part = date_part.strip()
+                if len(date_part) == 10 and date_part[4] == "-" and date_part[7] == "-":
+                    due_date = date_part
+                    rest = text_part.strip()
+                # else: malformed suffix — keep rest as-is, no due date
+
+            line = rest
+            if not line:
+                continue
             from engine.paths import store_path as _store_path
             rel_note_path = _store_path(note_path.resolve())
             existing = conn.execute(
@@ -181,33 +213,39 @@ def extract_action_items(note_path: Path, body_or_conn=None, sensitivity: str = 
             ).fetchone()[0]
             if existing == 0:
                 conn.execute(
-                    "INSERT INTO action_items (note_path, text, done) VALUES (?, ?, 0)",
-                    (rel_note_path, line),
+                    "INSERT INTO action_items (note_path, text, done, assignee_path, due_date) VALUES (?, ?, 0, ?, ?)",
+                    (rel_note_path, line, assignee, due_date),
                 )
         conn.commit()
     except Exception:
         logger.warning("Action item extraction failed", exc_info=True)
 
 
-def list_actions(conn, done: bool = False, assignee: str | None = None, note_path: str | None = None) -> list[dict]:
-    """Return action items as a list of dicts. done=False returns open items only.
+def list_actions(conn, done: bool | None = False, assignee: str | None = None, note_path: str | None = None) -> list[dict]:
+    """Return action items as a list of dicts.
 
     Args:
         conn: SQLite connection (must have row_factory=sqlite3.Row for dict() to work).
-        done: If True, return completed items; False returns open items (default).
+        done: True = completed only, False = open only (default), None = all items.
         assignee: If set, filter to items where assignee_path matches this value.
         note_path: If set, filter to items where note_path matches this value.
     """
     import sqlite3 as _sqlite3
     conn.row_factory = _sqlite3.Row
-    sql = "SELECT id, text, note_path, created_at, assignee_path, done, due_date FROM action_items WHERE done=?"
-    params: list = [1 if done else 0]
+    sql = "SELECT id, text, note_path, created_at, assignee_path, done, due_date, description FROM action_items"
+    params: list = []
+    conditions = []
+    if done is not None:
+        conditions.append("done=?")
+        params.append(1 if done else 0)
     if assignee is not None:
-        sql += " AND assignee_path=?"
+        conditions.append("assignee_path=?")
         params.append(assignee)
     if note_path is not None:
-        sql += " AND note_path=?"
+        conditions.append("note_path=?")
         params.append(note_path)
+    if conditions:
+        sql += " WHERE " + " AND ".join(conditions)
     sql += " ORDER BY created_at DESC"
     rows = conn.execute(sql, params).fetchall()
     return [dict(r) for r in rows]
@@ -218,7 +256,7 @@ def get_overdue_actions(conn) -> list[dict]:
     import sqlite3 as _sqlite3
     conn.row_factory = _sqlite3.Row
     rows = conn.execute(
-        "SELECT id, text, note_path, created_at, assignee_path, done, due_date "
+        "SELECT id, text, note_path, created_at, assignee_path, done, due_date, description "
         "FROM action_items "
         "WHERE due_date IS NOT NULL AND due_date < date('now') AND done=0 "
         "ORDER BY due_date",
@@ -1106,39 +1144,65 @@ def ask_brain(question: str, conn) -> dict:
         for r in results if r.get("sensitivity") == "pii"
     ]
 
-    answer_parts = []
-
+    # Build tasks: public and PII calls run in parallel to halve wall-clock time.
+    tasks: list[tuple[str, str, str]] = []  # (key, sensitivity, prompt)
     if public_items:
-        context = "\n\n".join(
+        ctx = "\n\n".join(
             f"Note [{date}]: {title}\n{body}" if date else f"Note: {title}\n{body}"
             for title, body, _, date in public_items[:10]
         )
-        try:
-            adapter = _router.get_adapter("public", CONFIG_PATH)
-            ans = adapter.generate(
-                user_content=f"Question: {question}\n\nRelevant notes:\n{context}",
-                system_prompt=ASK_BRAIN_SYSTEM_PROMPT,
-            )
-            if ans:
-                answer_parts.append(ans)
-        except Exception:
-            pass
-
+        tasks.append(("public", "public", f"Question: {question}\n\nRelevant notes:\n{ctx}"))
     if pii_items:
-        context = "\n\n".join(
+        ctx = "\n\n".join(
             f"Note [{date}]: {title}\n{body}" if date else f"Note: {title}\n{body}"
             for title, body, _, date in pii_items[:5]
         )
+        tasks.append(("pii", "pii", f"Question: {question}\n\nRelevant notes:\n{ctx}"))
+
+    def _call_adapter(sensitivity: str, prompt: str) -> tuple[str, str]:
+        """Returns (answer_text, provider_name)."""
         try:
-            adapter = _router.get_adapter("pii", CONFIG_PATH)
-            ans = adapter.generate(
-                user_content=f"Question: {question}\n\nRelevant notes:\n{context}",
-                system_prompt=ASK_BRAIN_SYSTEM_PROMPT,
-            )
-            if ans:
-                answer_parts.append(ans)
+            feature = "ask_brain" if sensitivity == "public" else ""
+            adapter = _router.get_adapter(sensitivity, CONFIG_PATH, feature=feature)
+            result = adapter.generate(user_content=prompt, system_prompt=ASK_BRAIN_SYSTEM_PROMPT) or ""
+            # Detect which provider was actually used
+            from engine.adapters.fallback_adapter import FallbackAdapter
+            from engine.adapters.groq_adapter import GroqAdapter
+            if isinstance(adapter, FallbackAdapter):
+                if adapter.used_fallback:
+                    return result, "fallback"
+                if isinstance(adapter._primary, GroqAdapter):
+                    return result, "groq"
+            return result, "default"
         except Exception:
-            pass
+            return "", "error"
+
+    answer_parts: list[str] = []
+    providers: list[str] = []
+    if len(tasks) > 1:
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(tasks)) as executor:
+            futures = {executor.submit(_call_adapter, sensitivity, prompt): key
+                       for key, sensitivity, prompt in tasks}
+            for future in concurrent.futures.as_completed(futures):
+                ans, provider = future.result()
+                if ans:
+                    answer_parts.append(ans)
+                    providers.append(provider)
+    elif tasks:
+        _, sensitivity, prompt = tasks[0]
+        ans, provider = _call_adapter(sensitivity, prompt)
+        if ans:
+            answer_parts.append(ans)
+            providers.append(provider)
+
+    # Determine overall provider: groq > fallback > default
+    if "groq" in providers:
+        overall_provider = "groq"
+    elif "fallback" in providers:
+        overall_provider = "fallback"
+    else:
+        overall_provider = "default"
 
     answer = "\n\n".join(answer_parts) or "Unable to generate an answer from the available notes."
     sources = [
@@ -1149,4 +1213,4 @@ def ask_brain(question: str, conn) -> dict:
         }
         for r in results[:5]
     ]
-    return {"answer": answer, "sources": sources}
+    return {"answer": answer, "sources": sources, "provider": overall_provider}
