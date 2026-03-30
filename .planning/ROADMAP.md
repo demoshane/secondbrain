@@ -397,19 +397,19 @@ Plans:
 ### Phase 47: Fix pre-existing test failures
 
 **Goal:** Fix 4 tests that have been failing since before phase 40: `test_delete_endpoint_404` (Flask returns 308 instead of 404), `test_bidirectional_relationships`, `TestSimilarRelationshipAutoLink::test_similar_relationship_inserted_on_confirm`, and `test_smart_capture_golden_path` (sb_capture_smart relationship writing broken).
-**Requirements:** TBD
+**Requirements:** FIX-01, FIX-02, FIX-03
 **Depends on:** Phase 46
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 47 to break down)
+- [ ] 47-01-PLAN.md — Fix delete 404 + FK path mismatch in relationship inserts + remove xfails (FIX-01, FIX-02, FIX-03)
 
 ### Phase 48: Backend Code Cleanup
 
 **Goal:** Eliminate accumulated technical debt flagged in the Phase 39 audit: remove deprecated `/people` route aliases (F-27), replace `datetime.utcnow()` deprecated in Python 3.12+ across 14 files (F-31), consolidate the 13x repeated `os.environ.get("BRAIN_PATH")` pattern (F-28), add a shared `json.loads(col or "[]")` helper (F-29), fix `ensure_person_profile()` writing to wrong path `person/` vs `people/` (F-30), begin `api.py` Blueprint partitioning (F-22, now 2149 lines), and clarify the misleading "circular import" comment in `consolidate.py` lazy import block (F-23).
 **Requirements**: F-22, F-23, F-27, F-28, F-29, F-30, F-31 (from 39-FINDINGS.md)
 **Depends on:** Phase 47
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 48 to break down)
@@ -417,9 +417,9 @@ Plans:
 ### Phase 49: Chrome Extension Page Summarisation
 
 **Goal:** Add a page summarisation feature to the Chrome extension: summarise the active page via LLM, show the summary in the extension popup with an "Add to brain" button that saves the summary as a note. Builds on Phase 36 extension infrastructure and Phase 41.3 `/summarise-url` endpoint.
-**Requirements:** TBD
+**Requirements:** FIX-01, FIX-02, FIX-03
 **Depends on:** Phase 48
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 49 to break down)
