@@ -43,7 +43,7 @@ Declared values (must be multiples of 4):
 | 2xl | 48px | Major section breaks |
 | 3xl | 64px | Page-level spacing |
 
-Exceptions: Dialog content uses `max-w-lg max-h-[85vh]` — inherit from existing SettingsModal shell. Input heights use `h-8` (32px) to match existing sections. Toggle rows use `flex items-center justify-between` with `py-2` (8px) vertical padding per row.
+Exceptions: Dialog content uses `max-w-lg max-h-[85vh]` — inherit from existing SettingsModal shell. Input heights use `h-8` (32px) to match existing sections. Toggle rows use `flex items-center justify-between` with `py-2` (8px) vertical padding per row — applied uniformly to all-local toggle and all four Groq feature toggle rows.
 
 **Source:** Existing `SettingsModal.tsx` spacing patterns — pre-populated.
 
@@ -54,9 +54,10 @@ Exceptions: Dialog content uses `max-w-lg max-h-[85vh]` — inherit from existin
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body | 14px (text-sm) | 400 (regular) | 1.5 |
-| Label | 12px (text-xs) | 500 (medium, `font-medium`) | 1.4 |
-| Section heading | 14px (text-sm) | 600 (semibold, `font-semibold`) | 1.2 |
+| Label / Section heading | 14px (text-sm) or 12px (text-xs) | 500 (medium, `font-medium`) | 1.4–1.2 |
 | Muted description | 12px (text-xs) | 400 (regular) | 1.4 |
+
+Two weights only: 400 and 500. No `font-semibold` (600) used anywhere in this phase. Section headings use `text-sm font-medium` — consistent with the existing SettingsModal heading pattern.
 
 **Source:** Existing SettingsModal sections use `text-sm font-medium` for section headings, `text-xs text-muted-foreground` for descriptions, `text-xs font-medium` for field labels — pre-populated from `SettingsModal.tsx`.
 
@@ -76,6 +77,8 @@ Exceptions: Dialog content uses `max-w-lg max-h-[85vh]` — inherit from existin
 
 Accent (`#f97316`) reserved for: Smart Capture button, AI sparkle icon in UI, Brain Insight card header. Not used in the AI Provider Settings section itself — the section uses primary blue for actions.
 
+Focal point: unconfigured state centres attention on the Groq API key input; configured state centres attention on the green Configured badge.
+
 **Source:** `frontend/src/index.css` CSS variables — pre-populated.
 
 ---
@@ -87,7 +90,7 @@ All components are existing unless marked NEW.
 | Component | Source | Usage in this phase |
 |-----------|--------|---------------------|
 | `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle` | shadcn official | Existing SettingsModal shell — no changes |
-| `Button` | shadcn official | Save, Remove, Test Connection |
+| `Button` | shadcn official | Save, Remove key, Test Connection |
 | `Input` (type="password") | shadcn official | Groq API key entry field |
 | `Switch` | shadcn official — **NEW, must install** | All-local toggle, per-feature Groq toggles (4x) |
 | `Loader2` | lucide-react | Loading spinners on async actions |
@@ -101,7 +104,7 @@ All components are existing unless marked NEW.
 
 ### AI Provider section layout (inside SettingsModal, new section block)
 
-Section heading: `"AI Provider"` — matches existing heading style (`text-sm font-semibold mb-3`).
+Section heading: `"AI Provider"` — matches existing heading style (`text-sm font-medium mb-3`).
 
 Subsection A — Groq API Key:
 ```
@@ -117,8 +120,8 @@ State: configured (key present in Keychain)
   - Input hidden
   - Green "✓ Configured" text (text-xs text-green-500, flex items-center gap-1, CheckCircle2 h-3 w-3)
   - Connectivity result inline: "✓ Connected" (green) or "✗ Invalid key" (text-destructive)
-  - "Remove" Button (size="sm", variant="outline") — triggers DELETE /config/groq, returns to unconfigured state
-  - No confirmation dialog required for Remove (non-destructive, key can be re-entered)
+  - "Remove key" Button (size="sm", variant="outline") — triggers DELETE /config/groq, returns to unconfigured state
+  - No confirmation dialog required for Remove key (non-destructive, key can be re-entered)
 
 Connectivity test:
   - Runs automatically after successful Save (POST /config/groq/test)
@@ -140,7 +143,7 @@ When OFF: feature toggles active
 
 Subsection C — Groq feature toggles (visible only when Groq key is configured):
 ```
-Four rows, each: flex items-center justify-between py-1.5
+Four rows, each: flex items-center justify-between py-2
 Labels and descriptions:
 
 ask_brain:
@@ -186,7 +189,7 @@ The existing global Save button at the bottom of SettingsModal saves routing + o
 | Configured state | "Configured" |
 | Connected state | "Connected" |
 | Connection failed | "Invalid key" |
-| Remove key action | "Remove" |
+| Remove key action | "Remove key" |
 | Fallback toast | "Groq unavailable — used fallback model" |
 | Test in progress | (spinner only, no label) |
 | Section heading | "AI Provider" |
