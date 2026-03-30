@@ -386,13 +386,13 @@ Plans:
 
 ### Phase 46: Universal Capture Enrichment
 
-**Goal:** Extend the Phase 43 multi-pass decomposer to all capture paths. Every `capture_note()` call — including `sb_capture`, `sb_capture_batch`, and `sb_capture_link` — runs entity extraction (Pass 1), action item extraction (Pass 4), and person stub creation (Pass 5). This makes memory creation consistent regardless of which capture surface the user uses. Core motivation: the brain must build memories from every note, not only freeform blobs. Also audit and improve context detection at capture time — ensure the pass pipeline correctly identifies note context (source, type signals, existing brain relationships) to improve classification accuracy.
-**Requirements:** TBD
+**Goal:** Wire person stub creation (Pass 5 from Phase 43 decomposer) into `capture_note()` so every capture path — `sb_capture`, `sb_capture_batch`, `sb_capture_link` — builds person stubs consistently with `sb_capture_smart`. Two-layer gate: skip for coding/link/files types and when no people extracted. Runs async in existing background thread.
+**Requirements:** UCE-01 through UCE-03
 **Depends on:** Phase 45
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 46 to break down)
+- [ ] 46-01-PLAN.md — Person stub creation in capture_note background thread + tests (UCE-01, UCE-02, UCE-03)
 
 ### Phase 47: Fix pre-existing test failures
 
