@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Loader2, Brain, FileText } from 'lucide-react'
+import { toast } from 'sonner'
 import { getAPI } from '@/lib/utils'
 import { useNoteContext } from '@/contexts/NoteContext'
 import { useUIContext } from '@/contexts/UIContext'
@@ -47,6 +48,9 @@ export function AskBrainModal({ open, onClose }: Props) {
       }
       setAnswer(data.answer)
       setSources(data.sources || [])
+      if (data.provider === 'fallback') {
+        toast.warning('Groq unavailable \u2014 used fallback model', { duration: 4000 })
+      }
     } catch {
       setError('Could not reach the brain API.')
     } finally {
