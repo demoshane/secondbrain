@@ -1874,6 +1874,33 @@ def download_file():
     return _send_file(str(target), as_attachment=False)
 
 
+@app.post("/files/open")
+def open_file_native():
+    """Open a file with the default macOS application (via `open`).
+
+    Body: { "path": "/absolute/path/to/file" }
+    Only paths inside BRAIN_PATH are permitted.
+    """
+    import subprocess
+    body = request.get_json(force=True) or {}
+    file_path = body.get("path", "")
+    if not file_path:
+        return jsonify({"error": "path required"}), 400
+
+    brain_path = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
+    target = _Path(file_path).resolve()
+    try:
+        target.relative_to(_Path(brain_path).resolve())
+    except ValueError:
+        return jsonify({"error": "Path outside brain directory"}), 403
+
+    if not target.exists():
+        return jsonify({"error": "File not found"}), 404
+
+    subprocess.Popen(["open", str(target)])
+    return jsonify({"ok": True})
+
+
 @app.delete("/files")
 def delete_file():
     """Delete an uploaded file from disk and remove its attachments row.

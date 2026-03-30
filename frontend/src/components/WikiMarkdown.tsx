@@ -3,21 +3,27 @@ import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useNoteContext } from '@/contexts/NoteContext'
 import { useUIContext } from '@/contexts/UIContext'
+import { getAPI } from '@/lib/utils'
 import type { Components } from 'react-markdown'
 
 // Pre-process body: replace [[ref]] with [ref](wiki:encoded) so
 // ReactMarkdown treats them as links the custom renderer can intercept.
 // ref can be a note title OR an absolute file path.
+// Also converts "File: /absolute/path" lines to open-file: links.
 function preprocessWikiLinks(body: string): string {
-  return body.replace(/\[\[([^\]]+)\]\]/g, (_match, ref: string) => {
-    const encoded = encodeURIComponent(ref)
-    return `[${ref}](wiki:${encoded})`
-  })
+  return body
+    .replace(/\[\[([^\]]+)\]\]/g, (_match, ref: string) => {
+      const encoded = encodeURIComponent(ref)
+      return `[${ref}](wiki:${encoded})`
+    })
+    .replace(/^File: (\/[^\n]+)$/gm, (_match, path: string) => {
+      return `[${path}](open-file:${encodeURIComponent(path)})`
+    })
 }
 
-// Pass wiki: URLs through; let defaultUrlTransform handle everything else.
+// Pass wiki: and open-file: URLs through; let defaultUrlTransform handle everything else.
 function urlTransform(url: string): string {
-  if (url.startsWith('wiki:')) return url
+  if (url.startsWith('wiki:') || url.startsWith('open-file:')) return url
   return defaultUrlTransform(url)
 }
 
@@ -67,6 +73,25 @@ export function WikiMarkdown({ children, className }: Props) {
 
   const markdownComponents: Components = {
     a({ href, children }) {
+      if (href?.startsWith('open-file:')) {
+        const path = decodeURIComponent(href.slice('open-file:'.length))
+        const handleOpen = async () => {
+          await fetch(`${getAPI()}/files/open`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path }),
+          })
+        }
+        return (
+          <button
+            className="inline-flex items-center gap-1 text-primary underline hover:opacity-80 transition-opacity cursor-pointer text-left break-all"
+            onClick={handleOpen}
+            title={`Open: ${path}`}
+          >
+            {children}
+          </button>
+        )
+      }
       if (href?.startsWith('wiki:')) {
         const ref = decodeURIComponent(href.slice(5))
         const { byTitle } = buildMaps()
