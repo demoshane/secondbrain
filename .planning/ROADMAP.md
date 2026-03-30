@@ -389,7 +389,7 @@ Plans:
 **Goal:** Wire person stub creation (Pass 5 from Phase 43 decomposer) into `capture_note()` so every capture path — `sb_capture`, `sb_capture_batch`, `sb_capture_link` — builds person stubs consistently with `sb_capture_smart`. Two-layer gate: skip for coding/link/files types and when no people extracted. Runs async in existing background thread.
 **Requirements:** UCE-01 through UCE-03
 **Depends on:** Phase 45
-**Plans:** 1 plan
+**Plans:** 3 plans
 
 Plans:
 - [ ] 46-01-PLAN.md — Person stub creation in capture_note background thread + tests (UCE-01, UCE-02, UCE-03)
@@ -399,7 +399,7 @@ Plans:
 **Goal:** Fix 4 tests that have been failing since before phase 40: `test_delete_endpoint_404` (Flask returns 308 instead of 404), `test_bidirectional_relationships`, `TestSimilarRelationshipAutoLink::test_similar_relationship_inserted_on_confirm`, and `test_smart_capture_golden_path` (sb_capture_smart relationship writing broken).
 **Requirements:** FIX-01, FIX-02, FIX-03
 **Depends on:** Phase 46
-**Plans:** 1 plan
+**Plans:** 3 plans
 
 Plans:
 - [ ] 47-01-PLAN.md — Fix delete 404 + FK path mismatch in relationship inserts + remove xfails (FIX-01, FIX-02, FIX-03)
@@ -409,17 +409,19 @@ Plans:
 **Goal:** Eliminate accumulated technical debt flagged in the Phase 39 audit: remove deprecated `/people` route aliases (F-27), replace `datetime.utcnow()` deprecated in Python 3.12+ across 14 files (F-31), consolidate the 13x repeated `os.environ.get("BRAIN_PATH")` pattern (F-28), add a shared `json.loads(col or "[]")` helper (F-29), fix `ensure_person_profile()` writing to wrong path `person/` vs `people/` (F-30), begin `api.py` Blueprint partitioning (F-22, now 2149 lines), and clarify the misleading "circular import" comment in `consolidate.py` lazy import block (F-23).
 **Requirements**: F-22, F-23, F-27, F-28, F-29, F-30, F-31 (from 39-FINDINGS.md)
 **Depends on:** Phase 47
-**Plans:** 1 plan
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 48 to break down)
+- [ ] 48-01-PLAN.md — Shared helpers (_json_list, _now_utc) + consolidate.py comment + links.py path verify (F-23, F-29, F-30, F-31)
+- [ ] 48-02-PLAN.md — Remove /people aliases + BRAIN_PATH consolidation + apply helpers across engine (F-27, F-28, F-29, F-31)
+- [ ] 48-03-PLAN.md — Blueprint partitioning: extract config routes to api_config.py (F-22)
 
 ### Phase 49: Chrome Extension Page Summarisation
 
 **Goal:** Add a page summarisation feature to the Chrome extension: summarise the active page via LLM, show the summary in the extension popup with an "Add to brain" button that saves the summary as a note. Builds on Phase 36 extension infrastructure and Phase 41.3 `/summarise-url` endpoint.
 **Requirements:** FIX-01, FIX-02, FIX-03
 **Depends on:** Phase 48
-**Plans:** 1 plan
+**Plans:** 3 plans
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 49 to break down)
