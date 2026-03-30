@@ -25,7 +25,7 @@ def write_consent_sentinel(brain_root: Path) -> None:
     sentinel_path = brain_root / CONSENT_PATH_RELATIVE
     sentinel_path.parent.mkdir(parents=True, exist_ok=True)
     sentinel_path.write_text(
-        json.dumps({"consented_at": __import__("datetime").datetime.utcnow().isoformat(), "version": "1.0"}),
+        json.dumps({"consented_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).replace(tzinfo=None).isoformat(), "version": "1.0"}),
         encoding="utf-8",
     )
 

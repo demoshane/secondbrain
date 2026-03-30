@@ -132,7 +132,7 @@ def delete_note(abs_path: Path, conn, brain_root: Path) -> dict:
             "delete_note",
             None,
             path_str,
-            datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ"),
         ),
     )
 

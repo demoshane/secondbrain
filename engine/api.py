@@ -1365,7 +1365,7 @@ def save_note(note_path):
             tmp = f.name
         suppress_next_delete(str(p))
         os.replace(tmp, p)
-        now = datetime.datetime.utcnow().isoformat()
+        now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
         conn = get_connection()
         try:
             conn.execute(
@@ -1389,7 +1389,7 @@ def save_note(note_path):
             tmp = f.name
         suppress_next_delete(str(p))
         os.replace(tmp, p)
-        now = datetime.datetime.utcnow().isoformat()
+        now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
         conn = get_connection()
         try:
             conn.execute(
@@ -1413,7 +1413,7 @@ def save_note(note_path):
             tmp = f.name
         suppress_next_delete(str(p))
         os.replace(tmp, p)
-        now = datetime.datetime.utcnow().isoformat()
+        now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
         conn = get_connection()
         try:
             conn.execute(
@@ -1436,7 +1436,7 @@ def save_note(note_path):
             tmp = f.name
         suppress_next_delete(str(p))
         os.replace(tmp, p)
-        now = datetime.datetime.utcnow().isoformat()
+        now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
         path_str = store_path(p)
         conn = get_connection()
         try:
@@ -1467,7 +1467,7 @@ def save_note(note_path):
             tmp = f.name
         suppress_next_delete(str(p))
         os.replace(tmp, p)
-        now = datetime.datetime.utcnow().isoformat()
+        now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
         conn = get_connection()
         try:
             conn.execute(
@@ -1491,7 +1491,7 @@ def save_note(note_path):
             tmp = f.name
         suppress_next_delete(str(p))
         os.replace(tmp, p)
-        now = datetime.datetime.utcnow().isoformat()
+        now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
         conn = get_connection()
         try:
             conn.execute(
@@ -1517,7 +1517,7 @@ def save_note(note_path):
             tmp = f.name
         suppress_next_delete(str(p))
         os.replace(tmp, p)
-        now = datetime.datetime.utcnow().isoformat()
+        now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
         path_str = store_path(p)
         conn = get_connection()
         try:
@@ -1539,7 +1539,7 @@ def save_note(note_path):
     saved_text = p.read_text(encoding="utf-8")
     post = _fm.loads(saved_text)
     title = post.metadata.get("title", p.stem)
-    now = datetime.datetime.utcnow().isoformat()
+    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
     conn = get_connection()
     try:
         conn.execute(
@@ -1611,7 +1611,7 @@ def create_note():
     if not target.resolve().is_relative_to(brain_root):
         return jsonify({"error": "Forbidden"}), 403
     target.parent.mkdir(parents=True, exist_ok=True)
-    now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
     today = datetime.date.today().isoformat()
     url_line = f"url: {source_url}\n" if source_url else ""
     md_content = (
@@ -2035,7 +2035,7 @@ def batch_capture():
                 title = post.metadata.get("title", md_file.stem)
                 note_type = post.metadata.get("type", "note")
                 body = post.content or ""
-                now = datetime.datetime.utcnow().isoformat()
+                now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
                 conn.execute(
                     "INSERT INTO notes (path, title, type, body, tags, created_at, updated_at) "
                     "VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -2051,7 +2051,7 @@ def batch_capture():
             tracked_files = {
                 row[0] for row in conn.execute("SELECT file_path FROM attachments").fetchall()
             }
-            now = datetime.datetime.utcnow().isoformat()
+            now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
             for f in sorted(files_dir.rglob("*")):
                 if not f.is_file():
                     continue

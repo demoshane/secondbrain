@@ -59,7 +59,7 @@ def export_brain(brain_root: Path, conn: sqlite3.Connection, output_path: Path, 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(export_data, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
     conn.execute(
         "INSERT INTO audit_log (event_type, note_path, detail, created_at) VALUES (?, ?, ?, ?)",
         ("export", None, f"format:{fmt} count:{count}", now),
@@ -91,7 +91,7 @@ def main() -> None:
     brain_root = args.brain_root if args.brain_root is not None else BRAIN_ROOT
 
     if args.output is None:
-        timestamp = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%S")
+        timestamp = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y%m%dT%H%M%S")
         output_path = Path(f"sb-export-{timestamp}.json")
     else:
         output_path = args.output

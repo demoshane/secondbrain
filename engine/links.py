@@ -31,7 +31,7 @@ def update_wiki_link_relationships(
             (source_path,),
         )
         targets = extract_wiki_links(body)
-        now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
         for target in targets:
             conn.execute(
                 "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type, created_at)"
@@ -74,7 +74,7 @@ def ensure_person_profile(
             pass  # best-effort; fall through to skeleton creation
 
     person_file.parent.mkdir(parents=True, exist_ok=True)
-    now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
     person_file.write_text(
         f"---\ntitle: {display_name}\ntype: person\n"
         f"created_at: '{now}'\nupdated_at: '{now}'\n"
@@ -110,7 +110,7 @@ def add_backlinks(
                 "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type, created_at)"
                 " VALUES (?, ?, ?, ?)",
                 (str(person_file), str(note_path), "backlink",
-                 datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")),
+                 datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")),
             )
             conn.commit()
         except Exception:

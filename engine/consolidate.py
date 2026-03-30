@@ -34,4 +34,4 @@ def consolidate_main() -> None:
         conn.close()
 
     # Log to stdout — captured by launchd StandardOutPath
-    print(json.dumps({"at": datetime.datetime.utcnow().isoformat(), **results}))
+    print(json.dumps({"at": datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat(), **results}))

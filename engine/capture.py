@@ -140,7 +140,7 @@ def build_post(
     Returns:
         frontmatter.Post with metadata set and body as content.
     """
-    now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
     today = datetime.date.today().isoformat()
 
     post = frontmatter.Post(body)
@@ -168,7 +168,7 @@ def log_audit(conn: sqlite3.Connection, event_type: str, note_path: str) -> None
         event_type: Event name (e.g. 'create', 'update').
         note_path: Path of the affected note.
     """
-    created_at = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    created_at = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
     conn.execute(
         "INSERT INTO audit_log (event_type, note_path, created_at) VALUES (?, ?, ?)",
         (event_type, note_path, created_at),
@@ -217,7 +217,7 @@ def write_note_atomic(
         post["tags"] = clean_tags
         tags_json = json.dumps(clean_tags)
         people_json = json.dumps(post.get("people", []))
-        created_at = post.get("created_at", datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
+        created_at = post.get("created_at", datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ"))
         updated_at = post.get("updated_at", created_at)
         sensitivity = post.get("content_sensitivity", "public")
         deadline = post.get("deadline") or None
@@ -332,7 +332,7 @@ def update_note(
     """
     target = Path(note_path)
     post = frontmatter.load(str(target))
-    now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
     post["title"] = title
     post["updated_at"] = now
     post["tags"] = list(tags)

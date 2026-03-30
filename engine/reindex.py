@@ -58,7 +58,7 @@ def embed_pass(conn, provider: str, batch_size: int = 32, force: bool = False) -
 
     paths, bodies, hashes = zip(*to_embed)
     blobs = _embeddings.embed_texts(list(bodies), provider=provider, batch_size=batch_size)
-    now = datetime.datetime.utcnow().isoformat()
+    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
 
     for path, blob, h in zip(paths, blobs, hashes):
         conn.execute(
@@ -207,7 +207,7 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False, entities: boo
             else:
                 people_json = json.dumps([str(people)])
 
-            now = datetime.datetime.utcnow().isoformat()
+            now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
 
             conn.execute(
                 """

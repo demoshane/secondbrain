@@ -82,7 +82,7 @@ def anonymize_note(
     post.content = body
     post["title"] = title
     post["content_sensitivity"] = sensitivity
-    post["updated_at"] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    post["updated_at"] = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     # Atomic write — mkstemp in path.parent ensures same filesystem (POSIX atomic)
     tmp_fd = None
@@ -109,7 +109,7 @@ def anonymize_note(
         return {"redacted_count": redacted_count, "sensitivity_changed": False, "errors": errors}
 
     # Update DB row — FTS5 updated automatically by notes_au trigger on UPDATE
-    now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
     try:
         conn.execute(
             "UPDATE notes SET body=?, title=?, sensitivity=?, updated_at=? WHERE path=?",

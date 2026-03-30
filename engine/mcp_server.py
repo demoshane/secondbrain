@@ -255,7 +255,7 @@ def sb_capture(
 
         # Auto-link as 'similar' when user confirmed despite dedup warning
         import datetime as _dt
-        now_ts = _dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        now_ts = _dt.datetime.now(_dt.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
         for similar_path in similar_paths_for_link:
             try:
                 conn.execute(
@@ -370,7 +370,7 @@ def sb_capture_batch(notes: list[dict]) -> dict:
                     (f"%{slug}%",)
                 ).fetchone()
             if row:
-                now = _dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+                now = _dt.datetime.now(_dt.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
                 conn.execute(
                     "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
                     (path_map[i], row[0], "link"),
@@ -401,7 +401,7 @@ def sb_capture_batch(notes: list[dict]) -> dict:
                         "intelligence_error",
                         p,
                         str(exc),
-                        _dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        _dt.datetime.now(_dt.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ"),
                     ),
                 )
                 _ec.commit()
@@ -972,7 +972,7 @@ def sb_capture_smart(content: str) -> dict:
                 existing_path = dedup_result["path"]
                 existing_body = dedup_result["existing_body"]
                 changelog_hash = dedup_result.get("changelog_hash", "")
-                _now = _dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+                _now = _dt.datetime.now(_dt.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
                 updated_body = (
                     f"{body}\n\n"
                     f"## Changelog\n"
@@ -992,7 +992,7 @@ def sb_capture_smart(content: str) -> dict:
                         existing_post["people"] = _json.loads(row[3] or "[]")
                         existing_post["content_sensitivity"] = row[4] or "public"
                         existing_post["date"] = _dt.date.today().isoformat()
-                        existing_post["created_at"] = _dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+                        existing_post["created_at"] = _dt.datetime.now(_dt.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
                         existing_post["updated_at"] = _now
                         write_note_atomic(
                             target=_pathlib.Path(existing_path),

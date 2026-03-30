@@ -190,7 +190,7 @@ def forget_person(slug: str, brain_root: Path, conn: sqlite3.Connection) -> dict
             "forget",
             None,
             f"person:{slug}",
-            datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ"),
         ),
     )
     conn.commit()

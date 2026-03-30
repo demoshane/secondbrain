@@ -25,7 +25,7 @@ def _recency_multiplier(created_at_str: str, half_life_days: int = 30) -> float:
     """
     try:
         created = datetime.datetime.fromisoformat(str(created_at_str).rstrip("Z"))
-        age_days = (datetime.datetime.utcnow() - created).days
+        age_days = (datetime.datetime.now(datetime.UTC).replace(tzinfo=None) - created).days
         boost = 0.1
         scale = half_life_days / math.log(2)
         return 1.0 + boost * math.exp(-age_days / scale)
@@ -124,7 +124,7 @@ def search_notes(
 
     conn.execute(
         "INSERT INTO audit_log (event_type, note_path, detail, created_at) VALUES (?, ?, ?, ?)",
-        ("search", None, query, datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")),
+        ("search", None, query, datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")),
     )
     conn.commit()
 

@@ -436,7 +436,7 @@ def run_benchmarks(tool_filter: str | None = None) -> dict:
         all_results = [r for r in all_results if r["tool"] == tool_filter]
 
     return {
-        "run_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "run_at": datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "tool_results": all_results,
     }
 

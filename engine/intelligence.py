@@ -410,7 +410,7 @@ def find_dormant_related(note_path: str, conn, limit: int = 3) -> list[dict]:
     """
     try:
         cutoff = (
-            datetime.datetime.utcnow() - datetime.timedelta(days=30)
+            datetime.datetime.now(datetime.UTC).replace(tzinfo=None) - datetime.timedelta(days=30)
         ).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         candidates = find_similar(note_path, conn, threshold=0.5, limit=20)

@@ -100,7 +100,7 @@ def rename_note(
     post = _fm.load(str(old_abs))
     old_title = post.metadata.get("title", old_abs.stem)
     note_type = post.metadata.get("type", "note")
-    now = datetime.datetime.utcnow().isoformat()
+    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
 
     if new_title == old_title:
         return {"new_path": str(old_abs), "renamed_file": False, "wiki_links_updated": 0}
