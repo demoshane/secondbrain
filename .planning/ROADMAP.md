@@ -5,7 +5,7 @@
 - ✅ **v1.5 Second Brain MVP** — Phases 1–13 (shipped 2026-03-15)
 - ✅ **v2.0 Intelligence + GUI Hub** — Phases 14–19 (shipped 2026-03-16)
 - ✅ **v3.0 GUI Overhaul & Polish** — Phases 20–31 (shipped 2026-03-21)
-- 📋 **v4.0 Memory & Reliability** — Phases 32–45 (planned)
+- 📋 **v4.0 Memory & Reliability** — Phases 32–49 (planned)
 
 ## Phases
 
@@ -111,7 +111,7 @@ Visual knowledge map, nodes = notes, edges = relationships, zoomable/filterable 
 
 </details>
 
-## v4.0 Memory & Reliability (Phases 32–36)
+## v4.0 Memory & Reliability (Phases 32–49)
 
 ### Phase 32: Architecture Hardening
 
@@ -373,19 +373,20 @@ Plans:
 - [x] 44-02-PLAN.md — Flask Keychain endpoints + groq-settings + ask_brain provider wiring (D-08, D-09, D-12)
 - [x] 44-03-PLAN.md — Settings UI AI Provider section + AskBrainModal fallback toast (D-10, D-12)
 
-### Phase 45: Universal Capture Enrichment
+### Phase 45: Performance Testing Framework
 
-**Goal:** Extend the Phase 43 multi-pass decomposer to all capture paths. Every `capture_note()` call — including `sb_capture`, `sb_capture_batch`, and `sb_capture_link` — runs entity extraction (Pass 1), action item extraction (Pass 4), and person stub creation (Pass 5). This makes memory creation consistent regardless of which capture surface the user uses. Core motivation: the brain must build memories from every note, not only freeform blobs. Also audit and improve context detection at capture time — ensure the pass pipeline correctly identifies note context (source, type signals, existing brain relationships) to improve classification accuracy.
-**Requirements:** TBD
+**Goal:** Build a performance testing framework that tracks how system performance evolves over time as the brain grows. Command `sb-perf` runs a timed benchmark suite against all MCP tools, `ask_brain` (POST /ask), and recap. Soft limits per tool trigger warnings when breached. Results include a delta vs the previous run to surface regressions or improvements. One result per calendar day (most recent wins), retained 30 days; last run always available. Results stored at `~/SecondBrain/.meta/perf_results/`. GUI gains a dedicated Performance page showing history and delta. Read-only tests use real brain data; write-path tests use synthetic fixtures cleaned up after the run.
+**Requirements:** PERF-01 through PERF-13
 **Depends on:** Phase 44
-**Plans:** 0 plans
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 45 to break down)
+- [ ] 45-01-PLAN.md — Perf engine: test_utils cleanup, benchmark runner, result storage, delta, soft limits, CLI (PERF-01 through PERF-11)
+- [ ] 45-02-PLAN.md — Flask API routes + GUI Performance page with summary table and sparkline charts (PERF-05, PERF-06, PERF-12, PERF-13)
 
-### Phase 46: Fix pre-existing test failures
+### Phase 46: Universal Capture Enrichment
 
-**Goal:** Fix 4 tests that have been failing since before phase 40: `test_delete_endpoint_404` (Flask returns 308 instead of 404), `test_bidirectional_relationships`, `TestSimilarRelationshipAutoLink::test_similar_relationship_inserted_on_confirm`, and `test_smart_capture_golden_path` (sb_capture_smart relationship writing broken).
+**Goal:** Extend the Phase 43 multi-pass decomposer to all capture paths. Every `capture_note()` call — including `sb_capture`, `sb_capture_batch`, and `sb_capture_link` — runs entity extraction (Pass 1), action item extraction (Pass 4), and person stub creation (Pass 5). This makes memory creation consistent regardless of which capture surface the user uses. Core motivation: the brain must build memories from every note, not only freeform blobs. Also audit and improve context detection at capture time — ensure the pass pipeline correctly identifies note context (source, type signals, existing brain relationships) to improve classification accuracy.
 **Requirements:** TBD
 **Depends on:** Phase 45
 **Plans:** 0 plans
@@ -393,25 +394,35 @@ Plans:
 Plans:
 - [ ] TBD (run /gsd:plan-phase 46 to break down)
 
-### Phase 47: Backend Code Cleanup
+### Phase 47: Fix pre-existing test failures
 
-**Goal:** Eliminate accumulated technical debt flagged in the Phase 39 audit: remove deprecated `/people` route aliases (F-27), replace `datetime.utcnow()` deprecated in Python 3.12+ across 14 files (F-31), consolidate the 13x repeated `os.environ.get("BRAIN_PATH")` pattern (F-28), add a shared `json.loads(col or "[]")` helper (F-29), fix `ensure_person_profile()` writing to wrong path `person/` vs `people/` (F-30), begin `api.py` Blueprint partitioning (F-22, now 2149 lines), and clarify the misleading "circular import" comment in `consolidate.py` lazy import block (F-23).
-**Requirements**: F-22, F-23, F-27, F-28, F-29, F-30, F-31 (from 39-FINDINGS.md)
+**Goal:** Fix 4 tests that have been failing since before phase 40: `test_delete_endpoint_404` (Flask returns 308 instead of 404), `test_bidirectional_relationships`, `TestSimilarRelationshipAutoLink::test_similar_relationship_inserted_on_confirm`, and `test_smart_capture_golden_path` (sb_capture_smart relationship writing broken).
+**Requirements:** TBD
 **Depends on:** Phase 46
 **Plans:** 0 plans
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 47 to break down)
 
-### Phase 48: Chrome Extension Page Summarisation
+### Phase 48: Backend Code Cleanup
 
-**Goal:** Add a page summarisation feature to the Chrome extension: summarise the active page via LLM, show the summary in the extension popup with an "Add to brain" button that saves the summary as a note. Builds on Phase 36 extension infrastructure and Phase 41.3 `/summarise-url` endpoint.
-**Requirements:** TBD
+**Goal:** Eliminate accumulated technical debt flagged in the Phase 39 audit: remove deprecated `/people` route aliases (F-27), replace `datetime.utcnow()` deprecated in Python 3.12+ across 14 files (F-31), consolidate the 13x repeated `os.environ.get("BRAIN_PATH")` pattern (F-28), add a shared `json.loads(col or "[]")` helper (F-29), fix `ensure_person_profile()` writing to wrong path `person/` vs `people/` (F-30), begin `api.py` Blueprint partitioning (F-22, now 2149 lines), and clarify the misleading "circular import" comment in `consolidate.py` lazy import block (F-23).
+**Requirements**: F-22, F-23, F-27, F-28, F-29, F-30, F-31 (from 39-FINDINGS.md)
 **Depends on:** Phase 47
 **Plans:** 0 plans
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 48 to break down)
+
+### Phase 49: Chrome Extension Page Summarisation
+
+**Goal:** Add a page summarisation feature to the Chrome extension: summarise the active page via LLM, show the summary in the extension popup with an "Add to brain" button that saves the summary as a note. Builds on Phase 36 extension infrastructure and Phase 41.3 `/summarise-url` endpoint.
+**Requirements:** TBD
+**Depends on:** Phase 48
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 49 to break down)
 
 ---
 
