@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
-import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import { Calendar, Plus, Trash2, Pencil } from 'lucide-react'
+import { WikiMarkdown } from './WikiMarkdown'
+import { Calendar, Plus, Trash2, Pencil, X } from 'lucide-react'
 
 const MONTH_ABBR = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
 
@@ -20,6 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { EmptyState } from '@/components/ui/empty-state'
 import { CollapsibleSection } from '@/components/ui/collapsible-section'
 import { ActionItemRow } from '@/components/ui/action-item-row'
+import { ActionDetailModal } from '@/components/ui/action-detail-modal'
 import { PersonBadge } from '@/components/ui/person-badge'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SkeletonList } from '@/components/ui/skeleton-list'
@@ -52,6 +52,7 @@ export function MeetingsPage() {
     participants: string[]
   } | null>(null)
   const [actions, setActions] = useState<ActionItem[]>([])
+  const [detailAction, setDetailAction] = useState<ActionItem | null>(null)
   const [tags, setTags] = useState<string[]>([])
   const [detailLoading, setDetailLoading] = useState(false)
   const [showAddAction, setShowAddAction] = useState(false)
@@ -62,6 +63,9 @@ export function MeetingsPage() {
   const [savingBody, setSavingBody] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
   const [attachRefreshTick, setAttachRefreshTick] = useState(0)
+  const [newTagInput, setNewTagInput] = useState('')
+  const [showAddTag, setShowAddTag] = useState(false)
+  const [savingTags, setSavingTags] = useState(false)
 
   const loadMeetings = () => {
     setLoading(true)
@@ -176,6 +180,37 @@ export function MeetingsPage() {
     } catch {
       toast.error('Failed to add participant. Try again.')
     }
+  }
+
+  const saveTags = async (newTags: string[]) => {
+    if (!selectedPath) return
+    setSavingTags(true)
+    try {
+      const enc = encodePath(selectedPath)
+      const res = await fetch(`${getAPI()}/notes/${enc}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: newTags }),
+      })
+      if (!res.ok) throw new Error()
+      setTags(newTags)
+    } catch {
+      toast.error('Failed to save tags')
+    } finally {
+      setSavingTags(false)
+    }
+  }
+
+  const handleAddTag = async () => {
+    const tag = newTagInput.trim().toLowerCase().replace(/\s+/g, '-')
+    if (!tag || tags.includes(tag)) { setNewTagInput(''); setShowAddTag(false); return }
+    await saveTags([...tags, tag])
+    setNewTagInput('')
+    setShowAddTag(false)
+  }
+
+  const handleRemoveTag = (tag: string) => {
+    saveTags(tags.filter(t => t !== tag))
   }
 
   async function handleOpenInNotes() {
@@ -368,16 +403,17 @@ export function MeetingsPage() {
                 defaultOpen={true}
               >
                 <div data-testid="meeting-actions-section">
-                  {actions.filter(a => !a.done).length === 0 ? (
+                  {actions.length === 0 ? (
                     <p className="px-4 py-3 text-sm text-muted-foreground">No open actions</p>
                   ) : (
                     <div>
-                      {actions.filter(a => !a.done).map(action => (
+                      {actions.map(action => (
                         <ActionItemRow
                           key={action.id}
                           item={action}
                           onToggle={handleToggleAction}
                           onDelete={handleDeleteAction}
+                          onOpen={setDetailAction}
                         />
                       ))}
                     </div>
@@ -415,16 +451,36 @@ export function MeetingsPage() {
                 defaultOpen={tags.length > 0}
               >
                 <div className="px-4 py-3">
-                  {tags.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No tags</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-1.5">
-                      {tags.map(tag => (
-                        <span key={tag} className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
-                          #{tag}
-                        </span>
-                      ))}
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {tags.map(tag => (
+                      <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground group">
+                        #{tag}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTag(tag)}
+                          disabled={savingTags}
+                          className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  {showAddTag ? (
+                    <div className="flex gap-2 mt-1">
+                      <input
+                        autoFocus
+                        className="flex-1 text-sm bg-input border border-border rounded px-2 py-1 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        placeholder="tag-name"
+                        value={newTagInput}
+                        onChange={e => setNewTagInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleAddTag(); if (e.key === 'Escape') { setShowAddTag(false); setNewTagInput('') } }}
+                      />
+                      <button type="button" onClick={handleAddTag} disabled={savingTags} className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded disabled:opacity-50">Add</button>
+                      <button type="button" onClick={() => { setShowAddTag(false); setNewTagInput('') }} className="text-xs px-2 py-1 text-muted-foreground">Cancel</button>
                     </div>
+                  ) : (
+                    <button type="button" onClick={() => setShowAddTag(true)} className="text-xs text-muted-foreground hover:text-foreground">+ Add tag</button>
                   )}
                 </div>
               </CollapsibleSection>
@@ -458,7 +514,7 @@ export function MeetingsPage() {
                 ) : (
                   <div className="px-4 py-3 prose prose-sm prose-invert max-w-none leading-relaxed">
                     {meetingDetail?.body
-                      ? <Markdown remarkPlugins={[remarkGfm]}>{meetingDetail.body}</Markdown>
+                      ? <WikiMarkdown>{meetingDetail.body}</WikiMarkdown>
                       : <p className="text-sm text-muted-foreground">No meeting notes yet.</p>
                     }
                   </div>
@@ -537,6 +593,16 @@ export function MeetingsPage() {
           />
         </>
       )}
+
+      <ActionDetailModal
+        open={!!detailAction}
+        action={detailAction}
+        onClose={() => setDetailAction(null)}
+        onSaved={updated => {
+          setActions(prev => prev.map(a => a.id === updated.id ? updated : a))
+          setDetailAction(null)
+        }}
+      />
     </div>
   )
 }

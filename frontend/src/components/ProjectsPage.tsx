@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react'
-import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import { Briefcase, Plus, Trash2, Link, Pencil } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { WikiMarkdown } from './WikiMarkdown'
+import { Briefcase, Plus, Trash2, Link, Pencil, X } from 'lucide-react'
 import { cn, getAPI, encodePath } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { EmptyState } from '@/components/ui/empty-state'
 import { CollapsibleSection } from '@/components/ui/collapsible-section'
 import { ActionItemRow } from '@/components/ui/action-item-row'
+import { ActionDetailModal } from '@/components/ui/action-detail-modal'
 import { NoteTypeBadge } from '@/components/ui/note-type-badge'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SkeletonList } from '@/components/ui/skeleton-list'
@@ -21,6 +21,7 @@ import { toast } from 'sonner'
 import type { ProjectSummary, ActionItem, MeetingSummary } from '@/types'
 
 type LinkedMeeting = { path: string; title: string; meeting_date: string }
+type LinkedNote = { path: string; title: string }
 
 function timeAgo(dateStr: string): string {
   if (!dateStr) return '—'
@@ -54,15 +55,16 @@ export function ProjectsPage() {
     status: string
     linked_meetings: LinkedMeeting[]
   } | null>(null)
-  const [backlinks, setBacklinks] = useState<{ path: string; title: string }[]>([])
   const [actions, setActions] = useState<ActionItem[]>([])
   const [tags, setTags] = useState<string[]>([])
-  const [detailPeople, setDetailPeople] = useState<{ path: string; title: string }[]>([])
+  const [detailPeople, setDetailPeople] = useState<LinkedNote[]>([])
+  const [connections, setConnections] = useState<LinkedNote[]>([])
   const [detailLoading, setDetailLoading] = useState(false)
 
   // Add action UI state
   const [showAddAction, setShowAddAction] = useState(false)
   const [newActionText, setNewActionText] = useState('')
+  const [detailAction, setDetailAction] = useState<ActionItem | null>(null)
 
   // Inline body editing
   const [editingBody, setEditingBody] = useState<string | null>(null)
@@ -77,6 +79,26 @@ export function ProjectsPage() {
   const [availableMeetings, setAvailableMeetings] = useState<MeetingSummary[]>([])
   const [selectedMeetingToLink, setSelectedMeetingToLink] = useState<string>('')
   const [linkingMeeting, setLinkingMeeting] = useState(false)
+
+  // Tags editing
+  const [newTagInput, setNewTagInput] = useState('')
+  const [showAddTag, setShowAddTag] = useState(false)
+  const [savingTags, setSavingTags] = useState(false)
+
+  // People editing
+  const [showAddPerson, setShowAddPerson] = useState(false)
+  const [availablePeople, setAvailablePeople] = useState<LinkedNote[]>([])
+  const [selectedPersonPath, setSelectedPersonPath] = useState('')
+  const [savingPeople, setSavingPeople] = useState(false)
+
+  // Tag autocomplete
+  const [allTags, setAllTags] = useState<string[]>([])
+
+  // Related notes (connections)
+  const [showLinkNote, setShowLinkNote] = useState(false)
+  const [noteSearchQuery, setNoteSearchQuery] = useState('')
+  const [noteSearchResults, setNoteSearchResults] = useState<LinkedNote[]>([])
+  const noteSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const loadProjects = () => {
     setLoading(true)
@@ -95,6 +117,7 @@ export function ProjectsPage() {
     setDetailLoading(true)
     setTags([])
     setDetailPeople([])
+    setConnections([])
     const enc = encodePath(path)
     Promise.all([
       fetch(`${getAPI()}/projects/${enc}`).then(r => r.json()),
@@ -109,10 +132,10 @@ export function ProjectsPage() {
         status: detail.status ?? 'active',
         linked_meetings: detail.linked_meetings ?? [],
       })
-      setBacklinks(meta.backlinks ?? [])
       setActions(acts.actions ?? [])
       setTags(noteData.tags ?? [])
       setDetailPeople(meta.people ?? [])
+      setConnections(meta.connections ?? [])
     }).catch(() => {})
       .finally(() => setDetailLoading(false))
   }
@@ -121,6 +144,13 @@ export function ProjectsPage() {
     if (!selectedPath) return
     setEditingBody(null)
     setAttachRefreshTick(0)
+    setShowAddTag(false)
+    setNewTagInput('')
+    setShowAddPerson(false)
+    setSelectedPersonPath('')
+    setShowLinkNote(false)
+    setNoteSearchQuery('')
+    setNoteSearchResults([])
     loadProjectDetail(selectedPath)
   }, [selectedPath])
 
@@ -215,11 +245,156 @@ export function ProjectsPage() {
     }
   }
 
+  // ── Tags ────────────────────────────────────────────────────────────────────
+
+  const saveTags = async (newTags: string[]) => {
+    if (!selectedPath) return
+    setSavingTags(true)
+    try {
+      const enc = encodePath(selectedPath)
+      const res = await fetch(`${getAPI()}/notes/${enc}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: newTags }),
+      })
+      if (!res.ok) throw new Error()
+      setTags(newTags)
+    } catch {
+      toast.error('Failed to save tags')
+    } finally {
+      setSavingTags(false)
+    }
+  }
+
+  const handleShowAddTag = () => {
+    if (allTags.length === 0) {
+      fetch(`${getAPI()}/tags`)
+        .then(r => r.json())
+        .then(d => setAllTags(d.tags ?? []))
+        .catch(() => {})
+    }
+    setShowAddTag(true)
+  }
+
+  const handleAddTag = async () => {
+    const tag = newTagInput.trim().toLowerCase().replace(/\s+/g, '-')
+    if (!tag || tags.includes(tag)) { setNewTagInput(''); setShowAddTag(false); return }
+    await saveTags([...tags, tag])
+    setNewTagInput('')
+    setShowAddTag(false)
+  }
+
+  const handleRemoveTag = (tag: string) => {
+    saveTags(tags.filter(t => t !== tag))
+  }
+
+  // ── People ──────────────────────────────────────────────────────────────────
+
+  const handleShowAddPerson = () => {
+    if (availablePeople.length === 0) {
+      fetch(`${getAPI()}/persons?limit=200`)
+        .then(r => r.json())
+        .then(d => setAvailablePeople((d.people ?? []).map((p: any) => ({ path: p.path, title: p.title }))))
+        .catch(() => {})
+    }
+    setShowAddPerson(true)
+  }
+
+  const savePeople = async (newPeople: LinkedNote[]) => {
+    if (!selectedPath) return
+    setSavingPeople(true)
+    try {
+      const enc = encodePath(selectedPath)
+      const res = await fetch(`${getAPI()}/notes/${enc}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ people: newPeople.map(p => p.path) }),
+      })
+      if (!res.ok) throw new Error()
+      setDetailPeople(newPeople)
+    } catch {
+      toast.error('Failed to save people')
+    } finally {
+      setSavingPeople(false)
+    }
+  }
+
+  const handleAddPerson = (person: LinkedNote) => {
+    if (detailPeople.some(p => p.path === person.path)) { setShowAddPerson(false); return }
+    savePeople([...detailPeople, person])
+    setShowAddPerson(false)
+  }
+
+  const handleRemovePerson = (path: string) => {
+    savePeople(detailPeople.filter(p => p.path !== path))
+  }
+
+  // ── Related Notes ───────────────────────────────────────────────────────────
+
+  const handleNoteSearch = useCallback((q: string) => {
+    setNoteSearchQuery(q)
+    if (noteSearchTimer.current) clearTimeout(noteSearchTimer.current)
+    if (!q.trim()) { setNoteSearchResults([]); return }
+    noteSearchTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`${getAPI()}/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: q, limit: 10 }),
+        })
+        const data = await res.json()
+        const results: LinkedNote[] = (data.results ?? [])
+          .filter((r: any) => r.path !== selectedPath)
+          .map((r: any) => ({ path: r.path, title: r.title || r.path }))
+        setNoteSearchResults(results)
+      } catch {
+        setNoteSearchResults([])
+      }
+    }, 300)
+  }, [selectedPath])
+
+  const handleLinkNote = async (note: LinkedNote) => {
+    if (!selectedPath) return
+    if (connections.some(c => c.path === note.path)) { setShowLinkNote(false); setNoteSearchQuery(''); setNoteSearchResults([]); return }
+    try {
+      const res = await fetch(`${getAPI()}/relationships`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source_path: selectedPath, target_path: note.path, rel_type: 'connection' }),
+      })
+      if (!res.ok) throw new Error()
+      setConnections(prev => [...prev, note])
+      toast.success('Note linked')
+    } catch {
+      toast.error('Failed to link note')
+    }
+    setShowLinkNote(false)
+    setNoteSearchQuery('')
+    setNoteSearchResults([])
+  }
+
+  const handleUnlinkNote = async (notePath: string) => {
+    if (!selectedPath) return
+    try {
+      const res = await fetch(`${getAPI()}/relationships`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source_path: selectedPath, target_path: notePath }),
+      })
+      if (!res.ok) throw new Error()
+      setConnections(prev => prev.filter(c => c.path !== notePath))
+    } catch {
+      toast.error('Failed to unlink note')
+    }
+  }
+
+  // ── Meetings ────────────────────────────────────────────────────────────────
+
   const handleShowLinkMeeting = () => {
     fetch(`${getAPI()}/meetings?limit=50`)
       .then(r => r.json())
       .then(d => setAvailableMeetings(d.meetings ?? []))
-      .catch(() => {})
+      .catch(() => toast.error('Failed to load meetings'))
     setSelectedMeetingToLink('')
     setShowLinkMeeting(true)
   }
@@ -248,6 +423,24 @@ export function ProjectsPage() {
       setLinkingMeeting(false)
     }
   }
+
+  const handleUnlinkMeeting = async (meetingPath: string) => {
+    if (!selectedPath) return
+    const projEnc = encodePath(selectedPath)
+    const mtgEnc = encodePath(meetingPath)
+    try {
+      const res = await fetch(`${getAPI()}/projects/${projEnc}/meetings/${mtgEnc}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error()
+      setProjectDetail(prev => prev
+        ? { ...prev, linked_meetings: prev.linked_meetings.filter(m => m.path !== meetingPath) }
+        : prev
+      )
+    } catch {
+      toast.error('Failed to unlink meeting')
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -371,7 +564,7 @@ export function ProjectsPage() {
               </div>
               <div className="flex items-center gap-4 mt-4" data-testid="stat-tiles">
                 <div className="flex-1 rounded-lg border border-border bg-card p-3 text-center">
-                  <div className="text-lg font-semibold text-foreground">{backlinks.length}</div>
+                  <div className="text-lg font-semibold text-foreground">{connections.length}</div>
                   <div className="text-xs text-muted-foreground">Related Notes</div>
                 </div>
                 <div className="flex-1 rounded-lg border border-border bg-card p-3 text-center">
@@ -390,6 +583,7 @@ export function ProjectsPage() {
             </div>
 
             <div className="flex-1 divide-y divide-border">
+              {/* Actions */}
               <CollapsibleSection
                 title="Actions"
                 count={actions.filter(a => !a.done).length}
@@ -407,6 +601,7 @@ export function ProjectsPage() {
                           item={action}
                           onToggle={handleToggleAction}
                           onDelete={handleDeleteAction}
+                          onOpen={setDetailAction}
                           onSetDue={handleSetDue}
                         />
                       ))}
@@ -433,6 +628,7 @@ export function ProjectsPage() {
                 </div>
               </CollapsibleSection>
 
+              {/* Linked Meetings */}
               <CollapsibleSection
                 title="Linked Meetings"
                 count={projectDetail?.linked_meetings.length ?? 0}
@@ -445,23 +641,27 @@ export function ProjectsPage() {
                   ) : (
                     <ul className="space-y-1.5 mb-3">
                       {projectDetail!.linked_meetings.map(m => (
-                        <li key={m.path} className="flex items-center gap-2 text-sm">
+                        <li key={m.path} className="flex items-center gap-2 text-sm group">
                           <NoteTypeBadge type="meeting" />
-                          <span className="text-foreground">{m.title}</span>
+                          <span className="text-foreground flex-1">{m.title}</span>
                           {m.meeting_date && (
                             <span className="text-xs text-muted-foreground">{m.meeting_date}</span>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => handleUnlinkMeeting(m.path)}
+                            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity ml-1"
+                            title="Unlink meeting"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
                         </li>
                       ))}
                     </ul>
                   )}
 
                   {!showLinkMeeting ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleShowLinkMeeting}
-                    >
+                    <Button variant="outline" size="sm" onClick={handleShowLinkMeeting}>
                       <Link className="h-3.5 w-3.5 mr-1.5" />
                       Link Meeting
                     </Button>
@@ -477,18 +677,10 @@ export function ProjectsPage() {
                           <option key={m.path} value={m.path}>{m.title}</option>
                         ))}
                       </select>
-                      <Button
-                        size="sm"
-                        onClick={handleLinkMeeting}
-                        disabled={!selectedMeetingToLink || linkingMeeting}
-                      >
+                      <Button size="sm" onClick={handleLinkMeeting} disabled={!selectedMeetingToLink || linkingMeeting}>
                         Link
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setShowLinkMeeting(false)}
-                      >
+                      <Button size="sm" variant="ghost" onClick={() => setShowLinkMeeting(false)}>
                         Cancel
                       </Button>
                     </div>
@@ -496,6 +688,7 @@ export function ProjectsPage() {
                 </div>
               </CollapsibleSection>
 
+              {/* Tags */}
               <CollapsibleSection
                 title="Tags"
                 count={tags.length}
@@ -503,20 +696,49 @@ export function ProjectsPage() {
                 defaultOpen={tags.length > 0}
               >
                 <div className="px-4 py-3">
-                  {tags.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No tags</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-1.5">
-                      {tags.map(tag => (
-                        <span key={tag} className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
-                          #{tag}
-                        </span>
-                      ))}
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {tags.map(tag => (
+                      <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground group">
+                        #{tag}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTag(tag)}
+                          disabled={savingTags}
+                          className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  {showAddTag ? (
+                    <div className="flex gap-2 mt-1">
+                      <input
+                        autoFocus
+                        list="project-tag-suggestions"
+                        className="flex-1 text-sm bg-input border border-border rounded px-2 py-1 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        placeholder="tag-name"
+                        value={newTagInput}
+                        onChange={e => setNewTagInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleAddTag(); if (e.key === 'Escape') { setShowAddTag(false); setNewTagInput('') } }}
+                      />
+                      <datalist id="project-tag-suggestions">
+                        {allTags.filter(t => !tags.includes(t)).map(t => (
+                          <option key={t} value={t} />
+                        ))}
+                      </datalist>
+                      <button type="button" onClick={handleAddTag} disabled={savingTags} className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded disabled:opacity-50">Add</button>
+                      <button type="button" onClick={() => { setShowAddTag(false); setNewTagInput('') }} className="text-xs px-2 py-1 text-muted-foreground">Cancel</button>
                     </div>
+                  ) : (
+                    <button type="button" onClick={handleShowAddTag} className="text-xs text-muted-foreground hover:text-foreground">
+                      + Add tag
+                    </button>
                   )}
                 </div>
               </CollapsibleSection>
 
+              {/* People */}
               <CollapsibleSection
                 title="People"
                 count={detailPeople.length}
@@ -524,20 +746,61 @@ export function ProjectsPage() {
                 defaultOpen={detailPeople.length > 0}
               >
                 <div className="px-4 py-3">
-                  {detailPeople.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No people linked</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-1.5">
-                      {detailPeople.map(p => (
-                        <span key={p.path} className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium">
-                          {p.title}
-                        </span>
-                      ))}
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {detailPeople.map(p => (
+                      <span key={p.path} className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium group">
+                        {p.title}
+                        <button
+                          type="button"
+                          onClick={() => handleRemovePerson(p.path)}
+                          disabled={savingPeople}
+                          className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  {showAddPerson ? (
+                    <div className="mt-1 flex flex-col gap-1">
+                      <div className="flex gap-2">
+                        <select
+                          autoFocus
+                          value={selectedPersonPath}
+                          onChange={e => setSelectedPersonPath(e.target.value)}
+                          className="flex-1 rounded-md border border-input bg-input px-3 py-1.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-ring"
+                        >
+                          <option value="">Select a person...</option>
+                          {availablePeople
+                            .filter(p => !detailPeople.some(dp => dp.path === p.path))
+                            .map(p => (
+                              <option key={p.path} value={p.path}>{p.title}</option>
+                            ))
+                          }
+                        </select>
+                        <Button
+                          size="sm"
+                          disabled={!selectedPersonPath || savingPeople}
+                          onClick={() => {
+                            const person = availablePeople.find(p => p.path === selectedPersonPath)
+                            if (person) handleAddPerson(person)
+                            setSelectedPersonPath('')
+                          }}
+                        >
+                          Link
+                        </Button>
+                      </div>
+                      <button type="button" onClick={() => { setShowAddPerson(false); setSelectedPersonPath('') }} className="text-xs text-muted-foreground">Cancel</button>
                     </div>
+                  ) : (
+                    <button type="button" onClick={handleShowAddPerson} className="text-xs text-muted-foreground hover:text-foreground">
+                      + Link person
+                    </button>
                   )}
                 </div>
               </CollapsibleSection>
 
+              {/* Notes body */}
               <CollapsibleSection
                 title="Notes"
                 count={1}
@@ -567,28 +830,75 @@ export function ProjectsPage() {
                 ) : (
                   <div className="px-4 py-3 prose prose-sm prose-invert max-w-none leading-relaxed">
                     {projectDetail?.body
-                      ? <Markdown remarkPlugins={[remarkGfm]}>{projectDetail.body}</Markdown>
+                      ? <WikiMarkdown>{projectDetail.body}</WikiMarkdown>
                       : <p className="text-sm text-muted-foreground">No project notes yet.</p>
                     }
                   </div>
                 )}
               </CollapsibleSection>
 
+              {/* Related Notes (manual connections) */}
               <CollapsibleSection
                 title="Related Notes"
-                count={backlinks.length}
+                count={connections.length}
                 sectionId={`projects-related-${selectedPath}`}
-                defaultOpen={false}
+                defaultOpen={connections.length > 0}
               >
                 <div data-testid="project-backlinks-section" className="px-4 py-3">
-                  {backlinks.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No related notes</p>
-                  ) : (
-                    <ul className="space-y-1.5">
-                      {backlinks.map(b => (
-                        <li key={b.path} className="text-sm text-foreground">{b.title}</li>
+                  {connections.length > 0 && (
+                    <ul className="space-y-1.5 mb-3">
+                      {connections.map(c => (
+                        <li key={c.path} className="flex items-center gap-2 text-sm group">
+                          <button
+                            type="button"
+                            onClick={() => { openNote(c.path); setCurrentView('notes') }}
+                            className="text-foreground flex-1 text-left hover:underline"
+                          >
+                            {c.title || c.path}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUnlinkNote(c.path)}
+                            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
+                            title="Unlink note"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </li>
                       ))}
                     </ul>
+                  )}
+                  {showLinkNote ? (
+                    <div className="mt-1">
+                      <input
+                        autoFocus
+                        className="w-full text-sm bg-input border border-border rounded px-2 py-1 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring mb-1"
+                        placeholder="Search notes…"
+                        value={noteSearchQuery}
+                        onChange={e => handleNoteSearch(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Escape') { setShowLinkNote(false); setNoteSearchQuery(''); setNoteSearchResults([]) } }}
+                      />
+                      {noteSearchResults.length > 0 && (
+                        <ul className="border border-border rounded bg-card divide-y divide-border max-h-40 overflow-y-auto mb-1">
+                          {noteSearchResults.map(r => (
+                            <li key={r.path}>
+                              <button
+                                type="button"
+                                onClick={() => handleLinkNote(r)}
+                                className="w-full text-left px-3 py-1.5 text-sm text-foreground hover:bg-secondary transition-colors"
+                              >
+                                {r.title || r.path}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <button type="button" onClick={() => { setShowLinkNote(false); setNoteSearchQuery(''); setNoteSearchResults([]) }} className="text-xs text-muted-foreground">Cancel</button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => setShowLinkNote(true)} className="text-xs text-muted-foreground hover:text-foreground">
+                      {connections.length === 0 ? 'No related notes — ' : ''} + Link note
+                    </button>
                   )}
                 </div>
               </CollapsibleSection>
@@ -665,6 +975,16 @@ export function ProjectsPage() {
           />
         </>
       )}
+
+      <ActionDetailModal
+        open={!!detailAction}
+        action={detailAction}
+        onClose={() => setDetailAction(null)}
+        onSaved={updated => {
+          setActions(prev => prev.map(a => a.id === updated.id ? updated : a))
+          setDetailAction(null)
+        }}
+      />
     </div>
   )
 }

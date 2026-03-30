@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { useState, useEffect, useRef } from 'react'
 import { Pencil, Upload, Trash2 } from 'lucide-react'
+import { WikiMarkdown } from './WikiMarkdown'
 import { Button } from '@/components/ui/button'
 import { NoteTypeBadge } from '@/components/ui/note-type-badge'
 import { ImportanceBadge } from '@/components/ui/importance-badge'
@@ -13,11 +12,9 @@ import { FileUploadModal } from './FileUploadModal'
 import { NoteEditor } from './NoteEditor'
 import { useNoteContext } from '@/contexts/NoteContext'
 import { useSearchContext } from '@/contexts/SearchContext'
-import { useUIContext } from '@/contexts/UIContext'
 import { getAPI, encodePath } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { Note } from '@/types'
-import type { Components } from 'react-markdown'
 
 interface Props {
   note: Note
@@ -41,15 +38,6 @@ function relativeTime(dateStr: string): string {
   return `${Math.floor(months / 12)} year${Math.floor(months / 12) !== 1 ? 's' : ''} ago`
 }
 
-// Pre-process body: replace [[Title]] with [Title](wiki:Title%20encoded) so
-// ReactMarkdown treats them as links that the custom renderer can intercept.
-function preprocessWikiLinks(body: string): string {
-  return body.replace(/\[\[([^\]]+)\]\]/g, (_match, title: string) => {
-    const encoded = encodeURIComponent(title)
-    return `[${title}](wiki:${encoded})`
-  })
-}
-
 export function NoteViewer({ note }: Props) {
   const [editing, setEditing] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
@@ -58,59 +46,8 @@ export function NoteViewer({ note }: Props) {
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
   const titleEscaped = useRef(false)
-  const { notes, loadNotes, setIsDirty, openNote } = useNoteContext()
+  const { loadNotes, setIsDirty, openNote } = useNoteContext()
   const { setTagFilter } = useSearchContext()
-  const { setCurrentView } = useUIContext()
-
-  // Build a case-insensitive title → path map from all loaded notes.
-  // Recomputed only when the notes list changes (stable reference).
-  const titleToPath = useCallback(() => {
-    const map = new Map<string, string>()
-    for (const n of notes) {
-      map.set(n.title.toLowerCase(), n.path)
-    }
-    return map
-  }, [notes])
-
-  // Custom ReactMarkdown link renderer — intercepts wiki: scheme links.
-  const markdownComponents: Components = {
-    a({ href, children }) {
-      if (href?.startsWith('wiki:')) {
-        const title = decodeURIComponent(href.slice(5))
-        const map = titleToPath()
-        const targetPath = map.get(title.toLowerCase())
-        if (targetPath) {
-          return (
-            <button
-              className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer"
-              onClick={() => {
-                setCurrentView('notes')
-                openNote(targetPath)
-              }}
-              title={`Go to: ${title}`}
-            >
-              {children}
-            </button>
-          )
-        }
-        // No matching note — render as dimmed non-interactive text
-        return (
-          <span
-            className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground opacity-50"
-            title={`No note found: ${title}`}
-          >
-            {children}
-          </span>
-        )
-      }
-      // Regular link — render normally
-      return (
-        <a href={href} target="_blank" rel="noopener noreferrer">
-          {children}
-        </a>
-      )
-    },
-  }
 
   useEffect(() => {
     setEditing(false)
@@ -276,9 +213,7 @@ export function NoteViewer({ note }: Props) {
         className="text-sm leading-relaxed text-foreground [&_h1]:text-lg [&_h1]:font-semibold [&_h1]:mt-4 [&_h1]:mb-2 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1 [&_a]:text-primary [&_a]:underline [&_code]:bg-muted [&_code]:px-1 [&_code]:rounded [&_pre]:bg-muted [&_pre]:p-3 [&_pre]:rounded [&_ul]:list-disc [&_ul]:ml-4 [&_ol]:list-decimal [&_ol]:ml-4 [&_blockquote]:border-l-2 [&_blockquote]:border-primary [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground"
         data-testid="note-body"
       >
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-          {preprocessWikiLinks(note.body ?? '')}
-        </ReactMarkdown>
+        <WikiMarkdown>{note.body ?? ''}</WikiMarkdown>
       </div>
 
       <AttachmentsSection

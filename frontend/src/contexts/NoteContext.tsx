@@ -30,6 +30,7 @@ export function NoteProvider({ children }: { children: React.ReactNode }) {
   const openNote = useCallback(async (path: string) => {
     const encoded = encodePath(path)
     const res = await fetch(`${getAPI()}/notes/${encoded}`)
+    if (!res.ok) return
     const note = await res.json()
     setCurrentPath(path)
     setCurrentNote(note)

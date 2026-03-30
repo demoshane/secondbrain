@@ -18,6 +18,7 @@ export interface ActionItem {
   done: boolean
   due_date: string | null
   assignee_path: string | null
+  description?: string | null
 }
 
 export interface Attachment {

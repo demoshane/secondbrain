@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { WikiMarkdown } from './WikiMarkdown'
 import { Link, ExternalLink, FileText, Trash2, Pencil } from 'lucide-react'
 import { cn, getAPI, encodePath } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -332,7 +331,7 @@ export function LinksPage() {
             ) : linkDetail?.body ? (
               <div className="px-6 py-4">
                 <div className="prose prose-sm prose-invert max-w-none">
-                  <Markdown remarkPlugins={[remarkGfm]}>{linkDetail.body}</Markdown>
+                  <WikiMarkdown>{linkDetail.body}</WikiMarkdown>
                 </div>
               </div>
             ) : null}

@@ -4,6 +4,7 @@ import { CollapsibleSection } from '@/components/ui/collapsible-section'
 import { PersonBadge } from '@/components/ui/person-badge'
 import { TagBadge } from '@/components/ui/tag-badge'
 import { ActionItemRow } from '@/components/ui/action-item-row'
+import { ActionDetailModal } from '@/components/ui/action-detail-modal'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useNoteContext } from '@/contexts/NoteContext'
 import { useSearchContext } from '@/contexts/SearchContext'
@@ -25,6 +26,7 @@ export function RightPanel() {
   const [people, setPeople] = useState<Note[]>([])
   const [tags, setTags] = useState<string[]>([])
   const [noteActions, setNoteActions] = useState<ActionItem[]>([])
+  const [detailAction, setDetailAction] = useState<ActionItem | null>(null)
   const [importance, setImportance] = useState<string>('medium')
   const [tagInput, setTagInput] = useState('')
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
@@ -603,12 +605,23 @@ export function RightPanel() {
                   item={item}
                   onToggle={toggleDone}
                   onDelete={deleteAction}
+                  onOpen={setDetailAction}
                 />
               ))}
             </CollapsibleSection>
           )}
         </div>
       )}
+
+      <ActionDetailModal
+        open={!!detailAction}
+        action={detailAction}
+        onClose={() => setDetailAction(null)}
+        onSaved={updated => {
+          setNoteActions(prev => prev.map(a => a.id === updated.id ? updated : a))
+          setDetailAction(null)
+        }}
+      />
     </div>
   )
 }

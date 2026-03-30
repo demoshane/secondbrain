@@ -9,6 +9,7 @@ import { CollapsibleSection } from '@/components/ui/collapsible-section'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SkeletonList } from '@/components/ui/skeleton-list'
 import { ActionItemRow } from '@/components/ui/action-item-row'
+import { ActionDetailModal } from '@/components/ui/action-detail-modal'
 import { useUIContext } from '@/contexts/UIContext'
 import { toast } from 'sonner'
 import type { BrainHealth, ActionItem } from '@/types'
@@ -41,6 +42,7 @@ export function IntelligencePage() {
   const [healthLoading, setHealthLoading] = useState(true)
   const [nudges, setNudges] = useState<Nudge[]>([])
   const [priorityActions, setPriorityActions] = useState<ActionItem[]>([])
+  const [detailAction, setDetailAction] = useState<ActionItem | null>(null)
   const [captureText, setCaptureText] = useState('')
   const [capturing, setCapturing] = useState(false)
 
@@ -346,7 +348,7 @@ export function IntelligencePage() {
                 return (
                   <div key={a.id} className="flex items-center gap-2">
                     <div className="flex-1 min-w-0">
-                      <ActionItemRow item={a} onToggle={togglePriorityAction} onDelete={deletePriorityAction} />
+                      <ActionItemRow item={a} onToggle={togglePriorityAction} onDelete={deletePriorityAction} onOpen={setDetailAction} />
                     </div>
                     {urgency !== null && (
                       <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0', urgency.className)}>
@@ -402,6 +404,16 @@ export function IntelligencePage() {
           </div>
         </div>
       </div>
+
+      <ActionDetailModal
+        open={!!detailAction}
+        action={detailAction}
+        onClose={() => setDetailAction(null)}
+        onSaved={updated => {
+          setPriorityActions(prev => prev.map(a => a.id === updated.id ? updated : a))
+          setDetailAction(null)
+        }}
+      />
     </div>
   )
 }

@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Loader2, Sparkles, Check, AlertCircle, User } from 'lucide-react'
-import { getAPI } from '@/lib/utils'
+import { Loader2, Sparkles, Check, AlertCircle, User, Trash2 } from 'lucide-react'
+import { getAPI, encodePath } from '@/lib/utils'
 
 interface SavedNote {
   title: string
@@ -55,9 +55,10 @@ export function SmartCaptureModal({ open, onClose }: Props) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState<SavedNote[] | null>(null)
   const [pending, setPending] = useState<PendingNote[] | null>(null)
-  const [personStubs, setPersonStubs] = useState<PersonStub[]>([])
+  const [personStubs, setPersonStubs] = useState<(PersonStub | string)[]>([])
   // Track user-selected types for pending items
   const [pendingTypes, setPendingTypes] = useState<Record<number, string>>({})
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
 
   const handleCapture = async () => {
     if (!content.trim()) return
@@ -111,12 +112,26 @@ export function SmartCaptureModal({ open, onClose }: Props) {
     }
   }
 
+  const handleDeleteNote = async (index: number) => {
+    const note = saved![index]
+    if (!note?.path) return
+    try {
+      await fetch(`${getAPI()}/notes/${encodePath(note.path)}`, { method: 'DELETE' })
+      setSaved(prev => prev ? prev.filter((_, i) => i !== index) : prev)
+    } catch {
+      // non-fatal
+    } finally {
+      setConfirmDelete(null)
+    }
+  }
+
   const handleClose = () => {
     setContent('')
     setSaved(null)
     setPending(null)
     setPersonStubs([])
     setPendingTypes({})
+    setConfirmDelete(null)
     setLoading(false)
     setSaving(false)
     onClose()
@@ -170,16 +185,41 @@ export function SmartCaptureModal({ open, onClose }: Props) {
                 </p>
                 <div className="space-y-1.5 max-h-40 overflow-y-auto">
                   {saved!.map((note, i) => (
-                    <div key={i} className="flex items-center gap-2 p-2 rounded border">
+                    <div key={i} className="group flex items-center gap-2 p-2 rounded border">
                       {note.error ? (
                         <span className="text-sm text-red-500">{note.error}</span>
+                      ) : confirmDelete === i ? (
+                        <>
+                          <span className="text-sm text-muted-foreground flex-1">Delete "{note.title}"?</span>
+                          <button
+                            onClick={() => handleDeleteNote(i)}
+                            className="text-xs text-red-500 hover:text-red-400 px-1.5 py-0.5 rounded hover:bg-red-500/10"
+                          >
+                            Yes
+                          </button>
+                          <button
+                            onClick={() => setConfirmDelete(null)}
+                            className="text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-secondary"
+                          >
+                            No
+                          </button>
+                        </>
                       ) : (
                         <>
                           <Check className="h-4 w-4 text-green-500 shrink-0" />
                           <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${TYPE_COLORS[note.type] ?? TYPE_COLORS.note}`}>
                             {note.type}
                           </span>
-                          <span className="text-sm truncate">{note.title}</span>
+                          <span className="text-sm truncate flex-1">{note.title}</span>
+                          {note.path && (
+                            <button
+                              onClick={() => setConfirmDelete(i)}
+                              className="text-muted-foreground hover:text-red-400 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="Delete this note"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                         </>
                       )}
                     </div>
@@ -198,7 +238,7 @@ export function SmartCaptureModal({ open, onClose }: Props) {
                   <div key={i} className="flex items-center gap-2 text-sm">
                     <User className="h-4 w-4 text-muted-foreground shrink-0" />
                     <span className="px-1.5 py-0.5 rounded text-xs bg-[#2a1f1f] text-[#f87171]">person</span>
-                    <span className="truncate">{stub.name}</span>
+                    <span className="truncate">{typeof stub === 'string' ? stub : (stub as PersonStub).name}</span>
                   </div>
                 ))}
               </div>
