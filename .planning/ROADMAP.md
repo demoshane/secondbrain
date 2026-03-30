@@ -366,11 +366,11 @@ Plans:
 **Goal:** Make Ask Brain fast and snappy (<20s). Add Groq as an AI provider option: store API key securely in macOS Keychain (via Python `keyring`), auto-route public queries to Groq when key is present, add "use all-local Ollama" toggle for full privacy mode, expose both options in Settings UI. Auto-routing logic: Groq key present -> Groq for public/private; all-local toggle -> Ollama for everything; neither -> current `claude -p` subprocess fallback. Also switch default local model from `llama3.2` (3B) to `llama3` (8B, already installed) for better quality.
 **Requirements**: D-01 through D-12
 **Depends on:** Phase 43
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [x] 44-01-PLAN.md — GroqAdapter + config defaults + router extension (D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-11)
-- [ ] 44-02-PLAN.md — Flask Keychain endpoints + groq-settings + ask_brain provider wiring (D-08, D-09, D-12)
+- [x] 44-02-PLAN.md — Flask Keychain endpoints + groq-settings + ask_brain provider wiring (D-08, D-09, D-12)
 - [ ] 44-03-PLAN.md — Settings UI AI Provider section + AskBrainModal fallback toast (D-10, D-12)
 
 ### Phase 45: Universal Capture Enrichment
@@ -434,4 +434,4 @@ Plans:
 | 41 | v4.0 | 5/5 | Complete    | 2026-03-28 |
 | 42 | v4.0 | 0/3 | Not started | - |
 | 43 | v4.0 | 4/4 | Complete | 2026-03-30 |
-| 44 | v4.0 | 1/3 | In Progress|  |
+| 44 | v4.0 | 2/3 | In Progress|  |

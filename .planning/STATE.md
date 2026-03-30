@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Ready to execute
-stopped_at: Completed 44-01-PLAN.md
-last_updated: "2026-03-30T12:05:47.796Z"
+stopped_at: Completed 44-02-PLAN.md
+last_updated: "2026-03-30T12:12:04.510Z"
 progress:
   total_phases: 21
   completed_phases: 15
   total_plans: 92
-  completed_plans: 89
+  completed_plans: 90
 ---
 
 # Project State
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 44 (ai-provider-settings-groq-api-key-via-macos-keychain-all-local-ollama-toggle-auto-routing-logic-settings-ui) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 
 ## Performance Metrics
 
@@ -87,6 +87,7 @@ Plan: 2 of 3
 | Phase 41.3 P08 | 3 | 1 tasks | 1 files |
 | Phase 43 P03 | 23 | 2 tasks | 5 files |
 | Phase 44 P01 | 338 | 2 tasks | 7 files |
+| Phase 44 P02 | 1080 | 2 tasks | 3 files |
 
 ### Decisions
 
@@ -201,6 +202,9 @@ Active decisions affecting upcoming work:
 - [Phase 43]: Phase 43-03: Pre-existing FK path mismatch (macOS /var vs /private/var) causes silent co-captured/similar relationship failures — wrapped in try/except, test failures marked xfail, Phase 45 tracks root fix
 - [Phase 44]: Keep both ollama/llama3 and ollama/llama3.2 in DEFAULT_CONFIG models dict for backward compat with existing config.toml files
 - [Phase 44]: PII sensitivity skips Groq Rule 2 at router level (sensitivity \!= 'pii' guard) rather than requiring call sites to handle D-06
+- [Phase 44]: GET/PUT /config/groq-settings patches engine.paths.CONFIG_PATH only — engine.config_loader has no CONFIG_PATH attribute
+- [Phase 44]: ask_brain _call_adapter returns (answer, provider) tuple; provider precedence: groq > fallback > default
+- [Phase 44]: feature='ask_brain' passed for public sensitivity only in ask_brain() — PII path uses existing routing without Groq
 
 ### Pending Todos
 
@@ -224,8 +228,8 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-30T12:05:47.783Z
-Stopped at: Completed 44-01-PLAN.md
+Last session: 2026-03-30T12:12:04.498Z
+Stopped at: Completed 44-02-PLAN.md
 Resume file: None
 
 ### Next action
