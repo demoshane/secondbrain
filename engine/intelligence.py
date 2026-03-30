@@ -1093,7 +1093,7 @@ def ask_brain(question: str, conn) -> dict:
     if from_date:
         rows = conn.execute(
             "SELECT path, title, type, created_at, body, sensitivity FROM notes "
-            "WHERE date(created_at) >= ? ORDER BY created_at DESC LIMIT 25",
+            "WHERE date(created_at) >= ? ORDER BY created_at DESC LIMIT 10",
             (from_date,),
         ).fetchall()
         temporal_results = [
@@ -1184,16 +1184,31 @@ def ask_brain(question: str, conn) -> dict:
 
     answer_parts: list[str] = []
     providers: list[str] = []
+    # Parallel timeout: Groq answers in ~1-2s; Ollama (PII path) on local CPU can take 60-120s.
+    # We wait at most _PARALLEL_TIMEOUT_S seconds total. Any task not done by then is dropped.
+    _PARALLEL_TIMEOUT_S = 3.0
     if len(tasks) > 1:
         import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor(max_workers=len(tasks)) as executor:
-            futures = {executor.submit(_call_adapter, sensitivity, prompt): key
-                       for key, sensitivity, prompt in tasks}
-            for future in concurrent.futures.as_completed(futures):
+        # Don't use context manager — its __exit__ calls shutdown(wait=True) which blocks
+        # until ALL threads finish, including timed-out Ollama threads still running.
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=len(tasks))
+        future_map = {executor.submit(_call_adapter, sensitivity, prompt): (key, sensitivity)
+                      for key, sensitivity, prompt in tasks}
+        done, not_done = concurrent.futures.wait(future_map.keys(), timeout=_PARALLEL_TIMEOUT_S)
+        for future in done:
+            try:
                 ans, provider = future.result()
                 if ans:
                     answer_parts.append(ans)
                     providers.append(provider)
+            except Exception as exc:
+                logger.warning("ask_brain parallel task failed: %s", exc)
+        for future in not_done:
+            _, sensitivity = future_map[future]
+            logger.warning("ask_brain: %s adapter timed out after %ss — dropping", sensitivity, _PARALLEL_TIMEOUT_S)
+            future.cancel()
+        # wait=False: return immediately; timed-out Ollama threads finish in background.
+        executor.shutdown(wait=False)
     elif tasks:
         _, sensitivity, prompt = tasks[0]
         ans, provider = _call_adapter(sensitivity, prompt)

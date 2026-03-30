@@ -1,4 +1,5 @@
 """Ollama adapter — routes to a local Ollama instance (AI-03)."""
+import httpx
 import ollama
 
 from engine.adapters.base import BaseAdapter
@@ -11,9 +12,9 @@ class OllamaAdapter(BaseAdapter):
     On Linux DevContainers, add --add-host=host.docker.internal:host-gateway to devcontainer.json.
     """
 
-    def __init__(self, model: str, host: str = "http://host.docker.internal:11434") -> None:
+    def __init__(self, model: str, host: str = "http://host.docker.internal:11434", timeout: float = 30.0) -> None:
         self._model = model
-        self._client = ollama.Client(host=host)
+        self._client = ollama.Client(host=host, timeout=httpx.Timeout(timeout))
 
     def generate(self, user_content: str, system_prompt: str = "") -> str:
         """Send prompt to Ollama model; return text response.
