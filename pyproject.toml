@@ -54,6 +54,7 @@ sb-merge-duplicates = "engine.merge_cli:merge_duplicates_main"
 sb-consolidate  = "engine.consolidate:consolidate_main"
 sb-backup        = "engine.backup:backup_main"
 sb-restore       = "engine.backup:restore_main"
+sb-perf          = "engine.perf:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
