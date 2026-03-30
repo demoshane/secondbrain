@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
 status: Ready to execute
-stopped_at: Phase 43 Plan 03 complete — decompose() wired, segment_blob() deleted, tests migrated
-last_updated: "2026-03-29T15:56:43.919Z"
+stopped_at: Completed 44-01-PLAN.md
+last_updated: "2026-03-30T12:05:47.796Z"
 progress:
-  total_phases: 20
-  completed_phases: 14
-  total_plans: 89
-  completed_plans: 87
+  total_phases: 21
+  completed_phases: 15
+  total_plans: 92
+  completed_plans: 89
 ---
 
 # Project State
@@ -22,8 +22,8 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-Phase: 43 (smart-capture-multi-pass-decomposer) — EXECUTING
-Plan: 2 of 4
+Phase: 44 (ai-provider-settings-groq-api-key-via-macos-keychain-all-local-ollama-toggle-auto-routing-logic-settings-ui) — EXECUTING
+Plan: 2 of 3
 
 ## Performance Metrics
 
@@ -86,6 +86,7 @@ Plan: 2 of 4
 | Phase 41.3 P07 | 3 | 2 tasks | 4 files |
 | Phase 41.3 P08 | 3 | 1 tasks | 1 files |
 | Phase 43 P03 | 23 | 2 tasks | 5 files |
+| Phase 44 P01 | 338 | 2 tasks | 7 files |
 
 ### Decisions
 
@@ -198,6 +199,8 @@ Active decisions affecting upcoming work:
 - [Phase 41.3]: preprocessWikiLinks() pre-processes [[Title]] to wiki: scheme links before ReactMarkdown; custom 'a' renderer intercepts and navigates or dims unmatched
 - [Phase 43]: Phase 43-03: Structural splitting helpers moved from segmenter.py to passes/__init__.py — they were still imported by decompose(); deleting from segmenter required relocation to avoid breaking the passes pipeline
 - [Phase 43]: Phase 43-03: Pre-existing FK path mismatch (macOS /var vs /private/var) causes silent co-captured/similar relationship failures — wrapped in try/except, test failures marked xfail, Phase 45 tracks root fix
+- [Phase 44]: Keep both ollama/llama3 and ollama/llama3.2 in DEFAULT_CONFIG models dict for backward compat with existing config.toml files
+- [Phase 44]: PII sensitivity skips Groq Rule 2 at router level (sensitivity \!= 'pii' guard) rather than requiring call sites to handle D-06
 
 ### Pending Todos
 
@@ -211,6 +214,7 @@ _(F-18/19/20/21 accepted risks, F-24/25/26 known trade-offs — all closed. F-22
 - Phase 44 inserted (2026-03-29): Universal Capture Enrichment — extend decomposer passes to ALL capture paths (sb_capture, sb_capture_batch, sb_capture_link). Every capture_note() call builds memories. Former 44→45, 45→46.
 - Phase 45 (ex-44) added: Fix pre-existing test failures — 4 tests broken before Phase 40
 - Phase 46 (ex-45) added: Backend code cleanup — F-22/23/27/28/29/30/31 from Phase 39 audit
+- Phase 48 added then moved to 44: AI provider settings — Groq API key via macOS Keychain, all-local Ollama toggle, auto-routing logic, Settings UI. Former 44→45, 45→46, 46→47, 47→48.
 - Phase 47 added (2026-03-29): Chrome extension page summarisation — LLM summary in popup + "Add to brain"
 - Phase 44 goal expanded (2026-03-29): includes context detection audit at capture time
 
@@ -220,10 +224,10 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-29T15:56:43.907Z
-Stopped at: Phase 43 Plan 03 complete — decompose() wired, segment_blob() deleted, tests migrated
+Last session: 2026-03-30T12:05:47.783Z
+Stopped at: Completed 44-01-PLAN.md
 Resume file: None
 
 ### Next action
 
-Execute Phase 43 plans 03 & 04.
+Run /gsd:plan-phase 44 to plan AI provider settings (Groq key, all-local toggle, auto-routing, Settings UI).
