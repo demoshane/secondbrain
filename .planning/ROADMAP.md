@@ -327,13 +327,13 @@ Plans:
 **Plans:** 8/8 plans complete
 
 Plans:
-- [x] 41.3-01-PLAN.md — Sidebar: collapse folder→type grouping to single-level by type
+- [x] 41.3-01-PLAN.md — Sidebar: collapse folder->type grouping to single-level by type
 - [x] 41.3-02-PLAN.md — Chrome extension: retheme popup to dark Visily design tokens
 - [x] 41.3-03-PLAN.md — Action items: mark done + set deadline + add new in all detail views
 - [x] 41.3-04-PLAN.md — Inline note editing on all detail-panel pages
 - [x] 41.3-05-PLAN.md — Connections panel: proper sections, tags, add/remove
 - [x] 41.3-06-PLAN.md — Attachments section on all detail panels
-- [x] 41.3-07-PLAN.md — Chrome extension: page summarisation (LLM summary → Add to brain)
+- [x] 41.3-07-PLAN.md — Chrome extension: page summarisation (LLM summary -> Add to brain)
 - [x] 41.3-08-PLAN.md — NoteViewer: [[wiki-links]] clickable navigation
 
 ### Phase 42: Add importance field to notes
@@ -348,32 +348,34 @@ Plans:
 - [ ] 42-02-PLAN.md — API endpoint + search filter (IMP-04, IMP-05)
 - [ ] 42-03-PLAN.md — Frontend badges + dropdown + sort (IMP-06, IMP-07, IMP-08)
 
-### Phase 43: Smart Capture Multi-Pass Decomposer
+### Phase 43: Smart Capture Multi-Pass Decomposer (completed 2026-03-30)
 
 **Goal:** Refactor smart capture from a single-pass segmenter into a modular multi-pass decomposer. Current architecture forces every blob into one type and lets URL presence override all other signals. New architecture: Pass 1 extracts entities (people, links, dates) unconditionally; Pass 2 pulls URLs out as separate link notes; Pass 3 classifies the URL-stripped content (meeting/note/etc.); Pass 4 extracts action items with owner+date; Pass 5 assembles the primary note + link notes + person stubs + action items. Each pass lives in its own module under `engine/passes/` for independent testability and replaceability. Fix URL hard-override in typeclassifier, add conversation-format signal (Name [HH:MM] pattern), align GUI path with MCP path for person stub creation.
 **Requirements:** D-01 through D-13
 **Depends on:** Phase 42
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans executed
 
 Plans:
 - [x] 43-01-PLAN.md — Pass architecture + types + Pass 1-3 + typeclassifier URL fix (D-01, D-02, D-03, D-04, D-05, D-06, D-11)
 - [x] 43-02-PLAN.md — Pass 4 (keyword actions) + Pass 5 (assembly) + config markers API (D-07, D-08, D-09)
 - [x] 43-03-PLAN.md — Caller wiring: api.py + mcp_server.py + segment_blob deletion + test migration (D-02, D-08, D-12, D-13)
-- [ ] 43-04-PLAN.md — GUI: SettingsModal markers panel + SmartCaptureModal person stubs display (D-10, D-12)
+- [x] 43-04-PLAN.md — GUI: SettingsModal markers panel + SmartCaptureModal person stubs display (D-10, D-12)
 
-### Phase 44: Universal Capture Enrichment
+### Phase 44: AI provider settings: Groq API key via macOS Keychain, all-local Ollama toggle, auto-routing logic, Settings UI
 
-**Goal:** Extend the Phase 43 multi-pass decomposer to all capture paths. Every `capture_note()` call — including `sb_capture`, `sb_capture_batch`, and `sb_capture_link` — runs entity extraction (Pass 1), action item extraction (Pass 4), and person stub creation (Pass 5). This makes memory creation consistent regardless of which capture surface the user uses. Core motivation: the brain must build memories from every note, not only freeform blobs. Also audit and improve context detection at capture time — ensure the pass pipeline correctly identifies note context (source, type signals, existing brain relationships) to improve classification accuracy.
-**Requirements:** TBD
+**Goal:** Make Ask Brain fast and snappy (<20s). Add Groq as an AI provider option: store API key securely in macOS Keychain (via Python `keyring`), auto-route public queries to Groq when key is present, add "use all-local Ollama" toggle for full privacy mode, expose both options in Settings UI. Auto-routing logic: Groq key present -> Groq for public/private; all-local toggle -> Ollama for everything; neither -> current `claude -p` subprocess fallback. Also switch default local model from `llama3.2` (3B) to `llama3` (8B, already installed) for better quality.
+**Requirements**: D-01 through D-12
 **Depends on:** Phase 43
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 44 to break down)
+- [ ] 44-01-PLAN.md — GroqAdapter + config defaults + router extension (D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-11)
+- [ ] 44-02-PLAN.md — Flask Keychain endpoints + groq-settings + ask_brain provider wiring (D-08, D-09, D-12)
+- [ ] 44-03-PLAN.md — Settings UI AI Provider section + AskBrainModal fallback toast (D-10, D-12)
 
-### Phase 45: Fix pre-existing test failures
+### Phase 45: Universal Capture Enrichment
 
-**Goal:** Fix 4 tests that have been failing since before phase 40: `test_delete_endpoint_404` (Flask returns 308 instead of 404), `test_bidirectional_relationships`, `TestSimilarRelationshipAutoLink::test_similar_relationship_inserted_on_confirm`, and `test_smart_capture_golden_path` (sb_capture_smart relationship writing broken).
+**Goal:** Extend the Phase 43 multi-pass decomposer to all capture paths. Every `capture_note()` call — including `sb_capture`, `sb_capture_batch`, and `sb_capture_link` — runs entity extraction (Pass 1), action item extraction (Pass 4), and person stub creation (Pass 5). This makes memory creation consistent regardless of which capture surface the user uses. Core motivation: the brain must build memories from every note, not only freeform blobs. Also audit and improve context detection at capture time — ensure the pass pipeline correctly identifies note context (source, type signals, existing brain relationships) to improve classification accuracy.
 **Requirements:** TBD
 **Depends on:** Phase 44
 **Plans:** 0 plans
@@ -381,25 +383,35 @@ Plans:
 Plans:
 - [ ] TBD (run /gsd:plan-phase 45 to break down)
 
-### Phase 46: Backend Code Cleanup
+### Phase 46: Fix pre-existing test failures
 
-**Goal:** Eliminate accumulated technical debt flagged in the Phase 39 audit: remove deprecated `/people` route aliases (F-27), replace `datetime.utcnow()` deprecated in Python 3.12+ across 14 files (F-31), consolidate the 13× repeated `os.environ.get("BRAIN_PATH")` pattern (F-28), add a shared `json.loads(col or "[]")` helper (F-29), fix `ensure_person_profile()` writing to wrong path `person/` vs `people/` (F-30), begin `api.py` Blueprint partitioning (F-22, now 2149 lines), and clarify the misleading "circular import" comment in `consolidate.py` lazy import block (F-23).
-**Requirements**: F-22, F-23, F-27, F-28, F-29, F-30, F-31 (from 39-FINDINGS.md)
+**Goal:** Fix 4 tests that have been failing since before phase 40: `test_delete_endpoint_404` (Flask returns 308 instead of 404), `test_bidirectional_relationships`, `TestSimilarRelationshipAutoLink::test_similar_relationship_inserted_on_confirm`, and `test_smart_capture_golden_path` (sb_capture_smart relationship writing broken).
+**Requirements:** TBD
 **Depends on:** Phase 45
 **Plans:** 0 plans
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 46 to break down)
 
-### Phase 47: Chrome Extension Page Summarisation
+### Phase 47: Backend Code Cleanup
 
-**Goal:** Add a page summarisation feature to the Chrome extension: summarise the active page via LLM, show the summary in the extension popup with an "Add to brain" button that saves the summary as a note. Builds on Phase 36 extension infrastructure and Phase 41.3 `/summarise-url` endpoint.
-**Requirements:** TBD
+**Goal:** Eliminate accumulated technical debt flagged in the Phase 39 audit: remove deprecated `/people` route aliases (F-27), replace `datetime.utcnow()` deprecated in Python 3.12+ across 14 files (F-31), consolidate the 13x repeated `os.environ.get("BRAIN_PATH")` pattern (F-28), add a shared `json.loads(col or "[]")` helper (F-29), fix `ensure_person_profile()` writing to wrong path `person/` vs `people/` (F-30), begin `api.py` Blueprint partitioning (F-22, now 2149 lines), and clarify the misleading "circular import" comment in `consolidate.py` lazy import block (F-23).
+**Requirements**: F-22, F-23, F-27, F-28, F-29, F-30, F-31 (from 39-FINDINGS.md)
 **Depends on:** Phase 46
 **Plans:** 0 plans
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 47 to break down)
+
+### Phase 48: Chrome Extension Page Summarisation
+
+**Goal:** Add a page summarisation feature to the Chrome extension: summarise the active page via LLM, show the summary in the extension popup with an "Add to brain" button that saves the summary as a note. Builds on Phase 36 extension infrastructure and Phase 41.3 `/summarise-url` endpoint.
+**Requirements:** TBD
+**Depends on:** Phase 47
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 48 to break down)
 
 ---
 
@@ -407,9 +419,9 @@ Plans:
 
 | Phase | Milestone | Plans | Status | Completed |
 |-------|-----------|-------|--------|-----------|
-| 1–13 | v1.5 | 60/60 | Complete | 2026-03-15 |
-| 14–19 | v2.0 | 23/23 | Complete | 2026-03-16 |
-| 20–31 | v3.0 | 88/88 | Complete | 2026-03-21 |
+| 1-13 | v1.5 | 60/60 | Complete | 2026-03-15 |
+| 14-19 | v2.0 | 23/23 | Complete | 2026-03-16 |
+| 20-31 | v3.0 | 88/88 | Complete | 2026-03-21 |
 | 32 | v4.0 | 6/6 | Complete | 2026-03-22 |
 | 33 | v4.0 | 5/5 | Complete | 2026-03-22 |
 | 34 | v4.0 | 4/4 | Complete | 2026-03-22 |
@@ -421,5 +433,5 @@ Plans:
 | 40 | v4.0 | 5/5 | Complete | 2026-03-28 |
 | 41 | v4.0 | 5/5 | Complete    | 2026-03-28 |
 | 42 | v4.0 | 0/3 | Not started | - |
-| 43 | v4.0 | 3/4 | In Progress|  |
-| 44 | v4.0 | 0/? | Not started | - |
+| 43 | v4.0 | 4/4 | Complete | 2026-03-30 |
+| 44 | v4.0 | 0/3 | Not started | - |
