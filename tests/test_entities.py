@@ -298,3 +298,67 @@ def test_real_names_still_extracted_after_fix():
     people = result["people"]
     assert "Anna Korhonen" in people
     assert "John Smith" in people
+
+
+# ---------------------------------------------------------------------------
+# Bracket extractor tests
+# ---------------------------------------------------------------------------
+
+def test_bracket_single_name_extracted():
+    """[Name] notation extracts the name directly."""
+    from engine.entities import extract_entities
+
+    result = extract_entities("", "[Alice Johnson] Send report: Forward the Q1 summary.")
+    assert "Alice Johnson" in result["people"]
+
+
+def test_bracket_multiple_names_extracted():
+    """[Name, Name] notation extracts all names."""
+    from engine.entities import extract_entities
+
+    result = extract_entities(
+        "",
+        "[Alice Johnson, Bob Smith] Design Survey: Create the customer survey.",
+    )
+    assert "Alice Johnson" in result["people"]
+    assert "Bob Smith" in result["people"]
+
+
+def test_bracket_no_false_positive_from_action_label():
+    """Action verb labels after the bracket are NOT extracted as people."""
+    from engine.entities import extract_entities
+
+    result = extract_entities(
+        "",
+        "[Alice Johnson] Clarify Ticket: Investigate the 3 existing tickets.",
+    )
+    people = result["people"]
+    assert "Alice Johnson" in people
+    assert "Clarify Ticket" not in people
+
+
+def test_bracket_timestamp_not_extracted():
+    """Timestamp brackets like [10:20 AM] are NOT treated as names."""
+    from engine.entities import extract_entities
+
+    result = extract_entities("", "[10:20 AM] Alice Johnson joined the call")
+    assert "10:20 AM" not in str(result["people"])
+    assert "Alice Johnson" in result["people"]
+
+
+def test_action_item_block_extracts_only_real_people():
+    """Meeting action-item block produces only real person names, no action labels."""
+    from engine.entities import extract_entities
+
+    text = """Suggested next steps
+    [Alice Johnson] Inform Client: Contact external contact regarding workload estimates.
+    [Bob Smith] Clarify Ticket: Investigate requirements; close if no actions needed.
+    [Alice Johnson, Carol Davis] Design Survey: Create the customer satisfaction survey."""
+    result = extract_entities("Meeting Notes", text)
+    people = result["people"]
+    assert "Alice Johnson" in people
+    assert "Bob Smith" in people
+    assert "Carol Davis" in people
+    assert "Inform Client" not in people
+    assert "Clarify Ticket" not in people
+    assert "Design Survey" not in people

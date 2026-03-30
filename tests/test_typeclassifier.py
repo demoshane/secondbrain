@@ -8,9 +8,26 @@ class TestClassifyNoteType:
 
     # --- link ---
     def test_url_gives_link(self):
+        # URL-dominant body (stripped text < 50 chars) still classifies as link
         t, c = classify_note_type("Check this", "https://example.com is the resource.")
         assert t == "link"
-        assert c == 1.0
+        assert c >= CONFIDENCE_THRESHOLD
+
+    def test_meeting_with_url_classifies_as_meeting(self):
+        body = (
+            "Meeting with Alice\n"
+            "Attendees: Bob, Carol\n"
+            "Agenda: Q1 review\n"
+            "https://zoom.us/j/123456"
+        )
+        t, _c = classify_note_type("Meeting Notes", body)
+        assert t == "meeting"
+
+    def test_url_only_body_classifies_as_link(self):
+        # Short surrounding text + URL → URL is the primary content
+        t, c = classify_note_type("", "https://example.com/article interesting read")
+        assert t == "link"
+        assert c >= CONFIDENCE_THRESHOLD
 
     # --- meeting ---
     def test_strong_meeting_keyword(self):

@@ -1,4 +1,10 @@
-"""Entity extraction from note text using regex heuristics. Zero AI calls, zero external deps."""
+"""Entity extraction from note text.
+
+People extraction uses a two-layer strategy:
+1. Bracket parser — [Name] / [Name, Name] notation; always runs; zero false positives.
+2. spaCy NER    — en_core_web_sm; replaces the regex bigram scanner when available.
+3. Regex bigram — sliding-window fallback when spaCy is not installed.
+"""
 import re
 
 # ---------------------------------------------------------------------------
@@ -36,6 +42,10 @@ _PERSON_CONTEXT_SIGNALS = re.compile(
     r'|'
     # @mentions
     r'@\w+'
+    r'|'
+    # Chat/Slack transcript timestamps — [10:20 AM], [3:46 PM], [14:30]
+    # Presence means this is a conversation where names appear as speakers
+    r'\[\d{1,2}:\d{2}(?:\s*[AP]M)?\]'
     r')',
     re.IGNORECASE,
 )
@@ -61,9 +71,30 @@ _STOP_WORDS = frozenset([
     "Overview", "Result", "Output", "Input", "Files", "Maintenance",
     "Review", "Design", "Feature", "Issue", "Request", "Response",
     "Service", "Process", "Config", "Session", "Change", "Version",
+    # Imperative action verbs that appear Title-Cased as action-item labels
+    "Ask", "Assign", "Check", "Clarify", "Close", "Confirm", "Contact",
+    "Create", "Discuss", "Fix", "Inform", "Investigate", "Merge",
+    "Move", "Open", "Perform", "Prepare", "Provide", "Push", "Send",
+    "Share", "Upgrade",
+    # Tech / domain compound-noun components that look like name tokens
+    "Client", "Domain", "Drupal", "Elastic", "Search", "Solar",
+    "Strategy", "Ticket",
     # Meeting/calendar terms that appear in Title Case
     "Sync", "Call", "Chat", "Weekly", "Daily", "Monthly", "Quarterly",
     "Sprint", "Retro", "Demo", "Standup", "Kickoff",
+    # Slack/chat UI terms that appear Title Case
+    "Private", "Canvas", "Huddle", "Channel", "Thread", "Direct",
+    # Geographic/institutional qualifiers — never a person name
+    "European", "Federal", "National", "International", "Global", "Regional", "Local",
+    # Institution type nouns — can follow a name-like word (e.g. "European Institute")
+    "Institute", "Foundation", "Commission", "Authority", "Bureau",
+    "Council", "Committee", "Association", "Federation", "Union", "Office",
+    # Legal/policy document terms — appear Title Case throughout policy docs
+    "Directive", "Regulation", "Compliance", "Mandate", "Policy", "Legislation",
+    "Act", "Law", "Code", "Standard", "Requirement", "Obligation",
+    # HR/equality domain terms that appear as Title Case bigram components
+    "Equal", "Equality", "Equity", "Gender", "Diversity", "Inclusion",
+    "Pay", "Salary", "Wage", "Compensation", "Transparency", "Reporting",
     # Product / app / tech terms that appear in Title Case but are never human names
     "App", "Apps", "Timer", "Timers", "Watch", "Watches",
     "Shortcut", "Shortcuts", "Plugin", "Plugins",
@@ -89,6 +120,8 @@ _FINNISH_STOPS = frozenset([
     "Olen", "Olet", "Meill\u00e4", "Teil\u00e4", "Heill\u00e4", "Minulla", "Sinulla",
     "T\u00e4m\u00e4", "T\u00e4ss\u00e4", "Siell\u00e4", "T\u00e4\u00e4ll\u00e4", "Miss\u00e4",
     "Kun", "Jos", "Ett\u00e4", "Mutta", "Koska", "Vaikka", "Jotta", "Sek\u00e4", "My\u00f6s",
+    # Colloquial Finnish sentence starters (appear Title-Cased mid-text)
+    "Mut", "Nii", "Joo", "Juu", "Okei", "Kyl", "Ei", "On", "Ois", "Oon",
 ])
 
 _ALL_STOPS = _STOP_WORDS | _FINNISH_STOPS
@@ -140,6 +173,75 @@ _PREFIX = r'(?:(?:van|von|de|di|la|el)(?:\s+(?:der?|den|la|el|le|les|los|las))?\
 _NAME_PAT = re.compile(
     rf'\b({_FIRST})\s+{_PREFIX}({_NAME_SEG})\b'
 )
+
+# ---------------------------------------------------------------------------
+# Bracket-format people extraction
+# Handles: [Alice Johnson] and [Alice Johnson, Bob Smith] action-item notation.
+# This is a high-precision path: names inside brackets are structurally unambiguous.
+# ---------------------------------------------------------------------------
+_BRACKET_PAT = re.compile(r'\[([^\]\n]+)\]')
+
+
+def _extract_bracket_people(text: str) -> list[str]:
+    """Extract names from [Name] and [Name, Name] bracket notation."""
+    results = []
+    for m in _BRACKET_PAT.finditer(text):
+        content = m.group(1).strip()
+        for candidate in re.split(r',\s*', content):
+            candidate = ' '.join(candidate.split())  # normalise whitespace
+            nm = _NAME_PAT.search(candidate)
+            if nm and nm.group(0) == candidate:
+                results.append(candidate)
+    return list(dict.fromkeys(results))
+
+
+# ---------------------------------------------------------------------------
+# spaCy NER — lazy-loaded singleton; replaces the regex bigram scanner when
+# en_core_web_sm is available.  Falls back gracefully to regex if not.
+# ---------------------------------------------------------------------------
+_nlp = None
+_spacy_attempted = False
+
+
+def _get_nlp():
+    global _nlp, _spacy_attempted
+    if _spacy_attempted:
+        return _nlp
+    _spacy_attempted = True
+    try:
+        import spacy  # noqa: PLC0415
+        _nlp = spacy.load(
+            "en_core_web_sm",
+            disable=["tagger", "parser", "senter", "attribute_ruler", "lemmatizer"],
+        )
+    except (ImportError, OSError):
+        _nlp = None
+    return _nlp
+
+
+def _extract_people_spacy(text: str) -> list[str]:
+    """Extract PERSON entities via spaCy NER.  Returns [] if model unavailable.
+
+    Applies stop-word + abstract-noun filtering after NER to catch cases where
+    the English-only model incorrectly classifies non-English text (e.g. Finnish
+    sentence starters) as person names.
+    """
+    nlp = _get_nlp()
+    if nlp is None:
+        return []
+    doc = nlp(text)
+    results = []
+    for ent in doc.ents:
+        if ent.label_ == "PERSON":
+            name = ent.text.strip()
+            if " " not in name:
+                continue  # single tokens too ambiguous
+            words = name.split()
+            if any(_is_stop(w) or _is_abstract_noun(w) for w in words):
+                continue
+            results.append(name)
+    return list(dict.fromkeys(results))
+
 
 # ---------------------------------------------------------------------------
 # Organization extraction — suffix-based only (no pure acronyms)
@@ -220,33 +322,28 @@ def _is_abstract_noun(word: str) -> bool:
 
 # Pattern for a single name-like token (same character class as _NAME_SEG)
 _TOKEN_PAT = re.compile(rf'\b{_NAME_SEG}\b')
-# Allowed gap between first and last name: whitespace + optional compound prefix
-_GAP_PAT = re.compile(rf'^\s+{_PREFIX}$')
+# Allowed gap between first and last name: horizontal whitespace only (no newlines) + optional compound prefix
+# Newlines are excluded deliberately — "Name\nVerb" should never form a bigram.
+_GAP_PAT = re.compile(rf'^[^\S\n]+{_PREFIX}$')
 
 
-def _extract_people(text: str, signal_text: str | None = None) -> list[str]:
-    """Extract two-word names using a sliding window over capitalized tokens.
+def _is_stop(word: str) -> bool:
+    """Return True if word is a stop word, also checking de-pluralised form."""
+    if word in _ALL_STOPS:
+        return True
+    # "Agents" → check "Agent"; "Tickets" → check "Ticket"
+    if word.endswith("s") and len(word) > 3 and word[:-1] in _ALL_STOPS:
+        return True
+    return False
 
-    Requires at least one person-context signal (role title, action verb,
-    @mention, contact keyword) in `signal_text` (defaults to `text`) before
-    attempting extraction.  This prevents product/tech names from being
-    classified as people — product descriptions never contain these signals.
 
-    `signal_text` should be the full title+body combined so that a name in
-    the title is still detected when signals are only in the body, while name
-    extraction itself still runs on `text` to avoid cross-boundary bigrams.
+def _extract_people_regex(text: str, signal_text: str | None = None) -> list[str]:
+    """Regex bigram fallback — used only when spaCy is unavailable.
 
-    Uses a sliding window instead of non-overlapping findall so that
-    consecutive names like "Met Anna Korhonen" yield both ("Met","Anna")
-    and ("Anna","Korhonen") — the latter being the real name.
-
-    Filters out English and Finnish stop words and abstract noun suffixes
-    (gerunds, -tion, -ness, etc.) that commonly appear in title-cased headings.
-    Supports compound prefixes (van, von, de, di, la, el) and hyphenated last names.
+    Sliding window over consecutive Title-Case token pairs.  Requires a
+    person-context signal in the document to run (defence against false
+    positives in pure-product/tech notes).
     """
-    # Document-level gate: skip name extraction entirely if there are no
-    # person-context signals.  This is the primary defence against false
-    # positives from product names, tech terms, and heading bigrams.
     check_text = signal_text if signal_text is not None else text
     if not _PERSON_CONTEXT_SIGNALS.search(check_text):
         return []
@@ -259,15 +356,35 @@ def _extract_people(text: str, signal_text: str | None = None) -> list[str]:
         gap = text[f_end:l_start]
         if not _GAP_PAT.match(gap):
             continue
-        # Hyphenated tokens (e.g. "Voice-Controlled") — check each part against stops
         first_parts = first.split("-")
         last_parts = last.split("-")
-        if (not any(p in _ALL_STOPS for p in first_parts)
-                and not any(p in _ALL_STOPS for p in last_parts)
+        if (not any(_is_stop(p) for p in first_parts)
+                and not any(_is_stop(p) for p in last_parts)
                 and not _is_abstract_noun(first)
                 and not _is_abstract_noun(last)):
             results.append(f"{first} {last}")
     return list(dict.fromkeys(results))
+
+
+def _extract_people(text: str, signal_text: str | None = None) -> list[str]:
+    """Extract person names from text.
+
+    1. Bracket parser — [Name] / [Name, Name]; always runs; zero false positives.
+    2. spaCy NER      — high-precision primary source when model is available.
+    3. Regex bigram   — supplement (spaCy available) or sole source (spaCy absent).
+       Catches names spaCy misses due to short/unusual first names or non-English
+       context.  The stop-word and abstract-noun filters keep false positives low.
+    """
+    bracket = _extract_bracket_people(text)
+    regex = _extract_people_regex(text, signal_text)
+
+    if _get_nlp() is not None:
+        spacy = _extract_people_spacy(text)
+        body = list(dict.fromkeys(spacy + regex))
+    else:
+        body = regex
+
+    return list(dict.fromkeys(bracket + body))
 
 
 def _extract_organizations(text: str) -> list[str]:
@@ -290,7 +407,7 @@ def _extract_places(text: str, people: list[str]) -> list[str]:
     people_tokens = set()
     for name in people:
         people_tokens.update(name.split())
-    pattern = r'\b(?:in|at|from|to)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b'
+    pattern = r'\b(?:in|at|from|to)[^\S\n]+([A-Z][a-z]+(?:[^\S\n]+[A-Z][a-z]+)*)\b'
     matches = re.findall(pattern, text)
     return [
         m for m in matches

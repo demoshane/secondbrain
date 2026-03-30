@@ -77,21 +77,17 @@ def classify_note_type(title: str, body: str) -> tuple[str, float]:
     low = combined.lower()
     title_low = title.lower()
 
-    # link — URL presence is deterministic, always wins
-    if _URL_PAT.search(combined):
-        return ("link", 1.0)
-
     scores: dict[str, float] = {}
 
     # ------------------------------------------------------------------ meeting
     strong_kws = len(re.findall(
-        r'\b(meeting|attendees|agenda|standup|stand-up|retro|retrospective|minutes)\b', low
+        r'\b(meeting|attendees|agenda|standup|stand-up|retro|retrospective|minutes|huddle)\b', low
     ))
     weak_kws = len(re.findall(
         r'\b(discussed|sync|action items|follow.?up|decisions)\b', low
     ))
     title_hit = bool(re.search(
-        r'\b(meeting|standup|stand-up|sync|retro|1:1|catch.?up|debrief)\b', title_low
+        r'\b(meeting|standup|stand-up|sync|retro|1:1|catch.?up|debrief|huddle)\b', title_low
     ))
     s = 0.0
     if strong_kws >= 2:
@@ -171,20 +167,29 @@ def classify_note_type(title: str, body: str) -> tuple[str, float]:
     scores["project"] = s
 
     # ---------------------------------------------------------------- strategy
-    strat_kws = len(re.findall(
-        r'\b(strategy|strategic|okr|kpi|objective|vision|quarterly|annual|'
-        r'q[1-4]|mission|competitive|positioning|market|north star|initiative)\b', low
+    # Strong keywords are definitively strategic; contextual ones (q1-4, market)
+    # can appear in any note type and must not score in isolation.
+    strat_strong = len(re.findall(
+        r'\b(strategy|strategic|okr|kpi|vision|north.?star|initiative|positioning|competitive)\b', low
+    ))
+    strat_ctx = len(re.findall(
+        r'\b(q[1-4]|quarterly|annual|objective|mission|market)\b', low
     ))
     title_hit = bool(re.search(
-        r'\b(strategy|strategic|okr|vision|q[1-4]|annual|quarterly)\b', title_low
+        r'\b(strategy|strategic|okr|vision|annual|quarterly)\b', title_low
     ))
     s = 0.0
-    if strat_kws >= 3:
-        s = 0.85
-    elif strat_kws >= 2:
-        s = 0.77
-    elif strat_kws == 1:
-        s = 0.58
+    if strat_strong >= 3:
+        s = 0.90
+    elif strat_strong >= 2:
+        s = 0.83
+    elif strat_strong >= 1:
+        s = 0.72 + min(strat_ctx * 0.05, 0.10)  # strong anchor + contextual boost
+    elif strat_ctx >= 3:
+        s = 0.72  # Many contextual keywords can still signal strategy
+    elif strat_ctx >= 2:
+        s = 0.62
+    # Single contextual keyword (e.g. "Q1") → no score — too ambiguous
     if title_hit:
         s = min(s + 0.10, 0.92) if s > 0 else 0.80
     scores["strategy"] = s
@@ -224,6 +229,28 @@ def classify_note_type(title: str, body: str) -> tuple[str, float]:
     if title_hit:
         s = min(s + 0.10, 0.92) if s > 0 else 0.80
     scores["personal"] = s
+
+    # ------------------------------------------------------------------ link
+    url_count = len(_URL_PAT.findall(combined))
+    url_stripped = _URL_PAT.sub('', combined).strip()
+    s = 0.0
+    if url_count > 0:
+        if len(url_stripped) < 50:
+            s = 0.85  # URL is the primary content
+        else:
+            s = 0.70  # URL present but content has substance
+    scores["link"] = s
+
+    # -------------------------------------------------------------------- note
+    # Explicit scoring for chat/conversation transcripts (Slack, Teams, etc.)
+    # Presence of multiple chat timestamps is a strong signal regardless of language.
+    chat_ts_count = len(re.findall(r'\[\d{1,2}:\d{2}(?:\s*[AP]M)?\]', combined))
+    if chat_ts_count >= 3:
+        scores["note"] = 0.82
+    elif chat_ts_count >= 2:
+        scores["note"] = 0.75
+    elif chat_ts_count >= 1:
+        scores["note"] = 0.65
 
     # ---------------------------------------------------------------- pick best
     best_type = max(scores, key=lambda t: scores[t])

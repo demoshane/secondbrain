@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS note_embeddings (
 
 CREATE TABLE IF NOT EXISTS action_items (
     id         INTEGER PRIMARY KEY,
-    note_path  TEXT NOT NULL,
+    note_path  TEXT NULL,
     text       TEXT NOT NULL,
     done       BOOL NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
@@ -126,7 +126,7 @@ def migrate_add_action_items_table(conn: sqlite3.Connection) -> None:
     conn.execute("""
         CREATE TABLE IF NOT EXISTS action_items (
             id         INTEGER PRIMARY KEY,
-            note_path  TEXT NOT NULL,
+            note_path  TEXT NULL,
             text       TEXT NOT NULL,
             done       BOOL NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
@@ -171,6 +171,14 @@ def migrate_add_done_at(conn: sqlite3.Connection) -> None:
     cols = {row[1] for row in conn.execute("PRAGMA table_info(action_items)").fetchall()}
     if "done_at" not in cols:
         conn.execute("ALTER TABLE action_items ADD COLUMN done_at TEXT NULL")
+        conn.commit()
+
+
+def migrate_add_action_description(conn: sqlite3.Connection) -> None:
+    """Idempotent migration: add 'description' TEXT column to action_items if absent."""
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(action_items)").fetchall()}
+    if "description" not in cols:
+        conn.execute("ALTER TABLE action_items ADD COLUMN description TEXT NULL")
         conn.commit()
 
 
@@ -613,7 +621,7 @@ def _migrate_fk_cascade(conn: sqlite3.Connection) -> None:
             # Base columns always present; extended columns discovered via PRAGMA.
             ai_col_defs = (
                 "id INTEGER PRIMARY KEY, "
-                "note_path TEXT NOT NULL REFERENCES notes(path) ON DELETE CASCADE, "
+                "note_path TEXT NULL REFERENCES notes(path) ON DELETE CASCADE, "
                 "text TEXT NOT NULL, "
                 "done BOOL NOT NULL DEFAULT 0, "
                 "created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"
@@ -625,6 +633,8 @@ def _migrate_fk_cascade(conn: sqlite3.Connection) -> None:
                 extra_defs.append("due_date TEXT NULL")
             if "done_at" in ai_cols:
                 extra_defs.append("done_at TEXT NULL")
+            if "description" in ai_cols:
+                extra_defs.append("description TEXT NULL")
             if extra_defs:
                 ai_col_defs += ", " + ", ".join(extra_defs)
             conn.execute(f"CREATE TABLE action_items ({ai_col_defs})")  # noqa: S608
@@ -653,6 +663,53 @@ def _migrate_fk_cascade(conn: sqlite3.Connection) -> None:
         conn.execute(f"PRAGMA foreign_keys = {original_fk}")  # noqa: S608 — integer value from PRAGMA, not user input
 
     logger.info("_migrate_fk_cascade: FK CASCADE migration complete")
+
+
+def _migrate_action_items_note_path_nullable(conn: sqlite3.Connection) -> None:
+    """Idempotent: make action_items.note_path nullable and convert '' → NULL.
+
+    Handles DBs where _migrate_fk_cascade ran before this fix, leaving
+    note_path as TEXT NOT NULL. Uses rename-recreate because SQLite does not
+    support ALTER COLUMN ... DROP NOT NULL.
+    """
+    info = {row[1]: row[3] for row in conn.execute("PRAGMA table_info(action_items)").fetchall()}
+    # row[3] is the notnull flag: 1 = NOT NULL, 0 = nullable
+    already_nullable = info.get("note_path", 1) == 0
+    if already_nullable:
+        # Still convert any stale empty strings to NULL
+        conn.execute("UPDATE action_items SET note_path=NULL WHERE note_path=''")
+        conn.commit()
+        return
+
+    logger.info("_migrate_action_items_note_path_nullable: making note_path nullable")
+    ai_cols = [row[1] for row in conn.execute("PRAGMA table_info(action_items)").fetchall()]
+    fk_list = conn.execute("PRAGMA foreign_key_list(action_items)").fetchall()
+    has_cascade = any(row[6] == "CASCADE" for row in fk_list)
+    np_ref = "REFERENCES notes(path) ON DELETE CASCADE" if has_cascade else ""
+
+    original_fk = conn.execute("PRAGMA foreign_keys").fetchone()[0]
+    conn.execute("PRAGMA foreign_keys = OFF")
+    try:
+        with conn:
+            conn.execute("ALTER TABLE action_items RENAME TO _ai_np_old")
+            ai_col_defs = (
+                f"id INTEGER PRIMARY KEY, "
+                f"note_path TEXT NULL {np_ref}, "
+                f"text TEXT NOT NULL, "
+                f"done BOOL NOT NULL DEFAULT 0, "
+                f"created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))"
+            )
+            extra_defs = [f"{col} TEXT NULL" for col in ("assignee_path", "due_date", "done_at") if col in ai_cols]
+            if extra_defs:
+                ai_col_defs += ", " + ", ".join(extra_defs)
+            conn.execute(f"CREATE TABLE action_items ({ai_col_defs})")  # noqa: S608
+            col_list = ", ".join(ai_cols)
+            conn.execute(f"INSERT INTO action_items ({col_list}) SELECT {col_list} FROM _ai_np_old")  # noqa: S608
+            conn.execute("DROP TABLE _ai_np_old")
+            conn.execute("UPDATE action_items SET note_path=NULL WHERE note_path=''")
+    finally:
+        conn.execute(f"PRAGMA foreign_keys = {original_fk}")  # noqa: S608 — integer from PRAGMA
+    logger.info("_migrate_action_items_note_path_nullable: complete")
 
 
 def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
@@ -690,8 +747,11 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     migrate_add_status_column(conn)
     migrate_create_person_insights(conn)
     migrate_add_importance_column(conn)
+    migrate_add_action_description(conn)
     # F-10: Add FK CASCADE constraints to note_embeddings, action_items, relationships
     _migrate_fk_cascade(conn)
+    # F-10b: Make action_items.note_path nullable (standalone actions) + '' → NULL cleanup
+    _migrate_action_items_note_path_nullable(conn)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_type ON notes(type)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_url ON notes(url)")
     # idx_notes_people is dropped by migrate_add_note_people_table — do not re-create

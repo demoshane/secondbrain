@@ -2,6 +2,7 @@
 import datetime
 import json
 import os
+import re
 import sqlite3
 import tempfile
 from pathlib import Path
@@ -9,6 +10,35 @@ from pathlib import Path
 import frontmatter
 
 from engine.paths import store_path as _store_path
+
+_TAG_PATTERN = re.compile(r'[^a-z0-9\-äöåüéèêàâùûîïôœæ]')
+
+
+def _sanitize_tags(tags: list) -> list[str]:
+    """Normalise and validate a list of tags. Drops anything that looks like prose.
+
+    Rules:
+    - Convert to lowercase; replace whitespace/underscores with hyphens.
+    - Strip characters outside [a-z0-9-äöåüéèêàâùûîïôœæ].
+    - Drop the tag if it's empty or longer than 40 characters after cleaning
+      (long strings are almost certainly sentences or error messages).
+    - Deduplicate while preserving order.
+    """
+    seen: set[str] = set()
+    result: list[str] = []
+    for tag in tags:
+        if not isinstance(tag, str):
+            continue
+        t = tag.lower().strip()
+        t = re.sub(r'[\s_]+', '-', t)
+        t = _TAG_PATTERN.sub('', t)
+        t = t.strip('-')
+        if len(t) < 2 or len(t) > 40:
+            continue
+        if t not in seen:
+            seen.add(t)
+            result.append(t)
+    return result
 
 # Maps CLI --type value to brain subdirectory name where types differ
 TYPE_TO_DIR: dict[str, str] = {
@@ -183,7 +213,9 @@ def write_note_atomic(
         tmp_fd = None  # fd is now closed by fdopen context manager
 
         # Phase 2: index in DB + audit log — commit before rename
-        tags_json = json.dumps(post.get("tags", []))
+        clean_tags = _sanitize_tags(post.get("tags", []))
+        post["tags"] = clean_tags
+        tags_json = json.dumps(clean_tags)
         people_json = json.dumps(post.get("people", []))
         created_at = post.get("created_at", datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
         updated_at = post.get("updated_at", created_at)
