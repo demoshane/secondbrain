@@ -2693,6 +2693,29 @@ def summarise_url():
         return jsonify({"error": str(exc)}), 500
 
 
+@app.get("/perf/results")
+def perf_list_results():
+    from engine.perf import list_result_dates
+    return jsonify({"dates": list_result_dates()})
+
+
+@app.get("/perf/results/latest")
+def perf_latest():
+    from engine.perf import get_latest_with_previous
+    data = get_latest_with_previous()
+    return jsonify(data)
+
+
+@app.get("/perf/results/<date>")
+def perf_by_date(date: str):
+    from flask import abort
+    from engine.perf import get_result_by_date
+    result = get_result_by_date(date)
+    if result is None:
+        abort(404)
+    return jsonify(result)
+
+
 def startup() -> None:
     """Pre-serve initialization. Call before serve() in any startup path.
 

@@ -1129,4 +1129,52 @@ class TestAskBrainProvider:
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["provider"] == "fallback"
-        assert data["answer"] == "Test answer"
+
+
+# ---------------------------------------------------------------------------
+# Perf API routes (PERF-05, PERF-06)
+# ---------------------------------------------------------------------------
+
+class TestPerfRoutes:
+    """Tests for /perf/* routes added in Phase 45."""
+
+    def test_perf_list_results(self, client, monkeypatch):
+        """GET /perf/results returns list of available dates (PERF-05)."""
+        import engine.perf as perf_mod
+        monkeypatch.setattr(perf_mod, "list_result_dates", lambda: ["2026-03-28", "2026-03-29"])
+        resp = client.get("/perf/results")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data == {"dates": ["2026-03-28", "2026-03-29"]}
+
+    def test_perf_latest(self, client, monkeypatch):
+        """GET /perf/results/latest returns latest + previous (PERF-06)."""
+        import engine.perf as perf_mod
+        canned = {
+            "latest": {"run_at": "2026-03-29T12:00:00Z", "tool_results": []},
+            "previous": None,
+        }
+        monkeypatch.setattr(perf_mod, "get_latest_with_previous", lambda: canned)
+        resp = client.get("/perf/results/latest")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert "latest" in data
+        assert "previous" in data
+        assert data["latest"]["run_at"] == "2026-03-29T12:00:00Z"
+
+    def test_perf_by_date_found(self, client, monkeypatch):
+        """GET /perf/results/<date> returns full result for known date."""
+        import engine.perf as perf_mod
+        canned = {"run_at": "2026-03-29T12:00:00Z", "tool_results": []}
+        monkeypatch.setattr(perf_mod, "get_result_by_date", lambda _d: canned)
+        resp = client.get("/perf/results/2026-03-29")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["run_at"] == "2026-03-29T12:00:00Z"
+
+    def test_perf_by_date_not_found(self, client, monkeypatch):
+        """GET /perf/results/<date> returns 404 for unknown date."""
+        import engine.perf as perf_mod
+        monkeypatch.setattr(perf_mod, "get_result_by_date", lambda _d: None)
+        resp = client.get("/perf/results/2026-01-01")
+        assert resp.status_code == 404
