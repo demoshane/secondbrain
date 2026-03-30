@@ -1085,13 +1085,11 @@ class TestGroqConfig:
     def test_get_groq_settings(self, client, tmp_path, monkeypatch):
         """GET /config/groq-settings returns all_local + groq from config."""
         import engine.paths as _paths
-        import engine.config_loader as _cl
         fake_config = tmp_path / "config.toml"
         fake_config.write_text(
             "[routing]\nall_local = true\n[groq]\nask_brain = true\n"
         )
         monkeypatch.setattr(_paths, "CONFIG_PATH", fake_config)
-        monkeypatch.setattr(_cl, "CONFIG_PATH", fake_config)
         resp = client.get("/config/groq-settings")
         assert resp.status_code == 200
         data = resp.get_json()
@@ -1101,11 +1099,9 @@ class TestGroqConfig:
     def test_put_groq_settings(self, client, tmp_path, monkeypatch):
         """PUT /config/groq-settings persists all_local + groq toggles."""
         import engine.paths as _paths
-        import engine.config_loader as _cl
         fake_config = tmp_path / "config.toml"
         fake_config.write_text("")
         monkeypatch.setattr(_paths, "CONFIG_PATH", fake_config)
-        monkeypatch.setattr(_cl, "CONFIG_PATH", fake_config)
         resp = client.put(
             "/config/groq-settings",
             json={"all_local": True, "groq": {"ask_brain": True, "digest": False}},
