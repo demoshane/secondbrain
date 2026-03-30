@@ -1643,6 +1643,8 @@ def delete_note_endpoint(note_path):
         p, brain_root = _resolve_note_path(note_path)
     except ValueError:
         return jsonify({"error": "Forbidden"}), 403
+    if not p.exists():
+        return jsonify({"error": "Not Found"}), 404
     from engine.delete import delete_note  # lazy import
     conn = get_connection()
     try:

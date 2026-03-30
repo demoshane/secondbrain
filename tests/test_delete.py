@@ -221,7 +221,7 @@ def test_delete_endpoint_404(client, tmp_path, monkeypatch):
     monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
     # Construct a path that is inside brain_root but doesn't exist on disk
     ghost = tmp_path / "does-not-exist.md"
-    response = client.delete(f"/notes/{ghost}")
+    response = client.delete(f"/notes/{str(ghost).lstrip('/')}")
     assert response.status_code == 404, f"Expected 404, got {response.status_code}"
 
 

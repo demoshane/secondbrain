@@ -21,7 +21,7 @@ from engine.forget import forget_person
 from engine.anonymize import anonymize_note
 from engine.intelligence import find_dormant_related, find_similar, get_overdue_actions, list_actions, recap_entity
 from engine.link_capture import fetch_link_metadata
-from engine.paths import BRAIN_ROOT, CONFIG_PATH
+from engine.paths import BRAIN_ROOT, CONFIG_PATH, store_path
 from engine.router import get_adapter
 from engine.search import search_hybrid, search_notes, search_semantic, _apply_filters
 
@@ -256,12 +256,14 @@ def sb_capture(
         # Auto-link as 'similar' when user confirmed despite dedup warning
         import datetime as _dt
         now_ts = _dt.datetime.now(_dt.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
-        for similar_path in similar_paths_for_link:
+        src_path = store_path(path.resolve())
+        for _sp in similar_paths_for_link:
             try:
+                _sp_norm = store_path(Path(_sp).resolve()) if Path(_sp).is_absolute() else _sp
                 conn.execute(
                     "INSERT OR IGNORE INTO relationships "
                     "(source_path, target_path, rel_type, created_at) VALUES (?,?,?,?)",
-                    (str(path), similar_path, "similar", now_ts),
+                    (src_path, _sp_norm, "similar", now_ts),
                 )
             except Exception:
                 pass
@@ -1031,7 +1033,7 @@ def sb_capture_smart(content: str) -> dict:
                     try:
                         conn.execute(
                             "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?, ?, ?)",
-                            (str(note_path), similar_path, "similar"),
+                            (store_path(note_path.resolve()), similar_path, "similar"),
                         )
                     except Exception:
                         pass
@@ -1095,8 +1097,14 @@ def sb_capture_smart(content: str) -> dict:
             })
 
         # Create co-captured relationships between all saved notes
-        paths = [n["path"] for n in saved_notes]
-        for src_path, tgt_path in itertools.combinations(paths, 2):
+        # Normalize to relative paths to satisfy FK constraint on notes.path
+        _norm_paths = []
+        for n in saved_notes:
+            try:
+                _norm_paths.append(store_path(Path(n["path"]).resolve()))
+            except Exception:
+                _norm_paths.append(n["path"])
+        for src_path, tgt_path in itertools.combinations(_norm_paths, 2):
             try:
                 conn.execute(
                     "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?, ?, ?)",

@@ -21,7 +21,7 @@ def isolated_brain(tmp_path, monkeypatch):
     import engine.db
     import engine.paths
 
-    brain_root = tmp_path / "brain"
+    brain_root = tmp_path.resolve() / "brain"
     brain_root.mkdir()
     (brain_root / ".meta").mkdir()
     db_path = brain_root / ".meta" / "brain.db"
@@ -415,7 +415,6 @@ def test_async_hooks_nonblocking_cap06(isolated_brain, monkeypatch):
     assert elapsed < 2.0, f"sb_capture_smart took too long: {elapsed:.2f}s"
 
 
-@pytest.mark.xfail(reason="Pre-existing failure — macOS symlink path mismatch (/var vs /private/var) causes FK constraint failure on co-captured relationship insert. Phase 45 tracks fix.")
 def test_bidirectional_relationships(isolated_brain, monkeypatch):
     """Co-captured notes get co-captured relationships; links include entity resolution paths."""
     import engine.mcp_server as mcp_mod
@@ -836,7 +835,6 @@ class TestSbCaptureDormantResponse:
 class TestSimilarRelationshipAutoLink:
     """sb_capture with confirm_token creates 'similar' relationship."""
 
-    @pytest.mark.xfail(reason="Pre-existing failure — macOS symlink path mismatch causes FK constraint failure on similar relationship insert. Phase 45 tracks fix.")
     def test_similar_relationship_inserted_on_confirm(self, isolated_brain, monkeypatch):
         """Saving with confirm_token after dedup warning creates similar relationship row."""
         import engine.mcp_server as mcp_mod
@@ -854,12 +852,16 @@ class TestSimilarRelationshipAutoLink:
         assert r1["status"] == "created"
         first_path = r1["path"]
 
+        # Normalize first_path to relative — simulates what check_capture_dedup returns
+        # from note_embeddings.note_path (which stores relative paths, matching notes.path)
+        first_rel = engine.paths.store_path(Path(first_path).resolve())
+
         # Patch the binding in mcp_server (direct import) — not cap_mod
         monkeypatch.setattr(
             mcp_mod,
             "check_capture_dedup",
             lambda *a, **kw: [
-                {"path": first_path, "similarity": 0.95, "title": "Alpha Project Search Engine"}
+                {"path": first_rel, "similarity": 0.95, "title": "Alpha Project Search Engine"}
             ],
         )
 
@@ -869,7 +871,7 @@ class TestSimilarRelationshipAutoLink:
         )
         assert r2["status"] == "duplicate_warning"
         token = r2["confirm_token"]
-        similar_path = r2["similar"][0]["path"]
+        similar_path = r2["similar"][0]["path"]  # = first_rel (relative)
 
         # Keep check_capture_dedup mock active — the confirm path re-runs it to find
         # which notes to auto-link as 'similar' (line 180 in mcp_server.py)
@@ -881,12 +883,13 @@ class TestSimilarRelationshipAutoLink:
         )
         assert r3["status"] == "created"
         second_path = r3["path"]
+        second_rel = engine.paths.store_path(Path(second_path).resolve())
 
         conn = get_connection(str(engine.db.DB_PATH))
         row = conn.execute(
             "SELECT rel_type FROM relationships "
             "WHERE source_path=? AND target_path=? AND rel_type='similar'",
-            (second_path, similar_path),
+            (second_rel, similar_path),
         ).fetchone()
         conn.close()
         assert row is not None, "Expected 'similar' relationship between confirmed duplicate notes"
@@ -977,7 +980,6 @@ class TestAsyncBatchHooks:
 # Phase 31-06: Golden-path integration test
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(reason="Pre-existing failure — macOS symlink path mismatch causes FK constraint failure on co-captured relationship insert. Phase 45 tracks fix.")
 def test_smart_capture_golden_path(isolated_brain, monkeypatch):
     """End-to-end: realistic meeting notes blob -> segmented -> saved -> linked."""
     import engine.mcp_server as mcp_mod
