@@ -79,8 +79,8 @@ ASK_BRAIN_SYSTEM_PROMPT = (
 class _RouterShim:
     """Thin wrapper so tests can patch `engine.intelligence._router`."""
 
-    def get_adapter(self, sensitivity: str, config_path):
-        return _get_adapter(sensitivity, config_path)
+    def get_adapter(self, sensitivity: str, config_path, feature: str = ""):
+        return _get_adapter(sensitivity, config_path, feature=feature)
 
 
 _router = _RouterShim()
@@ -1174,7 +1174,9 @@ def ask_brain(question: str, conn) -> dict:
                 if isinstance(adapter._primary, GroqAdapter):
                     return result, "groq"
             return result, "default"
-        except Exception:
+        except Exception as exc:
+            import logging as _logging
+            _logging.getLogger(__name__).warning("_call_adapter(%s) failed: %s", sensitivity, exc)
             return "", "error"
 
     answer_parts: list[str] = []

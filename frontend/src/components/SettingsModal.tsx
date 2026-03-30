@@ -306,8 +306,8 @@ export function SettingsModal({ open, onClose }: Props) {
               {/* Subsection B: All-local toggle */}
               <div className="flex items-center justify-between py-2">
                 <div>
-                  <p className="text-xs font-medium">All-local mode</p>
-                  <p className="text-xs text-muted-foreground">Use local Ollama for everything — full privacy mode</p>
+                  <p className="text-xs font-medium">Local only (Ollama)</p>
+                  <p className="text-xs text-muted-foreground">Route all AI features through local Ollama. Disables Groq and Claude.</p>
                 </div>
                 <Switch
                   checked={allLocal}

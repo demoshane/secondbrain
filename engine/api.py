@@ -20,6 +20,8 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
+_config_write_lock = threading.Lock()  # serialise all config.toml read-modify-write ops
+
 from engine.db import PERSON_TYPES, PERSON_TYPES_PH, _escape_like, get_connection
 import engine.paths as _engine_paths
 from engine.paths import BRAIN_ROOT, store_path
@@ -1149,19 +1151,20 @@ def put_config():
     allowed_routing_keys = {"public_model", "private_model", "pii_model", "fallback_model"}
 
     try:
-        cfg = load_config(CONFIG_PATH)
+        with _config_write_lock:
+            cfg = load_config(CONFIG_PATH)
 
-        if "routing" in data:
-            for k, v in data["routing"].items():
-                if k in allowed_routing_keys:
-                    cfg.setdefault("routing", {})[k] = v
+            if "routing" in data:
+                for k, v in data["routing"].items():
+                    if k in allowed_routing_keys:
+                        cfg.setdefault("routing", {})[k] = v
 
-        if "ollama" in data and "host" in data["ollama"]:
-            cfg.setdefault("ollama", {})["host"] = data["ollama"]["host"]
+            if "ollama" in data and "host" in data["ollama"]:
+                cfg.setdefault("ollama", {})["host"] = data["ollama"]["host"]
 
-        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(CONFIG_PATH, "wb") as f:
-            tomli_w.dump(cfg, f)
+            CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with open(CONFIG_PATH, "wb") as f:
+                tomli_w.dump(cfg, f)
 
         return jsonify({"saved": True})
     except Exception as exc:
@@ -1190,11 +1193,12 @@ def put_action_item_markers():
     if not isinstance(markers, list):
         return jsonify({"error": "custom_markers must be a list"}), 400
     try:
-        cfg = load_config(CONFIG_PATH)
-        cfg.setdefault("action_items", {})["custom_markers"] = markers
-        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(CONFIG_PATH, "wb") as f:
-            tomli_w.dump(cfg, f)
+        with _config_write_lock:
+            cfg = load_config(CONFIG_PATH)
+            cfg.setdefault("action_items", {})["custom_markers"] = markers
+            CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with open(CONFIG_PATH, "wb") as f:
+                tomli_w.dump(cfg, f)
         return jsonify({"saved": True})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
@@ -1219,11 +1223,12 @@ def put_config_me():
     data = request.get_json(force=True, silent=True) or {}
     identity = data.get("identity", "")
     try:
-        cfg = load_config(CONFIG_PATH)
-        cfg.setdefault("user", {})["identity"] = identity
-        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(CONFIG_PATH, "wb") as f:
-            tomli_w.dump(cfg, f)
+        with _config_write_lock:
+            cfg = load_config(CONFIG_PATH)
+            cfg.setdefault("user", {})["identity"] = identity
+            CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with open(CONFIG_PATH, "wb") as f:
+                tomli_w.dump(cfg, f)
         return jsonify({"saved": True})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
@@ -1305,18 +1310,19 @@ def put_groq_settings():
     from engine.paths import CONFIG_PATH
     data = request.get_json(force=True, silent=True) or {}
     try:
-        cfg = load_config(CONFIG_PATH)
-        if "all_local" in data:
-            cfg.setdefault("routing", {})["all_local"] = bool(data["all_local"])
-        allowed_groq_keys = {"ask_brain", "followup_questions", "digest", "person_synthesis"}
-        if "groq" in data and isinstance(data["groq"], dict):
-            groq_section = cfg.setdefault("groq", {})
-            for k, v in data["groq"].items():
-                if k in allowed_groq_keys:
-                    groq_section[k] = bool(v)
-        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(CONFIG_PATH, "wb") as f:
-            tomli_w.dump(cfg, f)
+        with _config_write_lock:
+            cfg = load_config(CONFIG_PATH)
+            if "all_local" in data:
+                cfg.setdefault("routing", {})["all_local"] = bool(data["all_local"])
+            allowed_groq_keys = {"ask_brain", "followup_questions", "digest", "person_synthesis"}
+            if "groq" in data and isinstance(data["groq"], dict):
+                groq_section = cfg.setdefault("groq", {})
+                for k, v in data["groq"].items():
+                    if k in allowed_groq_keys:
+                        groq_section[k] = bool(v)
+            CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with open(CONFIG_PATH, "wb") as f:
+                tomli_w.dump(cfg, f)
         return jsonify({"saved": True})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
