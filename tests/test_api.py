@@ -978,3 +978,159 @@ class TestNoteImportance:
         notes = response.get_json()["notes"]
         if notes:
             assert "importance" in notes[0]
+
+
+class TestGroqConfig:
+    """Tests for GET/POST/DELETE /config/groq, POST /config/groq/test,
+    GET/PUT /config/groq-settings endpoints."""
+
+    def test_get_groq_config_not_configured(self, client):
+        """GET /config/groq returns configured=false when no key in Keychain."""
+        with __import__("unittest.mock", fromlist=["patch"]).patch(
+            "keyring.get_password", return_value=None
+        ):
+            resp = client.get("/config/groq")
+        assert resp.status_code == 200
+        assert resp.get_json() == {"configured": False}
+
+    def test_get_groq_config_configured(self, client):
+        """GET /config/groq returns configured=true when key present."""
+        with __import__("unittest.mock", fromlist=["patch"]).patch(
+            "keyring.get_password", return_value="gsk_test"  # pragma: allowlist secret
+        ):
+            resp = client.get("/config/groq")
+        assert resp.status_code == 200
+        assert resp.get_json() == {"configured": True}
+
+    def test_post_groq_key_valid(self, client):
+        """POST /config/groq with valid key calls set_password and returns ok."""
+        from unittest.mock import patch, MagicMock
+        mock_kr = MagicMock()
+        with patch.dict("sys.modules", {"keyring": mock_kr}):
+            resp = client.post(
+                "/config/groq", json={"api_key": "gsk_test123abc"}  # pragma: allowlist secret
+            )
+        assert resp.status_code == 200
+        assert resp.get_json() == {"ok": True}
+
+    def test_post_groq_key_invalid_prefix(self, client):
+        """POST /config/groq with non-gsk_ key returns 400."""
+        resp = client.post("/config/groq", json={"api_key": "invalid_key"})
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert "error" in data
+        assert "gsk_" in data["error"]
+
+    def test_post_groq_key_empty(self, client):
+        """POST /config/groq with empty api_key returns 400."""
+        resp = client.post("/config/groq", json={"api_key": ""})
+        assert resp.status_code == 400
+        assert "error" in resp.get_json()
+
+    def test_delete_groq_key(self, client):
+        """DELETE /config/groq calls delete_password and returns ok."""
+        from unittest.mock import patch, MagicMock
+        mock_kr = MagicMock()
+        with patch.dict("sys.modules", {"keyring": mock_kr}):
+            resp = client.delete("/config/groq")
+        assert resp.status_code == 200
+        assert resp.get_json() == {"ok": True}
+
+    def test_delete_groq_key_idempotent(self, client):
+        """DELETE /config/groq succeeds even if key was already absent."""
+        import keyring.errors
+        from unittest.mock import patch, MagicMock
+        mock_kr = MagicMock()
+        mock_kr.delete_password.side_effect = keyring.errors.PasswordDeleteError("not found")
+        mock_kr.errors = keyring.errors
+        with patch.dict("sys.modules", {"keyring": mock_kr}):
+            resp = client.delete("/config/groq")
+        assert resp.status_code == 200
+        assert resp.get_json() == {"ok": True}
+
+    def test_post_groq_test_no_key(self, client):
+        """POST /config/groq/test returns ok=false when no key configured."""
+        with __import__("unittest.mock", fromlist=["patch"]).patch(
+            "keyring.get_password", return_value=None
+        ):
+            resp = client.post("/config/groq/test")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["ok"] is False
+        assert "No key" in data["error"]
+
+    def test_post_groq_test_success(self, client):
+        """POST /config/groq/test returns ok=true when httpx succeeds."""
+        from unittest.mock import patch, MagicMock
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        with patch("keyring.get_password", return_value="gsk_test"):  # pragma: allowlist secret
+            with patch("httpx.get", return_value=mock_resp):
+                resp = client.post("/config/groq/test")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["ok"] is True
+
+    def test_post_groq_test_failure(self, client):
+        """POST /config/groq/test returns ok=false when httpx raises."""
+        from unittest.mock import patch
+        with patch("keyring.get_password", return_value="gsk_test"):  # pragma: allowlist secret
+            with patch("httpx.get", side_effect=Exception("connection refused")):
+                resp = client.post("/config/groq/test")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["ok"] is False
+        assert "connection refused" in data["error"]
+
+    def test_get_groq_settings(self, client, tmp_path, monkeypatch):
+        """GET /config/groq-settings returns all_local + groq from config."""
+        import engine.paths as _paths
+        import engine.config_loader as _cl
+        fake_config = tmp_path / "config.toml"
+        fake_config.write_text(
+            "[routing]\nall_local = true\n[groq]\nask_brain = true\n"
+        )
+        monkeypatch.setattr(_paths, "CONFIG_PATH", fake_config)
+        monkeypatch.setattr(_cl, "CONFIG_PATH", fake_config)
+        resp = client.get("/config/groq-settings")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["all_local"] is True
+        assert data["groq"]["ask_brain"] is True
+
+    def test_put_groq_settings(self, client, tmp_path, monkeypatch):
+        """PUT /config/groq-settings persists all_local + groq toggles."""
+        import engine.paths as _paths
+        import engine.config_loader as _cl
+        fake_config = tmp_path / "config.toml"
+        fake_config.write_text("")
+        monkeypatch.setattr(_paths, "CONFIG_PATH", fake_config)
+        monkeypatch.setattr(_cl, "CONFIG_PATH", fake_config)
+        resp = client.put(
+            "/config/groq-settings",
+            json={"all_local": True, "groq": {"ask_brain": True, "digest": False}},
+        )
+        assert resp.status_code == 200
+        assert resp.get_json()["saved"] is True
+        content = fake_config.read_text()
+        assert "all_local" in content
+        assert "ask_brain" in content
+
+
+class TestAskBrainProvider:
+    """Tests that /ask response includes the provider field."""
+
+    def test_ask_brain_provider_field_in_response(self, client):
+        """POST /ask response includes provider field from ask_brain return value."""
+        from unittest.mock import patch
+        mock_result = {
+            "answer": "Test answer",
+            "sources": [],
+            "provider": "fallback",
+        }
+        with patch("engine.intelligence.ask_brain", return_value=mock_result):
+            resp = client.post("/ask", json={"question": "What is x?"})
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["provider"] == "fallback"
+        assert data["answer"] == "Test answer"
