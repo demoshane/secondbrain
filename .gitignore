@@ -26,3 +26,6 @@ engine/gui/static/assets/
 notes-sidebar.png
 sidebar-after.png
 sidebar-final.png
+
+# Node (root-level Playwright install)
+node_modules/

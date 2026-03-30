@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // empty' | { read -r f; echo \"$f\" | grep -q '\\.py$' && pkill -f 'uv run.*sb-api' || true; } 2>/dev/null || true",
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}

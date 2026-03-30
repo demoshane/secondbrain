@@ -29,6 +29,8 @@ If you cannot articulate the "why" and the "big picture", you are not ready to i
 
 **After resolving a bug:** only add to LEARNINGS.md if the rule is **universally applicable** to future work in this project AND not already covered by CLAUDE.md. One-time fixes, generic coding mistakes, and already-fixed code patterns belong in git history, not LEARNINGS.md. Keep the file under 80 lines.
 
+**If a UAT step fails and the issue is reproducible in the GUI:** debug it with Playwright tests directly — no permission prompts needed unless the action is destructive. Fix the issue and re-run until the UAT step passes.
+
 **After implementing any fix or feature:** verify it actually works from the user's point of view before declaring done.
 - Backend changes: run a focused pytest (`-k filter`) or make a direct API call to confirm the behaviour.
 - Frontend changes: use Playwright to exercise the real UI flow — click through the feature, confirm the visible result.
@@ -114,26 +116,9 @@ uv run pytest tests/test_capture.py -x  # single file, stop on first failure
 
 Configure in Claude Desktop: tool prefix `mcp__second-brain__sb_*`.
 
-## v4.0 Milestone (Phases 30–34) — planned
-
-- **Phase 30**: People graph hardening — Unicode entity extraction, people column write-back, `sb_person_context` MCP tool
-- **Phase 31**: Smart capture — `sb_capture_smart` (freeform → typed notes), multi-context segmentation, dormant resurfacing
-- **Phase 32**: Architecture hardening — relative paths in DB, FK cascade, tags junction table, connection safety
-- **Phase 33**: Performance — pagination on all list endpoints, check_connections gate, fast reindex, token budgets
-- **Phase 34**: GUI productivity — interactive action items everywhere, Cmd+K palette, entity page create/delete
-
-## Known architectural issues (tracked in Phase 32)
-
-- DB stores **absolute paths** — moving `~/SecondBrain` orphans the entire index (fix: Phase 32-01)
-- **No FK cascade** — child tables (`action_items`, `relationships`, `note_embeddings`) have no `ON DELETE CASCADE`; application-level cascade in `forget.py` only (fix: Phase 32-02)
-- **Tags stored as JSON TEXT** — tag filter is a full table scan; no indexing (fix: Phase 32-03 adds `note_tags` junction table)
-- **Entity extraction misses non-ASCII names** — `[A-Z][a-z]+` regex in `entities.py` skips Finnish/Nordic names (fix: Phase 30-01)
-
 ## Usage profile
 
 - Primary interface: **MCP via Claude Desktop and Claude Code** (95% of captures). GUI is management-only.
-- People graph is high priority — `sb_person_context` is the key lookup tool once Phase 30 ships.
-- `sb_capture_smart` (Phase 31) will replace manual type selection for freeform capture.
 
 ## Phase execution strategy
 
