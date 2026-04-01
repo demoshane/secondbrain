@@ -17,6 +17,7 @@ function TagBadge({ tag, onClick, onRemove, className }: TagBadgeProps) {
         className
       )}
       onClick={onClick}
+      data-testid={`tag-${tag}`}
     >
       <span className="text-primary/70">#</span>{tag}
       {onRemove && (

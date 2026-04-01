@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Memory & Reliability
-status: Phase 45 complete — ready for Phase 46
-stopped_at: Phase 45 both plans complete, 19/19 tools passing
-last_updated: "2026-03-30"
+status: Phase 40 + 49 closed (already delivered) — remaining v4.0: Phase 42
+stopped_at: Phase 40 verified complete 2026-04-01, only Phase 42 remains in v4.0
+last_updated: "2026-04-01"
 progress:
-  total_phases: 24
-  completed_phases: 17
-  total_plans: 94
-  completed_plans: 93
+  total_phases: 28
+  completed_phases: 24
+  total_plans: 111
+  completed_plans: 106
 ---
 
 # Project State
@@ -22,8 +22,8 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-Phase: 45 (performance-testing-framework) — COMPLETE
-Next: Phase 46 (universal-capture-enrichment)
+Phase: 40 (ui-feature-completeness) — CLOSED (all 5 APIs verified present, tests pass)
+Next: Phase 42 (add-importance-field) — last remaining phase in v4.0
 
 ## Performance Metrics
 
@@ -232,9 +232,12 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-30
-Stopped at: Phase 45 complete — 19/19 sb-perf tools passing, all tests green
+Last session: 2026-04-01
+Stopped at: Phase 49 closed (already delivered in 41.3)
 
 ### Next action
 
-Run /gsd:plan-phase 46 to plan Universal Capture Enrichment.
+v4.0 has 1 remaining phase:
+- Phase 42: Add importance field to notes (3 plans — DB, capture/API, frontend)
+
+Options: `/gsd:discuss-phase 42` to plan and execute, or `/gsd:complete-milestone` to close v4.0 (defer 42 to v5.0).

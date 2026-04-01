@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import json
+from engine.db import _now_utc
 import sys
 import time
 from pathlib import Path
@@ -187,7 +188,13 @@ def _time_tool(fn, *args, **kwargs) -> tuple[float, str | None]:
     try:
         result = fn(*args, **kwargs)
         if asyncio.iscoroutine(result):
-            asyncio.run(result)
+            try:
+                asyncio.get_running_loop()
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    pool.submit(asyncio.run, result).result()
+            except RuntimeError:
+                asyncio.run(result)
         elapsed_ms = (time.monotonic() - start) * 1000.0
         return elapsed_ms, None
     except Exception as exc:
@@ -451,7 +458,7 @@ def run_benchmarks(tool_filter: str | None = None) -> dict:
         all_results = [r for r in all_results if r["tool"] == tool_filter]
 
     return {
-        "run_at": datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "run_at": _now_utc(),
         "tool_results": all_results,
     }
 

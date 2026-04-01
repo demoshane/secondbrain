@@ -5,6 +5,7 @@ The GUI must call this API only — never import engine modules directly.
 """
 import datetime
 import json
+import logging
 import mimetypes
 import os
 import queue
@@ -13,6 +14,8 @@ import sqlite3
 import tempfile
 import threading
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 from pathlib import Path as _Path
 
 import frontmatter as _fm
@@ -20,12 +23,10 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
-_config_write_lock = threading.Lock()  # serialise all config.toml read-modify-write ops
-
-from engine.db import PERSON_TYPES, PERSON_TYPES_PH, _escape_like, get_connection
+from engine.db import PERSON_TYPES, PERSON_TYPES_PH, _escape_like, _json_list, _now_utc, get_connection
 import engine.paths as _engine_paths
 from engine.paths import BRAIN_ROOT, store_path
-from engine.search import search_notes, _apply_filters
+from engine.search import search_hybrid, search_notes, _apply_filters
 from engine.intelligence import list_actions
 from engine.watcher import suppress_next_delete
 
@@ -80,6 +81,9 @@ app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50 MB
 CORS(app, origins=["null", "file://*", "http://127.0.0.1:*", "chrome-extension://*"])
 
+from engine.api_config import config_bp  # noqa: E402
+app.register_blueprint(config_bp)
+
 
 @app.errorhandler(413)
 def request_entity_too_large(e):
@@ -114,7 +118,7 @@ def _broadcast(event: dict) -> None:
             try:
                 q.put_nowait(payload)
             except queue.Full:
-                pass
+                logger.warning("SSE subscriber queue full — event dropped")
 
 
 @app.get("/events")
@@ -147,7 +151,7 @@ def start_note_observer():
     """Start a watchdog observer for the brain directory; broadcast note changes via SSE."""
     from watchdog.observers import Observer
     from engine.watcher import NoteChangeHandler
-    brain_root = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
+    brain_root = str(_engine_paths.BRAIN_ROOT)
     handler = NoteChangeHandler(_broadcast)
     obs = Observer()
     obs.schedule(handler, brain_root, recursive=True)
@@ -203,8 +207,9 @@ def list_notes():
     notes = []
     for r in rows:
         d = dict(r)
-        d["tags"] = json.loads(d.get("tags") or "[]")
+        d["tags"] = _json_list(d.get("tags"))
         d["folder"] = _note_folder(d["path"])
+        d["importance"] = d.get("importance") or "medium"
         notes.append(d)
     return jsonify({"notes": notes, "total": total, "limit": limit, "offset": offset})
 
@@ -260,7 +265,7 @@ def search():
                 for r in rows
             ]
         else:
-            results = search_notes(conn, query)
+            results = search_hybrid(query=query, conn=conn)
             if tags_filter:
                 # F-16: batch IN-clause instead of N+1 per-row queries
                 tags_set = set(tags_filter)
@@ -293,11 +298,28 @@ def search():
     return jsonify({"results": results})
 
 
-def _resolve_note_path(note_path: str) -> tuple[Path, Path]:
-    """Return (abs_path, brain_root). Raises ValueError if path escapes brain_root."""
+class _NP:
+    """Resolved note path carrying absolute, relative, and brain_root forms."""
+    __slots__ = ("absolute", "relative", "brain_root")
+
+    def __init__(self, absolute: Path, relative: str, brain_root: Path):
+        self.absolute = absolute
+        self.relative = relative
+        self.brain_root = brain_root
+
+    # Backward compat: support `p, brain_root = _resolve_note_path(...)`
+    def __iter__(self):
+        return iter((self.absolute, self.brain_root))
+
+
+def _resolve_note_path(note_path: str) -> _NP:
+    """Resolve a Flask URL path to absolute, relative, and brain_root forms.
+
+    Returns an _NP object with .absolute (Path), .relative (str), .brain_root (Path).
+    Also supports tuple unpacking: ``p, brain_root = _resolve_note_path(...)``
+    for backward compatibility.
+    """
     brain_root = Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))).resolve()
-    # Flask <path:> strips the leading '/', so absolute paths arrive without it.
-    # Detect by checking if prepending '/' yields a path inside brain_root.
     if note_path.startswith("/"):
         p = Path(note_path).resolve()
     elif Path("/" + note_path).resolve().is_relative_to(brain_root):
@@ -306,7 +328,7 @@ def _resolve_note_path(note_path: str) -> tuple[Path, Path]:
         p = (brain_root / note_path).resolve()
     if not p.is_relative_to(brain_root):
         raise ValueError("path traversal")
-    return p, brain_root
+    return _NP(absolute=p, relative=str(p.relative_to(brain_root)), brain_root=brain_root)
 
 
 def _resolve_participant(conn, name: str) -> dict:
@@ -320,15 +342,15 @@ def _resolve_participant(conn, name: str) -> dict:
 @app.get("/notes/<path:note_path>")
 def read_note(note_path):
     try:
-        p, _brain_root = _resolve_note_path(note_path)
+        np = _resolve_note_path(note_path)
     except ValueError:
         return jsonify({"error": "Forbidden"}), 403
-    if not p.exists():
+    if not np.absolute.exists():
         return jsonify({"error": "Not found"}), 404
     try:
-        raw = p.read_text(encoding="utf-8")
+        raw = np.absolute.read_text(encoding="utf-8")
         if request.args.get("raw"):
-            return jsonify({"content": raw, "path": store_path(p)})
+            return jsonify({"content": raw, "path": np.relative})
         post = _fm.loads(raw)
         meta = post.metadata or {}
         tags = meta.get("tags", [])
@@ -345,11 +367,11 @@ def read_note(note_path):
                 people = _json.loads(people)
             except Exception:
                 people = []
-        rel_path = store_path(p)
+        rel_path = np.relative
         return jsonify({
             "body": post.content,
             "path": rel_path,
-            "title": meta.get("title", p.stem),
+            "title": meta.get("title", np.absolute.stem),
             "type": meta.get("type", "note"),
             "tags": tags,
             "people": people,
@@ -363,7 +385,6 @@ def read_note(note_path):
 
 
 @app.get("/persons")
-@app.get("/people")  # deprecated alias
 def list_people():
     from engine.people import list_people_with_metrics
     limit = _int_param("limit", 50, min_val=1, max_val=200)
@@ -402,7 +423,7 @@ def list_meetings():
     result = []
     for r in rows:
         try:
-            participants = json.loads(r["people"] or "[]")
+            participants = _json_list(r["people"])
         except Exception:
             participants = []
         result.append({
@@ -418,9 +439,10 @@ def list_meetings():
 @app.get("/meetings/<path:note_path>")
 def get_meeting(note_path):
     try:
-        abs_path, _brain_root = _resolve_note_path(note_path)
+        np = _resolve_note_path(note_path)
+        abs_path = np.absolute
     except ValueError:
-        return jsonify({"error": "forbidden"}), 403
+        return jsonify({"error": "Forbidden"}), 403
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     try:
@@ -428,18 +450,18 @@ def get_meeting(note_path):
             "SELECT path, title, body, people, "
             "  COALESCE(meeting_date, substr(created_at,1,10)) AS meeting_date "
             "FROM notes WHERE path=?",
-            (store_path(abs_path),)
+            (np.relative,)
         ).fetchone()
         if row is None:
-            return jsonify({"error": "not found"}), 404
+            return jsonify({"error": "Not found"}), 404
         try:
-            raw_participants = json.loads(row["people"] or "[]")
+            raw_participants = _json_list(row["people"])
             participants = [_resolve_participant(conn, name) for name in raw_participants]
         except Exception:
             participants = []
         open_actions = conn.execute(
             "SELECT COUNT(*) FROM action_items WHERE note_path=? AND done=0",
-            (store_path(abs_path),)
+            (np.relative,)
         ).fetchone()[0]
     finally:
         conn.close()
@@ -461,7 +483,7 @@ def list_projects():
     conn.row_factory = sqlite3.Row
     try:
         total = conn.execute(
-            "SELECT COUNT(*) FROM notes WHERE type = 'projects'"
+            "SELECT COUNT(*) FROM notes WHERE type IN ('project','projects')"
         ).fetchone()[0]
         rows = conn.execute(
             "SELECT n.path, n.title, n.status, n.deadline, substr(n.updated_at,1,10) AS updated_at, "
@@ -481,19 +503,20 @@ def list_projects():
 @app.get("/projects/<path:note_path>")
 def get_project(note_path):
     try:
-        abs_path, _brain_root = _resolve_note_path(note_path)
+        np = _resolve_note_path(note_path)
+        abs_path = np.absolute
     except ValueError:
-        return jsonify({"error": "forbidden"}), 403
+        return jsonify({"error": "Forbidden"}), 403
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     try:
-        sp = store_path(abs_path)
+        sp = np.relative
         row = conn.execute(
             "SELECT path, title, body, status, deadline, substr(updated_at,1,10) AS updated_at FROM notes WHERE path=?",
             (sp,)
         ).fetchone()
         if row is None:
-            return jsonify({"error": "not found"}), 404
+            return jsonify({"error": "Not found"}), 404
         open_actions = conn.execute(
             "SELECT COUNT(*) FROM action_items WHERE note_path=? AND done=0",
             (sp,)
@@ -540,19 +563,20 @@ def get_project(note_path):
 @app.put("/projects/<path:note_path>/status")
 def update_project_status(note_path):
     try:
-        abs_path, _brain_root = _resolve_note_path(note_path)
+        np = _resolve_note_path(note_path)
+        abs_path = np.absolute
     except ValueError:
-        return jsonify({"error": "forbidden"}), 403
+        return jsonify({"error": "Forbidden"}), 403
     data = request.get_json(force=True) or {}
     status = data.get("status", "")
     if status not in VALID_PROJECT_STATUSES:
         return jsonify({"error": f"status must be one of {sorted(VALID_PROJECT_STATUSES)}"}), 400
     conn = get_connection()
     try:
-        sp = store_path(abs_path)
+        sp = np.relative
         row = conn.execute("SELECT id FROM notes WHERE path=?", (sp,)).fetchone()
         if row is None:
-            return jsonify({"error": "not found"}), 404
+            return jsonify({"error": "Not found"}), 404
         conn.execute(
             "UPDATE notes SET status=?, updated_at=strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE path=?",
             (status, sp),
@@ -567,19 +591,20 @@ def update_project_status(note_path):
 @app.put("/notes/<path:note_path>/importance")
 def update_note_importance(note_path):
     try:
-        abs_path, _brain_root = _resolve_note_path(note_path)
+        np = _resolve_note_path(note_path)
+        abs_path = np.absolute
     except ValueError:
-        return jsonify({"error": "forbidden"}), 403
+        return jsonify({"error": "Forbidden"}), 403
     data = request.get_json(force=True) or {}
     importance = data.get("importance", "")
     if importance not in VALID_IMPORTANCE_VALUES:
         return jsonify({"error": "importance must be low, medium, or high"}), 400
     conn = get_connection()
     try:
-        sp = store_path(abs_path)
+        sp = np.relative
         row = conn.execute("SELECT id FROM notes WHERE path=?", (sp,)).fetchone()
         if row is None:
-            return jsonify({"error": "not found"}), 404
+            return jsonify({"error": "Not found"}), 404
         conn.execute(
             "UPDATE notes SET importance=?, updated_at=strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE path=?",
             (importance, sp),
@@ -606,21 +631,22 @@ def link_meeting_to_project(note_path):
         return jsonify({"error": "meeting_path is required"}), 400
 
     try:
-        abs_path, _brain_root = _resolve_note_path(note_path)
+        np = _resolve_note_path(note_path)
+        abs_path = np.absolute
     except ValueError:
-        return jsonify({"error": "forbidden"}), 403
+        return jsonify({"error": "Forbidden"}), 403
 
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     try:
-        sp = store_path(abs_path)
+        sp = np.relative
         proj = conn.execute(
-            "SELECT path, type FROM notes WHERE path=? AND type='projects'", (sp,)
+            "SELECT path, type FROM notes WHERE path=? AND type IN ('project','projects')", (sp,)
         ).fetchone()
         if not proj and sp != str(abs_path):
             # Fallback for pre-Phase-32 DBs that store absolute paths
             proj = conn.execute(
-                "SELECT path, type FROM notes WHERE path=? AND type='projects'", (str(abs_path),)
+                "SELECT path, type FROM notes WHERE path=? AND type IN ('project','projects')", (str(abs_path),)
             ).fetchone()
             if proj:
                 sp = str(abs_path)
@@ -630,15 +656,16 @@ def link_meeting_to_project(note_path):
             ).fetchone()
             if proj_any:
                 return jsonify({
-                    "error": f"Note found at '{sp}' but has wrong type '{proj_any['type']}' (expected 'projects')"
+                    "error": f"Note found at '{sp}' but has wrong type '{proj_any['type']}' (expected 'project')"
                 }), 404
             return jsonify({"error": f"Project not found: {sp}"}), 404
 
         try:
-            abs_mtg, _brain_root2 = _resolve_note_path(meeting_path)
-            meeting_sp = store_path(abs_mtg)
+            np_mtg = _resolve_note_path(meeting_path)
+            abs_mtg = np_mtg.absolute
+            meeting_sp = np_mtg.relative
         except ValueError:
-            return jsonify({"error": "forbidden"}), 403
+            return jsonify({"error": "Forbidden"}), 403
 
         # Try relative path first; fall back to raw meeting_path for pre-Phase-32 absolute-path DBs
         mtg = conn.execute(
@@ -686,12 +713,14 @@ def link_meeting_to_project(note_path):
 def unlink_meeting_from_project(project_path, meeting_path):
     """Remove a meeting↔project relationship."""
     try:
-        abs_proj, _ = _resolve_note_path(project_path)
-        abs_mtg, _ = _resolve_note_path(meeting_path)
+        np_proj = _resolve_note_path(project_path)
+        abs_proj = np_proj.absolute
+        np_mtg = _resolve_note_path(meeting_path)
+        abs_mtg = np_mtg.absolute
     except ValueError:
-        return jsonify({"error": "forbidden"}), 403
-    sp = store_path(abs_proj)
-    mp = store_path(abs_mtg)
+        return jsonify({"error": "Forbidden"}), 403
+    sp = np_proj.relative
+    mp = np_mtg.relative
     conn = get_connection()
     try:
         conn.execute(
@@ -728,7 +757,6 @@ def delete_relationship():
 
 
 @app.post("/persons")
-@app.post("/people")  # deprecated alias
 def create_person():
     data = request.get_json(force=True) or {}
     name = data.get("name", "").strip()
@@ -741,7 +769,16 @@ def create_person():
     conn = get_connection()
     try:
         init_schema(conn)
-        brain_root = Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain")))
+        brain_root = _engine_paths.BRAIN_ROOT
+
+        # Check if person already exists (prevent duplicates from ensure_person_profile)
+        existing = conn.execute(
+            "SELECT path FROM notes WHERE type='person' AND LOWER(title)=LOWER(?)",
+            (name,),
+        ).fetchone()
+        if existing:
+            return jsonify({"error": "Person already exists", "path": existing[0]}), 409
+
         result_path = capture_note(
             note_type="person",
             title=name,
@@ -755,7 +792,7 @@ def create_person():
     finally:
         conn.close()
     _broadcast({"type": "notes_changed"})
-    return jsonify({"path": str(result_path)}), 201
+    return jsonify({"path": store_path(result_path.resolve())}), 201
 
 
 @app.post("/meetings")
@@ -769,7 +806,7 @@ def create_meeting():
     conn = get_connection()
     try:
         init_schema(conn)
-        brain_root = Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain")))
+        brain_root = _engine_paths.BRAIN_ROOT
         result_path = capture_note(
             note_type="meeting",
             title=name,
@@ -783,7 +820,7 @@ def create_meeting():
     finally:
         conn.close()
     _broadcast({"type": "notes_changed"})
-    return jsonify({"path": str(result_path)}), 201
+    return jsonify({"path": store_path(result_path.resolve())}), 201
 
 
 @app.post("/projects")
@@ -797,9 +834,18 @@ def create_project():
     conn = get_connection()
     try:
         init_schema(conn)
-        brain_root = Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain")))
+        brain_root = _engine_paths.BRAIN_ROOT
+
+        # Check if project already exists (prevent duplicates)
+        existing = conn.execute(
+            "SELECT path FROM notes WHERE type IN ('project','projects') AND LOWER(title)=LOWER(?)",
+            (name,),
+        ).fetchone()
+        if existing:
+            return jsonify({"error": "Project already exists", "path": existing[0]}), 409
+
         result_path = capture_note(
-            note_type="projects",
+            note_type="project",
             title=name,
             body="",
             tags=[],
@@ -811,17 +857,17 @@ def create_project():
     finally:
         conn.close()
     _broadcast({"type": "notes_changed"})
-    return jsonify({"path": str(result_path)}), 201
+    return jsonify({"path": store_path(result_path.resolve())}), 201
 
 
 @app.get("/persons/<path:note_path>/links")
-@app.get("/people/<path:note_path>/links")  # deprecated alias
 def get_person_links(note_path):
     try:
-        abs_path, _brain_root = _resolve_note_path(note_path)
+        np = _resolve_note_path(note_path)
+        abs_path = np.absolute
     except ValueError:
         return jsonify({"error": "Forbidden"}), 403
-    path_str = store_path(abs_path)
+    path_str = np.relative
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     try:
@@ -848,16 +894,17 @@ def get_person_links(note_path):
 @app.get("/persons/<path:note_path>/insight")
 def get_person_insight(note_path):
     try:
-        abs_path, _brain_root = _resolve_note_path(note_path)
+        np = _resolve_note_path(note_path)
+        abs_path = np.absolute
     except ValueError:
-        return jsonify({"error": "forbidden"}), 403
+        return jsonify({"error": "Forbidden"}), 403
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     try:
-        sp = store_path(abs_path)
+        sp = np.relative
         row = conn.execute("SELECT type FROM notes WHERE path=?", (sp,)).fetchone()
         if row is None:
-            return jsonify({"error": "not found"}), 404
+            return jsonify({"error": "Not found"}), 404
         if row["type"] not in ("person",):
             return jsonify({"error": "not a person note"}), 400
         force = request.args.get("force", "0") == "1"
@@ -869,13 +916,14 @@ def get_person_insight(note_path):
 
 
 @app.delete("/persons/<path:note_path>")
-@app.delete("/people/<path:note_path>")  # deprecated alias
 def delete_person(note_path):
     try:
-        abs_path, brain_root = _resolve_note_path(note_path)
+        np = _resolve_note_path(note_path)
+        abs_path = np.absolute
+        brain_root = np.brain_root
     except ValueError:
         return jsonify({"error": "Forbidden"}), 403
-    path_str = store_path(abs_path)
+    path_str = np.relative
     conn = get_connection()
     try:
         # Clear assignee references before delete (avoids orphan FK refs)
@@ -883,8 +931,12 @@ def delete_person(note_path):
             "UPDATE action_items SET assignee_path = NULL WHERE assignee_path = ?",
             (path_str,)
         )
-        # Remove from note_people junction (person column stores path or name)
+        # Remove from note_people junction — person column stores path or display name
+        # Look up the person's title for name-format cleanup
+        _title_row = conn.execute("SELECT title FROM notes WHERE path = ?", (path_str,)).fetchone()
         conn.execute("DELETE FROM note_people WHERE person = ?", (path_str,))
+        if _title_row and _title_row[0]:
+            conn.execute("DELETE FROM note_people WHERE LOWER(person) = LOWER(?)", (_title_row[0],))
         conn.commit()
         from engine.delete import delete_note
         result = delete_note(abs_path, conn, brain_root)
@@ -899,7 +951,9 @@ def delete_person(note_path):
 @app.delete("/meetings/<path:note_path>")
 def delete_meeting(note_path):
     try:
-        abs_path, brain_root = _resolve_note_path(note_path)
+        np = _resolve_note_path(note_path)
+        abs_path = np.absolute
+        brain_root = np.brain_root
     except ValueError:
         return jsonify({"error": "Forbidden"}), 403
     conn = get_connection()
@@ -917,7 +971,9 @@ def delete_meeting(note_path):
 @app.delete("/projects/<path:note_path>")
 def delete_project(note_path):
     try:
-        abs_path, brain_root = _resolve_note_path(note_path)
+        np = _resolve_note_path(note_path)
+        abs_path = np.absolute
+        brain_root = np.brain_root
     except ValueError:
         return jsonify({"error": "Forbidden"}), 403
     conn = get_connection()
@@ -964,7 +1020,7 @@ def list_links():
             "url": r["url"] or "",
             "domain": domain,
             "date": r["date"] or "",
-            "tags": json.loads(r["tags"] or "[]"),
+            "tags": _json_list(r["tags"]),
             "description": r["description"] or "",
         })
     return jsonify({"links": result, "total": total_count})
@@ -974,21 +1030,22 @@ def list_links():
 def get_link(note_path):
     from urllib.parse import urlparse
     try:
-        abs_path, _brain_root = _resolve_note_path(note_path)
+        np = _resolve_note_path(note_path)
+        abs_path = np.absolute
     except ValueError:
-        return jsonify({"error": "forbidden"}), 403
+        return jsonify({"error": "Forbidden"}), 403
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     try:
         row = conn.execute(
             "SELECT path, title, url, body, substr(created_at,1,10) AS date, tags "
             "FROM notes WHERE path=? AND type='link'",
-            (store_path(abs_path),)
+            (np.relative,)
         ).fetchone()
     finally:
         conn.close()
     if row is None:
-        return jsonify({"error": "not found"}), 404
+        return jsonify({"error": "Not found"}), 404
     domain = ""
     if row["url"]:
         parsed = urlparse(row["url"])
@@ -1000,7 +1057,7 @@ def get_link(note_path):
         "domain": domain,
         "body": row["body"] or "",
         "date": row["date"] or "",
-        "tags": json.loads(row["tags"] or "[]"),
+        "tags": _json_list(row["tags"]),
     })
 
 
@@ -1096,238 +1153,6 @@ def get_actions_grouped():
     return jsonify({"groups": groups, "total": len(actions)})
 
 
-_PREFS_FILE = _Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))) / ".sb-gui-prefs.json"
-
-
-def _get_prefs_path() -> _Path:
-    """Return the prefs file path, resolved at call time to respect BRAIN_PATH changes in tests."""
-    brain = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
-    return _Path(brain) / ".sb-gui-prefs.json"
-
-
-@app.get("/ui/prefs")
-def get_prefs():
-    p = _get_prefs_path()
-    if p.exists():
-        try:
-            return jsonify(json.loads(p.read_text(encoding="utf-8")))
-        except Exception:
-            pass
-    return jsonify({})
-
-
-@app.put("/ui/prefs")
-def put_prefs():
-    data = request.get_json(force=True) or {}
-    p = _get_prefs_path()
-    try:
-        p.write_text(json.dumps(data), encoding="utf-8")
-        return jsonify({"saved": True})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.get("/config")
-def get_config():
-    """Return the user-editable AI routing config (narrow: routing + ollama + models)."""
-    from engine.config_loader import load_config
-    from engine.paths import CONFIG_PATH
-    cfg = load_config(CONFIG_PATH)
-    return jsonify({
-        "routing": cfg.get("routing", {}),
-        "ollama": cfg.get("ollama", {}),
-        "models": cfg.get("models", {}),
-    })
-
-
-@app.put("/config")
-def put_config():
-    """Persist changes to routing.* and ollama.* in config.toml. Other sections untouched."""
-    import tomli_w
-    from engine.config_loader import load_config
-    from engine.paths import CONFIG_PATH
-
-    data = request.get_json(force=True, silent=True) or {}
-    allowed_routing_keys = {"public_model", "private_model", "pii_model", "fallback_model"}
-
-    try:
-        with _config_write_lock:
-            cfg = load_config(CONFIG_PATH)
-
-            if "routing" in data:
-                for k, v in data["routing"].items():
-                    if k in allowed_routing_keys:
-                        cfg.setdefault("routing", {})[k] = v
-
-            if "ollama" in data and "host" in data["ollama"]:
-                cfg.setdefault("ollama", {})["host"] = data["ollama"]["host"]
-
-            CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-            with open(CONFIG_PATH, "wb") as f:
-                tomli_w.dump(cfg, f)
-
-        return jsonify({"saved": True})
-    except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
-
-
-@app.get("/config/action-item-markers")
-def get_action_item_markers():
-    """Return current custom action-item markers + built-in defaults."""
-    from engine.config_loader import load_config
-    from engine.passes.p4_actions import DEFAULT_MARKERS
-    from engine.paths import CONFIG_PATH
-    config = load_config(CONFIG_PATH)
-    markers = config.get("action_items", {}).get("custom_markers", [])
-    return jsonify({"custom_markers": markers, "defaults": DEFAULT_MARKERS})
-
-
-@app.put("/config/action-item-markers")
-def put_action_item_markers():
-    """Persist custom action-item markers to config.toml [action_items] section."""
-    import tomli_w
-    from engine.config_loader import load_config
-    from engine.paths import CONFIG_PATH
-    data = request.get_json(force=True, silent=True) or {}
-    markers = data.get("custom_markers", [])
-    if not isinstance(markers, list):
-        return jsonify({"error": "custom_markers must be a list"}), 400
-    try:
-        with _config_write_lock:
-            cfg = load_config(CONFIG_PATH)
-            cfg.setdefault("action_items", {})["custom_markers"] = markers
-            CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-            with open(CONFIG_PATH, "wb") as f:
-                tomli_w.dump(cfg, f)
-        return jsonify({"saved": True})
-    except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
-
-
-@app.get("/config/me")
-def get_config_me():
-    """Return the configured user identity (path to person note)."""
-    from engine.config_loader import load_config
-    from engine.paths import CONFIG_PATH
-    cfg = load_config(CONFIG_PATH)
-    identity = cfg.get("user", {}).get("identity", "")
-    return jsonify({"identity": identity})
-
-
-@app.put("/config/me")
-def put_config_me():
-    """Persist user identity (me person path) to config.toml [user] section."""
-    import tomli_w
-    from engine.config_loader import load_config
-    from engine.paths import CONFIG_PATH
-    data = request.get_json(force=True, silent=True) or {}
-    identity = data.get("identity", "")
-    try:
-        with _config_write_lock:
-            cfg = load_config(CONFIG_PATH)
-            cfg.setdefault("user", {})["identity"] = identity
-            CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-            with open(CONFIG_PATH, "wb") as f:
-                tomli_w.dump(cfg, f)
-        return jsonify({"saved": True})
-    except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
-
-
-# --- Groq / AI provider config ---
-
-@app.get("/config/groq")
-def get_groq_config():
-    """Return whether a Groq API key is stored in the macOS Keychain."""
-    import keyring as _kr
-    configured = _kr.get_password("second-brain", "groq_api_key") is not None
-    return jsonify({"configured": configured})
-
-
-@app.post("/config/groq")
-def save_groq_key():
-    """Save a Groq API key to the macOS Keychain."""
-    import keyring as _kr
-    data = request.get_json(force=True, silent=True) or {}
-    api_key = (data.get("api_key") or "").strip()
-    if not api_key or not api_key.startswith("gsk_"):
-        return jsonify({"error": "Key format invalid \u2014 Groq keys start with gsk_"}), 400
-    _kr.set_password("second-brain", "groq_api_key", api_key)
-    return jsonify({"ok": True})
-
-
-@app.delete("/config/groq")
-def delete_groq_key():
-    """Remove the Groq API key from the macOS Keychain (idempotent)."""
-    import keyring as _kr
-    try:
-        _kr.delete_password("second-brain", "groq_api_key")
-    except _kr.errors.PasswordDeleteError:
-        pass
-    return jsonify({"ok": True})
-
-
-@app.post("/config/groq/test")
-def test_groq_connection():
-    """Test the stored Groq API key by calling the models endpoint."""
-    import keyring as _kr
-    import httpx
-    key = _kr.get_password("second-brain", "groq_api_key")
-    if not key:
-        return jsonify({"ok": False, "error": "No key configured"})
-    try:
-        resp = httpx.get(
-            "https://api.groq.com/openai/v1/models",
-            headers={"Authorization": f"Bearer {key}"},
-            timeout=10.0,
-        )
-        resp.raise_for_status()
-        return jsonify({"ok": True, "error": None})
-    except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)})
-
-
-@app.get("/config/groq-settings")
-def get_groq_settings():
-    """Return all_local toggle and groq feature toggles from config.toml."""
-    from engine.config_loader import load_config
-    from engine.paths import CONFIG_PATH
-    cfg = load_config(CONFIG_PATH)
-    return jsonify({
-        "all_local": cfg.get("routing", {}).get("all_local", False),
-        "groq": cfg.get("groq", {
-            "ask_brain": False, "followup_questions": False,
-            "digest": False, "person_synthesis": False,
-        }),
-    })
-
-
-@app.put("/config/groq-settings")
-def put_groq_settings():
-    """Persist all_local and groq feature toggles to config.toml."""
-    import tomli_w
-    from engine.config_loader import load_config
-    from engine.paths import CONFIG_PATH
-    data = request.get_json(force=True, silent=True) or {}
-    try:
-        with _config_write_lock:
-            cfg = load_config(CONFIG_PATH)
-            if "all_local" in data:
-                cfg.setdefault("routing", {})["all_local"] = bool(data["all_local"])
-            allowed_groq_keys = {"ask_brain", "followup_questions", "digest", "person_synthesis"}
-            if "groq" in data and isinstance(data["groq"], dict):
-                groq_section = cfg.setdefault("groq", {})
-                for k, v in data["groq"].items():
-                    if k in allowed_groq_keys:
-                        groq_section[k] = bool(v)
-            CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-            with open(CONFIG_PATH, "wb") as f:
-                tomli_w.dump(cfg, f)
-        return jsonify({"saved": True})
-    except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
-
-
 @app.get("/ui")
 def gui_shell():
     html = (_STATIC_DIR / "index.html").read_text(encoding="utf-8")
@@ -1343,10 +1168,46 @@ def gui_static(filename):
     return flask.send_from_directory(str(_STATIC_DIR), filename)
 
 
+def _atomic_save(p: Path, updated_text: str, db_fn) -> None:
+    """DB-first atomic save: write temp, commit DB, then rename file.
+
+    Args:
+        p: Target note file path.
+        updated_text: Full file content to write.
+        db_fn: Callable(conn) that executes DB updates (without committing).
+
+    Raises on DB or file failure; cleans up temp file on error.
+    """
+    tmp = None
+    try:
+        with tempfile.NamedTemporaryFile("w", dir=p.parent, delete=False, suffix=".tmp", encoding="utf-8") as f:
+            f.write(updated_text)
+            tmp = f.name
+        conn = get_connection()
+        try:
+            db_fn(conn)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+        suppress_next_delete(str(p))
+        os.replace(tmp, p)
+        tmp = None  # rename succeeded; nothing to clean up
+    finally:
+        if tmp is not None:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+
+
 @app.put("/notes/<path:note_path>")
 def save_note(note_path):
     try:
-        p, _brain_root = _resolve_note_path(note_path)
+        np = _resolve_note_path(note_path)
+        p = np.absolute
     except ValueError:
         return jsonify({"error": "Forbidden"}), 403
     if not p.exists():
@@ -1359,22 +1220,11 @@ def save_note(note_path):
         raw = p.read_text(encoding="utf-8")
         post = _fm.loads(raw)
         post.metadata["title"] = title_val
-        updated_text = _fm.dumps(post)
-        with tempfile.NamedTemporaryFile("w", dir=p.parent, delete=False, suffix=".tmp", encoding="utf-8") as f:
-            f.write(updated_text)
-            tmp = f.name
-        suppress_next_delete(str(p))
-        os.replace(tmp, p)
         now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
-        conn = get_connection()
-        try:
-            conn.execute(
-                "UPDATE notes SET title=?, updated_at=? WHERE path=?",
-                (title_val, now, store_path(p))
-            )
-            conn.commit()
-        finally:
-            conn.close()
+        _atomic_save(p, _fm.dumps(post), lambda conn: conn.execute(
+            "UPDATE notes SET title=?, updated_at=? WHERE path=?",
+            (title_val, now, np.relative)
+        ))
         return jsonify({"saved": True, "path": str(p)})
 
     # Body-only branch: when "body" present and "content"/"tags"/"title" absent
@@ -1383,76 +1233,40 @@ def save_note(note_path):
         raw = p.read_text(encoding="utf-8")
         post = _fm.loads(raw)
         post.content = body_val
-        updated_text = _fm.dumps(post)
-        with tempfile.NamedTemporaryFile("w", dir=p.parent, delete=False, suffix=".tmp", encoding="utf-8") as f:
-            f.write(updated_text)
-            tmp = f.name
-        suppress_next_delete(str(p))
-        os.replace(tmp, p)
         now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
-        conn = get_connection()
-        try:
-            conn.execute(
-                "UPDATE notes SET body=?, updated_at=? WHERE path=?",
-                (body_val, now, store_path(p))
-            )
-            conn.commit()
-        finally:
-            conn.close()
+        _atomic_save(p, _fm.dumps(post), lambda conn: conn.execute(
+            "UPDATE notes SET body=?, updated_at=? WHERE path=?",
+            (body_val, now, np.relative)
+        ))
         return jsonify({"saved": True, "path": str(p)})
 
     # Tags-only branch: when "tags" present and "content" absent, update frontmatter + DB only
+    # Junction table (note_tags) auto-synced by SQLite trigger on UPDATE OF tags.
     tags_val = body.get("tags")
     if tags_val is not None and "content" not in body:
         raw = p.read_text(encoding="utf-8")
         post = _fm.loads(raw)
         post.metadata["tags"] = tags_val
-        updated_text = _fm.dumps(post)
-        with tempfile.NamedTemporaryFile("w", dir=p.parent, delete=False, suffix=".tmp", encoding="utf-8") as f:
-            f.write(updated_text)
-            tmp = f.name
-        suppress_next_delete(str(p))
-        os.replace(tmp, p)
         now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
-        conn = get_connection()
-        try:
-            conn.execute(
-                "UPDATE notes SET tags=?, updated_at=? WHERE path=?",
-                (json.dumps(tags_val), now, store_path(p))
-            )
-            conn.commit()
-        finally:
-            conn.close()
+        path_str = np.relative
+        _atomic_save(p, _fm.dumps(post), lambda conn: conn.execute(
+            "UPDATE notes SET tags=?, updated_at=? WHERE path=?",
+            (json.dumps(tags_val), now, path_str)
+        ))
         return jsonify({"saved": True, "path": str(p)})
 
+    # People-only branch: junction table (note_people) auto-synced by SQLite trigger.
     people_val = body.get("people")
     if people_val is not None and "content" not in body and "tags" not in body and "title" not in body:
         raw = p.read_text(encoding="utf-8")
         post = _fm.loads(raw)
         post.metadata["people"] = people_val
-        updated_text = _fm.dumps(post)
-        with tempfile.NamedTemporaryFile("w", dir=p.parent, delete=False, suffix=".tmp", encoding="utf-8") as f:
-            f.write(updated_text)
-            tmp = f.name
-        suppress_next_delete(str(p))
-        os.replace(tmp, p)
         now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
-        path_str = store_path(p)
-        conn = get_connection()
-        try:
-            conn.execute(
-                "UPDATE notes SET people=?, updated_at=? WHERE path=?",
-                (json.dumps(people_val), now, path_str)
-            )
-            conn.execute("DELETE FROM note_people WHERE note_path=?", (path_str,))
-            for person in people_val:
-                conn.execute(
-                    "INSERT OR IGNORE INTO note_people (note_path, person) VALUES (?, ?)",
-                    (path_str, person)
-                )
-            conn.commit()
-        finally:
-            conn.close()
+        path_str = np.relative
+        _atomic_save(p, _fm.dumps(post), lambda conn: conn.execute(
+            "UPDATE notes SET people=?, updated_at=? WHERE path=?",
+            (json.dumps(people_val), now, path_str)
+        ))
         return jsonify({"saved": True, "path": str(p)})
 
     # Deadline branch: update deadline on project notes (or any note)
@@ -1461,22 +1275,11 @@ def save_note(note_path):
         raw = p.read_text(encoding="utf-8")
         post = _fm.loads(raw)
         post.metadata["deadline"] = deadline_val
-        updated_text = _fm.dumps(post)
-        with tempfile.NamedTemporaryFile("w", dir=p.parent, delete=False, suffix=".tmp", encoding="utf-8") as f:
-            f.write(updated_text)
-            tmp = f.name
-        suppress_next_delete(str(p))
-        os.replace(tmp, p)
         now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
-        conn = get_connection()
-        try:
-            conn.execute(
-                "UPDATE notes SET deadline=?, updated_at=? WHERE path=?",
-                (deadline_val, now, store_path(p))
-            )
-            conn.commit()
-        finally:
-            conn.close()
+        _atomic_save(p, _fm.dumps(post), lambda conn: conn.execute(
+            "UPDATE notes SET deadline=?, updated_at=? WHERE path=?",
+            (deadline_val, now, np.relative)
+        ))
         return jsonify({"saved": True, "path": str(p)})
 
     # Meeting date branch: update meeting_date on meeting notes
@@ -1485,22 +1288,11 @@ def save_note(note_path):
         raw = p.read_text(encoding="utf-8")
         post = _fm.loads(raw)
         post.metadata["meeting_date"] = meeting_date_val
-        updated_text = _fm.dumps(post)
-        with tempfile.NamedTemporaryFile("w", dir=p.parent, delete=False, suffix=".tmp", encoding="utf-8") as f:
-            f.write(updated_text)
-            tmp = f.name
-        suppress_next_delete(str(p))
-        os.replace(tmp, p)
         now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
-        conn = get_connection()
-        try:
-            conn.execute(
-                "UPDATE notes SET meeting_date=?, updated_at=? WHERE path=?",
-                (meeting_date_val, now, store_path(p))
-            )
-            conn.commit()
-        finally:
-            conn.close()
+        _atomic_save(p, _fm.dumps(post), lambda conn: conn.execute(
+            "UPDATE notes SET meeting_date=?, updated_at=? WHERE path=?",
+            (meeting_date_val, now, np.relative)
+        ))
         return jsonify({"saved": True, "path": str(p)})
 
     # Title+Body combined branch: update both title and body preserving all other frontmatter
@@ -1511,44 +1303,22 @@ def save_note(note_path):
         post = _fm.loads(raw)
         post.metadata["title"] = title_b
         post.content = body_b
-        updated_text = _fm.dumps(post)
-        with tempfile.NamedTemporaryFile("w", dir=p.parent, delete=False, suffix=".tmp", encoding="utf-8") as f:
-            f.write(updated_text)
-            tmp = f.name
-        suppress_next_delete(str(p))
-        os.replace(tmp, p)
         now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
-        path_str = store_path(p)
-        conn = get_connection()
-        try:
-            conn.execute(
-                "UPDATE notes SET title=?, body=?, updated_at=? WHERE path=?",
-                (title_b, body_b, now, path_str)
-            )
-            conn.commit()
-        finally:
-            conn.close()
+        path_str = np.relative
+        _atomic_save(p, _fm.dumps(post), lambda conn: conn.execute(
+            "UPDATE notes SET title=?, body=?, updated_at=? WHERE path=?",
+            (title_b, body_b, now, path_str)
+        ))
         return jsonify({"saved": True, "path": str(p)})
 
     content = body.get("content", "")
-    with tempfile.NamedTemporaryFile("w", dir=p.parent, delete=False, suffix=".tmp", encoding="utf-8") as f:
-        f.write(content)
-        tmp = f.name
-    suppress_next_delete(str(p))
-    os.replace(tmp, p)
-    saved_text = p.read_text(encoding="utf-8")
-    post = _fm.loads(saved_text)
+    post = _fm.loads(content)
     title = post.metadata.get("title", p.stem)
     now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
-    conn = get_connection()
-    try:
-        conn.execute(
-            "UPDATE notes SET title=?, updated_at=? WHERE path=?",
-            (title, now, store_path(p))
-        )
-        conn.commit()
-    finally:
-        conn.close()
+    _atomic_save(p, content, lambda conn: conn.execute(
+        "UPDATE notes SET title=?, updated_at=? WHERE path=?",
+        (title, now, np.relative)
+    ))
     return jsonify({"saved": True, "path": str(p)})
 
 
@@ -1556,7 +1326,8 @@ def save_note(note_path):
 def rename_note_route(note_path):
     from engine.rename import rename_note
     try:
-        p, _brain_root = _resolve_note_path(note_path)
+        np = _resolve_note_path(note_path)
+        p = np.absolute
     except ValueError:
         return jsonify({"error": "Forbidden"}), 403
     if not p.exists():
@@ -1588,53 +1359,35 @@ VALID_NOTE_TYPES = {
 
 @app.post("/notes")
 def create_note():
-    body = request.get_json(force=True) or {}
-    title = body.get("title", "untitled")
-    note_type = body.get("type", "idea")
-    note_body = body.get("body", "")
-    brain_path = body.get("brain_path", "") or str(BRAIN_ROOT)
-    source_url = body.get("source_url", "")
+    data = request.get_json(force=True) or {}
+    title = data.get("title", "untitled")
+    note_type = data.get("type", "idea")
+    note_body = data.get("body", "")
+    source_url = data.get("source_url", "")
     if note_type not in VALID_NOTE_TYPES:
         return jsonify({"error": f"invalid note type: {note_type!r}"}), 400
-    import datetime
-    slug = datetime.date.today().isoformat() + "-" + title[:40].replace(" ", "-").lower()
-    subdir = "ideas" if note_type == "idea" else note_type
-    brain_root = _Path(brain_path).resolve()
-    target = brain_root / subdir / f"{slug}.md"
-    # Resolve slug collision: append a counter if the target already exists
-    if target.exists():
-        counter = 1
-        while target.exists():
-            target = brain_root / subdir / f"{slug}-{counter}.md"
-            counter += 1
-    # Path-confinement check: ensure target is inside the declared brain directory
-    if not target.resolve().is_relative_to(brain_root):
-        return jsonify({"error": "Forbidden"}), 403
-    target.parent.mkdir(parents=True, exist_ok=True)
-    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
-    today = datetime.date.today().isoformat()
-    url_line = f"url: {source_url}\n" if source_url else ""
-    md_content = (
-        f"---\ntype: {note_type}\ntitle: {title}\ndate: {today}\n"
-        f"tags: []\npeople: []\ncreated_at: {now}\nupdated_at: {now}\n"
-        f"content_sensitivity: public\n{url_line}---\n\n{note_body}\n"
-    )
-    target.write_text(md_content, encoding="utf-8")
-    # Index the new note into SQLite immediately so loadNotes() reflects it
-    abs_path = str(target.resolve())
-    rel_path = str(target.resolve().relative_to(brain_root))
+    from engine.capture import capture_note
+    from engine.db import init_schema
     conn = get_connection()
     try:
-        existing = conn.execute("SELECT path FROM notes WHERE path=?", (rel_path,)).fetchone()
-        if not existing:
-            conn.execute(
-                "INSERT INTO notes (path, title, type, body, tags, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
-                (rel_path, title, note_type, note_body, "[]", now, now),
-            )
-            conn.commit()
+        init_schema(conn)
+        brain_root = _engine_paths.BRAIN_ROOT
+        result_path = capture_note(
+            note_type=note_type,
+            title=title,
+            body=note_body,
+            tags=[],
+            people=[],
+            content_sensitivity="public",
+            brain_root=brain_root,
+            conn=conn,
+            url=source_url or None,
+        )
     finally:
         conn.close()
-    return jsonify({"path": abs_path}), 201
+    _broadcast({"type": "notes_changed"})
+    rel_path = store_path(result_path.resolve())
+    return jsonify({"path": rel_path}), 201
 
 
 @app.delete("/notes/<path:note_path>")
@@ -1660,11 +1413,12 @@ def delete_note_endpoint(note_path):
 @app.get("/notes/<path:note_path>/impact")
 def note_impact(note_path):
     try:
-        p, _brain_root = _resolve_note_path(note_path)
+        np = _resolve_note_path(note_path)
+        p = np.absolute
     except ValueError:
         return jsonify({"error": "Forbidden"}), 403
     from engine.delete import get_delete_impact
-    path_str = store_path(p)
+    path_str = np.relative
     conn = get_connection()
     try:
         impact = get_delete_impact(path_str, conn)
@@ -1676,13 +1430,14 @@ def note_impact(note_path):
 @app.get("/notes/<path:note_path>/meta")
 def note_meta(note_path):
     try:
-        p, _brain_root = _resolve_note_path(note_path)
+        np = _resolve_note_path(note_path)
+        p = np.absolute
     except ValueError:
         return jsonify({"error": "Forbidden"}), 403
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     try:
-        db_path = store_path(p)
+        db_path = np.relative
         title_row = conn.execute(
             "SELECT title FROM notes WHERE path=?", (db_path,)
         ).fetchone()
@@ -1712,7 +1467,7 @@ def note_meta(note_path):
         ).fetchone()
         raw_people = json.loads(note_row["people"]) if note_row and note_row["people"] else []
         note_body = note_row["body"] if note_row else ""
-        note_tags = json.loads(note_row["tags"] or "[]") if note_row else []
+        note_tags = _json_list(note_row["tags"] if note_row else None)
 
         # Resolve raw_people entries — may be paths (absolute or relative) OR plain name strings.
         # Treat as a path if it contains a path separator or ends with .md.
@@ -1763,16 +1518,17 @@ def note_meta(note_path):
 @app.post("/notes/<path:note_path>/connections")
 def add_note_connection(note_path):
     try:
-        p, _ = _resolve_note_path(note_path)
+        np = _resolve_note_path(note_path)
+        p = np.absolute
     except ValueError:
-        return jsonify({"error": "forbidden"}), 403
+        return jsonify({"error": "Forbidden"}), 403
     data = request.get_json(force=True) or {}
     target_path = data.get("target_path", "").strip()
     if not target_path:
         return jsonify({"error": "target_path required"}), 400
     conn = get_connection()
     try:
-        source = store_path(p)
+        source = np.relative
         conn.execute(
             "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
             (source, target_path, "connection"),
@@ -1787,16 +1543,17 @@ def add_note_connection(note_path):
 @app.delete("/notes/<path:note_path>/connections")
 def remove_note_connection(note_path):
     try:
-        p, _ = _resolve_note_path(note_path)
+        np = _resolve_note_path(note_path)
+        p = np.absolute
     except ValueError:
-        return jsonify({"error": "forbidden"}), 403
+        return jsonify({"error": "Forbidden"}), 403
     data = request.get_json(force=True) or {}
     target_path = data.get("target_path", "").strip()
     if not target_path:
         return jsonify({"error": "target_path required"}), 400
     conn = get_connection()
     try:
-        source = store_path(p)
+        source = np.relative
         conn.execute(
             "DELETE FROM relationships WHERE rel_type='connection' AND "
             "((source_path=? AND target_path=?) OR (source_path=? AND target_path=?))",
@@ -1813,8 +1570,7 @@ def remove_note_connection(note_path):
 def list_files():
     limit = _int_param("limit", 50, min_val=1, max_val=200)
     offset = _int_param("offset", 0, min_val=0)
-    brain_path = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
-    files_dir = _Path(brain_path) / "files"
+    files_dir = _Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))) / "files"
     all_files = []
     if files_dir.exists():
         for f in sorted(files_dir.rglob("*")):
@@ -1861,8 +1617,7 @@ def download_file():
     if not file_path:
         return jsonify({"error": "path required"}), 400
 
-    brain_path = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
-    files_dir = _Path(brain_path) / "files"
+    files_dir = _Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))) / "files"
     target = _Path(file_path).resolve()
 
     try:
@@ -1889,10 +1644,10 @@ def open_file_native():
     if not file_path:
         return jsonify({"error": "path required"}), 400
 
-    brain_path = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
     target = _Path(file_path).resolve()
+    brain_root = _Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain")))
     try:
-        target.relative_to(_Path(brain_path).resolve())
+        target.relative_to(brain_root.resolve())
     except ValueError:
         return jsonify({"error": "Path outside brain directory"}), 403
 
@@ -1915,8 +1670,7 @@ def delete_file():
     if not file_path:
         return jsonify({"error": "path required"}), 400
 
-    brain_path = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
-    files_dir = _Path(brain_path) / "files"
+    files_dir = _Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))) / "files"
     target = _Path(file_path).resolve()
 
     # Path-traversal guard: must be inside files/
@@ -1989,8 +1743,8 @@ def upload_file():
     if not filename:
         return jsonify({"error": "Invalid filename"}), 400
 
-    brain_path = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
-    dest = _Path(brain_path) / "files" / filename
+    _br = _Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain")))
+    dest = _br / "files" / filename
 
     # Collision handling: append counter suffix before extension
     if dest.exists():
@@ -1998,7 +1752,7 @@ def upload_file():
         suffix = dest.suffix
         counter = 2
         while dest.exists():
-            dest = _Path(brain_path) / "files" / f"{stem}-{counter}{suffix}"
+            dest = _br / "files" / f"{stem}-{counter}{suffix}"
             counter += 1
 
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -2032,13 +1786,12 @@ def batch_capture():
     """Index all untracked .md files in the brain directory into the notes table.
 
     Walks brain_root rglob("*.md"), skips hidden-directory paths and paths
-    already present in the notes table, inserts absent ones, and returns
-    {"succeeded": [...], "failed": [...]}.
+    already present in the notes table, inserts absent ones with full metadata
+    (tags, people, sensitivity). Junction tables auto-sync via SQLite triggers.
     """
     import frontmatter as _fm_batch
 
-    brain_path = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
-    brain_root = _Path(brain_path)
+    brain_root = _Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain")))
 
     conn = get_connection()
     try:
@@ -2050,29 +1803,40 @@ def batch_capture():
         failed = []
 
         for md_file in brain_root.rglob("*.md"):
-            # Skip hidden directories (any path segment relative to brain_root starting with '.')
             if any(part.startswith(".") for part in md_file.relative_to(brain_root).parts):
                 continue
 
-            abs_str = str(md_file.resolve())
-            if abs_str in existing:
+            rel_path = str(md_file.relative_to(brain_root))
+            if rel_path in existing:
                 continue
 
             try:
                 text = md_file.read_text(encoding="utf-8", errors="ignore")
                 post = _fm_batch.loads(text)
-                title = post.metadata.get("title", md_file.stem)
-                note_type = post.metadata.get("type", "note")
+                meta = post.metadata or {}
+                title = meta.get("title", md_file.stem)
+                note_type = meta.get("type", "note")
                 body = post.content or ""
+                tags = meta.get("tags", [])
+                if not isinstance(tags, list):
+                    tags = [str(tags)]
+                people = meta.get("people", [])
+                if not isinstance(people, list):
+                    people = [str(people)]
                 now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat()
                 conn.execute(
-                    "INSERT INTO notes (path, title, type, body, tags, created_at, updated_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (abs_str, title, note_type, body, "[]", now, now),
+                    "INSERT INTO notes (path, title, type, body, tags, people, "
+                    "created_at, updated_at, sensitivity, url) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (rel_path, title, note_type, body,
+                     json.dumps(tags), json.dumps(people),
+                     meta.get("created_at", now), now,
+                     meta.get("content_sensitivity", "public"),
+                     meta.get("url") or None),
                 )
-                succeeded.append({"path": abs_str, "title": title})
+                succeeded.append({"path": rel_path, "title": title})
             except Exception as exc:
-                failed.append({"path": abs_str, "error": str(exc)})
+                failed.append({"path": rel_path, "error": str(exc)})
 
         # Also register any files in files/ not yet tracked in attachments table
         files_dir = brain_root / "files"
@@ -2084,18 +1848,18 @@ def batch_capture():
             for f in sorted(files_dir.rglob("*")):
                 if not f.is_file():
                     continue
-                abs_file = str(f.resolve())
-                if abs_file in tracked_files:
+                rel_file = str(f.relative_to(brain_root))
+                if rel_file in tracked_files:
                     continue
                 try:
                     conn.execute(
                         "INSERT INTO attachments (note_path, file_path, filename, size, uploaded_at) "
                         "VALUES (?, ?, ?, ?, ?)",
-                        ("", abs_file, f.name, f.stat().st_size, now),
+                        ("", rel_file, f.name, f.stat().st_size, now),
                     )
-                    succeeded.append({"path": abs_file, "title": f.name})
+                    succeeded.append({"path": rel_file, "title": f.name})
                 except Exception as exc:
-                    failed.append({"path": abs_file, "error": str(exc)})
+                    failed.append({"path": rel_file, "error": str(exc)})
 
         conn.commit()
     finally:
@@ -2243,15 +2007,19 @@ def intelligence_synthesis():
 
 @app.post("/ask")
 def ask_brain_endpoint():
-    """Answer a freeform question using the brain's notes as context."""
+    """Answer a freeform question using the brain's notes as context.
+
+    Request JSON: {question: str, history?: [{question: str, answer: str}, ...]}
+    """
     data = request.get_json(force=True, silent=True) or {}
     question = (data.get("question") or "").strip()
     if not question:
         return jsonify({"error": "question is required"}), 400
+    history = data.get("history") or []
     conn = get_connection()
     try:
         from engine.intelligence import ask_brain
-        result = ask_brain(question, conn)
+        result = ask_brain(question, conn, history=history)
         return jsonify(result)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
@@ -2278,7 +2046,7 @@ def get_inbox():
                 (source_note,),
             ).fetchone()
             action_rows = conn.execute(
-                "SELECT a.id, a.note_path, a.text, a.created_at FROM action_items a "
+                "SELECT a.id, a.note_path, a.text, a.created_at, a.due_date, a.description, a.assignee_path FROM action_items a "
                 "LEFT JOIN dismissed_inbox_items d ON d.path=CAST(a.id AS TEXT) AND d.item_type='action' "
                 "WHERE a.done=0 AND a.assignee_path IS NULL AND d.path IS NULL AND a.note_path=? "
                 "ORDER BY a.created_at DESC LIMIT ? OFFSET ?",
@@ -2291,7 +2059,7 @@ def get_inbox():
                 "WHERE a.done=0 AND a.assignee_path IS NULL AND d.path IS NULL",
             ).fetchone()
             action_rows = conn.execute(
-                "SELECT a.id, a.note_path, a.text, a.created_at FROM action_items a "
+                "SELECT a.id, a.note_path, a.text, a.created_at, a.due_date, a.description, a.assignee_path FROM action_items a "
                 "LEFT JOIN dismissed_inbox_items d ON d.path=CAST(a.id AS TEXT) AND d.item_type='action' "
                 "WHERE a.done=0 AND a.assignee_path IS NULL AND d.path IS NULL "
                 "ORDER BY a.created_at DESC LIMIT ? OFFSET ?",
@@ -2301,7 +2069,7 @@ def get_inbox():
         unassigned_actions = [dict(r) for r in action_rows]
 
         # --- Unprocessed notes (14-day window, no tags, no relationships, structured types only) ---
-        PROCESSABLE_TYPES = ('idea', 'ideas', 'coding', 'strategy', 'personal', 'projects')
+        PROCESSABLE_TYPES = ('idea', 'ideas', 'coding', 'strategy', 'personal', 'project', 'projects')
         type_placeholders = ",".join("?" * len(PROCESSABLE_TYPES))
         unprocessed_rows = conn.execute(
             f"SELECT n.path, n.title, n.type, n.created_at FROM notes n "
@@ -2504,8 +2272,8 @@ def smart_capture():
                     try:
                         conn.execute(
                             "INSERT OR IGNORE INTO action_items"
-                            " (note_path, item_text, status, created_at)"
-                            " VALUES (?, ?, 'open', datetime('now'))",
+                            " (note_path, text, created_at)"
+                            " VALUES (?, ?, datetime('now'))",
                             (str(path), ai.text),
                         )
                     except Exception:
@@ -2686,6 +2454,32 @@ def brain_health_merge():
         conn.close()
 
 
+@app.post("/brain-health/dismiss-duplicate")
+def dismiss_duplicate():
+    """Mark a duplicate pair as 'not duplicate' so it won't reappear in health checks.
+
+    Stores the similarity score at dismissal time. If the pair's similarity later
+    shifts by >5%, the pair resurfaces automatically.
+    """
+    data = request.get_json(force=True) or {}
+    a = (data.get("a") or "").strip()
+    b = (data.get("b") or "").strip()
+    similarity = data.get("similarity", 0)
+    if not a or not b:
+        return jsonify({"error": "a and b paths required"}), 400
+    key = "||".join(sorted([a, b]))
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT OR REPLACE INTO dismissed_inbox_items (path, item_type, detail) VALUES (?, 'duplicate', ?)",
+            (key, str(similarity)),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"dismissed": True, "pair": [a, b]})
+
+
 @app.post("/summarise-url")
 def summarise_url():
     """Summarise a web page's content via LLM.
@@ -2765,7 +2559,7 @@ def startup() -> None:
     finally:
         conn.close()
 
-    brain_root = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
+    brain_root = str(_engine_paths.BRAIN_ROOT)
     disk_count = len(_glob.glob(f"{brain_root}/**/*.md", recursive=True))
 
     if db_count == 0 and disk_count > 0:
@@ -2778,11 +2572,23 @@ def startup() -> None:
 
 
 def main():
-    from waitress import serve
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, default=37491)
+    parser.add_argument("--dev", action="store_true",
+                        help="Use Flask dev server (no thread pool limit, better for tests)")
+    args = parser.parse_args()
+
     startup()
     obs = start_note_observer()
     try:
-        serve(app, host="127.0.0.1", port=37491, threads=8)
+        if args.dev:
+            # Flask dev server: one thread per request, no pool exhaustion from SSE
+            app.run(host="127.0.0.1", port=args.port, use_reloader=False, threaded=True)
+        else:
+            from waitress import serve
+            serve(app, host="127.0.0.1", port=args.port, threads=8)
     finally:
         obs.stop()
         obs.join()

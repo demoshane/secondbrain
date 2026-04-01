@@ -49,7 +49,7 @@ export function MeetingsPage() {
     body: string
     title: string
     meeting_date: string
-    participants: string[]
+    participants: { name: string; path: string | null }[]
   } | null>(null)
   const [actions, setActions] = useState<ActionItem[]>([])
   const [detailAction, setDetailAction] = useState<ActionItem | null>(null)
@@ -96,9 +96,9 @@ export function MeetingsPage() {
         title: detail.title ?? '',
         meeting_date: detail.meeting_date ?? '',
         participants: (detail.participants ?? []).map(
-          (p: { name?: string; path?: string } | string) =>
-            typeof p === 'string' ? p : (p.name ?? '')
-        ).filter(Boolean),
+          (p: { name?: string; path?: string | null } | string) =>
+            typeof p === 'string' ? { name: p, path: null } : { name: p.name ?? '', path: p.path ?? null }
+        ).filter((p: { name: string; path: string | null }) => p.name),
       })
       setActions(acts.actions ?? [])
       setTags(noteData.tags ?? [])
@@ -167,16 +167,16 @@ export function MeetingsPage() {
     if (!name || !selectedPath || !meetingDetail) return
     try {
       const enc = encodePath(selectedPath)
-      const updatedPeople = [...meetingDetail.participants, name]
+      const updatedNames = [...meetingDetail.participants.map(p => p.name), name]
       const res = await fetch(`${getAPI()}/notes/${enc}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ people: updatedPeople }),
+        body: JSON.stringify({ people: updatedNames }),
       })
       if (!res.ok) throw new Error()
       toast.success('Participant added')
       setShowAddParticipant(false)
-      setMeetingDetail(prev => prev ? { ...prev, participants: updatedPeople } : prev)
+      setMeetingDetail(prev => prev ? { ...prev, participants: [...prev.participants, { name, path: null }] } : prev)
     } catch {
       toast.error('Failed to add participant. Try again.')
     }
@@ -232,6 +232,7 @@ export function MeetingsPage() {
       if (!res.ok) throw new Error('Save failed')
       setMeetingDetail(prev => prev ? { ...prev, body: editingBody } : prev)
       setEditingBody(null)
+      loadMeetings()
       toast.success('Meeting notes saved')
     } catch {
       toast.error('Failed to save. Try again.')
@@ -374,14 +375,19 @@ export function MeetingsPage() {
                   ) : (
                     <div className="flex flex-wrap gap-1.5">
                       {meetingDetail!.participants.map((p, i) => (
-                        <PersonBadge key={i} name={p} />
+                        <PersonBadge
+                          key={i}
+                          name={p.name}
+                          path={p.path ?? undefined}
+                          onClick={p.path ? () => { setCurrentView('people') } : undefined}
+                        />
                       ))}
                     </div>
                   )}
                   {showAddParticipant ? (
                     <div className="flex items-center gap-2 mt-2">
                       <PersonAutocomplete
-                        existingPeople={meetingDetail?.participants ?? []}
+                        existingPeople={meetingDetail?.participants.map(p => p.name) ?? []}
                         onAdd={handleAddParticipant}
                         onBlur={() => setShowAddParticipant(false)}
                       />

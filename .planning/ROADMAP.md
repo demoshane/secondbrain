@@ -5,7 +5,8 @@
 - ✅ **v1.5 Second Brain MVP** — Phases 1–13 (shipped 2026-03-15)
 - ✅ **v2.0 Intelligence + GUI Hub** — Phases 14–19 (shipped 2026-03-16)
 - ✅ **v3.0 GUI Overhaul & Polish** — Phases 20–31 (shipped 2026-03-21)
-- 📋 **v4.0 Memory & Reliability** — Phases 32–49 (planned)
+- 📋 **v4.0 Memory & Reliability** — Phases 32–49 (in progress)
+- 📋 **v5.0 Cognitive Intelligence** — Phases 50–54 (planned)
 
 ## Phases
 
@@ -106,9 +107,6 @@ URL capture with metadata fetch, MCP tool, Flask API, LinksPage (4 plans, comple
 Unicode entity extraction, people column consolidation, sb_person_context (4 plans, completed 2026-03-20)
 #### Phase 31: Smart Capture & Multi-Context Intelligence
 Freeform → typed notes, segmentation, dormant resurfacing, bidirectional links, GUI modal (6 plans, completed 2026-03-21)
-#### Phase 27.10: Graph View
-Visual knowledge map, nodes = notes, edges = relationships, zoomable/filterable (not started)
-
 </details>
 
 ## v4.0 Memory & Reliability (Phases 32–49)
@@ -241,7 +239,7 @@ Plans:
 **Depends on:** Phase 34
 **Milestone:** v4.0
 **Requirements**: N/A (quality gate)
-**Plans:** 8/13 plans executed
+**Plans:** 13/13 complete (5 remediation plans addressed by later phases; F-02 resolved 2026-04-01)
 
 Plans:
 - [x] 39-01-PLAN.md — Security audit: API surfaces, MCP tools, Chrome extension
@@ -251,12 +249,12 @@ Plans:
 - [x] 39-05-PLAN.md — Dead code + optimisation audit: stale paths, duplication, cleanup
 - [x] 39-06-PLAN.md — Triage: consolidate findings into 39-FINDINGS.md
 - [x] 39-07-PLAN.md — User review + remediation scope approval
-- [ ] 39-08-PLAN.md — Group A: API input hardening (F-01, F-07, F-08, F-09)
-- [ ] 39-09-PLAN.md — Group B: DB schema migration — FK CASCADE + indexes (F-10)
-- [ ] 39-10-PLAN.md — Group C: Performance query fixes (F-03, F-04, F-05, F-15, F-16)
-- [ ] 39-11-PLAN.md — Group D: Dead code removal (F-02, F-11)
+- [x] 39-08-PLAN.md — Group A: API input hardening (F-01, F-07, F-08, F-09) — addressed by Phase 48
+- [x] 39-09-PLAN.md — Group B: DB schema migration — FK CASCADE + indexes (F-10) — addressed by Phase 48.1
+- [x] 39-10-PLAN.md — Group C: Performance query fixes (F-03, F-04, F-05, F-15, F-16) — addressed by Phases 40–48
+- [x] 39-11-PLAN.md — Group D: Dead code removal (F-02, F-11) — F-11 fixed in Phase 48; F-02 resolved 2026-04-01
 - [x] 39-12-PLAN.md — Group E: MCP test coverage (F-06, F-12, F-13, F-14, F-17)
-- [ ] 39-13-PLAN.md — Group F: New test files for untested modules (COV-06 through COV-10)
+- [x] 39-13-PLAN.md — Group F: New test files for untested modules (COV-06 through COV-10) — addressed by Phases 37–45
 
 ---
 
@@ -266,14 +264,15 @@ Plans:
 **Depends on:** Phase 37
 **Milestone:** v4.0
 **Requirements**: D-01 through D-21
-**Plans:** 5 plans
+**Status:** ✅ Complete (all 5 backend APIs implemented and tested, verified 2026-04-01)
+**Plans:** 5/5 plans complete (backend-only phase — frontend wiring is in Phase 41)
 
 Plans:
-- [ ] 40-01-PLAN.md — Per-person AI Brain Insight endpoint + person_insights cache table (D-01, D-02, D-03, D-04, D-05)
-- [ ] 40-02-PLAN.md — Weekly Synthesis endpoint (D-06, D-07, D-08, D-09)
-- [ ] 40-03-PLAN.md — Project status field + stats + PUT status endpoint (D-10, D-11, D-12, D-13, D-14)
-- [ ] 40-04-PLAN.md — Linked meetings on projects + participant objects on meetings (D-15, D-16)
-- [ ] 40-05-PLAN.md — Action items grouped-by-source endpoint (D-18, D-19, D-20, D-21)
+- [x] 40-01-PLAN.md — Per-person AI Brain Insight endpoint + person_insights cache table (D-01, D-02, D-03, D-04, D-05)
+- [x] 40-02-PLAN.md — Weekly Synthesis endpoint (D-06, D-07, D-08, D-09)
+- [x] 40-03-PLAN.md — Project status field + stats + PUT status endpoint (D-10, D-11, D-12, D-13, D-14)
+- [x] 40-04-PLAN.md — Linked meetings on projects + participant objects on meetings (D-15, D-16)
+- [x] 40-05-PLAN.md — Action items grouped-by-source endpoint (D-18, D-19, D-20, D-21)
 
 ---
 
@@ -344,9 +343,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 42-01-PLAN.md — DB migration + capture pipeline + MCP tools (IMP-01, IMP-02, IMP-03)
-- [ ] 42-02-PLAN.md — API endpoint + search filter (IMP-04, IMP-05)
-- [ ] 42-03-PLAN.md — Frontend badges + dropdown + sort (IMP-06, IMP-07, IMP-08)
+- [x] 42-01-PLAN.md — DB migration + capture pipeline + MCP tools (IMP-01, IMP-02, IMP-03)
+- [x] 42-02-PLAN.md — API endpoint + search filter (IMP-04, IMP-05)
+- [x] 42-03-PLAN.md — Frontend badges + dropdown + sort (IMP-06, IMP-07, IMP-08)
 
 ### Phase 43: Smart Capture Multi-Pass Decomposer (completed 2026-03-30)
 
@@ -381,8 +380,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 45-01-PLAN.md — Perf engine: test_utils cleanup, benchmark runner, result storage, delta, soft limits, CLI (PERF-01 through PERF-11)
-- [ ] 45-02-PLAN.md — Flask API routes + GUI Performance page with summary table and sparkline charts (PERF-05, PERF-06, PERF-12, PERF-13)
+- [x] 45-01-PLAN.md — Perf engine: test_utils cleanup, benchmark runner, result storage, delta, soft limits, CLI (PERF-01 through PERF-11)
+- [x] 45-02-PLAN.md — Flask API routes + GUI Performance page with summary table and sparkline charts (PERF-05, PERF-06, PERF-12, PERF-13)
 
 ### Phase 46: Universal Capture Enrichment
 
@@ -392,39 +391,103 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 46-01-PLAN.md — Person stub creation in capture_note background thread + tests (UCE-01, UCE-02, UCE-03)
+- [x] 46-01-PLAN.md — Person stub creation in capture_note background thread + tests (UCE-01, UCE-02, UCE-03)
 
-### Phase 47: Fix pre-existing test failures
+### Phase 47: Fix pre-existing test failures (completed 2026-03-30)
 
 **Goal:** Fix 4 tests that have been failing since before phase 40: `test_delete_endpoint_404` (Flask returns 308 instead of 404), `test_bidirectional_relationships`, `TestSimilarRelationshipAutoLink::test_similar_relationship_inserted_on_confirm`, and `test_smart_capture_golden_path` (sb_capture_smart relationship writing broken).
 **Requirements:** FIX-01, FIX-02, FIX-03
 **Depends on:** Phase 46
-**Plans:** 3 plans
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 47-01-PLAN.md — Fix delete 404 + FK path mismatch in relationship inserts + remove xfails (FIX-01, FIX-02, FIX-03)
+- [x] 47-01-PLAN.md — Fix delete 404 + FK path mismatch in relationship inserts + remove xfails (FIX-01, FIX-02, FIX-03)
 
-### Phase 48: Backend Code Cleanup
+### Phase 48: Backend Code Cleanup (completed 2026-03-31)
 
 **Goal:** Eliminate accumulated technical debt flagged in the Phase 39 audit: remove deprecated `/people` route aliases (F-27), replace `datetime.utcnow()` deprecated in Python 3.12+ across 14 files (F-31), consolidate the 13x repeated `os.environ.get("BRAIN_PATH")` pattern (F-28), add a shared `json.loads(col or "[]")` helper (F-29), fix `ensure_person_profile()` writing to wrong path `person/` vs `people/` (F-30), begin `api.py` Blueprint partitioning (F-22, now 2149 lines), and clarify the misleading "circular import" comment in `consolidate.py` lazy import block (F-23).
 **Requirements**: F-22, F-23, F-27, F-28, F-29, F-30, F-31 (from 39-FINDINGS.md)
 **Depends on:** Phase 47
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 48-01-PLAN.md — Shared helpers (_json_list, _now_utc) + consolidate.py comment + links.py path verify (F-23, F-29, F-30, F-31)
-- [ ] 48-02-PLAN.md — Remove /people aliases + BRAIN_PATH consolidation + apply helpers across engine (F-27, F-28, F-29, F-31)
-- [ ] 48-03-PLAN.md — Blueprint partitioning: extract config routes to api_config.py (F-22)
+- [x] 48-01-PLAN.md — Shared helpers (_json_list, _now_utc) + consolidate.py comment + links.py path verify (F-23, F-29, F-30, F-31)
+- [x] 48-02-PLAN.md — Remove /people aliases + BRAIN_PATH consolidation + apply helpers across engine (F-27, F-28, F-29, F-31)
+- [x] 48-03-PLAN.md — Blueprint partitioning: extract config routes to api_config.py (F-22)
+
+### Phase 48.1: Data Integrity Hardening (completed 2026-03-31)
+
+**Goal:** Fix junction table dual-write fragility (SQLite triggers), fix `POST /batch-capture` bypassing `capture_note()`, migrate remaining `store_path()` calls to `_NP.relative`
+**Depends on:** Phase 48
+**Plans:** 2/2 plans complete
+
+Plans:
+- [x] 48.1-01-PLAN.md — SQLite triggers for junction table consistency
+- [x] 48.1-02-PLAN.md — batch-capture → capture_note + api.py _NP migration
 
 ### Phase 49: Chrome Extension Page Summarisation
 
 **Goal:** Add a page summarisation feature to the Chrome extension: summarise the active page via LLM, show the summary in the extension popup with an "Add to brain" button that saves the summary as a note. Builds on Phase 36 extension infrastructure and Phase 41.3 `/summarise-url` endpoint.
-**Requirements:** FIX-01, FIX-02, FIX-03
 **Depends on:** Phase 48
-**Plans:** 3 plans
+**Status:** ✅ Complete (already delivered in Phase 41.3 — POST /summarise-url endpoint + extension popup summarise flow + "Add to brain" save path)
+**Plans:** 0 plans (delivered as part of Phase 41.3, no separate plans needed)
+
+---
+
+## v5.0 Cognitive Intelligence (Phases 50–54)
+
+### Phase 50: Retrieval Reinforcement (Learning from Use)
+
+**Goal:** Add access tracking (`last_accessed_at`, `access_count`) so frequently-used notes rank higher in search. Access boost up to 15%, capped at 20 accesses, 60-day half-life. Tracking wired into `sb_read`, `sb_search`, `sb_person_context`, and API.
+**Depends on:** None (foundation phase)
+**Plans:** 3 plans (not started)
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 49 to break down)
+- [ ] 50-01-PLAN.md — DB migration (access tracking columns) + helper functions + tests
+- [ ] 50-02-PLAN.md — Wire access tracking into read/search/API surfaces
+- [ ] 50-03-PLAN.md — Post-RRF access boost multiplier in search ranking
+
+### Phase 51: Temporal Decay (Forgetting Curve)
+
+**Goal:** Replace flat creation-time recency boost with dual-axis decay: age + last-access. Per-type half-lives (meeting=30d, note=60d, project=120d, decision=180d, person=never). Graduated stale detection bands replace binary 90-day threshold.
+**Depends on:** Phase 50
+**Plans:** 2 plans (not started)
+
+Plans:
+- [ ] 51-01-PLAN.md — `_relevance_decay()` replacing `_recency_multiplier()` in search.py
+- [ ] 51-02-PLAN.md — Graduated stale detection in intelligence.py
+
+### Phase 52: Associative Graph Traversal + Graph View
+
+**Goal:** Multi-hop relationship traversal (2–3 hops) via recursive CTEs. New `sb_traverse` MCP tool. Add `strength` column to relationships. Enhance `sb_person_context` with 2nd-degree connections. Visual graph view page in GUI (D3 force-directed layout, zoom/filter/click-to-navigate). Subsumes former Phase 27.10.
+**Depends on:** None
+**Plans:** 3 plans (not started)
+
+Plans:
+- [ ] 52-01-PLAN.md — Graph traversal functions + weighted edges + composite index
+- [ ] 52-02-PLAN.md — `sb_traverse` MCP tool + `sb_person_context` 2nd-degree expansion
+- [ ] 52-03-PLAN.md — Graph View page: D3 force-directed layout, node/edge rendering, zoom/filter/navigate (ex-27.10)
+
+### Phase 53: Proactive Surfacing
+
+**Goal:** New `sb_surface` MCP tool that returns notes the user didn't ask for but should see, based on conversation context. Session dedup via audit log. Optional `context_hint` param on `sb_search`/`sb_recap`.
+**Depends on:** Phase 50, Phase 51; benefits from Phase 52 (optional)
+**Plans:** 2 plans (not started)
+
+Plans:
+- [ ] 53-01-PLAN.md — Surfacing engine: semantic context match + access/decay scoring
+- [ ] 53-02-PLAN.md — `sb_surface` MCP tool + context_hint integration
+
+### Phase 54: Consolidation & Synthesis Layer
+
+**Goal:** Periodic "sleep" process that clusters recent notes by person/project/topic and generates synthesis notes. Contradiction detection. New `sb_insights` MCP tool. Runs as extension of nightly consolidation job.
+**Depends on:** Phase 50, Phase 52; benefits from Phase 53
+**Plans:** 3 plans (not started)
+
+Plans:
+- [ ] 54-01-PLAN.md — Cluster detection (3+ notes sharing person/tag in 7-day window)
+- [ ] 54-02-PLAN.md — AI synthesis generation + `synthesis` note type
+- [ ] 54-03-PLAN.md — `sb_insights` MCP tool + dedup protection
 
 ---
 
@@ -442,9 +505,20 @@ Plans:
 | 36 | v4.0 | 4/4 | Complete | 2026-03-25 |
 | 37 | v4.0 | 11/11 | Complete | 2026-03-26 |
 | 38 | v4.0 | 7/7 | Complete | 2026-03-27 |
-| 39 | v4.0 | 13/13 | Complete | 2026-03-28 |
+| 39 | v4.0 | 13/13 | Complete | 2026-04-01 |
 | 40 | v4.0 | 5/5 | Complete | 2026-03-28 |
 | 41 | v4.0 | 5/5 | Complete    | 2026-03-28 |
-| 42 | v4.0 | 0/3 | Not started | - |
+| 42 | v4.0 | 3/3 | Complete | 2026-03-29 |
 | 43 | v4.0 | 4/4 | Complete | 2026-03-30 |
 | 44 | v4.0 | 3/3 | Complete    | 2026-03-30 |
+| 45 | v4.0 | 2/2 | Complete | 2026-03-30 |
+| 46 | v4.0 | 1/1 | Complete | 2026-03-30 |
+| 47 | v4.0 | 1/1 | Complete | 2026-03-30 |
+| 48 | v4.0 | 3/3 | Complete | 2026-03-31 |
+| 48.1 | v4.0 | 2/2 | Complete | 2026-03-31 |
+| 49 | v4.0 | 0/? | Not started | - |
+| 50 | v5.0 | 0/3 | Not started | - |
+| 51 | v5.0 | 0/2 | Not started | - |
+| 52 | v5.0 | 0/3 | Not started | - |
+| 53 | v5.0 | 0/2 | Not started | - |
+| 54 | v5.0 | 0/3 | Not started | - |

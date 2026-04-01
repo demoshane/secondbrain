@@ -1,5 +1,8 @@
-import datetime
 import json
+import os
+import re
+import tempfile
+from engine.db import _json_list, _now_utc
 import logging
 import sqlite3
 from pathlib import Path
@@ -81,11 +84,15 @@ def forget_person(slug: str, brain_root: Path, conn: sqlite3.Connection) -> dict
             all_delete_paths,
         )
 
-    # 2b. DELETE FROM note_embeddings
+    # 2b. DELETE FROM note_embeddings and note_chunks
     if all_delete_paths:
         placeholders = ",".join("?" * len(all_delete_paths))
         conn.execute(
             f"DELETE FROM note_embeddings WHERE note_path IN ({placeholders})",
+            all_delete_paths,
+        )
+        conn.execute(
+            f"DELETE FROM note_chunks WHERE note_path IN ({placeholders})",
             all_delete_paths,
         )
 
@@ -110,11 +117,23 @@ def forget_person(slug: str, brain_root: Path, conn: sqlite3.Connection) -> dict
         for pth in all_delete_paths:
             conn.execute("UPDATE action_items SET assignee_path=NULL WHERE assignee_path=?", (pth,))
 
+    # 2d-ter. Delete orphan attachments and archived action items
+    if all_delete_paths:
+        placeholders = ",".join("?" * len(all_delete_paths))
+        conn.execute(
+            f"DELETE FROM attachments WHERE note_path IN ({placeholders})",
+            all_delete_paths,
+        )
+        conn.execute(
+            f"DELETE FROM action_items_archive WHERE note_path IN ({placeholders})",
+            all_delete_paths,
+        )
+
     # 2e. Clean person from people JSON column in surviving notes (ARCH-08 GDPR gap)
     rows = conn.execute("SELECT path, people FROM notes WHERE people IS NOT NULL AND people != '[]'").fetchall()
     for row in rows:
         try:
-            people_list = json.loads(row[1] or "[]")
+            people_list = _json_list(row[1])
         except (json.JSONDecodeError, TypeError):
             continue
         cleaned = [p for p in people_list if str(p) not in person_variants]
@@ -133,6 +152,12 @@ def forget_person(slug: str, brain_root: Path, conn: sqlite3.Connection) -> dict
 
     # 2f. FTS5 rebuild
     conn.execute("INSERT INTO notes_fts(notes_fts) VALUES('rebuild')")
+
+    # 2g. Log the erasure event in same transaction (note_path=NULL so it is never self-deleted)
+    conn.execute(
+        "INSERT INTO audit_log (event_type, note_path, detail, created_at) VALUES (?, ?, ?, ?)",
+        ("forget", None, f"person:{slug}", _now_utc()),
+    )
 
     # --- 3. COMMIT DB transaction ---
     conn.commit()
@@ -158,6 +183,20 @@ def forget_person(slug: str, brain_root: Path, conn: sqlite3.Connection) -> dict
             errors.append(f"Could not delete person file: {type(e).__name__}")
 
     # --- 5. Clean frontmatter people field in surviving note files on disk ---
+    from engine.watcher import suppress_next_delete
+
+    def _atomic_write(target: Path, content: str) -> None:
+        """Atomic file write via temp + os.replace, with watcher suppression."""
+        suppress_next_delete(str(target.resolve()))
+        fd, tmp = tempfile.mkstemp(dir=target.parent, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(content)
+            os.replace(tmp, target)
+        except Exception:
+            Path(tmp).unlink(missing_ok=True)
+            raise
+
     for md in brain_root.rglob("*.md"):
         if md == person_file or md in sole_ref_meetings:
             continue
@@ -171,29 +210,21 @@ def forget_person(slug: str, brain_root: Path, conn: sqlite3.Connection) -> dict
                 cleaned = [p for p in people if str(p) not in person_variants]
                 if len(cleaned) != len(people):
                     post["people"] = cleaned
-                    md.write_text(frontmatter.dumps(post), encoding="utf-8")
+                    _atomic_write(md, frontmatter.dumps(post))
                     cleaned_backlinks.append(str(md))
                     continue
-            # Also clean backlink lines
-            new_lines = [line for line in text.splitlines() if slug not in line]
-            if len(new_lines) != len(text.splitlines()):
-                md.write_text("\n".join(new_lines), encoding="utf-8")
+            # Also clean slug references in body text (inline prose + backlink lines)
+            cleaned_text = re.sub(
+                r'\n- \[\[.*?' + re.escape(slug) + r'.*?\]\]', '', text
+            )
+            # Remove inline prose references to the slug (case-insensitive)
+            cleaned_text = re.sub(re.escape(slug), '[removed]', cleaned_text, flags=re.IGNORECASE)
+            if cleaned_text != text:
+                _atomic_write(md, cleaned_text)
                 cleaned_backlinks.append(str(md))
         except Exception as e:
             logger.warning("forget_person: could not clean %s: %s", md.name, type(e).__name__)
             errors.append(f"Could not clean {md.name}: {type(e).__name__}")
-
-    # --- 6. Log the erasure event (note_path=NULL so it is never self-deleted) ---
-    conn.execute(
-        "INSERT INTO audit_log (event_type, note_path, detail, created_at) VALUES (?, ?, ?, ?)",
-        (
-            "forget",
-            None,
-            f"person:{slug}",
-            datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        ),
-    )
-    conn.commit()
 
     return {
         "deleted_files": deleted_files,

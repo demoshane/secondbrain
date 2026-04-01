@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Brain, RefreshCw } from 'lucide-react'
+import { Brain, RefreshCw, Sparkles, Chrome } from 'lucide-react'
 import { cn, getAPI } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { HealthScoreGauge } from '@/components/ui/health-score-gauge'
@@ -11,6 +11,7 @@ import { SkeletonList } from '@/components/ui/skeleton-list'
 import { ActionItemRow } from '@/components/ui/action-item-row'
 import { ActionDetailModal } from '@/components/ui/action-detail-modal'
 import { useUIContext } from '@/contexts/UIContext'
+import { useNoteContext } from '@/contexts/NoteContext'
 import { toast } from 'sonner'
 import type { BrainHealth, ActionItem } from '@/types'
 
@@ -36,6 +37,12 @@ function getUrgency(dueDate: string | null): { label: string; className: string 
 
 export function IntelligencePage() {
   const { setCurrentView } = useUIContext()
+  const { openNote } = useNoteContext()
+
+  const goToNote = (path: string) => {
+    openNote(path)
+    setCurrentView('notes')
+  }
   const [recap, setRecap] = useState<string>('')
   const [generatingRecap, setGeneratingRecap] = useState(false)
   const [health, setHealth] = useState<BrainHealth | null>(null)
@@ -45,6 +52,10 @@ export function IntelligencePage() {
   const [detailAction, setDetailAction] = useState<ActionItem | null>(null)
   const [captureText, setCaptureText] = useState('')
   const [capturing, setCapturing] = useState(false)
+  const [synthesis, setSynthesis] = useState<string>('')
+  const [synthesisLoading, setSynthesisLoading] = useState(false)
+  const [showExtensionInstructions, setShowExtensionInstructions] = useState(false)
+  const [extensionApiReachable, setExtensionApiReachable] = useState(false)
 
   const fetchPriorityActions = useCallback(() => {
     fetch(`${getAPI()}/actions?done=0&limit=5`)
@@ -63,6 +74,9 @@ export function IntelligencePage() {
       .then(r => r.json())
       .then(d => setNudges(d.nudges ?? []))
       .catch(() => {})
+    fetch(`${getAPI()}/ping`, { signal: AbortSignal.timeout(2000) })
+      .then(res => setExtensionApiReachable(res.ok))
+      .catch(() => setExtensionApiReachable(false))
     fetchPriorityActions()
   }, [fetchPriorityActions])
 
@@ -123,6 +137,47 @@ export function IntelligencePage() {
       setHealth(await healthRes.json())
     } catch {
       toast.error('Merge failed: network error')
+    }
+  }, [])
+
+  const dismissDuplicate = useCallback(async (dc: { a: string; b: string; similarity: number }) => {
+    try {
+      const res = await fetch(`${getAPI()}/brain-health/dismiss-duplicate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ a: dc.a, b: dc.b, similarity: dc.similarity }),
+      })
+      if (!res.ok) {
+        toast.error('Failed to dismiss duplicate')
+        return
+      }
+      toast.success('Marked as not duplicate')
+      // Remove from local state
+      if (health) {
+        setHealth({
+          ...health,
+          duplicate_candidates: health.duplicate_candidates.filter(
+            d => !(d.a === dc.a && d.b === dc.b)
+          ),
+          duplicate_count: health.duplicate_count - 1,
+        })
+      }
+    } catch {
+      toast.error('Failed to dismiss duplicate')
+    }
+  }, [health])
+
+  const generateSynthesis = useCallback(async () => {
+    setSynthesisLoading(true)
+    try {
+      const res = await fetch(`${getAPI()}/intelligence/synthesis`)
+      const data = await res.json()
+      if (data.synthesis) setSynthesis(data.synthesis)
+      else toast.error('Synthesis generation failed.')
+    } catch {
+      toast.error('Synthesis failed. Check the app connection and try again.')
+    } finally {
+      setSynthesisLoading(false)
     }
   }, [])
 
@@ -216,7 +271,9 @@ export function IntelligencePage() {
                   <CollapsibleSection title="Orphaned Notes" count={health.orphan_count} sectionId="health-orphans" defaultOpen={false}>
                     <ul className="px-3 pb-3 space-y-1">
                       {health.orphans.map(o => (
-                        <li key={o.path} className="text-xs text-muted-foreground truncate">{o.title || o.path}</li>
+                        <li key={o.path}>
+                          <button className="text-xs text-muted-foreground truncate hover:text-foreground text-left w-full" onClick={() => goToNote(o.path)}>{o.title || o.path}</button>
+                        </li>
                       ))}
                     </ul>
                   </CollapsibleSection>
@@ -229,7 +286,9 @@ export function IntelligencePage() {
                   <CollapsibleSection title="Empty Notes" count={health.empty_count} sectionId="health-empty" defaultOpen={false}>
                     <ul className="px-3 pb-3 space-y-1">
                       {health.empty_notes.map(n => (
-                        <li key={n.path} className="text-xs text-muted-foreground truncate">{n.title || n.path}</li>
+                        <li key={n.path}>
+                          <button className="text-xs text-muted-foreground truncate hover:text-foreground text-left w-full" onClick={() => goToNote(n.path)}>{n.title || n.path}</button>
+                        </li>
                       ))}
                     </ul>
                   </CollapsibleSection>
@@ -242,7 +301,11 @@ export function IntelligencePage() {
                   <CollapsibleSection title="Broken Links" count={health.broken_link_count} sectionId="health-broken-links" defaultOpen={false}>
                     <ul className="px-3 pb-3 space-y-1">
                       {health.broken_links.map((bl, i) => (
-                        <li key={i} className="text-xs text-muted-foreground truncate">{bl.source} &rarr; {bl.target}</li>
+                        <li key={i} className="text-xs text-muted-foreground truncate">
+                          <button className="hover:text-foreground" onClick={() => goToNote(bl.source)}>{bl.source}</button>
+                          {' → '}
+                          <span>{bl.target}</span>
+                        </li>
                       ))}
                     </ul>
                   </CollapsibleSection>
@@ -257,8 +320,19 @@ export function IntelligencePage() {
                       {health.duplicate_candidates.map((dc, i) => (
                         <li key={i} className="flex items-center gap-2">
                           <span className="text-xs text-muted-foreground truncate flex-1">
-                            {dc.a.split('/').pop()?.replace('.md', '')} / {dc.b.split('/').pop()?.replace('.md', '')} ({Math.round(dc.similarity * 100)}%)
+                            <button className="hover:text-foreground" onClick={() => goToNote(dc.a)}>{dc.a.split('/').pop()?.replace('.md', '')}</button>
+                            {' / '}
+                            <button className="hover:text-foreground" onClick={() => goToNote(dc.b)}>{dc.b.split('/').pop()?.replace('.md', '')}</button>
+                            {' '}({Math.round(dc.similarity * 100)}%)
                           </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-xs shrink-0 text-muted-foreground"
+                            onClick={() => dismissDuplicate(dc)}
+                          >
+                            Ignore
+                          </Button>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -288,7 +362,7 @@ export function IntelligencePage() {
               <ul className="space-y-2">
                 {nudges.map(n => (
                   <li key={n.path} className="text-sm flex items-center gap-2">
-                    <span className="font-medium text-foreground flex-1 min-w-0 truncate">{n.title}</span>
+                    <button className="font-medium text-foreground flex-1 min-w-0 truncate text-left hover:text-primary" onClick={() => goToNote(n.path)}>{n.title}</button>
                     <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/15 text-amber-400 shrink-0">
                       {daysSince(n.updated_at)}d
                     </span>
@@ -300,8 +374,37 @@ export function IntelligencePage() {
         </CollapsibleSection>
       </div>
 
-      {/* Right column ~35% — Recap + Quick Actions */}
+      {/* Right column ~35% — Synthesis + Recap + Quick Actions */}
       <div className="flex-1 border-l border-border bg-card overflow-y-auto p-6">
+        {/* Weekly Synthesis card */}
+        <div className="rounded-lg border border-accent/30 bg-accent/5 p-6 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold uppercase flex items-center gap-1.5 text-accent">
+              <Sparkles className="h-4 w-4" />
+              Weekly Synthesis
+            </h2>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 gap-1"
+              onClick={generateSynthesis}
+              disabled={synthesisLoading}
+            >
+              <RefreshCw className={cn('h-4 w-4', synthesisLoading && 'animate-spin')} />
+              {synthesisLoading ? 'Generating...' : 'Generate'}
+            </Button>
+          </div>
+          {synthesis ? (
+            <div className="prose prose-sm prose-invert max-w-none">
+              <Markdown remarkPlugins={[remarkGfm]}>{synthesis}</Markdown>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground italic">
+              Generate a weekly synthesis to see themes, decisions, and open threads from the past 7 days.
+            </p>
+          )}
+        </div>
+
         {/* Weekly Recap card */}
         <div className="bg-card rounded-lg border border-border p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
@@ -389,7 +492,7 @@ export function IntelligencePage() {
         </div>
 
         {/* Quick Actions */}
-        <div>
+        <div className="mb-6">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Quick Actions</h3>
           <div className="flex flex-col gap-2">
             <Button variant="outline" size="sm" onClick={runHealthCheck} disabled={healthLoading}>
@@ -402,6 +505,43 @@ export function IntelligencePage() {
               </Button>
             )}
           </div>
+        </div>
+
+        {/* Chrome Extension */}
+        <div className="bg-card rounded-lg border border-border p-6">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Chrome Extension</h3>
+          <p className="text-sm text-muted-foreground mb-3">
+            Capture web pages, selections, and Gmail threads directly from Chrome.
+          </p>
+          <div className="flex items-center gap-2 mb-3">
+            <div className={cn(
+              'w-2 h-2 rounded-full',
+              extensionApiReachable ? 'bg-green-500' : 'bg-red-500'
+            )} />
+            <span className="text-xs text-muted-foreground">
+              {extensionApiReachable ? 'sb-api reachable from browser' : 'sb-api not reachable'}
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowExtensionInstructions(v => !v)}
+          >
+            <Chrome className="h-4 w-4 mr-2" />
+            Install Chrome Extension
+          </Button>
+          {showExtensionInstructions && (
+            <div className="mt-3 p-3 rounded bg-muted text-sm space-y-2">
+              <p className="font-medium">Installation steps:</p>
+              <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                <li>Open <code className="bg-background px-1 rounded text-xs">chrome://extensions</code> in Chrome</li>
+                <li>Enable &ldquo;Developer mode&rdquo; (toggle in top-right)</li>
+                <li>Click &ldquo;Load unpacked&rdquo;</li>
+                <li>Select the <code className="bg-background px-1 rounded text-xs">chrome-extension/</code> directory in the project root</li>
+                <li>The &ldquo;Second Brain Capture&rdquo; extension should appear</li>
+              </ol>
+            </div>
+          )}
         </div>
       </div>
 

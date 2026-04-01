@@ -59,15 +59,15 @@ def test_reindex_parses_frontmatter_fields(brain_root, db_conn):
     assert row[3] == "private"
 
 
-def test_reindex_stores_absolute_paths(brain_root, db_conn):
-    """After reindex, every path stored in the DB must be absolute (SEARCH-01)."""
+def test_reindex_stores_relative_paths(brain_root, db_conn):
+    """After reindex, every path stored in the DB must be relative (not absolute)."""
     init_schema(db_conn)
     _make_note(brain_root, "note1.md", "type: note\ntitle: Note One", "Body one")
     reindex_brain(brain_root, db_conn)
     rows = db_conn.execute("SELECT path FROM notes").fetchall()
     assert len(rows) >= 1
     for (path,) in rows:
-        assert Path(path).is_absolute(), f"Expected absolute path, got: {path}"
+        assert not Path(path).is_absolute(), f"Expected relative path, got: {path}"
 
 
 def test_reindex_preserves_people_column(tmp_path, db_conn):

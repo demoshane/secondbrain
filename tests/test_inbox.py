@@ -194,4 +194,4 @@ def test_relationships_create(client):
     ).fetchone()
     conn.close()
     assert row is not None
-    assert row[2] == "link"
+    assert row[2] == "connection"

@@ -39,25 +39,42 @@ def client(tmp_path):
 
 
 @pytest.mark.xfail(strict=False, reason="engine/brain_health.py not yet implemented")
-def test_get_orphan_notes_returns_notes_with_no_inbound_links(conn):
-    # Insert a note with no relationships — should appear as orphan
+def test_get_orphan_notes_returns_notes_with_short_body_and_no_metadata(conn):
+    # Insert a note with short body + no tags/people/links — true orphan
     from engine.brain_health import get_orphan_notes
     conn.execute("INSERT INTO notes (path, title, type, body, sensitivity) VALUES (?, ?, ?, ?, ?)",
-                 ("/brain/orphan.md", "Orphan Note", "note", "body", "public"))
+                 ("/brain/orphan.md", "Orphan Note", "note", "short", "public"))
     conn.commit()
     result = get_orphan_notes(conn)
     assert any(r["path"] == "/brain/orphan.md" for r in result)
 
 
-@pytest.mark.xfail(strict=False, reason="engine/brain_health.py not yet implemented")
-def test_get_orphan_notes_excludes_digest_and_memory_types(conn):
+def test_get_orphan_notes_excludes_notes_with_sufficient_body(conn):
+    # A note with enough body text is findable via search — not an orphan
     from engine.brain_health import get_orphan_notes
+    long_body = "This is a substantial note with enough content to be discoverable via search. " * 3
     conn.execute("INSERT INTO notes (path, title, type, body, sensitivity) VALUES (?, ?, ?, ?, ?)",
-                 ("/brain/digests/2026-W12.md", "Digest", "digest", "body", "public"))
+                 ("/brain/findable.md", "Findable Note", "note", long_body, "public"))
+    conn.commit()
+    result = get_orphan_notes(conn)
+    assert not any(r["path"] == "/brain/findable.md" for r in result)
+
+
+def test_get_orphan_notes_excludes_digest_memory_and_person_types(conn):
+    from engine.brain_health import get_orphan_notes
+    for path, title, ntype in [
+        ("/brain/digests/2026-W12.md", "Digest", "digest"),
+        ("/brain/memory/mem.md", "Memory", "memory"),
+        ("person/jane-doe.md", "Jane Doe", "person"),
+    ]:
+        conn.execute("INSERT INTO notes (path, title, type, body, sensitivity) VALUES (?, ?, ?, ?, ?)",
+                     (path, title, ntype, "short", "public"))
     conn.commit()
     result = get_orphan_notes(conn)
     paths = [r["path"] for r in result]
     assert "/brain/digests/2026-W12.md" not in paths
+    assert "/brain/memory/mem.md" not in paths
+    assert "person/jane-doe.md" not in paths
 
 
 @pytest.mark.xfail(strict=False, reason="engine/brain_health.py not yet implemented")

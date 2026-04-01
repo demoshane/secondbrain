@@ -41,11 +41,12 @@ function CollapsibleSection({
   }
 
   return (
-    <div className={cn("flex flex-col", className)}>
+    <div className={cn("flex flex-col", className)} data-testid={`folder-section-${sectionId}`} data-collapsed={!isOpen}>
       <button
         type="button"
         onClick={toggle}
         className="flex items-center gap-2 px-3 py-2 w-full text-left hover:bg-secondary/50 transition-colors"
+        data-testid={`folder-header-${sectionId}`}
       >
         {isOpen ? (
           <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />

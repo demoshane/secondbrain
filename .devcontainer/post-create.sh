@@ -29,9 +29,9 @@ git config core.hooksPath .githooks
 echo "▶ Setting up claude-dev alias..."
 echo 'alias claude-dev="/workspace/.devcontainer/claude-dev.sh"' >> /home/vscode/.bashrc
 
-echo "▶ Installing Playwright browsers (optional — GUI testing runs on host)..."
-uv run python -m playwright install --with-deps chromium 2>/dev/null \
-    || echo "  ⚠ Playwright setup skipped — GUI testing happens on host anyway"
+echo "▶ Installing Playwright browsers..."
+uv run python -m playwright install --with-deps chromium
+npx playwright install chromium
 
 echo "▶ Initialising brain structure..."
 uv run sb-init --yes 2>/dev/null || true
@@ -49,4 +49,5 @@ echo "  claude-dev    Launch Claude Code with skip-permissions + safety guardrai
 echo "  claude        Launch Claude Code with normal permissions"
 echo ""
 echo "  Development:  edit code, run pytest, git — all inside container"
-echo "  GUI testing:  run deploy pipeline on HOST, test at localhost:37491/ui"
+echo "  E2E tests:    make e2e (Python + TypeScript Playwright, headless)"
+echo "  Host-only:    make restart (launchd services), real brain data testing"

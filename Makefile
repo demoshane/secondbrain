@@ -5,7 +5,7 @@
 #
 # Environment detection: /workspace + UV_PROJECT_ENVIRONMENT → container, otherwise → host
 
-.PHONY: dev restart test build-frontend install help
+.PHONY: dev restart test e2e build-frontend install help
 
 REPO := $(shell pwd)
 
@@ -22,6 +22,7 @@ help:
 	@echo "  make dev       — build frontend + reinstall Python package (container or host)"
 	@echo "  make restart   — restart launchd services (HOST only)"
 	@echo "  make test      — run full test suite"
+	@echo "  make e2e       — run Playwright tests (Python + TypeScript)"
 	@echo "  make build-frontend — build frontend bundle only"
 	@echo "  make install   — reinstall uv tool only"
 
@@ -55,3 +56,7 @@ endif
 
 test:
 	uv run pytest tests/ -q --tb=short
+
+e2e:
+	uv run pytest tests/test_gui.py -v --tb=short
+	npx playwright test

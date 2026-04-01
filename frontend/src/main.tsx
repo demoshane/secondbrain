@@ -23,15 +23,15 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ThemeProvider>
-      <NoteProvider>
-        <SearchProvider>
-          <UIProvider>
+      <UIProvider>
+        <NoteProvider>
+          <SearchProvider>
             <SSEProvider>
               <App />
             </SSEProvider>
-          </UIProvider>
-        </SearchProvider>
-      </NoteProvider>
+          </SearchProvider>
+        </NoteProvider>
+      </UIProvider>
     </ThemeProvider>
   </React.StrictMode>,
 )

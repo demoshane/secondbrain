@@ -34,7 +34,7 @@ class TestBudgetGate:
                 (f"/n/{i}.md", "note", f"t{i}", "", "[]", "[]", "public")
             )
         conn.commit()
-        state = {"last_offer_date": datetime.date.today().isoformat()}
+        state = {"daily_budgets": {"default": datetime.date.today().isoformat()}}
         state_file = tmp_path / "intelligence_state.json"
         state_file.write_text(json.dumps(state))
         monkeypatch.setattr("engine.intelligence.STATE_PATH", state_file)
@@ -50,7 +50,7 @@ class TestBudgetGate:
                 (f"/n/{i}.md", "note", f"t{i}", "", "[]", "[]", "public")
             )
         conn.commit()
-        state = {"last_offer_date": "2000-01-01"}
+        state = {"daily_budgets": {"default": "2000-01-01"}}
         state_file = tmp_path / "intelligence_state.json"
         state_file.write_text(json.dumps(state))
         monkeypatch.setattr("engine.intelligence.STATE_PATH", state_file)
@@ -154,9 +154,13 @@ class TestActionsDone:
 
 
 class TestStaleNudge:
-    def test_get_stale_notes_returns_old_notes(self, tmp_path):
+    def test_get_stale_notes_returns_old_notes(self, tmp_path, monkeypatch):
         """get_stale_notes() returns notes with updated_at older than 90 days."""
         from engine.intelligence import get_stale_notes
+        import engine.intelligence as _intel
+        # Prevent writing snooze state to real ~/.meta/
+        monkeypatch.setattr(_intel, "_load_state", lambda: {})
+        monkeypatch.setattr(_intel, "_save_state", lambda s: None)
         conn = _make_db()
         old_date = (datetime.date.today() - datetime.timedelta(days=91)).isoformat() + "T00:00:00Z"
         note = tmp_path / "old.md"
@@ -167,11 +171,14 @@ class TestStaleNudge:
         )
         conn.commit()
         results = get_stale_notes(conn, days=90, limit=5)
-        assert len(results) >= 1  # stub returns [] → RED
+        assert len(results) >= 1
 
-    def test_get_stale_notes_excludes_recent(self):
+    def test_get_stale_notes_excludes_recent(self, monkeypatch):
         """get_stale_notes() does NOT return notes updated within 90 days."""
         from engine.intelligence import get_stale_notes
+        import engine.intelligence as _intel
+        monkeypatch.setattr(_intel, "_load_state", lambda: {})
+        monkeypatch.setattr(_intel, "_save_state", lambda s: None)
         conn = _make_db()
         new_date = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
         conn.execute(
@@ -180,7 +187,7 @@ class TestStaleNudge:
         )
         conn.commit()
         results = get_stale_notes(conn, days=90, limit=5)
-        assert len(results) == 0  # correct — passes stub too, not RED but harmless
+        assert len(results) == 0
 
 
 class TestEvergreenExempt:

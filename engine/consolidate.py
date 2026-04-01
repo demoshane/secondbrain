@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 def consolidate_main() -> None:
     """Entry point for sb-consolidate launchd job. Per D-16 order."""
+    # Lazy imports: deferred to avoid slow module-level load of brain_health
+    # (heavy dependencies). Reason is startup performance, not import ordering.
     from engine.db import get_connection, init_schema
     from engine.brain_health import (
         archive_old_action_items,

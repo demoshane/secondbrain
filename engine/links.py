@@ -2,7 +2,7 @@
 from pathlib import Path
 import re
 import sqlite3
-import datetime
+from engine.db import _now_utc
 
 _WIKI_LINK_RE = re.compile(r"\[\[([^\[\]]+)\]\]")
 
@@ -31,7 +31,7 @@ def update_wiki_link_relationships(
             (source_path,),
         )
         targets = extract_wiki_links(body)
-        now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
+        now = _now_utc()
         for target in targets:
             conn.execute(
                 "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type, created_at)"
@@ -56,6 +56,7 @@ def ensure_person_profile(
     3. No match → create brain_root/person/{slug}.md with full frontmatter
        (type: person) so it is immediately indexed correctly.
     """
+    # Canonical subdirectory is "person/" — confirmed by BRAIN_SUBDIRS in engine/paths.py (F-30).
     person_file = brain_root / "person" / f"{slug}.md"
     if person_file.exists():
         return person_file
@@ -74,7 +75,7 @@ def ensure_person_profile(
             pass  # best-effort; fall through to skeleton creation
 
     person_file.parent.mkdir(parents=True, exist_ok=True)
-    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = _now_utc()
     person_file.write_text(
         f"---\ntitle: {display_name}\ntype: person\n"
         f"created_at: '{now}'\nupdated_at: '{now}'\n"
@@ -92,25 +93,56 @@ def add_backlinks(
 ) -> None:
     """Append backlink to each person's profile and record in relationships table.
 
-    - Normalizes person slug: strip, lowercase, spaces -> hyphens
-    - Calls ensure_person_profile(slug, brain_root) to get/create the profile
+    People entries can be:
+    - Name strings: "Eino Kiiski" → slugified to find/create profile
+    - Relative paths: "person/eino-kiiski.md" → resolved directly against brain_root
+
     - Appends backlink only if not already present (idempotent)
-    - Inserts relationships row with INSERT OR IGNORE (idempotent)
+    - Inserts relationships row with INSERT OR IGNORE using relative DB paths (idempotent)
     - Never raises — DB errors are silently swallowed (best-effort)
     """
+    from engine.paths import store_path as _store_path
+
+    # Resolve note_path to relative DB path for relationship storage
+    try:
+        note_db_path = _store_path(note_path.resolve())
+    except ValueError:
+        note_db_path = str(note_path)
+
     for person_raw in people:
-        slug = person_raw.strip().lower().replace(" ", "-")
-        person_file = ensure_person_profile(slug, brain_root, conn)
+        person_raw = person_raw.strip()
+        # Detect path-format entries (contain / or end with .md)
+        if "/" in person_raw or person_raw.endswith(".md"):
+            person_file = brain_root / person_raw
+            if not person_file.exists():
+                # Path doesn't exist — fall back to slug-based resolution
+                slug = Path(person_raw).stem.lower().replace(" ", "-")
+                person_file = ensure_person_profile(slug, brain_root, conn)
+        else:
+            slug = person_raw.lower().replace(" ", "-")
+            person_file = ensure_person_profile(slug, brain_root, conn)
+
+        # Use relative paths for DB relationship storage
+        try:
+            person_db_path = _store_path(person_file.resolve())
+        except ValueError:
+            person_db_path = str(person_file)
+
+        # Skip self-referencing backlinks (person note mentioning itself)
+        if person_db_path == note_db_path:
+            continue
+
         text = person_file.read_text(encoding="utf-8")
-        backlink = f"\n- [[{note_path}]]"
-        if str(note_path) not in text:
+        # Use relative path for on-disk wiki-links (portable, consistent with DB)
+        backlink = f"\n- [[{note_db_path}]]"
+        if note_db_path not in text and str(note_path) not in text:
             person_file.write_text(text + backlink, encoding="utf-8")
+
         try:
             conn.execute(
                 "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type, created_at)"
                 " VALUES (?, ?, ?, ?)",
-                (str(person_file), str(note_path), "backlink",
-                 datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")),
+                (person_db_path, note_db_path, "backlink", _now_utc()),
             )
             conn.commit()
         except Exception:
@@ -124,21 +156,14 @@ def check_links(brain_root: Path, conn: sqlite3.Connection) -> list[dict]:
         "SELECT source_path, target_path, rel_type FROM relationships"
     ).fetchall()
     for source_str, target_str, rel_type in rows:
-        source = Path(source_str)
-        target = Path(target_str)
+        # DB stores relative paths — resolve against brain_root for disk access
+        source = brain_root / source_str
+        target = brain_root / target_str
         if not source.exists():
             orphans.append({"source": source_str, "target": target_str, "issue": "source missing"})
             continue
         if not target.exists():
             orphans.append({"source": source_str, "target": target_str, "issue": "target missing"})
-            continue
-        if rel_type == "backlink":
-            target_text = target.read_text(encoding="utf-8")
-            if source_str not in target_text and source.stem not in target_text:
-                orphans.append({
-                    "source": source_str, "target": target_str,
-                    "issue": "target does not reference source"
-                })
     return orphans
 
 

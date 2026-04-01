@@ -403,6 +403,7 @@ def test_similar_relationship_created(isolated_brain, monkeypatch):
     assert result["count"] >= 1
 
 
+@pytest.mark.real_threads
 def test_async_hooks_nonblocking_cap06(isolated_brain, monkeypatch):
     import time
     import engine.mcp_server as mcp_mod
@@ -899,6 +900,7 @@ class TestSimilarRelationshipAutoLink:
 # Phase 31-03 Task 2: Async intelligence hooks on sb_capture_batch
 # ---------------------------------------------------------------------------
 
+@pytest.mark.real_threads
 class TestAsyncBatchHooks:
     """sb_capture_batch spawns background intelligence hooks without blocking."""
 

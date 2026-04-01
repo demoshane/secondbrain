@@ -20,6 +20,7 @@ IN_DEVCONTAINER = Path("/workspace").exists() and os.environ.get("UV_PROJECT_ENV
 # restore the original (real) DB_PATH mid-session.
 # ---------------------------------------------------------------------------
 _GUI_DB_PATH = None
+_GUI_BRAIN_ROOT = None
 
 
 # ---------------------------------------------------------------------------
@@ -34,10 +35,11 @@ def _guard_real_brain():
     new files appear, so regressions are caught immediately rather than silently
     polluting Drive-synced brain data.
     """
-    # Check both host path and container bind-mount path
+    # Check host path only — the container bind-mount (/workspace/brain) is
+    # Drive-synced from the host, so files can appear mid-run from sync, not
+    # from test leaks.  The gui_brain fixture already isolates test writes.
     real_brain = Path.home() / "SecondBrain"
-    container_brain = Path("/workspace/brain")
-    brain_dirs = [d for d in (real_brain, container_brain) if d.exists()]
+    brain_dirs = [real_brain] if real_brain.exists() and not IN_DEVCONTAINER else []
     if not brain_dirs:
         yield
         return
@@ -105,10 +107,44 @@ def _restore_gui_db():
     if _GUI_DB_PATH is not None:
         _db.DB_PATH = _GUI_DB_PATH
         _paths.DB_PATH = _GUI_DB_PATH
+    if _GUI_BRAIN_ROOT is not None:
+        _paths.BRAIN_ROOT = _GUI_BRAIN_ROOT
     yield
     if _GUI_DB_PATH is not None:
         _db.DB_PATH = _GUI_DB_PATH
         _paths.DB_PATH = _GUI_DB_PATH
+    if _GUI_BRAIN_ROOT is not None:
+        _paths.BRAIN_ROOT = _GUI_BRAIN_ROOT
+
+
+# ---------------------------------------------------------------------------
+# Background thread stub — prevents FD exhaustion from daemon threads
+# ---------------------------------------------------------------------------
+# capture_note() spawns a daemon thread for intelligence hooks (action item
+# extraction, connection checking, person stub creation).  Each thread opens
+# DB connections, spawns claude -p subprocesses, and opens HTTP connections to
+# Ollama.  Across 500+ tests these pile up and exhaust file descriptors.
+# This autouse fixture replaces threading.Thread with a no-op for all tests
+# except those that explicitly test the background hooks.
+
+
+@pytest.fixture(autouse=True)
+def _stub_background_threads(request, monkeypatch):
+    """Prevent capture_note / mcp_server background threads from spawning in tests.
+
+    Tests that need real threading (e.g. test_capture.py::TestIntelligenceHooks)
+    use their own _SyncThread monkeypatch and should opt out via marker:
+        @pytest.mark.real_threads
+
+    Patches the module-level _spawn_background() helpers — does NOT touch
+    stdlib threading.Thread, which would break threading.Timer in watcher/attachments.
+    """
+    if request.node.get_closest_marker("real_threads"):
+        return
+    import engine.capture as _cap
+    import engine.mcp_server as _mcp
+    monkeypatch.setattr(_cap, "_spawn_background", lambda **kw: None)
+    monkeypatch.setattr(_mcp, "_spawn_background", lambda **kw: None)
 
 
 # ---------------------------------------------------------------------------
@@ -334,8 +370,9 @@ def gui_brain(tmp_path_factory):
     # (BRAIN_ROOT is computed at import time from env var — must be patched directly)
     _paths.BRAIN_ROOT = brain
     # Set module-level sentinel so _restore_gui_db can re-anchor after each test
-    global _GUI_DB_PATH
+    global _GUI_DB_PATH, _GUI_BRAIN_ROOT
     _GUI_DB_PATH = tmp_db
+    _GUI_BRAIN_ROOT = brain
     # Init schema so the DB is ready before Flask starts
     from engine.db import init_schema, get_connection
     conn = get_connection()
@@ -412,10 +449,11 @@ def gui_brain(tmp_path_factory):
     )
     conn6 = get_connection()
     conn6.execute(
-        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, created_at, updated_at)"
-        " VALUES (?,?,?,?,?,?,?)",
+        "INSERT OR REPLACE INTO notes (path, title, type, body, tags, people, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?,?)",
         (str(mention_path), "Test Mention Note", "idea",
          "This note mentions Test Person in the body.", "[]",
+         json.dumps([str(person_file)]),
          "2026-03-01 09:00:00", "2026-03-01 09:00:00"),
     )
     conn6.commit()

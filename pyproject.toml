@@ -30,6 +30,15 @@ dev = [
     "pytest-playwright>=0.5.0",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "detect-secrets>=1.5.0",
+    "pre-commit>=3.0",
+    "pytest-playwright>=0.5.0",
+]
+
 [project.scripts]
 sb-init = "engine.init_brain:main"
 sb-reindex = "engine.reindex:main"
@@ -56,10 +65,17 @@ sb-backup        = "engine.backup:backup_main"
 sb-restore       = "engine.backup:restore_main"
 sb-perf          = "engine.perf:main"
 
+[tool.uv]
+default-groups = ["dev"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
 filterwarnings = ["ignore::DeprecationWarning"]
+markers = [
+    "real_threads: test needs real threading.Thread (not no-op stub)",
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["engine", "scripts"]

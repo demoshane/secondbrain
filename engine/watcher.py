@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileCreatedEvent
+import engine.paths as _engine_paths
 from engine.ratelimit import RateLimiter
 
 DEBOUNCE_SECONDS = 5.0
@@ -85,7 +86,7 @@ _suppress_events: dict[str, threading.Event] = {}
 _suppress_lock = threading.Lock()
 
 
-def suppress_next_delete(abs_path: str, window: float = 0.5) -> None:
+def suppress_next_delete(abs_path: str, window: float = 1.0) -> None:
     """Record abs_path so _fire will skip the next 'deleted' event for it within window seconds."""
     ev = threading.Event()
     with _suppress_lock:
@@ -143,6 +144,7 @@ class NoteChangeHandler(FileSystemEventHandler):
     def _fire(self, event_type: str, src_path: str) -> None:
         with self._lock:
             self._timers.pop(src_path, None)
+        brain_root = Path(os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain")))
         if event_type == "deleted":
             if is_suppressed(src_path):
                 return
@@ -151,17 +153,20 @@ class NoteChangeHandler(FileSystemEventHandler):
             if is_upload_suppressed(src_path):
                 return
             from engine.db import get_connection as _get_conn
+            try:
+                _rel_path = str(Path(src_path).relative_to(brain_root))
+            except ValueError:
+                _rel_path = src_path
             _conn = _get_conn()
             try:
                 already = (
-                    _conn.execute("SELECT 1 FROM notes WHERE path=?", (src_path,)).fetchone()
-                    or _conn.execute("SELECT 1 FROM attachments WHERE file_path=?", (src_path,)).fetchone()
+                    _conn.execute("SELECT 1 FROM notes WHERE path=?", (_rel_path,)).fetchone()
+                    or _conn.execute("SELECT 1 FROM attachments WHERE file_path=?", (_rel_path,)).fetchone()
                 )
             finally:
                 _conn.close()
             if already:
                 return
-        brain_root = os.environ.get("BRAIN_PATH", os.path.expanduser("~/SecondBrain"))
         try:
             rel = Path(src_path).relative_to(brain_root)
         except ValueError:

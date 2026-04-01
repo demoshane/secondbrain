@@ -715,13 +715,9 @@ def test_update_note_re_extracts_entities(tmp_path, monkeypatch):
 # Phase 46: Person stub creation in capture_note background thread (UCE-01/02/03)
 # ---------------------------------------------------------------------------
 
-class _SyncThread:
-    """Runs threading.Thread target synchronously — eliminates race conditions in tests."""
-    def __init__(self, target, daemon=None):
-        self._target = target
-
-    def start(self):
-        self._target()
+def _sync_spawn_background(target):
+    """Run target synchronously — eliminates race conditions in tests."""
+    target()
 
 
 class TestPersonStubCreation:
@@ -769,7 +765,7 @@ class TestPersonStubCreation:
 
         monkeypatch.setattr("engine.entities.extract_entities", fake_extract)
         monkeypatch.setattr("engine.segmenter.resolve_entities", fake_resolve)
-        monkeypatch.setattr("threading.Thread", _SyncThread)
+        monkeypatch.setattr("engine.capture._spawn_background", _sync_spawn_background)
 
         from engine.capture import capture_note
         capture_note(
@@ -803,7 +799,7 @@ class TestPersonStubCreation:
         monkeypatch.setattr("engine.entities.extract_entities",
                             lambda t, b: {"people": ["John Smith"], "places": [], "topics": [], "orgs": []})
         monkeypatch.setattr("engine.segmenter.resolve_entities", fake_resolve)
-        monkeypatch.setattr("threading.Thread", _SyncThread)
+        monkeypatch.setattr("engine.capture._spawn_background", _sync_spawn_background)
 
         from engine.capture import capture_note
         capture_note(
@@ -824,7 +820,7 @@ class TestPersonStubCreation:
                             lambda t, b: {"people": ["John Smith"], "places": [], "topics": [], "orgs": []})
         monkeypatch.setattr("engine.segmenter.resolve_entities",
                             lambda e, c, r: resolve_calls.append(e) or {"new_stubs": [], "existing": []})
-        monkeypatch.setattr("threading.Thread", _SyncThread)
+        monkeypatch.setattr("engine.capture._spawn_background", _sync_spawn_background)
 
         from engine.capture import capture_note
         capture_note(
@@ -845,7 +841,7 @@ class TestPersonStubCreation:
                             lambda t, b: {"people": ["John Smith"], "places": [], "topics": [], "orgs": []})
         monkeypatch.setattr("engine.segmenter.resolve_entities",
                             lambda e, c, r: resolve_calls.append(e) or {"new_stubs": [], "existing": []})
-        monkeypatch.setattr("threading.Thread", _SyncThread)
+        monkeypatch.setattr("engine.capture._spawn_background", _sync_spawn_background)
 
         from engine.capture import capture_note
         capture_note(
@@ -866,7 +862,7 @@ class TestPersonStubCreation:
                             lambda t, b: {"people": [], "places": [], "topics": [], "orgs": []})
         monkeypatch.setattr("engine.segmenter.resolve_entities",
                             lambda e, c, r: resolve_calls.append(e) or {"new_stubs": [], "existing": []})
-        monkeypatch.setattr("threading.Thread", _SyncThread)
+        monkeypatch.setattr("engine.capture._spawn_background", _sync_spawn_background)
 
         from engine.capture import capture_note
         capture_note(
@@ -888,7 +884,7 @@ class TestPersonStubCreation:
                             lambda t, b: {"people": [], "places": [], "topics": [], "orgs": []})
         monkeypatch.setattr("engine.segmenter.resolve_entities",
                             lambda e, c, r: resolve_calls.append(e) or {"new_stubs": [], "existing": []})
-        monkeypatch.setattr("threading.Thread", _SyncThread)
+        monkeypatch.setattr("engine.capture._spawn_background", _sync_spawn_background)
 
         from engine.capture import capture_note
         capture_note(
@@ -910,7 +906,7 @@ class TestPersonStubCreation:
         monkeypatch.setattr("engine.entities.extract_entities",
                             lambda t, b: {"people": ["John Smith"], "places": [], "topics": [], "orgs": []})
         monkeypatch.setattr("engine.segmenter.resolve_entities", failing_resolve)
-        monkeypatch.setattr("threading.Thread", _SyncThread)
+        monkeypatch.setattr("engine.capture._spawn_background", _sync_spawn_background)
 
         from engine.capture import capture_note
         result = capture_note(

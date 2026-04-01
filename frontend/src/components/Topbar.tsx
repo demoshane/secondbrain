@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react'
-import { Search, Plus, FolderUp, Sparkles, SlidersHorizontal, Brain, Settings } from 'lucide-react'
+import { Search, Plus, FolderUp, Sparkles, SlidersHorizontal, Brain, Settings, ArrowLeft } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useSearchContext } from '@/contexts/SearchContext'
 import { useSSEContext } from '@/contexts/SSEContext'
 import { useNoteContext } from '@/contexts/NoteContext'
+import { useUIContext } from '@/contexts/UIContext'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -19,9 +20,19 @@ interface Props {
 export function Topbar({ onNewNote, onBatchCapture, onSmartCapture, onAskBrain, onSettings }: Props) {
   const { query, setQuery, mode, setMode, search, clearSearch } = useSearchContext()
   const { connected } = useSSEContext()
-  const { loadNotes } = useNoteContext()
+  const { loadNotes, openNoteQuiet } = useNoteContext()
+  const { goBack, canGoBack } = useUIContext()
   const inputRef = useRef<HTMLInputElement>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
+
+  const handleBack = async () => {
+    const entry = goBack()
+    if (!entry) return
+    // If going back to notes view with a specific note, restore it
+    if (entry.view === 'notes' && entry.notePath) {
+      await openNoteQuiet(entry.notePath)
+    }
+  }
 
   const handleSearch = () => {
     if (query.trim()) {
@@ -39,6 +50,17 @@ export function Topbar({ onNewNote, onBatchCapture, onSmartCapture, onAskBrain, 
 
   return (
     <div className="h-[52px] flex items-center gap-2 px-4 border-b border-border bg-background" data-testid="topbar">
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={handleBack}
+        disabled={!canGoBack}
+        title="Go back"
+        data-testid="back-btn"
+        className="h-8 w-8 p-0 shrink-0"
+      >
+        <ArrowLeft className="h-4 w-4" />
+      </Button>
       <Search className="h-4 w-4 text-muted-foreground shrink-0" />
       <Input
         ref={inputRef}

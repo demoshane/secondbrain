@@ -7,8 +7,13 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import tempfile
+from engine.db import _json_list
 import sqlite3
 from pathlib import Path
+
+import frontmatter as _fm
 
 from engine.paths import CONFIG_PATH
 
@@ -16,15 +21,23 @@ logger = logging.getLogger(__name__)
 _ORPHAN_CHECK_CAP = 10000
 
 
-def get_orphan_notes(conn: sqlite3.Connection) -> list[dict]:
-    """Return notes with no inbound relationship links.
+_ORPHAN_BODY_MIN_LENGTH = 100  # Notes with body >= this are findable via search
 
-    Excludes digest and memory note types (they are structurally linkless by design).
+
+def get_orphan_notes(conn: sqlite3.Connection) -> list[dict]:
+    """Return notes that are truly unfindable — too little content AND no metadata paths.
+
+    A note is findable (not orphaned) if ANY of these hold:
+    - Has relationships/links (reachable from other notes)
+    - Has people tags (shows up in people views)
+    - Has tags (shows up in filtered views)
+    - Has enough body text for search to surface it (>= 100 chars)
+    - Is a person or digest or memory type (structurally standalone)
     """
     rows = conn.execute(
         """
         SELECT n.path, n.title FROM notes n
-        WHERE n.type NOT IN ('digest', 'memory')
+        WHERE n.type NOT IN ('digest', 'memory', 'person')
           AND n.path NOT IN (
               SELECT source_path FROM relationships
               UNION
@@ -32,19 +45,21 @@ def get_orphan_notes(conn: sqlite3.Connection) -> list[dict]:
           )
           AND (n.people IS NULL OR n.people = '[]' OR n.people = 'null')
           AND (n.tags IS NULL OR n.tags = '[]' OR n.tags = 'null')
+          AND (n.body IS NULL OR LENGTH(TRIM(n.body)) < ?)
         ORDER BY n.created_at DESC
-        """
+        """,
+        (_ORPHAN_BODY_MIN_LENGTH,),
     ).fetchall()
     return [{"path": row[0], "title": row[1]} for row in rows]
 
 
 def get_missing_file_notes(conn: sqlite3.Connection, cap: int = _ORPHAN_CHECK_CAP) -> list[dict]:
     """Return DB rows whose file no longer exists on disk (disk orphans)."""
-    import os
+    from engine.paths import BRAIN_ROOT as _br
     rows = conn.execute("SELECT path, title FROM notes WHERE archived = 0 LIMIT ?", (cap,)).fetchall()
     if len(rows) == cap:
         logger.warning("Orphan check truncated at %d rows — increase cap for full coverage", cap)
-    return [{"path": r[0], "title": r[1]} for r in rows if not os.path.exists(r[0])]
+    return [{"path": r[0], "title": r[1]} for r in rows if not (_br / r[0]).exists()]
 
 
 def get_empty_notes(conn: sqlite3.Connection) -> list[dict]:
@@ -83,6 +98,37 @@ def get_duplicate_candidates(
             (_DUPLICATE_CHECK_CAP,),
         ).fetchall()
         paths = [r[0] for r in paths_rows]
+
+        # Load dismissed duplicate pairs with their similarity at dismissal time.
+        # Resurface if current similarity differs by more than 5% from when dismissed.
+        dismissed: dict[tuple[str, str], float] = {}
+        try:
+            dismissed_rows = conn.execute(
+                "SELECT path, detail FROM dismissed_inbox_items WHERE item_type='duplicate'"
+            ).fetchall()
+            for r in dismissed_rows:
+                parts = r[0].split("||")
+                if len(parts) == 2:
+                    try:
+                        sim = float(r[1]) if r[1] else 0.0
+                    except (ValueError, TypeError):
+                        sim = 0.0
+                    dismissed[tuple(sorted(parts))] = sim
+        except Exception:
+            pass
+
+        # Build a set of person-type note paths to skip person-vs-person pairs.
+        # Person stubs often have empty/minimal bodies → near-identical embeddings
+        # that produce false-positive duplicates (different people, same template).
+        person_paths: set[str] = set()
+        if paths:
+            ph = ",".join("?" for _ in paths)
+            person_rows = conn.execute(
+                f"SELECT path FROM notes WHERE path IN ({ph}) AND type IN ('person')",
+                paths,
+            ).fetchall()
+            person_paths = {r[0] for r in person_rows}
+
         seen: set[tuple[str, str]] = set()
         pairs: list[dict] = []
         for path in paths:
@@ -91,7 +137,14 @@ def get_duplicate_candidates(
             except Exception:
                 continue
             for m in matches:
+                # Skip person-vs-person pairs (false positives from stub templates)
+                if path in person_paths and m["note_path"] in person_paths:
+                    continue
                 key = tuple(sorted([path, m["note_path"]]))
+                if key in dismissed:
+                    # Resurface if similarity shifted by >5% since dismissal
+                    if abs(m["similarity"] - dismissed[key]) <= 0.05:
+                        continue
                 if key not in seen:
                     seen.add(key)
                     pairs.append(
@@ -249,8 +302,8 @@ def merge_notes(
     else:
         merged_body = keep_body
 
-    keep_tags = json.loads(keep_row[3] or "[]")
-    discard_tags = json.loads(discard_row[3] or "[]")
+    keep_tags = _json_list(keep_row[3])
+    discard_tags = _json_list(discard_row[3])
     merged_tags = sorted(set(keep_tags + discard_tags))
     merged_tags_json = json.dumps(merged_tags)
 
@@ -302,21 +355,22 @@ def merge_notes(
     conn.execute("INSERT INTO notes_fts(notes_fts) VALUES('rebuild')")
     conn.commit()
 
-    # Write merged body back to the keep file on disk
+    # Write merged body back to the keep file on disk (atomic, frontmatter-safe)
     keep_file = Path(keep_path)
     if not keep_file.is_absolute():
         from engine.paths import BRAIN_ROOT
         keep_file = BRAIN_ROOT / keep_path
     if keep_file.exists():
-        original_text = keep_file.read_text(encoding="utf-8")
-        # Replace body section: everything after the closing --- of frontmatter
-        parts = original_text.split("---", 2)
-        if len(parts) >= 3:
-            keep_file.write_text(
-                "---" + parts[1] + "---\n\n" + merged_body, encoding="utf-8"
-            )
-        else:
-            keep_file.write_text(merged_body, encoding="utf-8")
+        post = _fm.load(str(keep_file))
+        post.content = merged_body
+        fd, tmp = tempfile.mkstemp(dir=keep_file.parent, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(_fm.dumps(post))
+            os.replace(tmp, keep_file)
+        except Exception:
+            Path(tmp).unlink(missing_ok=True)
+            raise
 
     # Delete discard file from disk (after DB commit per ARCH-08)
     discard_file = Path(discard_path)
@@ -412,20 +466,22 @@ def smart_merge_notes(
     conn.execute("INSERT INTO notes_fts(notes_fts) VALUES('rebuild')")
     conn.commit()
 
-    # Overwrite disk file with AI body
+    # Overwrite disk file with AI body (atomic, frontmatter-safe)
     keep_file = Path(keep_path)
     if not keep_file.is_absolute():
         from engine.paths import BRAIN_ROOT
         keep_file = BRAIN_ROOT / keep_path
     if keep_file.exists():
-        original_text = keep_file.read_text(encoding="utf-8")
-        parts = original_text.split("---", 2)
-        if len(parts) >= 3:
-            keep_file.write_text(
-                "---" + parts[1] + "---\n\n" + merged_body, encoding="utf-8"
-            )
-        else:
-            keep_file.write_text(merged_body, encoding="utf-8")
+        post = _fm.load(str(keep_file))
+        post.content = merged_body
+        fd, tmp = tempfile.mkstemp(dir=keep_file.parent, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(_fm.dumps(post))
+            os.replace(tmp, keep_file)
+        except Exception:
+            Path(tmp).unlink(missing_ok=True)
+            raise
 
     result["smart"] = smart
     return result
@@ -479,7 +535,9 @@ def repair_person_backlinks(brain_root: Path, conn: sqlite3.Connection) -> dict:
         "SELECT source_path, target_path FROM relationships WHERE rel_type = 'backlink'"
     ).fetchall()
 
-    stale = [(src, tgt) for src, tgt in rows if not Path(tgt).exists()]
+    # DB stores relative paths — resolve against BRAIN_ROOT for disk access
+    from engine.paths import BRAIN_ROOT as _br
+    stale = [(src, tgt) for src, tgt in rows if not (_br / tgt).exists()]
     if not stale:
         return {"files_updated": 0, "links_removed": 0}
 
@@ -491,7 +549,7 @@ def repair_person_backlinks(brain_root: Path, conn: sqlite3.Connection) -> dict:
     links_removed = 0
 
     for source_path, stale_targets in by_source.items():
-        person_file = Path(source_path)
+        person_file = _br / source_path
         for tgt in stale_targets:
             conn.execute(
                 "DELETE FROM relationships WHERE source_path=? AND target_path=?",

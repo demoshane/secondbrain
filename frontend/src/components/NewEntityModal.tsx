@@ -42,6 +42,11 @@ export function NewEntityModal({ open, onClose, entityType, onCreated }: NewEnti
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
+      if (resp.status === 409) {
+        const data = await resp.json().catch(() => ({}))
+        toast.error(data.error || `${name.trim()} already exists`)
+        return
+      }
       if (!resp.ok) {
         throw new Error(`HTTP ${resp.status}`)
       }

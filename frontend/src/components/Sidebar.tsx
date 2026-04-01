@@ -56,7 +56,8 @@ function NoteRow({ note, isActive, onClick }: NoteRowProps) {
           : 'text-muted-foreground hover:bg-secondary/50'
       )}
       onClick={onClick}
-      data-testid={`note-row-${encodeURIComponent(note.path)}`}
+      data-testid="note-item"
+      data-path={note.path}
     >
       <NoteTypeBadge type={note.type || 'note'} className="text-[10px] shrink-0" />
       <ImportanceBadge importance={note.importance} className="text-[10px] shrink-0" />

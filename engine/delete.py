@@ -1,8 +1,10 @@
 """Note deletion utility — single shared implementation for GUI and CLI."""
 from __future__ import annotations
 
-import datetime
+import os
+import tempfile
 from pathlib import Path
+from engine.db import _now_utc
 
 
 def get_delete_impact(path_str: str, conn) -> dict:
@@ -78,8 +80,9 @@ def delete_note(abs_path: Path, conn, brain_root: Path) -> dict:
     # 3b. Delete notes row (notes_ad AFTER DELETE trigger handles FTS5 automatically)
     conn.execute("DELETE FROM notes WHERE path=?", (path_str,))
 
-    # 4. Delete note_embeddings row
+    # 4. Delete note_embeddings and note_chunks rows
     conn.execute("DELETE FROM note_embeddings WHERE note_path=?", (path_str,))
+    conn.execute("DELETE FROM note_chunks WHERE note_path=?", (path_str,))
 
     # 5a. Remove [[backlink]] text from any note files that reference the deleted note.
     # backlinks are stored in note bodies as "\n- [[abs_path_str]]".
@@ -103,7 +106,18 @@ def delete_note(abs_path: Path, conn, brain_root: Path) -> dict:
             for _ref in (abs_path_str, path_str):
                 _new = _new.replace(f"\n- [[{_ref}]]", "")
             if _new != _text:
-                _src_file.write_text(_new, encoding="utf-8")
+                _fd, _tmp = tempfile.mkstemp(dir=_src_file.parent, suffix=".tmp")
+                try:
+                    with os.fdopen(_fd, "w", encoding="utf-8") as _fh:
+                        _fh.write(_new)
+                    _fd = None
+                    os.replace(_tmp, _src_file)
+                except Exception:
+                    if _fd is not None:
+                        os.close(_fd)
+                    if Path(_tmp).exists():
+                        Path(_tmp).unlink(missing_ok=True)
+                    raise
         except OSError:
             pass
 
@@ -116,6 +130,10 @@ def delete_note(abs_path: Path, conn, brain_root: Path) -> dict:
 
     # 6. Delete action_items rows (prevents orphan items in Actions panel)
     conn.execute("DELETE FROM action_items WHERE note_path=?", (path_str,))
+
+    # 6b. Delete orphan attachments and archived action items
+    conn.execute("DELETE FROM attachments WHERE note_path=?", (path_str,))
+    conn.execute("DELETE FROM action_items_archive WHERE note_path=?", (path_str,))
 
     # 6a. Person-specific cascade: NULL assignee_path + clean note_people cross-refs
     if _note_type == "person":
@@ -132,7 +150,7 @@ def delete_note(abs_path: Path, conn, brain_root: Path) -> dict:
             "delete_note",
             None,
             path_str,
-            datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            _now_utc(),
         ),
     )
 

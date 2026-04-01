@@ -1,11 +1,18 @@
 """Entity extraction from note text.
 
-People extraction uses a two-layer strategy:
-1. Bracket parser — [Name] / [Name, Name] notation; always runs; zero false positives.
-2. spaCy NER    — en_core_web_sm; replaces the regex bigram scanner when available.
-3. Regex bigram — sliding-window fallback when spaCy is not installed.
+People extraction uses a three-layer strategy (in priority order):
+1. LLM (Ollama) — local llama3.2; multilingual, high accuracy; used when available.
+2. Bracket parser — [Name] / [Name, Name] notation; always runs; zero false positives.
+3. spaCy NER    — en_core_web_sm; fallback when LLM unavailable.
+4. Regex bigram — sliding-window fallback when neither LLM nor spaCy is installed.
 """
+from __future__ import annotations
+
+import json
+import logging
 import re
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Person-context signals — document must contain at least one of these before
@@ -107,6 +114,17 @@ _STOP_WORDS = frozenset([
     "Builder", "Runner", "Handler", "Generator",
     "Assistant", "Project", "Projects", "Idea", "Ideas",
     "Alert", "Alerts", "Notification", "Notifications", "Preview",
+    # Business / role terms that appear in email signatures
+    "Sales", "Account", "Marketing", "Finance", "Operations", "Human",
+    "Resources", "Representative", "Executive", "President", "Vice",
+    "Senior", "Junior", "Intern",
+    # E-invoicing / business document terms
+    "Electronic", "Business", "Operator", "Invoice", "Invoices",
+    # Hardware / OS / platform terms — never a person name
+    "Apple", "Silicon", "Intel", "Binary", "Homebrew", "Standalone",
+    "Mac", "Linux", "Windows", "Android", "Docker", "Kubernetes",
+    "Native", "Virtual", "Remote", "Cloud", "Server", "Cluster",
+    "Multiple", "General", "Pattern", "Default", "Custom", "Manual",
     # Adjective forms common in product names
     "Controlled", "Powered", "Based", "Driven", "Enabled",
     "Voice", "Quick", "Smart", "Easy", "Fast",
@@ -117,11 +135,21 @@ _STOP_WORDS = frozenset([
 # Finnish stop words — common Finnish words that appear Title Case mid-sentence
 # ---------------------------------------------------------------------------
 _FINNISH_STOPS = frozenset([
-    "Olen", "Olet", "Meill\u00e4", "Teil\u00e4", "Heill\u00e4", "Minulla", "Sinulla",
-    "T\u00e4m\u00e4", "T\u00e4ss\u00e4", "Siell\u00e4", "T\u00e4\u00e4ll\u00e4", "Miss\u00e4",
-    "Kun", "Jos", "Ett\u00e4", "Mutta", "Koska", "Vaikka", "Jotta", "Sek\u00e4", "My\u00f6s",
+    "Olen", "Olet", "Meillä", "Teilä", "Heillä", "Minulla", "Sinulla",
+    "Tämä", "Tässä", "Siellä", "Täällä", "Missä",
+    "Kun", "Jos", "Että", "Mutta", "Koska", "Vaikka", "Jotta", "Sekä", "Myös",
     # Colloquial Finnish sentence starters (appear Title-Cased mid-text)
     "Mut", "Nii", "Joo", "Juu", "Okei", "Kyl", "Ei", "On", "Ois", "Oon",
+    # Finnish greetings — appear as "Hei Firstname" / "Moi Firstname" in emails
+    "Hei", "Moi", "Terve", "Hyvä", "Hyvää", "Huomenta", "Iltaa", "Päivää",
+    "Kiitos", "Kiitokset", "Kiitoksena",
+    # Finnish sentence starters common in emails
+    "Kuten", "Tässä", "Mikäli", "Alkaen", "Jatkossa", "Kuitenkin",
+    "Minkälaisia", "Voit", "Sopimuksen", "Kaupungin", "Nimenkirjoittajana",
+    "Ystävällisin", "Terveisin", "Parhain",
+    # Finnish pronouns and conjunctions that appear Title-Cased at sentence start
+    "Meidän", "Teidän", "Heidän", "Minun", "Sinun",
+    "Asia", "Lasku", "Virhe", "Tietoja",
 ])
 
 _ALL_STOPS = _STOP_WORDS | _FINNISH_STOPS
@@ -222,9 +250,13 @@ def _get_nlp():
 def _extract_people_spacy(text: str) -> list[str]:
     """Extract PERSON entities via spaCy NER.  Returns [] if model unavailable.
 
-    Applies stop-word + abstract-noun filtering after NER to catch cases where
-    the English-only model incorrectly classifies non-English text (e.g. Finnish
-    sentence starters) as person names.
+    Applies multiple filters after NER to catch cases where the English-only
+    model incorrectly classifies non-English text (e.g. Finnish phrases) as
+    person names:
+    - Stop-word + abstract-noun filtering
+    - Title Case requirement: every word must start with uppercase
+    - Max 3 words (real names are 2-3 words; longer spans are phrases)
+    - Org suffix filtering: reject names ending with Oy, Ltd, etc.
     """
     nlp = _get_nlp()
     if nlp is None:
@@ -237,10 +269,94 @@ def _extract_people_spacy(text: str) -> list[str]:
             if " " not in name:
                 continue  # single tokens too ambiguous
             words = name.split()
+            if len(words) > 3:
+                continue  # real names are 2-3 words; longer = phrase
+            if not all(w[0].isupper() for w in words):
+                continue  # reject lowercase words (Finnish phrases, etc.)
             if any(_is_stop(w) or _is_abstract_noun(w) for w in words):
+                continue
+            # Reject org-like names (ending with known suffixes)
+            if words[-1] in _ORG_SUFFIX_SET:
                 continue
             results.append(name)
     return list(dict.fromkeys(results))
+
+
+# ---------------------------------------------------------------------------
+# LLM-based people extraction — Ollama local model (multilingual, high accuracy)
+# ---------------------------------------------------------------------------
+_LLM_PEOPLE_PROMPT = (
+    "You extract person names from text. "
+    "Return a JSON array of full human names (first + last). "
+    "Include anyone mentioned by name. Exclude company names and job titles. "
+    "Return [] if none found. JSON array only, no explanation."
+)
+
+_ollama_available: bool | None = None  # None = not checked yet
+_ollama_fail_time: float = 0  # monotonic timestamp of last failure
+_OLLAMA_RETRY_SECS = 60  # retry after this many seconds
+
+
+def _extract_people_llm(text: str) -> list[str] | None:
+    """Extract person names via local Ollama LLM. Returns None if unavailable.
+
+    Uses llama3.2 (3B) for fast multilingual extraction. Falls back to None
+    on any error so callers can use regex/spaCy instead.
+    """
+    global _ollama_available, _ollama_fail_time
+    if _ollama_available is False:
+        import time  # noqa: PLC0415
+        if (time.monotonic() - _ollama_fail_time) < _OLLAMA_RETRY_SECS:
+            return None
+        _ollama_available = None  # retry
+
+    try:
+        import ollama as _ollama_mod  # noqa: PLC0415
+        from engine.config_loader import load_config  # noqa: PLC0415
+        from engine.paths import CONFIG_PATH  # noqa: PLC0415
+
+        cfg = load_config(CONFIG_PATH)
+        host = cfg.get("ollama", {}).get("host", "http://localhost:11434")
+
+        # Truncate to ~2000 chars to keep LLM calls fast
+        truncated = text[:2000] if len(text) > 2000 else text
+
+        import httpx  # noqa: PLC0415
+        client = _ollama_mod.Client(host=host, timeout=httpx.Timeout(15.0))
+        response = client.chat(
+            model="llama3.2",
+            messages=[
+                {"role": "system", "content": _LLM_PEOPLE_PROMPT},
+                {"role": "user", "content": truncated},
+            ],
+        )
+        raw = response.message.content.strip()
+        # Parse JSON array from response — handle markdown fences
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        names = json.loads(raw)
+        if not isinstance(names, list):
+            return None
+        # Basic validation: only keep strings that look like names (2-3 words, Title Case)
+        valid = []
+        for n in names:
+            if not isinstance(n, str):
+                continue
+            n = n.strip()
+            words = n.split()
+            if len(words) < 2 or len(words) > 4:
+                continue
+            if not all(w[0].isupper() for w in words):
+                continue
+            valid.append(n)
+        _ollama_available = True
+        return list(dict.fromkeys(valid))
+    except Exception as exc:
+        import time  # noqa: PLC0415
+        logger.debug("LLM people extraction failed: %s", exc)
+        _ollama_available = False
+        _ollama_fail_time = time.monotonic()
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -251,6 +367,7 @@ _ORG_SUFFIXES = (
     r'LLC', r'plc', r'Group', r'Agency', r'Studio', r'Partners',
     r'Solutions', r'Services', r'Technologies',
 )
+_ORG_SUFFIX_SET = frozenset(s.replace('\\', '') for s in _ORG_SUFFIXES)
 # Org pattern: one or more consecutive Title Case words, ending with a known suffix.
 # Using [A-Z][A-Za-z]* to match each Title Case word (no lowercase connecting words).
 # This prevents "I work at Wunder Oy" from matching as "I work at Wunder Oy".
@@ -267,15 +384,26 @@ def extract_entities(title: str, body: str) -> dict:
         All lists are deduplicated and sorted.
     """
     try:
-        # Process title and body separately to avoid cross-boundary bigrams
-        # (e.g. "... Wonderland" title + "Alice ..." body must not yield "Wonderland Alice")
         title_text = title or ""
         body_text = body or ""
-        # Person-context signals are checked against the combined text so that
-        # a name in the title ("Alice Johnson") is still extracted when signals
-        # are only in the body ("Role: CTO...").
         combined_text = f"{title_text}\n{body_text}"
-        people = list(set(_extract_people(title_text, combined_text)) | set(_extract_people(body_text, combined_text)))
+
+        # Try LLM once on combined text (avoids double Ollama call)
+        llm_people = _extract_people_llm(combined_text)
+        if llm_people is not None:
+            # LLM succeeded — use its results + bracket names
+            bracket = list(
+                set(_extract_bracket_people(title_text))
+                | set(_extract_bracket_people(body_text))
+            )
+            people = list(dict.fromkeys(bracket + llm_people))
+        else:
+            # Fallback: spaCy/regex per-section (avoids cross-boundary bigrams)
+            people = list(
+                set(_extract_people(title_text, combined_text))
+                | set(_extract_people(body_text, combined_text))
+            )
+
         topics = list(set(_extract_topics(title_text)) | set(_extract_topics(body_text)))
         places = list(set(_extract_places(title_text, people)) | set(_extract_places(body_text, people)))
         orgs = list(set(_extract_organizations(title_text)) | set(_extract_organizations(body_text)))
@@ -361,7 +489,8 @@ def _extract_people_regex(text: str, signal_text: str | None = None) -> list[str
         if (not any(_is_stop(p) for p in first_parts)
                 and not any(_is_stop(p) for p in last_parts)
                 and not _is_abstract_noun(first)
-                and not _is_abstract_noun(last)):
+                and not _is_abstract_noun(last)
+                and last not in _ORG_SUFFIX_SET):
             results.append(f"{first} {last}")
     return list(dict.fromkeys(results))
 
@@ -369,15 +498,21 @@ def _extract_people_regex(text: str, signal_text: str | None = None) -> list[str
 def _extract_people(text: str, signal_text: str | None = None) -> list[str]:
     """Extract person names from text.
 
+    Priority order:
     1. Bracket parser — [Name] / [Name, Name]; always runs; zero false positives.
-    2. spaCy NER      — high-precision primary source when model is available.
-    3. Regex bigram   — supplement (spaCy available) or sole source (spaCy absent).
-       Catches names spaCy misses due to short/unusual first names or non-English
-       context.  The stop-word and abstract-noun filters keep false positives low.
+    2. LLM (Ollama)  — local llama3.2; multilingual, highest accuracy.
+    3. spaCy NER     — fallback when LLM unavailable.
+    4. Regex bigram  — fallback when neither LLM nor spaCy is available.
     """
     bracket = _extract_bracket_people(text)
-    regex = _extract_people_regex(text, signal_text)
 
+    # Try LLM first — best quality, handles all languages
+    llm_result = _extract_people_llm(text)
+    if llm_result is not None:
+        return list(dict.fromkeys(bracket + llm_result))
+
+    # Fallback: spaCy + regex
+    regex = _extract_people_regex(text, signal_text)
     if _get_nlp() is not None:
         spacy = _extract_people_spacy(text)
         body = list(dict.fromkeys(spacy + regex))

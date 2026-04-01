@@ -503,12 +503,10 @@ class TestCreateNote:
 
     def test_create_note_indexed_in_sqlite(self, client, tmp_path, monkeypatch):
         """POST /notes immediately indexes the note into SQLite so GET /notes returns it."""
-        from engine.paths import store_path as _sp
         monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
-        res = client.post("/notes", json={"title": "Indexed Note", "type": "idea", "body": "", "brain_path": str(tmp_path)})
+        res = client.post("/notes", json={"title": "Indexed Note", "type": "idea", "body": ""})
         assert res.status_code == 201
-        note_path = res.get_json()["path"]  # API returns absolute path
-        rel_path = _sp(Path(note_path))     # DB stores relative path
+        rel_path = res.get_json()["path"]  # API returns relative path
         conn = get_connection()
         row = conn.execute("SELECT title FROM notes WHERE path=?", (rel_path,)).fetchone()
         conn.close()
@@ -518,14 +516,14 @@ class TestCreateNote:
     def test_create_note_file_exists_on_disk(self, client, tmp_path, monkeypatch):
         """POST /notes writes the markdown file to disk."""
         monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
-        res = client.post("/notes", json={"title": "Disk Note", "type": "idea", "body": "hello", "brain_path": str(tmp_path)})
-        note_path = res.get_json()["path"]
-        assert Path(note_path).exists(), "Note file must exist on disk after creation"
+        res = client.post("/notes", json={"title": "Disk Note", "type": "idea", "body": "hello"})
+        rel_path = res.get_json()["path"]
+        assert (tmp_path / rel_path).exists(), "Note file must exist on disk after creation"
 
     def test_create_note_slug_collision_resolved(self, client, tmp_path, monkeypatch):
         """Two notes with the same title get distinct paths (no overwrite)."""
         monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
-        payload = {"title": "Dup Note", "type": "idea", "body": "", "brain_path": str(tmp_path)}
+        payload = {"title": "Dup Note", "type": "idea", "body": ""}
         r1 = client.post("/notes", json=payload)
         r2 = client.post("/notes", json=payload)
         assert r1.status_code == 201
@@ -756,6 +754,8 @@ class TestUploadSizeCap:
     def test_upload_under_50mb_not_rejected_by_size(self, client, tmp_path, monkeypatch):
         """POST /files/upload with a small file is not rejected with 413."""
         import io
+        import engine.paths as _paths
+        monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
         monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
         small_file = io.BytesIO(b"small content")
         response = client.post(
@@ -892,6 +892,7 @@ class TestCreateNoteSourceUrl:
         tmp_db = tmp_path / "test.db"
         monkeypatch.setattr(_db, "DB_PATH", tmp_db)
         monkeypatch.setattr(_paths, "DB_PATH", tmp_db)
+        monkeypatch.setattr(_paths, "BRAIN_ROOT", tmp_path)
         monkeypatch.setenv("BRAIN_PATH", str(tmp_path))
 
         conn = get_connection()
@@ -903,14 +904,13 @@ class TestCreateNoteSourceUrl:
             "title": "Test Source URL Note",
             "type": "note",
             "body": "hello",
-            "brain_path": str(tmp_path),
             "source_url": "https://example.com",
         })
         assert response.status_code == 201
         data = response.get_json()
         assert "path" in data
 
-        content = Path(data["path"]).read_text(encoding="utf-8")
+        content = (tmp_path / data["path"]).read_text(encoding="utf-8")
         assert "url: https://example.com" in content
 
 

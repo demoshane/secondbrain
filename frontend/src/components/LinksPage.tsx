@@ -20,7 +20,7 @@ interface LinkSummary {
   url: string
   domain: string
   date: string
-  tags: string
+  tags: string[]
   description: string
 }
 
@@ -31,11 +31,12 @@ interface LinkDetail {
   domain: string
   body: string
   date: string
-  tags: string
+  tags: string[]
 }
 
-function parseTags(raw: string): string[] {
+function parseTags(raw: string | string[]): string[] {
   if (!raw) return []
+  if (Array.isArray(raw)) return raw
   try {
     const parsed = JSON.parse(raw)
     return Array.isArray(parsed) ? parsed : []

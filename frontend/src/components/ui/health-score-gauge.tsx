@@ -54,6 +54,7 @@ function HealthScoreGauge({ score, className }: HealthScoreGaugeProps) {
           fontSize="28"
           fontWeight="600"
           fill={strokeColor}
+          data-testid="health-score"
         >
           {score}
         </text>

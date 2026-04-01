@@ -1,10 +1,13 @@
 """Second Brain MCP server — FastMCP stdio transport."""
+import logging
 import math
 import secrets
 import sqlite3
 import threading
 import time
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from fastmcp import FastMCP
 from tenacity import (
@@ -15,7 +18,7 @@ from tenacity import (
 )
 
 from engine.capture import build_post, capture_note, check_capture_dedup, log_audit, update_note, write_note_atomic
-from engine.db import get_connection, PERSON_TYPES, PERSON_TYPES_PH, _escape_like
+from engine.db import get_connection, PERSON_TYPES, PERSON_TYPES_PH, _escape_like, _json_list
 from engine.digest import generate_digest
 from engine.forget import forget_person
 from engine.anonymize import anonymize_note
@@ -35,6 +38,20 @@ mcp = FastMCP("second-brain")
 # Token store for two-step destructive confirmation (MCP-04)
 _pending: dict[str, float] = {}
 _pending_lock = threading.Lock()
+
+
+def _spawn_background(target):
+    """Spawn a daemon thread. Patchable in tests without touching stdlib threading."""
+    def _safe():
+        try:
+            target()
+        except Exception:
+            import logging as _logging
+            _logging.getLogger(__name__).warning(
+                "background task %s crashed", getattr(target, "__name__", "?"), exc_info=True
+            )
+    threading.Thread(target=_safe, daemon=True).start()
+
 
 # MCP-07: Input size limits
 _MAX_QUERY_LEN = 500
@@ -67,11 +84,24 @@ def _ensure_ready() -> None:
 
 
 def _safe_path(raw: str) -> Path:
-    """Resolve path and assert it is inside BRAIN_ROOT."""
+    """Resolve path and assert it is inside BRAIN_ROOT. Returns absolute Path."""
     p = Path(raw).resolve()
     if not str(p).startswith(str(BRAIN_ROOT)):
         raise ValueError(f"PATH_OUTSIDE_BRAIN: {raw!r} is not inside the brain directory.")
     return p
+
+
+def _resolve(raw: str) -> "ResolvedPath":
+    """Resolve path, validate inside BRAIN_ROOT, return both absolute and relative forms.
+
+    This is the preferred boundary function for MCP tools — eliminates the
+    _safe_path() + store_path() round-trip at every call site.
+    """
+    from engine.paths import ResolvedPath
+    p = Path(raw).resolve()
+    if not str(p).startswith(str(BRAIN_ROOT)):
+        raise ValueError(f"PATH_OUTSIDE_BRAIN: {raw!r} is not inside the brain directory.")
+    return ResolvedPath(absolute=p, relative=store_path(p))
 
 
 def _log_mcp_audit(event: str, path: str) -> None:
@@ -104,14 +134,14 @@ def _retry_call(fn, *args, **kwargs):
 def _issue_token() -> str:
     tok = secrets.token_hex(16)
     with _pending_lock:
-        _pending[tok] = time.time() + 60
+        _pending[tok] = time.monotonic() + 60
     return tok
 
 
 def _consume_token(tok: str) -> bool:
     with _pending_lock:
         expiry = _pending.pop(tok, None)
-    return expiry is not None and time.time() < expiry
+    return expiry is not None and time.monotonic() < expiry
 
 
 def _to_list(val) -> list:
@@ -266,16 +296,16 @@ def sb_capture(
                     (src_path, _sp_norm, "similar", now_ts),
                 )
             except Exception:
-                pass
+                logger.debug("relationship insert skipped", exc_info=True)
         if similar_paths_for_link:
             conn.commit()
 
         # Dormant resurfacing — best-effort, never blocks
         dormant_notes: list[dict] = []
         try:
-            dormant_notes = find_dormant_related(str(path), conn)
+            dormant_notes = find_dormant_related(src_path, conn)
         except Exception:
-            pass
+            logger.debug("dormant resurfacing skipped", exc_info=True)
 
         _log_mcp_audit("mcp_capture", str(path))
         return {"status": "created", "path": str(path), "dormant_notes": dormant_notes}
@@ -340,7 +370,7 @@ def sb_capture_batch(notes: list[dict]) -> dict:
                     if similar:
                         dedup_warnings.append({"index": i, "similar": similar})
                 except Exception:
-                    pass
+                    logger.debug("relationship insert skipped", exc_info=True)
 
             # Intra-batch title dedup
             matches = _difflib.get_close_matches(title, seen_titles, n=1, cutoff=0.85)
@@ -354,7 +384,13 @@ def sb_capture_batch(notes: list[dict]) -> dict:
             failed.append({"index": i, "reason": str(e)})
 
     # Post-save: process links field and create relationships
-    path_map = {s["index"]: s["path"] for s in succeeded}
+    # Normalize captured paths to relative DB paths for relationship storage
+    path_map = {}
+    for s in succeeded:
+        try:
+            path_map[s["index"]] = store_path(Path(s["path"]).resolve())
+        except (ValueError, KeyError):
+            path_map[s["index"]] = s["path"]
     for i, note in enumerate(notes or []):
         if i not in path_map:
             continue
@@ -409,9 +445,15 @@ def sb_capture_batch(notes: list[dict]) -> dict:
                 _ec.commit()
                 _ec.close()
             except Exception:
-                pass
+                logger.debug("non-fatal operation skipped", exc_info=True)
 
         for p in _saved_paths:
+            # DB stores relative paths — convert for lookups
+            try:
+                _db_p = store_path(Path(p).resolve())
+            except (ValueError, Exception):
+                _db_p = p
+
             # check_connections
             try:
                 _c = _get_connection()
@@ -427,7 +469,7 @@ def sb_capture_batch(notes: list[dict]) -> dict:
             try:
                 _c2 = _get_connection()
                 try:
-                    row = _c2.execute("SELECT body FROM notes WHERE path=?", (p,)).fetchone()
+                    row = _c2.execute("SELECT body FROM notes WHERE path=?", (_db_p,)).fetchone()
                     if row and row[0]:
                         _extract_action_items(Path(p), row[0], "public", _c2)
                 finally:
@@ -435,7 +477,7 @@ def sb_capture_batch(notes: list[dict]) -> dict:
             except Exception as exc:
                 _log_intel_error(p, exc)
 
-    threading.Thread(target=_run_batch_intelligence, daemon=True).start()
+    _spawn_background(target=_run_batch_intelligence)
 
     return {"succeeded": succeeded, "failed": failed, "dedup_warnings": dedup_warnings}
 
@@ -520,10 +562,13 @@ def sb_capture_link(
         conn.commit()
         _log_mcp_audit("mcp_capture_link", str(path))
 
-        rel_path = str(path).replace(str(BRAIN_ROOT) + "/", "")
+        try:
+            rel_path = store_path(path.resolve())
+        except ValueError:
+            rel_path = str(path)
         return {
             "status": "created",
-            "path": str(path),
+            "path": rel_path,
             "title": title,
             "domain": hostname,
             "message": f"Saved: '{title}' ({hostname}) → {rel_path}",
@@ -535,13 +580,13 @@ def sb_capture_link(
 @mcp.tool()
 def sb_read(path: str) -> dict:
     """Read a note by absolute path."""
-    p = _safe_path(path)
-    content = p.read_text(encoding="utf-8")
+    rp = _resolve(path)
+    content = rp.absolute.read_text(encoding="utf-8")
     conn = get_connection()
     pii_flag = False
     try:
         row = conn.execute(
-            "SELECT sensitivity FROM notes WHERE path=?", (str(p),)
+            "SELECT sensitivity FROM notes WHERE path=?", (rp.relative,)
         ).fetchone()
     finally:
         conn.close()
@@ -551,7 +596,7 @@ def sb_read(path: str) -> dict:
         content = adapter.summarize(content)
         pii_flag = True
     _log_mcp_audit("mcp_read", path)
-    return {"content": content, "path": str(p), "pii": pii_flag}
+    return {"content": content, "path": rp.relative, "pii": pii_flag}
 
 
 @mcp.tool()
@@ -671,10 +716,10 @@ def sb_digest() -> dict:
 @mcp.tool()
 def sb_connections(path: str) -> list[dict]:
     """Return notes connected to the given note path."""
-    p = _safe_path(path)
+    rp = _resolve(path)
     conn = get_connection()
     try:
-        results = find_similar(str(p), conn)
+        results = find_similar(rp.relative, conn)
     finally:
         conn.close()
     _log_mcp_audit("mcp_connections", path)
@@ -775,7 +820,7 @@ def sb_forget(slug: str, confirm_token: str = "") -> dict:
                         )
                         break
                 except Exception:
-                    pass
+                    logger.debug("action_items insert skipped", exc_info=True)
         finally:
             conn.close()
         _impact_str = f" Impact: {_impact_parts[0]}." if _impact_parts else ""
@@ -848,7 +893,6 @@ def sb_capture_smart(content: str) -> dict:
     """
     import datetime as _dt
     import itertools
-    import json as _json
     import pathlib as _pathlib
     import re as _re
     import uuid
@@ -919,7 +963,7 @@ def sb_capture_smart(content: str) -> dict:
                         "capture_session": capture_session,
                     })
                 except Exception:
-                    pass  # Non-fatal
+                    logger.debug("non-fatal operation skipped", exc_info=True)
 
             # Person stubs from Pass 5 (per D-12)
             for stub in result.person_stubs:
@@ -941,7 +985,7 @@ def sb_capture_smart(content: str) -> dict:
                     stub_paths_created[stub_name] = str(_stub_path)
                     resolved_links.append(str(_stub_path))
                 except Exception:
-                    pass  # Non-fatal
+                    logger.debug("person stub creation skipped", exc_info=True)
 
             # Low-confidence type → ask caller instead of auto-saving
             if confidence < CONFIDENCE_THRESHOLD:
@@ -955,7 +999,8 @@ def sb_capture_smart(content: str) -> dict:
                 continue
 
             sensitivity, _reason = classify_smart(body)
-            people = entities.get("people", [])
+            # Merge resolved person paths with raw entity names (paths first, dedup)
+            people = list(dict.fromkeys(resolved_links + entities.get("people", [])))
             from engine.typeclassifier import classify_importance as _classify_importance
             seg_importance = _classify_importance(title, body)
 
@@ -990,14 +1035,14 @@ def sb_capture_smart(content: str) -> dict:
                         existing_post = _frontmatter.Post(updated_body)
                         existing_post["type"] = row[0]
                         existing_post["title"] = row[1]
-                        existing_post["tags"] = _json.loads(row[2] or "[]")
-                        existing_post["people"] = _json.loads(row[3] or "[]")
+                        existing_post["tags"] = _json_list(row[2])
+                        existing_post["people"] = _json_list(row[3])
                         existing_post["content_sensitivity"] = row[4] or "public"
                         existing_post["date"] = _dt.date.today().isoformat()
                         existing_post["created_at"] = _dt.datetime.now(_dt.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
                         existing_post["updated_at"] = _now
                         write_note_atomic(
-                            target=_pathlib.Path(existing_path),
+                            target=BRAIN_ROOT / existing_path,
                             post=existing_post,
                             conn=conn,
                             update=True,
@@ -1014,7 +1059,7 @@ def sb_capture_smart(content: str) -> dict:
                         })
                         continue
                 except Exception:
-                    pass  # Fall through to save_new on error
+                    logger.debug("dedup check skipped", exc_info=True)
 
             elif action == "save_complementary":
                 similar_path = dedup_result.get("similar_path", "")
@@ -1036,7 +1081,7 @@ def sb_capture_smart(content: str) -> dict:
                             (store_path(note_path.resolve()), similar_path, "similar"),
                         )
                     except Exception:
-                        pass
+                        logger.debug("relationship insert skipped", exc_info=True)
                 saved_notes.append({
                     "title": title,
                     "type": note_type,
@@ -1049,16 +1094,20 @@ def sb_capture_smart(content: str) -> dict:
                     "relationships": [{"type": "similar", "path": similar_path}] if similar_path else [],
                 })
                 # Keyword action items (per D-08)
+                try:
+                    _ai_db_path = store_path(note_path.resolve())
+                except (ValueError, Exception):
+                    _ai_db_path = str(note_path)
                 for _ai in result.action_items:
                     try:
                         conn.execute(
                             "INSERT OR IGNORE INTO action_items"
-                            " (note_path, item_text, status, created_at)"
-                            " VALUES (?, ?, 'open', datetime('now'))",
-                            (str(note_path), _ai.text),
+                            " (note_path, text, created_at)"
+                            " VALUES (?, ?, datetime('now'))",
+                            (_ai_db_path, _ai.text),
                         )
                     except Exception:
-                        pass
+                        logger.debug("action_items insert skipped", exc_info=True)
                 continue
 
             # Default: save_new
@@ -1075,16 +1124,20 @@ def sb_capture_smart(content: str) -> dict:
             )
 
             # Keyword action items (per D-08)
+            try:
+                _ai_db_path = store_path(note_path.resolve())
+            except (ValueError, Exception):
+                _ai_db_path = str(note_path)
             for _ai in result.action_items:
                 try:
                     conn.execute(
                         "INSERT OR IGNORE INTO action_items"
                         " (note_path, item_text, status, created_at)"
                         " VALUES (?, ?, 'open', datetime('now'))",
-                        (str(note_path), _ai.text),
+                        (_ai_db_path, _ai.text),
                     )
                 except Exception:
-                    pass
+                    logger.debug("action_items insert skipped", exc_info=True)
 
             saved_notes.append({
                 "title": title,
@@ -1111,7 +1164,7 @@ def sb_capture_smart(content: str) -> dict:
                     (src_path, tgt_path, "co-captured"),
                 )
             except Exception:
-                pass  # Non-fatal
+                logger.debug("relationship insert skipped", exc_info=True)
 
         # Infer cross-links: meeting + person segments → add person slugs to meeting links
         if len(saved_notes) > 1:
@@ -1126,9 +1179,14 @@ def sb_capture_smart(content: str) -> dict:
         dormant_notes: list[dict] = []
         if saved_notes:
             try:
-                dormant_notes = find_dormant_related(saved_notes[0]["path"], conn)
+                _first_path = saved_notes[0]["path"]
+                try:
+                    _first_path = store_path(Path(_first_path).resolve())
+                except (ValueError, Exception):
+                    logger.debug("non-fatal operation skipped", exc_info=True)
+                dormant_notes = find_dormant_related(_first_path, conn)
             except Exception:
-                pass
+                logger.debug("dormant resurfacing skipped", exc_info=True)
 
     finally:
         conn.close()
@@ -1193,26 +1251,25 @@ def sb_tag(path: str, action: str, tag: str, confirm_token: str = "") -> dict:
     - Removes the tag (case-insensitive). No confirm-token needed.
     """
     import difflib
-    import json
 
     if action not in ("add", "remove"):
         raise ValueError(f"INVALID_ACTION: action must be 'add' or 'remove', got {action!r}")
 
-    p = _safe_path(path)
-    if not p.exists():
+    rp = _resolve(path)
+    if not rp.absolute.exists():
         raise ValueError(f"NOTE_NOT_FOUND: {path!r} does not exist.")
 
     conn = get_connection()
     try:
         if action == "remove":
-            row = conn.execute("SELECT tags FROM notes WHERE path=?", (str(p),)).fetchone()
-            current_tags = json.loads((row[0] if row else None) or "[]")
+            row = conn.execute("SELECT tags FROM notes WHERE path=?", (rp.relative,)).fetchone()
+            current_tags = _json_list(row[0] if row else None)
             new_tags = [t for t in current_tags if t.lower() != tag.lower()]
             final_tag = tag
-            _save_tags(p, new_tags, str(p), conn)
+            _save_tags(rp.absolute, new_tags, rp.relative, conn)
             conn.commit()
-            _log_mcp_audit("mcp_tag_remove", str(p))
-            return {"path": str(p), "action": action, "tag": final_tag, "tags": new_tags}
+            _log_mcp_audit("mcp_tag_remove", rp.relative)
+            return {"path": rp.relative, "action": action, "tag": final_tag, "tags": new_tags}
 
         # "add" path -- gather all existing tags from DB
         rows = conn.execute(
@@ -1225,14 +1282,14 @@ def sb_tag(path: str, action: str, tag: str, confirm_token: str = "") -> dict:
         if matches:
             # Fuzzy match found -- use existing tag immediately, no confirm needed
             final_tag = matches[0]
-            row = conn.execute("SELECT tags FROM notes WHERE path=?", (str(p),)).fetchone()
-            current_tags = json.loads((row[0] if row else None) or "[]")
+            row = conn.execute("SELECT tags FROM notes WHERE path=?", (rp.relative,)).fetchone()
+            current_tags = _json_list(row[0] if row else None)
             new_tags = list(dict.fromkeys(current_tags + [final_tag]))
-            _save_tags(p, new_tags, str(p), conn)
+            _save_tags(rp.absolute, new_tags, rp.relative, conn)
             conn.commit()
-            _log_mcp_audit("mcp_tag_add", str(p))
+            _log_mcp_audit("mcp_tag_add", rp.relative)
             return {
-                "path": str(p), "action": action, "tag": final_tag, "tags": new_tags,
+                "path": rp.relative, "action": action, "tag": final_tag, "tags": new_tags,
                 "matched": final_tag, "applied": True,
             }
 
@@ -1247,13 +1304,13 @@ def sb_tag(path: str, action: str, tag: str, confirm_token: str = "") -> dict:
             raise ValueError("TOKEN_EXPIRED: confirm_token is invalid or has expired.")
 
         final_tag = tag
-        row = conn.execute("SELECT tags FROM notes WHERE path=?", (str(p),)).fetchone()
-        current_tags = json.loads((row[0] if row else None) or "[]")
+        row = conn.execute("SELECT tags FROM notes WHERE path=?", (rp.relative,)).fetchone()
+        current_tags = _json_list(row[0] if row else None)
         new_tags = list(dict.fromkeys(current_tags + [final_tag]))
-        _save_tags(p, new_tags, str(p), conn)
+        _save_tags(rp.absolute, new_tags, rp.relative, conn)
         conn.commit()
-        _log_mcp_audit("mcp_tag_add", str(p))
-        return {"path": str(p), "action": action, "tag": final_tag, "tags": new_tags}
+        _log_mcp_audit("mcp_tag_add", rp.relative)
+        return {"path": rp.relative, "action": action, "tag": final_tag, "tags": new_tags}
     finally:
         conn.close()
 
@@ -1296,19 +1353,29 @@ def sb_link(source_path: str, target_path: str, rel_type: str = "link", bidirect
     bidirectional: when True, inserts both A->B and B->A rows.
     Idempotent — calling with the same (source, target, rel_type) twice inserts only one row.
     """
+    # Normalize to relative DB paths for consistent lookups
+    try:
+        src = store_path(Path(source_path).resolve()) if Path(source_path).is_absolute() else source_path
+    except ValueError:
+        src = source_path
+    try:
+        tgt = store_path(Path(target_path).resolve()) if Path(target_path).is_absolute() else target_path
+    except ValueError:
+        tgt = target_path
+
     conn = get_connection()
     try:
         conn.execute(
             "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
-            (source_path, target_path, rel_type),
+            (src, tgt, rel_type),
         )
         if bidirectional:
             conn.execute(
                 "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
-                (target_path, source_path, rel_type),
+                (tgt, src, rel_type),
             )
         conn.commit()
-        return {"linked": True, "source": source_path, "target": target_path, "rel_type": rel_type, "bidirectional": bidirectional}
+        return {"linked": True, "source": src, "target": tgt, "rel_type": rel_type, "bidirectional": bidirectional}
     finally:
         conn.close()
 
@@ -1610,11 +1677,11 @@ def sb_find_stubs(word_limit: int = 50, similarity_threshold: float = 0.85) -> d
                 try:
                     path = store_path(path)
                 except (ValueError, Exception):
-                    pass
+                    logger.debug("intelligence hook error", exc_info=True)
                 similar = find_similar(path, conn, threshold=similarity_threshold, limit=3)
                 matches = [m for m in similar if m["note_path"] != stub["path"]]
             except Exception:
-                pass
+                logger.debug("intelligence hook error", exc_info=True)
             enriched.append({
                 **stub,
                 "similar_notes": matches,

@@ -159,7 +159,7 @@ export function NoteViewer({ note }: Props) {
 
       {/* Tags row */}
       {note.tags && note.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-3">
+        <div className="flex flex-wrap gap-1 mb-3" data-testid="tag-chips">
           {note.tags.map(tag => (
             <TagBadge
               key={tag}
@@ -237,6 +237,7 @@ export function NoteViewer({ note }: Props) {
         confirmLabel="Delete Note"
         cancelLabel="Keep Note"
         variant="destructive"
+        testId="delete-note-modal"
       />
     </div>
   )

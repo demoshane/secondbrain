@@ -1,17 +1,32 @@
 """Capture pipeline: atomic two-phase write, frontmatter, DB indexing, audit log."""
 import datetime
 import json
+import logging
+from engine.db import _json_list, _now_utc
 import os
 import re
 import sqlite3
 import tempfile
+import threading
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 import frontmatter
 
 from engine.paths import store_path as _store_path
 
 _TAG_PATTERN = re.compile(r'[^a-z0-9\-äöåüéèêàâùûîïôœæ]')
+
+
+def _spawn_background(target):
+    """Spawn a daemon thread. Patchable in tests without touching stdlib threading."""
+    def _safe():
+        try:
+            target()
+        except Exception:
+            logger.warning("background task %s crashed", getattr(target, "__name__", "?"), exc_info=True)
+    threading.Thread(target=_safe, daemon=True).start()
 
 
 def _sanitize_tags(tags: list) -> list[str]:
@@ -140,7 +155,7 @@ def build_post(
     Returns:
         frontmatter.Post with metadata set and body as content.
     """
-    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = _now_utc()
     today = datetime.date.today().isoformat()
 
     post = frontmatter.Post(body)
@@ -168,7 +183,7 @@ def log_audit(conn: sqlite3.Connection, event_type: str, note_path: str) -> None
         event_type: Event name (e.g. 'create', 'update').
         note_path: Path of the affected note.
     """
-    created_at = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
+    created_at = _now_utc()
     conn.execute(
         "INSERT INTO audit_log (event_type, note_path, created_at) VALUES (?, ?, ?)",
         (event_type, note_path, created_at),
@@ -217,7 +232,7 @@ def write_note_atomic(
         post["tags"] = clean_tags
         tags_json = json.dumps(clean_tags)
         people_json = json.dumps(post.get("people", []))
-        created_at = post.get("created_at", datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ"))
+        created_at = post.get("created_at", _now_utc())
         updated_at = post.get("updated_at", created_at)
         sensitivity = post.get("content_sensitivity", "public")
         deadline = post.get("deadline") or None
@@ -260,30 +275,8 @@ def write_note_atomic(
                 "UPDATE notes SET entities = ? WHERE path = ?",
                 (json.dumps(entities_val), resolved_path),
             )
-        # ARCH-05/15: Dual-write to junction tables (note_tags, note_people) in same transaction.
-        # Junction tables exist after 32-03 migration — guard with try/except for backward compat.
-        try:
-            tags_list = post.get("tags", [])
-            conn.execute("DELETE FROM note_tags WHERE note_path=?", (resolved_path,))
-            for tag in (tags_list or []):
-                if tag:
-                    conn.execute(
-                        "INSERT OR IGNORE INTO note_tags (note_path, tag) VALUES (?, ?)",
-                        (resolved_path, tag),
-                    )
-        except Exception:
-            pass  # junction table may not exist on very old schemas
-        try:
-            people_list = post.get("people", [])
-            conn.execute("DELETE FROM note_people WHERE note_path=?", (resolved_path,))
-            for person in (people_list or []):
-                if person:
-                    conn.execute(
-                        "INSERT OR IGNORE INTO note_people (note_path, person) VALUES (?, ?)",
-                        (resolved_path, person),
-                    )
-        except Exception:
-            pass  # junction table may not exist on very old schemas
+        # Junction tables (note_tags, note_people) are auto-synced by SQLite
+        # AFTER INSERT/UPDATE triggers on notes — no manual dual-write needed.
         conn.commit()
 
         # Phase 3: atomic rename — only after DB commit succeeds
@@ -331,8 +324,11 @@ def update_note(
         {"status": "updated", "path": note_path}
     """
     target = Path(note_path)
+    # DB stores relative paths — resolve against brain_root for disk access
+    if not target.is_absolute():
+        target = brain_root / target
     post = frontmatter.load(str(target))
-    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = _now_utc()
     post["title"] = title
     post["updated_at"] = now
     post["tags"] = list(tags)
@@ -359,25 +355,15 @@ def update_note(
             (title, body, tags_json, now, db_path),
         )
         log_audit(conn, "update", db_path)
-        # ARCH-05/15: Dual-write tags to note_tags junction table in same transaction.
-        try:
-            conn.execute("DELETE FROM note_tags WHERE note_path=?", (db_path,))
-            for tag in (tags or []):
-                if tag:
-                    conn.execute(
-                        "INSERT OR IGNORE INTO note_tags (note_path, tag) VALUES (?, ?)",
-                        (db_path, tag),
-                    )
-        except Exception:
-            pass  # junction table may not exist on very old schemas
-        # ARCH-13: Re-extract entities on edit, merge with existing people
+        # Junction tables (note_tags, note_people) auto-synced by SQLite triggers
+        # on the UPDATE above. Entity re-extraction updates notes.people which
+        # also fires the trigger.
         try:
             from engine.entities import extract_entities
             ents = extract_entities(title, body)
             extracted_people = ents.get("people", [])
-            # Get existing people from DB or frontmatter
             existing_row = conn.execute("SELECT people FROM notes WHERE path=?", (db_path,)).fetchone()
-            existing_people = json.loads(existing_row[0] or "[]") if existing_row else []
+            existing_people = _json_list(existing_row[0] if existing_row else None)
             merged_people = list(dict.fromkeys(
                 [str(p) for p in existing_people] + extracted_people
             ))
@@ -385,15 +371,8 @@ def update_note(
                 "UPDATE notes SET people=?, entities=? WHERE path=?",
                 (json.dumps(merged_people), json.dumps(ents), db_path),
             )
-            # Refresh note_people junction table
-            conn.execute("DELETE FROM note_people WHERE note_path=?", (db_path,))
-            for person in merged_people:
-                conn.execute(
-                    "INSERT OR IGNORE INTO note_people (note_path, person) VALUES (?, ?)",
-                    (db_path, person),
-                )
         except Exception:
-            pass  # entity extraction is best-effort
+            logger.warning("entity re-extraction failed in update_note for %s", db_path, exc_info=True)
         conn.commit()
 
         os.replace(tmp_name, target)
@@ -577,7 +556,6 @@ def capture_note(
     update_wiki_link_relationships(conn, _wiki_source, body)
 
     # Phase 15: best-effort intelligence hooks — run in background, never block capture
-    import threading
     _target_str = str(target)
     _body = body
     _sensitivity = content_sensitivity
@@ -597,7 +575,7 @@ def capture_note(
             finally:
                 _conn.close()
         except Exception:
-            pass
+            logger.warning("check_connections failed for %s", _target_str, exc_info=True)
         try:
             from engine.db import get_connection as _get_conn
             from engine.intelligence import extract_action_items
@@ -609,7 +587,7 @@ def capture_note(
             finally:
                 _conn2.close()
         except Exception:
-            pass
+            logger.warning("extract_action_items failed for %s", _target_str, exc_info=True)
         if not _skip_stubs:
             try:
                 from engine.db import get_connection as _get_conn
@@ -631,12 +609,12 @@ def capture_note(
                             )
                             _conn3.commit()
                         except Exception:
-                            pass
+                            logger.warning("person stub creation failed", exc_info=True)
                 finally:
                     _conn3.close()
             except Exception:
-                pass
+                logger.warning("resolve_entities failed for %s", _target_str, exc_info=True)
 
-    threading.Thread(target=_run_intelligence_hooks, daemon=True).start()
+    _spawn_background(target=_run_intelligence_hooks)
 
     return target

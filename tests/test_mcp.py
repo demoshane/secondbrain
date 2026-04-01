@@ -369,7 +369,7 @@ def mcp_tag_brain(tmp_path, monkeypatch):
     note_path.write_text("---\ntitle: Test Note\ntype: note\ntags: []\n---\n\nBody text.\n")
     conn.execute(
         "INSERT INTO notes (path, title, body, type, tags) VALUES (?, ?, ?, ?, ?)",
-        (str(note_path), "Test Note", "Body text.", "note", json.dumps([])),
+        (_paths.store_path(note_path), "Test Note", "Body text.", "note", json.dumps([])),
     )
     conn.commit()
     conn.close()
@@ -382,6 +382,7 @@ def test_sb_tag_adds(mcp_tag_brain):
     import json
     import frontmatter as _fm
     import engine.db as _db
+    import engine.paths as _paths
 
     brain, note_path = mcp_tag_brain
 
@@ -401,7 +402,7 @@ def test_sb_tag_adds(mcp_tag_brain):
 
     # DB updated
     conn = _db.get_connection()
-    row = conn.execute("SELECT tags FROM notes WHERE path=?", (str(note_path),)).fetchone()
+    row = conn.execute("SELECT tags FROM notes WHERE path=?", (_paths.store_path(note_path),)).fetchone()
     conn.close()
     db_tags = json.loads(row[0] or "[]")
     assert "work" in db_tags
@@ -412,12 +413,13 @@ def test_sb_tag_removes(mcp_tag_brain):
     import json
     import frontmatter as _fm
     import engine.db as _db
+    import engine.paths as _paths
 
     brain, note_path = mcp_tag_brain
 
     # Directly seed the tag in DB and on disk for remove test
     conn = _db.get_connection()
-    conn.execute("UPDATE notes SET tags=? WHERE path=?", (json.dumps(["work"]), str(note_path)))
+    conn.execute("UPDATE notes SET tags=? WHERE path=?", (json.dumps(["work"]), _paths.store_path(note_path)))
     conn.commit()
     conn.close()
     note_path.write_text("---\ntitle: Test Note\ntype: note\ntags: [work]\n---\n\nBody text.\n")
@@ -434,7 +436,7 @@ def test_sb_tag_removes(mcp_tag_brain):
 
     # DB updated
     conn = _db.get_connection()
-    row = conn.execute("SELECT tags FROM notes WHERE path=?", (str(note_path),)).fetchone()
+    row = conn.execute("SELECT tags FROM notes WHERE path=?", (_paths.store_path(note_path),)).fetchone()
     conn.close()
     db_tags = json.loads(row[0] or "[]")
     assert "work" not in db_tags
@@ -486,6 +488,7 @@ def test_sb_tag_new_with_confirm(mcp_tag_brain):
     import json
     import frontmatter as _fm
     import engine.db as _db
+    import engine.paths as _paths
 
     brain, note_path = mcp_tag_brain
 
@@ -504,7 +507,7 @@ def test_sb_tag_new_with_confirm(mcp_tag_brain):
 
     # DB updated
     conn = _db.get_connection()
-    row = conn.execute("SELECT tags FROM notes WHERE path=?", (str(note_path),)).fetchone()
+    row = conn.execute("SELECT tags FROM notes WHERE path=?", (_paths.store_path(note_path),)).fetchone()
     conn.close()
     db_tags = json.loads(row[0] or "[]")
     assert "zzznew" in db_tags

@@ -34,11 +34,50 @@ def find_uv() -> Path:
     )
 
 
+def _fix_arch_mismatch(repo_root: Path) -> None:
+    """Detect and fix architecture mismatch in uv Python cache and project venv.
+
+    After Intel→ARM migration, uv's cached Python installations and the project
+    .venv may contain x86 binaries that fail with 'Bad CPU type in executable'.
+    This function detects the mismatch and rebuilds automatically.
+    """
+    import platform
+
+    host_arch = platform.machine()  # 'arm64' on Apple Silicon, 'x86_64' on Intel
+    if host_arch != "arm64":
+        return  # Only relevant for ARM Macs
+
+    # Check uv's managed Python installations for x86 binaries
+    uv_python_dir = Path.home() / ".local" / "share" / "uv" / "python"
+    if uv_python_dir.exists():
+        stale = [p for p in uv_python_dir.iterdir() if "x86_64" in p.name]
+        if stale:
+            print(f"[arch] Found {len(stale)} x86_64 Python installation(s) on ARM — removing...")
+            for p in stale:
+                shutil.rmtree(p)
+            print("[arch] Installing ARM Python...")
+            uv = find_uv()
+            subprocess.run([str(uv), "python", "install", "3.13"], check=True)
+
+    # Check project .venv for wrong-arch Python
+    venv = repo_root / ".venv"
+    if venv.exists():
+        cfg = venv / "pyvenv.cfg"
+        if cfg.exists():
+            text = cfg.read_text()
+            if "x86_64" in text:
+                print("[arch] Project .venv uses x86_64 Python — rebuilding...")
+                shutil.rmtree(venv)
+                uv = find_uv()
+                subprocess.run([str(uv), "sync"], cwd=str(repo_root), check=True)
+
+
 def install_global_cli(repo_root: Path) -> None:
     """Install project as a global uv tool (editable).
 
     Runs: uv tool install --editable --force <repo_root>
     """
+    _fix_arch_mismatch(repo_root)
     uv = find_uv()
     print(f"Installing global CLI from {repo_root} ...")
     subprocess.run(

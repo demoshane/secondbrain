@@ -1,7 +1,7 @@
 """FTS5 BM25 full-text search with audit log, plus semantic and hybrid RRF modes."""
 import datetime
-import json as _json
 import logging
+from engine.db import _json_list, _now_utc
 import math
 import re
 import sqlite3
@@ -124,7 +124,7 @@ def search_notes(
 
     conn.execute(
         "INSERT INTO audit_log (event_type, note_path, detail, created_at) VALUES (?, ?, ?, ?)",
-        ("search", None, query, datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")),
+        ("search", None, query, _now_utc()),
     )
     conn.commit()
 
@@ -402,7 +402,7 @@ def _apply_filters(
             people_row = conn.execute(
                 "SELECT people FROM notes WHERE path=?", (r["path"],)
             ).fetchone()
-            plist = _json.loads(people_row[0] or "[]") if people_row else []
+            plist = _json_list(people_row[0]) if people_row else []
             if not any(person in p or p == person for p in plist):
                 continue
         if importance:

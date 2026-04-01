@@ -18,6 +18,7 @@ function PersonBadge({ name, path: _path, onRemove, onClick, className }: Person
         className
       )}
       onClick={onClick}
+      data-testid="people-badge"
     >
       {name}
       {onRemove && (

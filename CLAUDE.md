@@ -92,7 +92,7 @@ All commands installed via `uv tool install .` (see `pyproject.toml [project.scr
 
 ## Database
 
-SQLite at `~/SecondBrain/.meta/brain.db`.
+SQLite at `~/SecondBrain/.index/brain.db`.
 
 Key tables: `notes`, `notes_fts` (FTS5 virtual), `note_embeddings` (sqlite-vec KNN),
 `relationships`, `action_items`, `audit_log`, `attachments`.
@@ -166,6 +166,7 @@ Use the Makefile — never do these steps manually:
 make dev      # build frontend + reinstall (--editable --force) + restart launchd services
 make restart  # reinstall + restart services only (skip frontend build)
 make test     # run full test suite
+make e2e      # run all Playwright tests (Python + TypeScript, headless)
 ```
 
 `make dev` is the single command for all code changes. Always use it instead of
@@ -193,17 +194,15 @@ Development may happen inside a devcontainer. Detect environment at session star
 - Otherwise → **host**
 
 **If in devcontainer:**
-- Code edits, pytest, git commits — all happen here
-- Do NOT start sb-api, sb-watch, or run Playwright GUI tests
-- Do NOT run `npm run build` or `uv tool install` — that's the host's job
-- When a phase reaches verification/checkpoint: write `VERIFY-HOST.md` in the phase directory
-  with all verification steps (UI checks, API endpoints, test commands, expected results)
-- Tell the user: "Verification plan written to `.planning/phases/<N>/VERIFY-HOST.md`.
-  Run `/sb-verify-phase <N>` on your HOST Claude Code session to execute it."
+- Code edits, pytest, git commits, Playwright e2e tests — all happen here
+- `make e2e` runs both Python and TypeScript Playwright tests (headless, auto-starts Flask)
+- `make dev` builds frontend + reinstalls Python package (no launchd restart)
 - `node_modules` is isolated via Docker named volume — container installs don't affect host
+- **Host-only:** `make restart` (launchd services), testing against real brain data
 
 **If on host:**
 - Full pipeline available: build, install, restart, test, Playwright, browser
 - `/sb-verify-phase <N>` runs the complete verification pipeline
 - Always `source "$HOME/.nvm/nvm.sh"` before npm commands (nvm not auto-loaded)
 - GUI URL: `http://localhost:37491/ui`
+- To run TS e2e against the running service: `E2E_BASE_URL=http://localhost:37491 npx playwright test`

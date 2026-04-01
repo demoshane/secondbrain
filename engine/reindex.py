@@ -162,19 +162,20 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False, entities: boo
     errors = []
 
     # Collect all .md files on disk, skipping hidden directories (e.g. .meta, .index, .claude)
+    # Use relative paths throughout — consistent with capture_note() and all DB storage
     disk_paths: set[str] = set()
     for md_path in sorted(brain_root.rglob("*.md")):
         # Skip any file whose path passes through a hidden directory
         if any(part.startswith(".") for part in md_path.relative_to(brain_root).parts[:-1]):
             continue
-        disk_paths.add(str(md_path.resolve()))
+        disk_paths.add(str(md_path.relative_to(brain_root)))
 
     for md_path in sorted(brain_root.rglob("*.md")):
         # Skip hidden directories
         if any(part.startswith(".") for part in md_path.relative_to(brain_root).parts[:-1]):
             continue
 
-        note_path = str(md_path.resolve())
+        note_path = str(md_path.relative_to(brain_root))
 
         # Incremental mode: skip files whose mtime <= DB updated_at (unless full=True)
         if not full:
@@ -240,6 +241,9 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False, entities: boo
         except Exception as e:
             errors.append(f"{md_path}: {e}")
 
+    # Junction tables (note_tags, note_people) are auto-synced by SQLite triggers
+    # that fire on the INSERT ... ON CONFLICT DO UPDATE above — no manual rebuild needed.
+
     # Rebuild FTS5 index to ensure consistency
     conn.execute("INSERT INTO notes_fts(notes_fts) VALUES('rebuild')")
     conn.commit()
@@ -264,7 +268,7 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False, entities: boo
     if entities:
         from engine.entities import extract_entities
         for md_path_str in disk_paths:
-            md_path_obj = Path(md_path_str)
+            md_path_obj = brain_root / md_path_str
             try:
                 post = frontmatter.load(str(md_path_obj))
                 ents = extract_entities(post.get("title", ""), post.content)

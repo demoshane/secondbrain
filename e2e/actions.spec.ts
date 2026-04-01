@@ -1,7 +1,8 @@
 import { test, expect, type Page } from '@playwright/test'
 
-const API = 'http://localhost:37491'
-const UI = `${API}/ui`
+// Base URL comes from playwright.config.ts (use.baseURL).
+// Helper API calls need a concrete URL — read it from the same env var / default.
+const API = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:5199'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ function actionRow(page: Page, text: string) {
 }
 
 async function goToActions(page: Page) {
-  await page.goto(UI)
+  await page.goto('/ui')
   await page.getByTestId('tab-bar').getByRole('button', { name: 'Actions' }).click()
   await page.waitForSelector('[data-testid="actions-page"]')
 }
@@ -190,8 +191,10 @@ test.describe('Calendar view', () => {
     ])
     const chip = page.getByText('PW cal toggle')
     await expect(chip).toBeVisible({ timeout: 5000 })
-    await chip.click()
-    // Still visible but with strikethrough
+    // Click the checkbox (Mark done) button, not the text button
+    const chipContainer = chip.locator('..')
+    await chipContainer.getByRole('button', { name: 'Mark done' }).click()
+    // Text button still visible but with strikethrough
     await expect(chip).toBeVisible()
     await expect(chip).toHaveClass(/line-through/)
   })
@@ -221,7 +224,7 @@ test.describe('Assignee', () => {
     await goToActions(page)
     const row = actionRow(page, 'PW assignee action')
     await row.hover()
-    await expect(row.getByRole('button', { name: 'Assign' })).toBeVisible()
+    await expect(row.getByRole('button', { name: 'Assign', exact: true })).toBeVisible()
   })
 
   test('can assign action to a person', async ({ page }) => {
@@ -234,9 +237,9 @@ test.describe('Assignee', () => {
     await goToActions(page)
     const row = actionRow(page, 'PW assign person')
     await row.hover()
-    await row.getByRole('button', { name: 'Assign' }).click()
-    // Select the first person in the dropdown
-    await row.locator('select').selectOption({ index: 1 })
+    await row.getByRole('button', { name: 'Assign', exact: true }).click()
+    // Radix Select opens a popover — click the person option inside it
+    await page.getByRole('option', { name: person.title }).click()
     // Person name should now appear in the row
     await expect(row.getByText(person.title)).toBeVisible()
   })

@@ -2028,6 +2028,15 @@ dev = [
     { name = "pytest-playwright" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "detect-secrets" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-playwright" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "cryptography", specifier = ">=42.0" },
@@ -2053,6 +2062,15 @@ requires-dist = [
     { name = "watchdog", specifier = ">=6.0" },
 ]
 provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "detect-secrets", specifier = ">=1.5.0" },
+    { name = "pre-commit", specifier = ">=3.0" },
+    { name = "pytest", specifier = ">=7.0" },
+    { name = "pytest-cov", specifier = ">=4.0" },
+    { name = "pytest-playwright", specifier = ">=0.5.0" },
+]
 
 [[package]]
 name = "secretstorage"

@@ -74,22 +74,20 @@ export function RightPanel() {
   useEffect(() => {
     if (!currentPath) return
     reloadMeta()
-    fetch(`${getAPI()}/actions`)
+    fetch(`${getAPI()}/actions?note_path=${encodeURIComponent(currentPath)}`)
       .then(r => r.json())
       .then(d => {
-        const all: ActionItem[] = d.actions ?? []
-        setNoteActions(all.filter(a => a.note_path === currentPath))
+        setNoteActions(d.actions ?? [])
       })
       .catch(() => setNoteActions([]))
   }, [currentPath, reloadMeta])
 
   const reloadActions = () => {
     if (!currentPath) return
-    fetch(`${getAPI()}/actions`)
+    fetch(`${getAPI()}/actions?note_path=${encodeURIComponent(currentPath)}`)
       .then(r => r.json())
       .then(d => {
-        const all: ActionItem[] = d.actions ?? []
-        setNoteActions(all.filter(a => a.note_path === currentPath))
+        setNoteActions(d.actions ?? [])
       })
       .catch(() => {})
   }

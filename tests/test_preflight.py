@@ -43,9 +43,9 @@ def test_preflight_notes_list(live_server_url):
 
 
 def test_preflight_people_list(live_server_url):
-    """GET /people returns 200 — people list endpoint is operational."""
-    r = requests.get(f"{live_server_url}/people", timeout=5)
-    assert r.status_code == 200, f"Pre-flight failed: /people returned {r.status_code}"
+    """GET /persons returns 200 — people list endpoint is operational."""
+    r = requests.get(f"{live_server_url}/persons", timeout=5)
+    assert r.status_code == 200, f"Pre-flight failed: /persons returned {r.status_code}"
 
 
 def test_preflight_meetings_list(live_server_url):

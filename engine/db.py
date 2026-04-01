@@ -1,4 +1,6 @@
 """SQLite database layer — connection, schema init, FTS5 triggers."""
+import datetime
+import json
 import logging
 import sqlite3
 from pathlib import Path
@@ -14,6 +16,18 @@ PERSON_TYPES_PH = ",".join("?" for _ in PERSON_TYPES)  # SQL placeholder string
 def _escape_like(s: str) -> str:
     """ARCH-14: Escape LIKE wildcards in user-supplied strings."""
     return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _json_list(col) -> list:
+    """Parse a JSON column value to a list, defaulting to [] for NULL/empty."""
+    if isinstance(col, list):
+        return col
+    return json.loads(col) if col else []
+
+
+def _now_utc() -> str:
+    """Return current UTC time as ISO-ish string for DB storage."""
+    return datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 SCHEMA_SQL = """
@@ -192,6 +206,10 @@ def migrate_add_dismissed_inbox_items_table(conn: sqlite3.Connection) -> None:
             PRIMARY KEY (path, item_type)
         )
     """)
+    # Add optional detail column (stores similarity score for duplicate dismissals)
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(dismissed_inbox_items)").fetchall()}
+    if "detail" not in cols:
+        conn.execute("ALTER TABLE dismissed_inbox_items ADD COLUMN detail TEXT")
     conn.commit()
 
 
@@ -244,7 +262,6 @@ def migrate_add_note_tags_table(conn: sqlite3.Connection) -> None:
     Populates from existing notes.tags JSON column via INSERT OR IGNORE.
     Migration is idempotent — running twice inserts no duplicates.
     """
-    import json as _json
     conn.execute("""
         CREATE TABLE IF NOT EXISTS note_tags (
             note_path TEXT NOT NULL,
@@ -261,7 +278,7 @@ def migrate_add_note_tags_table(conn: sqlite3.Connection) -> None:
     count = 0
     for (note_path, tags_json) in rows:
         try:
-            tags = _json.loads(tags_json or "[]")
+            tags = _json_list(tags_json)
         except Exception:
             continue
         for tag in tags:
@@ -286,7 +303,6 @@ def migrate_add_note_people_table(conn: sqlite3.Connection) -> None:
     Drops the useless idx_notes_people index on the JSON text column.
     Migration is idempotent — running twice inserts no duplicates.
     """
-    import json as _json
     conn.execute("""
         CREATE TABLE IF NOT EXISTS note_people (
             note_path TEXT NOT NULL,
@@ -307,7 +323,7 @@ def migrate_add_note_people_table(conn: sqlite3.Connection) -> None:
     count = 0
     for (note_path, people_json) in rows:
         try:
-            people = _json.loads(people_json or "[]")
+            people = _json_list(people_json)
         except Exception:
             continue
         for person in people:
@@ -712,6 +728,56 @@ def _migrate_action_items_note_path_nullable(conn: sqlite3.Connection) -> None:
     logger.info("_migrate_action_items_note_path_nullable: complete")
 
 
+def _migrate_junction_triggers(conn: sqlite3.Connection) -> None:
+    """Add AFTER INSERT/UPDATE triggers on notes to auto-sync note_tags and note_people.
+
+    Eliminates manual dual-write: any INSERT or UPDATE on notes that changes the
+    tags or people JSON column automatically repopulates the junction tables.
+    Idempotent — uses CREATE TRIGGER IF NOT EXISTS.
+    """
+    conn.executescript("""
+        -- note_tags: sync from notes.tags JSON on INSERT
+        CREATE TRIGGER IF NOT EXISTS notes_tags_ai AFTER INSERT ON notes
+        WHEN NEW.tags IS NOT NULL AND NEW.tags != '[]'
+        BEGIN
+            DELETE FROM note_tags WHERE note_path = NEW.path;
+            INSERT OR IGNORE INTO note_tags (note_path, tag)
+                SELECT NEW.path, j.value FROM json_each(NEW.tags) AS j
+                WHERE j.value IS NOT NULL AND j.value != '';
+        END;
+
+        -- note_tags: sync from notes.tags JSON on UPDATE (only when tags change)
+        CREATE TRIGGER IF NOT EXISTS notes_tags_au AFTER UPDATE OF tags ON notes
+        WHEN NEW.tags IS NOT NULL
+        BEGIN
+            DELETE FROM note_tags WHERE note_path = NEW.path;
+            INSERT OR IGNORE INTO note_tags (note_path, tag)
+                SELECT NEW.path, j.value FROM json_each(NEW.tags) AS j
+                WHERE j.value IS NOT NULL AND j.value != '';
+        END;
+
+        -- note_people: sync from notes.people JSON on INSERT
+        CREATE TRIGGER IF NOT EXISTS notes_people_ai AFTER INSERT ON notes
+        WHEN NEW.people IS NOT NULL AND NEW.people != '[]'
+        BEGIN
+            DELETE FROM note_people WHERE note_path = NEW.path;
+            INSERT OR IGNORE INTO note_people (note_path, person)
+                SELECT NEW.path, j.value FROM json_each(NEW.people) AS j
+                WHERE j.value IS NOT NULL AND j.value != '';
+        END;
+
+        -- note_people: sync from notes.people JSON on UPDATE (only when people change)
+        CREATE TRIGGER IF NOT EXISTS notes_people_au AFTER UPDATE OF people ON notes
+        WHEN NEW.people IS NOT NULL
+        BEGIN
+            DELETE FROM note_people WHERE note_path = NEW.path;
+            INSERT OR IGNORE INTO note_people (note_path, person)
+                SELECT NEW.path, j.value FROM json_each(NEW.people) AS j
+                WHERE j.value IS NOT NULL AND j.value != '';
+        END;
+    """)
+
+
 def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     """Create (or optionally recreate) the full schema.
 
@@ -759,4 +825,7 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     # F-10 performance indexes: archived filter and action_items lookup
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_archived ON notes(archived)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_action_items_note_path ON action_items(note_path)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_relationships_target ON relationships(target_path)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_action_items_assignee ON action_items(assignee_path)")
+    _migrate_junction_triggers(conn)
     conn.commit()

@@ -150,10 +150,27 @@ def ollama_ensure(verbose=True):
         urllib.request.urlopen("http://localhost:11434", timeout=2)
     except Exception:
         if verbose:
-            print(
-                "[sb-init] Ollama binary found but service not running.\n"
-                "  Start the Ollama app or run: ollama serve"
-            )
+            print("[sb-init] Ollama binary found but service not running — starting...")
+        if sys.platform == "darwin" and shutil.which("brew"):
+            subprocess.run(["brew", "services", "start", "ollama"], capture_output=True)
+            # Give it a moment to bind the port
+            import time
+            time.sleep(2)
+            try:
+                urllib.request.urlopen("http://localhost:11434", timeout=2)
+                if verbose:
+                    print("  [OK] Ollama started via brew services")
+            except Exception:
+                if verbose:
+                    print(
+                        "  [WARN] Could not start Ollama automatically.\n"
+                        "  Start the Ollama app or run: ollama serve"
+                    )
+        else:
+            if verbose:
+                print(
+                    "  Start the Ollama app or run: ollama serve"
+                )
     return True
 
 

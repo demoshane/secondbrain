@@ -50,10 +50,12 @@ RECAP_ENTITY_SYSTEM_PROMPT = (
 )
 
 PERSON_INSIGHT_SYSTEM_PROMPT = (
-    "You are a personal knowledge assistant. Given notes about a person, write a concise "
-    "brain insight: (1) who they are and their role/context, (2) recent interactions or meetings, "
+    "You are a personal knowledge assistant. The first line of the input is 'Person name: X'. "
+    "Write a concise brain insight about THAT specific person: "
+    "(1) who they are and their role/context, (2) recent interactions or meetings with them, "
     "(3) open action items involving them. Use 3-5 sentences, narrative style. Be specific — "
-    "mention meeting titles, project names, and dates when available."
+    "mention meeting titles, project names, and dates when available. "
+    "Focus exclusively on the named person, not on other people mentioned in the notes."
 )
 
 WEEKLY_SYNTHESIS_SYSTEM_PROMPT = (
@@ -116,20 +118,30 @@ SUMMARY_MAX_INPUT = 8000  # characters — cap input to LLM to control cost
 # Budget gate (INTL-10)
 # ---------------------------------------------------------------------------
 
-def budget_available(conn) -> bool:
-    """True if vault has 20+ notes and no offer has been made today."""
+def budget_available(conn, feature: str = "default") -> bool:
+    """True if vault has 20+ notes and this feature hasn't fired today.
+
+    Each feature gets its own daily budget slot so they don't block each other.
+    Migrates from legacy single-slot ``last_offer_date`` on first read.
+    """
     note_count = conn.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
     if note_count < VAULT_GATE:
         return False
     state = _load_state()
     today = datetime.date.today().isoformat()
-    return state.get("last_offer_date") != today
+    budgets = state.get("daily_budgets", {})
+    # Migrate legacy single-slot format
+    if not budgets and "last_offer_date" in state:
+        budgets = {"default": state["last_offer_date"]}
+    return budgets.get(feature) != today
 
 
-def consume_budget() -> None:
-    """Record that today's offer slot has been used."""
+def consume_budget(feature: str = "default") -> None:
+    """Record that this feature's daily slot has been used."""
     state = _load_state()
-    state["last_offer_date"] = datetime.date.today().isoformat()
+    budgets = state.get("daily_budgets", {})
+    budgets[feature] = datetime.date.today().isoformat()
+    state["daily_budgets"] = budgets
     _save_state(state)
 
 
@@ -324,7 +336,9 @@ def get_stale_notes(conn, days: int = 90, limit: int = 5) -> list[dict]:
         if path in snoozed and snoozed[path] > today:
             continue
         # Check file existence — skip deleted files
-        p = Path(path)
+        # DB stores relative paths; resolve against BRAIN_ROOT for disk access
+        from engine.paths import BRAIN_ROOT as _br
+        p = _br / path
         if not p.exists():
             continue
         # Check evergreen frontmatter
@@ -350,7 +364,7 @@ def get_stale_notes(conn, days: int = 90, limit: int = 5) -> list[dict]:
 
 def check_stale_nudge(conn) -> None:
     """Fire a stale note nudge if budget is available. Consumes budget on fire."""
-    if not budget_available(conn):
+    if not budget_available(conn, feature="stale_nudge"):
         return
     notes = get_stale_notes(conn)
     if not notes:
@@ -359,14 +373,14 @@ def check_stale_nudge(conn) -> None:
     for n in notes:
         title = n.get("title") or Path(n["path"]).stem
         print(f"  - {title}  ({n['updated_at'][:10]})")
-    consume_budget()
+    consume_budget(feature="stale_nudge")
 
 
 # ---------------------------------------------------------------------------
 # Connection suggestions (INTL-09)
 # ---------------------------------------------------------------------------
 
-def find_similar(note_path: str, conn, threshold: float = 0.8, limit: int = 3) -> list[dict]:
+def find_similar(note_path: str, conn, threshold: float = 0.7, limit: int = 3) -> list[dict]:
     """Return up to limit notes with cosine similarity > threshold to note_path."""
     row = conn.execute(
         "SELECT embedding FROM note_embeddings WHERE note_path = ?", (note_path,)
@@ -397,6 +411,7 @@ def find_similar(note_path: str, conn, threshold: float = 0.8, limit: int = 3) -
         ).fetchall()
         return [{"note_path": r[0], "similarity": 1.0 - r[1]} for r in rows]
     except Exception:
+        logger.warning("find_similar query failed for %s", note_path, exc_info=True)
         return []
 
 
@@ -460,9 +475,15 @@ def check_connections(note_path: Path, conn, brain_root: Path) -> None:
         now = time.monotonic()
         if (now - _check_connections_last_run) < _CHECK_CONNECTIONS_COOLDOWN_SECS:
             return
-        if not budget_available(conn):
+        if not budget_available(conn, feature="connections"):
             return
-        matches = find_similar(str(note_path.resolve()), conn)
+        # DB stores relative paths — convert absolute to relative for embedding lookup
+        try:
+            from engine.paths import store_path
+            _db_path = store_path(note_path.resolve())
+        except (ValueError, ImportError):
+            _db_path = str(note_path.resolve())
+        matches = find_similar(_db_path, conn)
         if not matches:
             _check_connections_last_run = time.monotonic()
             return
@@ -472,7 +493,7 @@ def check_connections(note_path: Path, conn, brain_root: Path) -> None:
             logger.info("  - %s  (similarity: %.2f)", matched_path.name, m["similarity"])
             # Phase 17 revisit: skip append for pii-sensitivity notes
             _append_related_link(note_path, matched_path.stem)
-        consume_budget()
+        consume_budget(feature="connections")
         _check_connections_last_run = time.monotonic()
     except Exception:
         logger.warning("check_connections failed", exc_info=True)
@@ -684,7 +705,7 @@ def generate_person_insight(conn, person_path: str, force: bool = False) -> str:
             parts.append(f"Related notes:\n{snippets}")
         parts.append(f"Open action items assigned to this person: {open_action_count}")
 
-        text = "\n\n".join(parts) or f"Person: {person_title}"
+        text = f"Person name: {person_title}\n\n" + "\n\n".join(parts) if parts else f"Person: {person_title}"
 
         from engine.paths import CONFIG_PATH
         adapter = _router.get_adapter("public", CONFIG_PATH)
@@ -1086,14 +1107,54 @@ def _parse_temporal_from_date(question: str) -> tuple[str, str | None] | None:
     return None
 
 
-def ask_brain(question: str, conn) -> dict:
+def ask_brain(question: str, conn, history: list[dict] | None = None) -> dict:
     """Answer a natural language question using the brain's notes as context.
+
+    Args:
+        history: Optional list of prior Q&A exchanges [{"question": str, "answer": str}, ...].
+                 Last 5 kept. Prepended to prompt so the LLM has conversation context.
 
     Returns {"answer": str, "sources": [{"title": str, "path": str, "snippet": str}]}.
     """
     from engine.search import search_hybrid
     from engine.paths import CONFIG_PATH
     from engine.config_loader import load_config as _load_config
+
+    # --- Enrich search query with conversation context for follow-ups ---
+    # The user's follow-up may be vague ("what about their email?") — the search
+    # needs key entities from prior exchanges, not full question text (which
+    # dilutes the search with generic words like "who", "what", "discussed").
+    # Strategy: pull source paths + titles from prior answers as search anchors.
+    search_query = question
+    if history:
+        # Collect source titles and key nouns from prior Q&A
+        prior_entities: list[str] = []
+        for h in history[-3:]:
+            # Extract proper nouns / capitalized words from prior questions
+            # (simple heuristic: words starting with uppercase that aren't sentence-start)
+            q_words = (h.get("question") or "").split()
+            for i, w in enumerate(q_words):
+                clean = w.strip("?.,!\"'()[]")
+                if clean and clean[0].isupper() and i > 0 and len(clean) > 2:
+                    prior_entities.append(clean)
+            # Also grab first word if it looks like a name (not a question word)
+            if q_words:
+                first = q_words[0].strip("?.,!\"'()[]")
+                if first and first[0].isupper() and first.lower() not in (
+                    "who", "what", "when", "where", "why", "how", "tell",
+                    "can", "could", "would", "should", "is", "are", "do", "does",
+                    "did", "has", "have", "the", "a", "an", "my", "we",
+                ):
+                    prior_entities.append(first)
+        if prior_entities:
+            # Dedupe while preserving order
+            seen: set[str] = set()
+            unique = []
+            for e in prior_entities:
+                if e.lower() not in seen:
+                    seen.add(e.lower())
+                    unique.append(e)
+            search_query = f"{' '.join(unique)} {question}"
 
     # --- Temporal injection: for "since X / today / this week" questions ---
     _temporal = _parse_temporal_from_date(question)
@@ -1121,7 +1182,7 @@ def ask_brain(question: str, conn) -> dict:
         ]
 
     try:
-        semantic = search_hybrid(conn, question, limit=15, natural_language=True)
+        semantic = search_hybrid(conn, search_query, limit=15, natural_language=True)
     except Exception:
         semantic = []
 
@@ -1145,6 +1206,31 @@ def ask_brain(question: str, conn) -> dict:
     else:
         results = semantic
 
+    # Pin prior source notes into follow-up context so they stay available.
+    # Without this, a follow-up loses the notes the first answer was based on.
+    if history:
+        result_paths = {r["path"] for r in results}
+        prior_paths: list[str] = []
+        for h in history[-3:]:
+            for sp in h.get("source_paths") or []:
+                if sp and sp not in result_paths:
+                    prior_paths.append(sp)
+                    result_paths.add(sp)
+        if prior_paths:
+            ph = ",".join("?" * len(prior_paths))
+            pinned_rows = conn.execute(
+                f"SELECT path, title, type, created_at, body, sensitivity "
+                f"FROM notes WHERE path IN ({ph})",
+                prior_paths,
+            ).fetchall()
+            pinned = [
+                {"path": r[0], "title": r[1], "type": r[2],
+                 "created_at": r[3], "body": r[4] or "", "sensitivity": r[5] or "public"}
+                for r in pinned_rows
+            ]
+            # Prepend pinned notes so they rank highest in context
+            results = pinned + results
+
     if not results:
         return {
             "answer": "No relevant notes found to answer this question.",
@@ -1157,17 +1243,28 @@ def ask_brain(question: str, conn) -> dict:
     _all_local = _load_config(CONFIG_PATH).get("routing", {}).get("all_local", False)
 
     public_items = [
-        (r.get("title", ""), r["body"][:800], r.get("path", ""), r.get("created_at", "")[:10])
+        (r.get("title", ""), r["body"][:2000], r.get("path", ""), r.get("created_at", "")[:10])
         for r in results if _all_local or r.get("sensitivity") != "pii"
     ]
     pii_items = [] if _all_local else [
-        (r.get("title", ""), r["body"][:800], r.get("path", ""), r.get("created_at", "")[:10])
+        (r.get("title", ""), r["body"][:2000], r.get("path", ""), r.get("created_at", "")[:10])
         for r in results if r.get("sensitivity") == "pii"
     ]
 
     # Build tasks: public and PII calls run in parallel to halve wall-clock time.
-    def _truncate(text: str, max_chars: int = 600) -> str:
+    def _truncate(text: str, max_chars: int = 2000) -> str:
         return text if len(text) <= max_chars else text[:max_chars] + "…"
+
+    # Build conversation history prefix (last 5 exchanges max)
+    history_prefix = ""
+    if history:
+        recent = history[-5:]
+        turns = "\n\n".join(
+            f"Q: {h['question']}\nA: {h['answer']}" for h in recent
+            if h.get("question") and h.get("answer")
+        )
+        if turns:
+            history_prefix = f"Previous conversation:\n{turns}\n\n"
 
     tasks: list[tuple[str, str, str]] = []  # (key, sensitivity, prompt)
     if public_items:
@@ -1175,13 +1272,13 @@ def ask_brain(question: str, conn) -> dict:
             f"Note [{date}]: {title}\n{_truncate(body)}" if date else f"Note: {title}\n{_truncate(body)}"
             for title, body, _, date in public_items[:10]
         )
-        tasks.append(("public", "public", f"Question: {question}\n\nRelevant notes:\n{ctx}"))
+        tasks.append(("public", "public", f"{history_prefix}Question: {question}\n\nRelevant notes:\n{ctx}"))
     if pii_items:
         ctx = "\n\n".join(
             f"Note [{date}]: {title}\n{_truncate(body)}" if date else f"Note: {title}\n{_truncate(body)}"
             for title, body, _, date in pii_items[:5]
         )
-        tasks.append(("pii", "pii", f"Question: {question}\n\nRelevant notes:\n{ctx}"))
+        tasks.append(("pii", "pii", f"{history_prefix}Question: {question}\n\nRelevant notes:\n{ctx}"))
 
     def _call_adapter(sensitivity: str, prompt: str) -> tuple[str, str]:
         """Returns (answer_text, provider_name)."""

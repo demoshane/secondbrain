@@ -1,5 +1,12 @@
 import os
 from pathlib import Path
+from typing import NamedTuple
+
+
+class ResolvedPath(NamedTuple):
+    """A note path carrying both the absolute (for disk I/O) and relative (for DB) forms."""
+    absolute: Path
+    relative: str
 
 def _detect_roots() -> tuple[Path, Path]:
     # Env var override (used by tests and custom setups)

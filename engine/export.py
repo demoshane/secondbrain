@@ -2,6 +2,9 @@
 import argparse
 import datetime
 import json
+import os
+import tempfile
+from engine.db import _now_utc
 import sqlite3
 import sys
 from pathlib import Path
@@ -57,9 +60,16 @@ def export_brain(brain_root: Path, conn: sqlite3.Connection, output_path: Path, 
 
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(export_data, indent=2, ensure_ascii=False), encoding="utf-8")
+    fd, tmp = tempfile.mkstemp(dir=output_path.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(export_data, indent=2, ensure_ascii=False))
+        os.replace(tmp, output_path)
+    except Exception:
+        Path(tmp).unlink(missing_ok=True)
+        raise
 
-    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = _now_utc()
     conn.execute(
         "INSERT INTO audit_log (event_type, note_path, detail, created_at) VALUES (?, ?, ?, ?)",
         ("export", None, f"format:{fmt} count:{count}", now),
@@ -91,7 +101,8 @@ def main() -> None:
     brain_root = args.brain_root if args.brain_root is not None else BRAIN_ROOT
 
     if args.output is None:
-        timestamp = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y%m%dT%H%M%S")
+        # Compact format for filename — strip separators from the standard UTC timestamp
+        timestamp = _now_utc().translate(str.maketrans("", "", "-:Z"))
         output_path = Path(f"sb-export-{timestamp}.json")
     else:
         output_path = args.output

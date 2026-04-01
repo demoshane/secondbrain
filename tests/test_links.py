@@ -105,8 +105,7 @@ def test_ensure_person_profile_creates_skeleton(tmp_path):
     assert path == brain_root / "person" / "alice-smith.md"
     assert path.exists()
     text = path.read_text(encoding="utf-8")
-    assert text.startswith("# Alice Smith")
-    assert "## Backlinks" in text
+    assert "title: Alice Smith" in text
 
 
 def test_ensure_person_profile_idempotent(tmp_path):
@@ -141,8 +140,7 @@ def test_add_backlinks_creates_profile_when_missing(tmp_path):
     person_file = brain_root / "person" / "charlie-brown.md"
     assert person_file.exists()
     text = person_file.read_text(encoding="utf-8")
-    assert "# Charlie Brown" in text
-    assert "## Backlinks" in text
+    assert "title: Charlie Brown" in text
     assert f"[[{meeting_path}]]" in text
 
 
@@ -318,9 +316,9 @@ def test_reindex_populates_wiki_link_relationships(tmp_path):
 
     source_note = brain_root / "meetings" / "standup.md"
     source_note.parent.mkdir()
-    target_str = str(target_note.resolve())
+    target_rel = "people/alice.md"
     source_note.write_text(
-        f"---\ntype: meeting\ntitle: Standup\n---\nSee [[{target_str}]].",
+        f"---\ntype: meeting\ntitle: Standup\n---\nSee [[{target_rel}]].",
         encoding="utf-8",
     )
 
@@ -332,7 +330,7 @@ def test_reindex_populates_wiki_link_relationships(tmp_path):
         "SELECT rel_type, target_path FROM relationships WHERE rel_type = 'wiki-link'"
     ).fetchall()
     assert len(rows) == 1
-    assert rows[0][1] == target_str
+    assert rows[0][1] == target_rel
 
 
 @pytest.mark.xfail(strict=False, reason="templates created in plan 04-03")

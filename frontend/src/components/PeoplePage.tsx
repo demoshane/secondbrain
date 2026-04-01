@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { WikiMarkdown } from './WikiMarkdown'
-import { Users, Plus, Trash2, Pencil, Unlink } from 'lucide-react'
+import { Users, Plus, Trash2, Pencil, Unlink, Sparkles } from 'lucide-react'
 import { cn, getAPI, encodePath } from '@/lib/utils'
 
 function AvatarInitials({ name, size = 'lg' }: { name: string; size?: 'sm' | 'lg' }) {
@@ -68,6 +68,8 @@ export function PeoplePage() {
   const [savingBody, setSavingBody] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
   const [attachRefreshTick, setAttachRefreshTick] = useState(0)
+  const [brainInsight, setBrainInsight] = useState<string | null>(null)
+  const [insightLoading, setInsightLoading] = useState(false)
 
   const loadPeople = () => {
     setLoading(true)
@@ -87,9 +89,17 @@ export function PeoplePage() {
     setDetailLoading(true)
     setEditingBody(null)
     setAttachRefreshTick(0)
+    setBrainInsight(null)
     const person = people.find(p => p.path === selectedPath) ?? null
     setSelectedPerson(person)
     const enc = encodePath(selectedPath)
+    // Fetch brain insight independently (don't block main detail)
+    setInsightLoading(true)
+    fetch(`${getAPI()}/persons/${enc}/insight`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setBrainInsight(d?.insight ?? null))
+      .catch(() => setBrainInsight(null))
+      .finally(() => setInsightLoading(false))
     Promise.all([
       fetch(`${getAPI()}/notes/${enc}`).then(r => r.json()),
       fetch(`${getAPI()}/notes/${enc}/meta`).then(r => r.json()),
@@ -194,6 +204,7 @@ export function PeoplePage() {
       if (!res.ok) throw new Error('Save failed')
       setPersonNote(prev => prev ? { ...prev, body: editingBody } : prev)
       setEditingBody(null)
+      loadPeople()
       toast.success('Person note saved')
     } catch {
       toast.error('Failed to save. Try again.')
@@ -382,7 +393,7 @@ export function PeoplePage() {
               </div>
             </div>
 
-            <div className="flex-1 divide-y divide-border">
+            <div className="flex-1 divide-y divide-border" data-testid="note-body-section">
               <CollapsibleSection
                 title="Profile & Context"
                 count={1}
@@ -513,6 +524,7 @@ export function PeoplePage() {
                     <p className="px-4 py-3 text-sm text-muted-foreground">No related notes</p>
                   ) : (
                     <div>
+                      <div data-testid="meetings-section">
                       {meetings.map(m => (
                         <div key={m.path} className="flex items-center px-4 py-1.5 hover:bg-secondary/50">
                           <button
@@ -523,6 +535,7 @@ export function PeoplePage() {
                           </button>
                         </div>
                       ))}
+                      </div>
                       {backlinks.map(b => (
                         <div key={b.path} className="flex items-center px-4 py-1.5 hover:bg-secondary/50">
                           <button
@@ -584,6 +597,21 @@ export function PeoplePage() {
                 </div>
               </CollapsibleSection>
             </div>
+
+            {/* Brain Insight */}
+            {(brainInsight || insightLoading) && (
+              <div className="mx-6 my-3 rounded-lg border border-accent/30 bg-accent/5 p-4">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Sparkles className="h-3.5 w-3.5 text-accent" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-accent">Brain Insight</span>
+                </div>
+                {insightLoading ? (
+                  <p className="text-sm text-muted-foreground italic">Generating insight…</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic leading-relaxed">{brainInsight}</p>
+                )}
+              </div>
+            )}
 
             {/* Attachments */}
             <div className="px-6 py-3 border-t border-border">

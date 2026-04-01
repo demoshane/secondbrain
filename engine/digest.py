@@ -1,7 +1,10 @@
 """Digest generation for the second brain. Phase 16."""
 
 import datetime
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 DIGEST_SYSTEM_PROMPT = (
@@ -49,7 +52,7 @@ def generate_digest(conn, digests_dir: Path) -> Path:
             if capture_rows:
                 captures = "\n".join(f"- {r[0]} ({r[1]})" for r in capture_rows)
         except Exception:
-            pass
+            logger.warning("Digest: captures query failed", exc_info=True)
 
     # 2. Open actions
     open_actions = "No open actions."
@@ -63,7 +66,7 @@ def generate_digest(conn, digests_dir: Path) -> Path:
                     f"- {r[0]}" + (f" (due: {r[1]})" if r[1] else "") for r in action_rows
                 )
         except Exception:
-            pass
+            logger.warning("Digest: actions query failed", exc_info=True)
 
     # 3. Stale notes
     stale_notes = "No stale notes."
@@ -73,7 +76,7 @@ def generate_digest(conn, digests_dir: Path) -> Path:
             if stale_rows:
                 stale_notes = "\n".join(f"- {r.get('title', r.get('path', '?'))}" for r in stale_rows)
         except Exception:
-            pass
+            logger.warning("Digest: stale notes query failed", exc_info=True)
 
     # 4. Key themes via AI (best-effort; PII-aware)
     key_themes = "Key Themes unavailable."

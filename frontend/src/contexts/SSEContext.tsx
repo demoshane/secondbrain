@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { getAPI } from '@/lib/utils'
 import { useNoteContext } from './NoteContext'
 
@@ -12,6 +12,9 @@ export const useSSEContext = () => useContext(SSEContext)
 export function SSEProvider({ children }: { children: React.ReactNode }) {
   const [connected, setConnected] = useState(false)
   const { loadNotes, openNote, currentPath } = useNoteContext()
+  // Use ref so SSE handler always reads the latest currentPath without re-subscribing
+  const currentPathRef = useRef(currentPath)
+  currentPathRef.current = currentPath
 
   useEffect(() => {
     const src = new EventSource(`${getAPI()}/events`)
@@ -20,7 +23,8 @@ export function SSEProvider({ children }: { children: React.ReactNode }) {
       try {
         const data = JSON.parse(e.data)
         loadNotes()
-        if (currentPath && data.path === currentPath) openNote(currentPath)
+        const cp = currentPathRef.current
+        if (cp && data.path === cp) openNote(cp)
       } catch {
         // malformed SSE payload — ignore
       }

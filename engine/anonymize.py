@@ -7,8 +7,8 @@ the live file and DB row, but the note structure survives.
 Note: does NOT remove original content from git history. Use sb-forget for
 full erasure.
 """
-import datetime
 import os
+from engine.db import _now_utc
 import re
 import sqlite3
 import tempfile
@@ -82,7 +82,7 @@ def anonymize_note(
     post.content = body
     post["title"] = title
     post["content_sensitivity"] = sensitivity
-    post["updated_at"] = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
+    post["updated_at"] = _now_utc()
 
     # Atomic write — mkstemp in path.parent ensures same filesystem (POSIX atomic)
     tmp_fd = None
@@ -109,16 +109,22 @@ def anonymize_note(
         return {"redacted_count": redacted_count, "sensitivity_changed": False, "errors": errors}
 
     # Update DB row — FTS5 updated automatically by notes_au trigger on UPDATE
-    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # DB stores relative paths — convert absolute path for queries
+    from engine.paths import store_path as _store_path
+    try:
+        db_path = _store_path(path)
+    except (ValueError, Exception):
+        db_path = str(path)
+    now = _now_utc()
     try:
         conn.execute(
             "UPDATE notes SET body=?, title=?, sensitivity=?, updated_at=? WHERE path=?",
-            (body, title, sensitivity, now, str(path)),
+            (body, title, sensitivity, now, db_path),
         )
         conn.execute(
             "INSERT INTO audit_log (event_type, note_path, detail, created_at)"
             " VALUES (?, ?, ?, ?)",
-            ("anonymize", str(path), f"tokens:{len(tokens)}", now),
+            ("anonymize", db_path, f"tokens:{len(tokens)}", now),
         )
         conn.commit()
     except Exception as e:
