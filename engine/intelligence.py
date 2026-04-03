@@ -315,12 +315,24 @@ def actions_main(argv=None) -> None:
 # Stale nudge (INTL-06/07/08)
 # ---------------------------------------------------------------------------
 
-def get_stale_notes(conn, days: int = 90, limit: int = 5) -> list[dict]:
-    """Return up to limit notes not updated in `days` days, excluding evergreen and snoozed."""
-    cutoff = (datetime.date.today() - datetime.timedelta(days=days)).isoformat() + "T00:00:00Z"
+def get_stale_notes(conn, days: int = 90, limit: int = 5, include_fresh: bool = False) -> list[dict]:
+    """Return notes scored by relevance decay, excluding evergreen and snoozed.
+
+    Uses graduated decay bands instead of a binary age threshold:
+    - fresh (score > 0.8): only included when include_fresh=True
+    - aging (0.4-0.8): candidate for review nudge
+    - stale (< 0.4): should be surfaced in health checks
+
+    Each result has: path, title, updated_at, decay_score, band, type, last_accessed_at.
+    Person notes are excluded (always evergreen).
+    """
+    from engine.search import _relevance_decay
+
     rows = conn.execute(
-        "SELECT path, title, updated_at FROM notes WHERE updated_at < ? ORDER BY updated_at ASC LIMIT ?",
-        (cutoff, limit * 3),
+        "SELECT path, title, type, created_at, updated_at, last_accessed_at, access_count "
+        "FROM notes WHERE archived = 0 AND type NOT IN ('person') "
+        "ORDER BY updated_at ASC LIMIT ?",
+        (limit * 5,),
     ).fetchall()
 
     state = _load_state()
@@ -329,19 +341,15 @@ def get_stale_notes(conn, days: int = 90, limit: int = 5) -> list[dict]:
 
     results = []
     snoozed_updated = False
-    for path, title, updated_at in rows:
+    for path, title, note_type, created_at, updated_at, last_accessed_at, access_count in rows:
         if len(results) >= limit:
             break
-        # Check snooze: skip if recheck date is in the future
         if path in snoozed and snoozed[path] > today:
             continue
-        # Check file existence — skip deleted files
-        # DB stores relative paths; resolve against BRAIN_ROOT for disk access
         from engine.paths import BRAIN_ROOT as _br
         p = _br / path
         if not p.exists():
             continue
-        # Check evergreen frontmatter
         try:
             import frontmatter
             meta = frontmatter.load(str(p))
@@ -349,8 +357,30 @@ def get_stale_notes(conn, days: int = 90, limit: int = 5) -> list[dict]:
                 continue
         except Exception:
             pass
-        results.append({"path": path, "title": title, "updated_at": updated_at})
-        # INTL-08: snooze this note for 180 days now that it has been nudged
+
+        decay_score = _relevance_decay(created_at, note_type, last_accessed_at, access_count or 0)
+        # Normalize: decay_score is 1.0-1.15, map to 0-1 band scale
+        normalized = (decay_score - 1.0) / 0.15  # 0.0 = no boost, 1.0 = max boost
+
+        if normalized > 0.8:
+            band = "fresh"
+        elif normalized > 0.4:
+            band = "aging"
+        else:
+            band = "stale"
+
+        if band == "fresh" and not include_fresh:
+            continue
+
+        results.append({
+            "path": path,
+            "title": title,
+            "type": note_type,
+            "updated_at": updated_at,
+            "last_accessed_at": last_accessed_at,
+            "decay_score": round(normalized, 3),
+            "band": band,
+        })
         snooze_until = (datetime.date.today() + datetime.timedelta(days=180)).isoformat()
         snoozed[path] = snooze_until
         snoozed_updated = True

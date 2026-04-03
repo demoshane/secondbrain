@@ -283,48 +283,68 @@ class TestApplyFilters:
 
 
 # ---------------------------------------------------------------------------
-# Phase 50: Access boost tests
+# Phase 50/51: Unified relevance decay tests
 # ---------------------------------------------------------------------------
 
 
-class TestAccessBoost:
-    def test_no_access_returns_one(self):
-        from engine.search import _access_boost
-        assert _access_boost(None, 0) == 1.0
+class TestRelevanceDecay:
+    def test_no_data_returns_one(self):
+        from engine.search import _relevance_decay
+        assert _relevance_decay(None) == 1.0
 
-    def test_none_timestamp_returns_one(self):
-        from engine.search import _access_boost
-        assert _access_boost(None, 10) == 1.0
-
-    def test_zero_count_returns_one(self):
-        from engine.search import _access_boost
-        assert _access_boost("2026-04-03T12:00:00Z", 0) == 1.0
-
-    def test_recent_access_boosts(self):
-        from engine.search import _access_boost
+    def test_fresh_note_boosted(self):
+        from engine.search import _relevance_decay
         from engine.db import _now_utc
-        result = _access_boost(_now_utc(), 20)
+        result = _relevance_decay(_now_utc(), "note")
         assert result > 1.0
-        assert result <= 1.16  # max ~15%
+        assert result <= 1.16
 
-    def test_old_access_decays(self):
-        from engine.search import _access_boost
-        # 120 days ago — should be near 1.0
-        result = _access_boost("2026-01-01T00:00:00Z", 20)
-        assert result < 1.05  # heavily decayed
+    def test_person_always_evergreen(self):
+        from engine.search import _relevance_decay
+        result = _relevance_decay("2020-01-01T00:00:00Z", "person")
+        assert result == pytest.approx(1.15, abs=0.001)
 
-    def test_cap_at_20_accesses(self):
-        from engine.search import _access_boost
+    def test_meeting_decays_faster_than_decision(self):
+        from engine.search import _relevance_decay
+        # 60 days old, no access
+        ts = "2026-02-01T00:00:00Z"
+        meeting = _relevance_decay(ts, "meeting")
+        decision = _relevance_decay(ts, "decision")
+        assert decision > meeting  # decisions persist longer
+
+    def test_access_refresh_counteracts_age(self):
+        from engine.search import _relevance_decay
+        from engine.db import _now_utc
+        old_ts = "2024-01-01T00:00:00Z"
+        # Old note without access
+        without_access = _relevance_decay(old_ts, "note")
+        # Old note with recent access
+        with_access = _relevance_decay(old_ts, "note", _now_utc(), 10)
+        assert with_access > without_access
+
+    def test_unknown_type_uses_default(self):
+        from engine.search import _relevance_decay
+        from engine.db import _now_utc
+        result = _relevance_decay(_now_utc(), "custom_type")
+        assert result > 1.0
+
+    def test_access_cap_at_20(self):
+        from engine.search import _relevance_decay
         from engine.db import _now_utc
         now = _now_utc()
-        boost_20 = _access_boost(now, 20)
-        boost_100 = _access_boost(now, 100)
-        assert abs(boost_20 - boost_100) < 0.001  # capped, no difference
+        old = "2024-01-01T00:00:00Z"
+        r20 = _relevance_decay(old, "note", now, 20)
+        r100 = _relevance_decay(old, "note", now, 100)
+        assert abs(r20 - r100) < 0.001
 
-    def test_apply_access_boost_enriches_results(self, seeded_db):
-        from engine.search import _apply_access_boost
+    def test_apply_relevance_decay_enriches_results(self, seeded_db):
+        from engine.search import _apply_relevance_decay
         from engine.db import touch_note_access
-        # Touch a note a few times (seeded_db uses notes/note_NNNN.md paths)
+        # Age both notes so base decay is low — then access gives an edge
+        seeded_db.execute(
+            "UPDATE notes SET created_at='2024-01-01T00:00:00Z' WHERE path IN ('notes/note_0000.md','notes/note_0001.md')"
+        )
+        seeded_db.commit()
         touch_note_access(seeded_db, "notes/note_0000.md")
         touch_note_access(seeded_db, "notes/note_0000.md")
         touch_note_access(seeded_db, "notes/note_0000.md")
@@ -332,6 +352,6 @@ class TestAccessBoost:
             {"path": "notes/note_0000.md", "score": 1.0},
             {"path": "notes/note_0001.md", "score": 1.0},
         ]
-        boosted = _apply_access_boost(results, seeded_db)
+        boosted = _apply_relevance_decay(results, seeded_db)
         scores = {r["path"]: r["score"] for r in boosted}
         assert scores["notes/note_0000.md"] > scores["notes/note_0001.md"]

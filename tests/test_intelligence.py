@@ -155,57 +155,63 @@ class TestActionsDone:
 
 class TestStaleNudge:
     def test_get_stale_notes_returns_old_notes(self, tmp_path, monkeypatch):
-        """get_stale_notes() returns notes with updated_at older than 90 days."""
+        """get_stale_notes() returns notes with old created_at in aging/stale band."""
         from engine.intelligence import get_stale_notes
         import engine.intelligence as _intel
-        # Prevent writing snooze state to real ~/.meta/
         monkeypatch.setattr(_intel, "_load_state", lambda: {})
         monkeypatch.setattr(_intel, "_save_state", lambda s: None)
         conn = _make_db()
-        old_date = (datetime.date.today() - datetime.timedelta(days=91)).isoformat() + "T00:00:00Z"
+        old_date = (datetime.date.today() - datetime.timedelta(days=200)).isoformat() + "T00:00:00Z"
         note = tmp_path / "old.md"
         note.write_text("---\ntitle: Old Note\n---\nContent.")
         conn.execute(
-            "INSERT INTO notes (path, type, title, body, tags, people, sensitivity, updated_at) VALUES (?,?,?,?,?,?,?,?)",
-            (str(note.resolve()), "note", "Old Note", "", "[]", "[]", "public", old_date),
+            "INSERT INTO notes (path, type, title, body, tags, people, sensitivity, updated_at, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            (str(note.resolve()), "note", "Old Note", "", "[]", "[]", "public", old_date, old_date),
         )
         conn.commit()
-        results = get_stale_notes(conn, days=90, limit=5)
+        results = get_stale_notes(conn, limit=10)
         assert len(results) >= 1
+        assert results[0]["band"] in ("aging", "stale")
+        assert "decay_score" in results[0]
 
-    def test_get_stale_notes_excludes_recent(self, monkeypatch):
-        """get_stale_notes() does NOT return notes updated within 90 days."""
+    def test_get_stale_notes_excludes_recent(self, tmp_path, monkeypatch):
+        """get_stale_notes() does NOT return fresh notes (high decay score)."""
         from engine.intelligence import get_stale_notes
         import engine.intelligence as _intel
         monkeypatch.setattr(_intel, "_load_state", lambda: {})
         monkeypatch.setattr(_intel, "_save_state", lambda s: None)
         conn = _make_db()
         new_date = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        note = tmp_path / "new.md"
+        note.write_text("---\ntitle: New Note\n---\nContent.")
         conn.execute(
-            "INSERT INTO notes (path, type, title, body, tags, people, sensitivity, updated_at) VALUES (?,?,?,?,?,?,?,?)",
-            ("/n/new.md", "note", "New Note", "", "[]", "[]", "public", new_date),
+            "INSERT INTO notes (path, type, title, body, tags, people, sensitivity, updated_at, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            (str(note.resolve()), "note", "New Note", "", "[]", "[]", "public", new_date, new_date),
         )
         conn.commit()
-        results = get_stale_notes(conn, days=90, limit=5)
+        results = get_stale_notes(conn, limit=5)
         assert len(results) == 0
 
 
 class TestEvergreenExempt:
-    def test_evergreen_note_excluded_from_stale(self, tmp_path):
+    def test_evergreen_note_excluded_from_stale(self, tmp_path, monkeypatch):
         """Notes with evergreen: true frontmatter are excluded from get_stale_notes()."""
         from engine.intelligence import get_stale_notes
+        import engine.intelligence as _intel
+        monkeypatch.setattr(_intel, "_load_state", lambda: {})
+        monkeypatch.setattr(_intel, "_save_state", lambda s: None)
         conn = _make_db()
         note = tmp_path / "evergreen.md"
         note.write_text("---\nevergreen: true\ntitle: Always Fresh\n---\n\nContent.")
         old_date = (datetime.date.today() - datetime.timedelta(days=200)).isoformat() + "T00:00:00Z"
         conn.execute(
-            "INSERT INTO notes (path, type, title, body, tags, people, sensitivity, updated_at) VALUES (?,?,?,?,?,?,?,?)",
-            (str(note.resolve()), "note", "Always Fresh", "", "[]", "[]", "public", old_date),
+            "INSERT INTO notes (path, type, title, body, tags, people, sensitivity, updated_at, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            (str(note.resolve()), "note", "Always Fresh", "", "[]", "[]", "public", old_date, old_date),
         )
         conn.commit()
-        results = get_stale_notes(conn, days=90, limit=5)
+        results = get_stale_notes(conn, limit=5)
         paths = [r["path"] for r in results]
-        assert str(note.resolve()) not in paths  # stub returns [] — passes; real impl must also pass
+        assert str(note.resolve()) not in paths
 
 
 class TestStaleSnooze:
@@ -215,21 +221,61 @@ class TestStaleSnooze:
         conn = _make_db()
         note = tmp_path / "snoozed.md"
         note.write_text("---\ntitle: Snoozed\n---\nContent.")
-        old_date = (datetime.date.today() - datetime.timedelta(days=91)).isoformat() + "T00:00:00Z"
+        old_date = (datetime.date.today() - datetime.timedelta(days=200)).isoformat() + "T00:00:00Z"
         conn.execute(
-            "INSERT INTO notes (path, type, title, body, tags, people, sensitivity, updated_at) VALUES (?,?,?,?,?,?,?,?)",
-            (str(note.resolve()), "note", "Snoozed", "", "[]", "[]", "public", old_date),
+            "INSERT INTO notes (path, type, title, body, tags, people, sensitivity, updated_at, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            (str(note.resolve()), "note", "Snoozed", "", "[]", "[]", "public", old_date, old_date),
         )
         conn.commit()
-        # State: note snoozed, recheck date is 180 days from original nudge (still in future)
         recheck = (datetime.date.today() + datetime.timedelta(days=10)).isoformat()
         state = {"stale_snoozed": {str(note.resolve()): recheck}}
         state_file = tmp_path / "intelligence_state.json"
         state_file.write_text(json.dumps(state))
         monkeypatch.setattr(intelligence, "STATE_PATH", state_file)
-        results = intelligence.get_stale_notes(conn, days=90, limit=5)
+        results = intelligence.get_stale_notes(conn, limit=5)
         paths = [r["path"] for r in results]
-        assert str(note.resolve()) not in paths  # stub returns [] — passes; impl must filter snoozed
+        assert str(note.resolve()) not in paths
+
+
+class TestGraduatedDecayBands:
+    def test_person_notes_excluded(self, tmp_path, monkeypatch):
+        """Person notes are always excluded from stale detection."""
+        from engine.intelligence import get_stale_notes
+        import engine.intelligence as _intel
+        monkeypatch.setattr(_intel, "_load_state", lambda: {})
+        monkeypatch.setattr(_intel, "_save_state", lambda s: None)
+        conn = _make_db()
+        note = tmp_path / "alice.md"
+        note.write_text("---\ntitle: Alice\ntype: person\n---\nAlice is great.")
+        old_date = "2020-01-01T00:00:00Z"
+        conn.execute(
+            "INSERT INTO notes (path, type, title, body, tags, people, sensitivity, updated_at, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            (str(note.resolve()), "person", "Alice", "Alice is great.", "[]", "[]", "public", old_date, old_date),
+        )
+        conn.commit()
+        results = get_stale_notes(conn, limit=10, include_fresh=True)
+        paths = [r["path"] for r in results]
+        assert str(note.resolve()) not in paths
+
+    def test_stale_band_for_very_old_note(self, tmp_path, monkeypatch):
+        """A very old note with no access should be in the 'stale' band."""
+        from engine.intelligence import get_stale_notes
+        import engine.intelligence as _intel
+        monkeypatch.setattr(_intel, "_load_state", lambda: {})
+        monkeypatch.setattr(_intel, "_save_state", lambda s: None)
+        conn = _make_db()
+        note = tmp_path / "ancient.md"
+        note.write_text("---\ntitle: Ancient\n---\nOld content.")
+        old_date = "2023-01-01T00:00:00Z"
+        conn.execute(
+            "INSERT INTO notes (path, type, title, body, tags, people, sensitivity, updated_at, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            (str(note.resolve()), "note", "Ancient", "Old content.", "[]", "[]", "public", old_date, old_date),
+        )
+        conn.commit()
+        results = get_stale_notes(conn, limit=10)
+        assert len(results) >= 1
+        assert results[0]["band"] == "stale"
+        assert results[0]["decay_score"] < 0.4
 
 
 class TestConnectionSuggestion:

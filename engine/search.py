@@ -9,68 +9,91 @@ import sqlite3
 logger = logging.getLogger(__name__)
 
 
-def _access_boost(last_accessed_at: str | None, access_count: int) -> float:
-    """Return a score multiplier based on note access history.
+TYPE_HALF_LIVES: dict[str, int | None] = {
+    "meeting": 30,
+    "note": 60,
+    "project": 120,
+    "decision": 180,
+    "strategy": 180,
+    "person": None,  # evergreen — no decay
+}
 
-    Frequently accessed, recently used notes get up to ~15% boost.
-    Notes never accessed return 1.0 (no penalty, no boost).
+_DEFAULT_HALF_LIFE = 60
+_ACCESS_HALF_LIFE = 60.0
+_MAX_BOOST = 0.15
 
-    Formula: 1.0 + 0.15 * min(count, 20) / 20 * exp(-days_since / 60)
+
+def _relevance_decay(
+    created_at: str | None,
+    note_type: str | None = None,
+    last_accessed_at: str | None = None,
+    access_count: int = 0,
+) -> float:
+    """Unified relevance multiplier: age-based decay + access refresh.
+
+    Replaces both _recency_multiplier and _access_boost with a single
+    dual-axis formula. Per-type half-lives control how fast notes age.
+    Recent access counteracts aging (whichever signal is stronger wins).
+
+    Person notes are evergreen — always return max boost (1.15).
+
+    Returns:
+        Float >= 1.0. Falls back to 1.0 on any parse error.
     """
-    if not last_accessed_at or access_count <= 0:
-        return 1.0
+    half_life = TYPE_HALF_LIVES.get(note_type or "note", _DEFAULT_HALF_LIFE)
+    if half_life is None:
+        return 1.0 + _MAX_BOOST  # evergreen (person)
+
+    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+
+    # Age-based decay
+    base_decay = 0.0
     try:
-        accessed = datetime.datetime.fromisoformat(str(last_accessed_at).rstrip("Z"))
-        days_since = max(0, (datetime.datetime.now(datetime.UTC).replace(tzinfo=None) - accessed).days)
-        freq = min(access_count, 20) / 20.0
-        return 1.0 + 0.15 * freq * math.exp(-days_since / 60.0)
+        if created_at:
+            created = datetime.datetime.fromisoformat(str(created_at).rstrip("Z"))
+            age_days = max(0, (now - created).days)
+            base_decay = math.exp(-age_days / half_life)
     except Exception:
-        return 1.0
+        pass
+
+    # Access-based refresh
+    access_refresh = 0.0
+    try:
+        if last_accessed_at and access_count > 0:
+            accessed = datetime.datetime.fromisoformat(str(last_accessed_at).rstrip("Z"))
+            days_since = max(0, (now - accessed).days)
+            freq = min(access_count, 20) / 20.0
+            access_refresh = freq * math.exp(-days_since / _ACCESS_HALF_LIFE)
+    except Exception:
+        pass
+
+    return 1.0 + _MAX_BOOST * max(base_decay, access_refresh)
 
 
-def _apply_access_boost(results: list[dict], conn: sqlite3.Connection) -> list[dict]:
-    """Enrich search results with access-based ranking boost.
+def _apply_relevance_decay(results: list[dict], conn: sqlite3.Connection) -> list[dict]:
+    """Enrich search results with unified relevance decay multiplier.
 
-    Looks up access_count and last_accessed_at for each result path
-    and multiplies the score by _access_boost().
+    Fetches note type, created_at, access_count, and last_accessed_at
+    for each result and applies _relevance_decay().
     """
     if not results:
         return results
     paths = [r["path"] for r in results]
     placeholders = ",".join("?" * len(paths))
     rows = conn.execute(
-        f"SELECT path, access_count, last_accessed_at FROM notes WHERE path IN ({placeholders})",  # noqa: S608
+        f"SELECT path, type, created_at, access_count, last_accessed_at FROM notes WHERE path IN ({placeholders})",  # noqa: S608
         paths,
     ).fetchall()
-    access_map = {row[0]: (row[1] or 0, row[2]) for row in rows}
-    return [
-        {**r, "score": r["score"] * _access_boost(access_map.get(r["path"], (0, None))[1], access_map.get(r["path"], (0, None))[0])}
-        for r in results
-    ]
-
-
-def _recency_multiplier(created_at_str: str, half_life_days: int = 30) -> float:
-    """Return a score multiplier >= 1.0 based on note age.
-
-    New notes get a small boost (~1.1); the boost decays exponentially with a
-    configurable half-life (default 30 days).  At 180+ days the multiplier
-    approaches 1.0 (no meaningful boost).
-
-    Args:
-        created_at_str: ISO-8601 timestamp string (trailing 'Z' is stripped).
-        half_life_days: Days after which the boost halves. Default 30.
-
-    Returns:
-        Float >= 1.0. Falls back to 1.0 on any parse error.
-    """
-    try:
-        created = datetime.datetime.fromisoformat(str(created_at_str).rstrip("Z"))
-        age_days = (datetime.datetime.now(datetime.UTC).replace(tzinfo=None) - created).days
-        boost = 0.1
-        scale = half_life_days / math.log(2)
-        return 1.0 + boost * math.exp(-age_days / scale)
-    except Exception:
-        return 1.0
+    decay_map = {row[0]: (row[1], row[2], row[3] or 0, row[4]) for row in rows}
+    boosted = []
+    for r in results:
+        info = decay_map.get(r["path"])
+        if info:
+            mult = _relevance_decay(info[1], info[0], info[3], info[2])
+        else:
+            mult = 1.0
+        boosted.append({**r, "score": r["score"] * mult})
+    return boosted
 
 
 def _fts5_query(query: str) -> str:
@@ -179,11 +202,7 @@ def search_notes(
         }
         for row in rows
     ]
-    results = [
-        {**r, "score": r["score"] * _recency_multiplier(r.get("created_at", ""))}
-        for r in results
-    ]
-    return _apply_access_boost(results, conn)
+    return _apply_relevance_decay(results, conn)
 
 
 def _rrf_merge(
@@ -291,10 +310,10 @@ def search_semantic(
                     score = 1.0 - distance  # cosine distance -> similarity
                     results.append({
                         "path": row[0], "type": row[1], "title": row[2],
-                        "created_at": row[3], "score": score * _recency_multiplier(row[3]),
+                        "created_at": row[3], "score": score,
                     })
             if results:
-                results = _apply_access_boost(results, conn)
+                results = _apply_relevance_decay(results, conn)
                 results = sorted(results, key=lambda r: r["score"], reverse=True)[:limit]
                 return _enrich_with_excerpts(conn, results, query)
     except Exception as e:
@@ -359,7 +378,7 @@ def search_semantic(
         }
         for row in rows
     ]
-    results = _apply_access_boost(results, conn)
+    results = _apply_relevance_decay(results, conn)
     return _enrich_with_excerpts(conn, results, query)
 
 
@@ -392,7 +411,7 @@ def search_hybrid(
         return bm25[:limit]
 
     merged = _rrf_merge(bm25, vec_results, k=60, limit=limit)
-    merged = _apply_access_boost(merged, conn)
+    merged = _apply_relevance_decay(merged, conn)
     return _enrich_with_excerpts(conn, merged, query)
 
 
