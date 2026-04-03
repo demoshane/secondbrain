@@ -333,6 +333,149 @@ def test_reindex_populates_wiki_link_relationships(tmp_path):
     assert rows[0][1] == target_rel
 
 
+def _seed_graph(conn):
+    """Create a small graph: A -> B -> C -> D, A -> C (shortcut)."""
+    now = "2026-04-01T00:00:00Z"
+    for path, title, ntype in [
+        ("a.md", "Note A", "note"), ("b.md", "Note B", "person"),
+        ("c.md", "Note C", "project"), ("d.md", "Note D", "meeting"),
+    ]:
+        conn.execute(
+            "INSERT INTO notes (path, title, type) VALUES (?, ?, ?)",
+            (path, title, ntype),
+        )
+    for src, tgt, rtype, strength in [
+        ("a.md", "b.md", "wiki-link", 1.0),
+        ("b.md", "c.md", "connection", 0.9),
+        ("c.md", "d.md", "backlink", 0.8),
+        ("a.md", "c.md", "similar", 0.7),
+    ]:
+        conn.execute(
+            "INSERT INTO relationships (source_path, target_path, rel_type, strength, created_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (src, tgt, rtype, strength, now),
+        )
+    conn.commit()
+
+
+def test_traverse_graph_single_hop():
+    """traverse_graph at depth=1 returns immediate neighbors."""
+    from engine.links import traverse_graph
+    conn = _init_conn()
+    _seed_graph(conn)
+    result = traverse_graph(conn, "a.md", max_depth=1)
+    paths = {n["path"] for n in result["nodes"]}
+    assert "a.md" in paths  # start node always included
+    assert "b.md" in paths
+    assert "c.md" in paths  # a.md -> c.md (similar)
+    assert "d.md" not in paths  # 2 hops away
+
+
+def test_traverse_graph_multi_hop():
+    """traverse_graph at depth=2 reaches 2-hop neighbors."""
+    from engine.links import traverse_graph
+    conn = _init_conn()
+    _seed_graph(conn)
+    result = traverse_graph(conn, "a.md", max_depth=2)
+    paths = {n["path"] for n in result["nodes"]}
+    assert "d.md" in paths  # c.md -> d.md at depth 2
+
+
+def test_traverse_graph_activation_decay():
+    """Activation score decays with depth."""
+    from engine.links import traverse_graph
+    conn = _init_conn()
+    _seed_graph(conn)
+    result = traverse_graph(conn, "a.md", max_depth=2)
+    node_map = {n["path"]: n for n in result["nodes"]}
+    assert node_map["a.md"]["activation"] == 1.0
+    # b.md at depth 1: strength 1.0 / 2^1 = 0.5
+    assert node_map["b.md"]["activation"] == 0.5
+
+
+def test_traverse_graph_depth_cap():
+    """max_depth is capped at 3 even if caller passes higher."""
+    from engine.links import traverse_graph
+    conn = _init_conn()
+    _seed_graph(conn)
+    result = traverse_graph(conn, "a.md", max_depth=10)
+    # Should still work, just capped — no crash
+    assert len(result["nodes"]) >= 1
+
+
+def test_traverse_graph_type_filter():
+    """traverse_graph with rel_types filter only follows matching edges."""
+    from engine.links import traverse_graph
+    conn = _init_conn()
+    _seed_graph(conn)
+    result = traverse_graph(conn, "a.md", max_depth=2, rel_types=["wiki-link"])
+    paths = {n["path"] for n in result["nodes"]}
+    assert "b.md" in paths  # a->b via wiki-link
+    assert "c.md" not in paths  # a->c is similar, not wiki-link
+
+
+def test_traverse_graph_handles_cycles():
+    """traverse_graph handles cycles without infinite recursion."""
+    from engine.links import traverse_graph
+    conn = _init_conn()
+    _seed_graph(conn)
+    # Add cycle: d.md -> a.md
+    conn.execute(
+        "INSERT INTO relationships (source_path, target_path, rel_type, strength, created_at)"
+        " VALUES (?, ?, ?, ?, ?)",
+        ("d.md", "a.md", "wiki-link", 1.0, "2026-04-01T00:00:00Z"),
+    )
+    conn.commit()
+    result = traverse_graph(conn, "a.md", max_depth=3)
+    assert len(result["nodes"]) <= 10  # bounded, not infinite
+
+
+def test_find_path_direct():
+    """find_path returns direct connection."""
+    from engine.links import find_path
+    conn = _init_conn()
+    _seed_graph(conn)
+    path = find_path(conn, "a.md", "b.md")
+    assert path is not None
+    assert len(path) == 2
+    assert path[0]["path"] == "a.md"
+    assert path[1]["path"] == "b.md"
+
+
+def test_find_path_multi_hop():
+    """find_path finds path through intermediary."""
+    from engine.links import find_path
+    conn = _init_conn()
+    _seed_graph(conn)
+    path = find_path(conn, "a.md", "d.md")
+    assert path is not None
+    assert path[0]["path"] == "a.md"
+    assert path[-1]["path"] == "d.md"
+    assert len(path) <= 4  # at most 3 hops
+
+
+def test_find_path_no_connection():
+    """find_path returns None when no path exists."""
+    from engine.links import find_path
+    conn = _init_conn()
+    _seed_graph(conn)
+    # Add isolated node
+    conn.execute("INSERT INTO notes (path, title, type) VALUES ('z.md', 'Isolated', 'note')")
+    conn.commit()
+    assert find_path(conn, "a.md", "z.md") is None
+
+
+def test_find_path_same_node():
+    """find_path returns single-element list when source == target."""
+    from engine.links import find_path
+    conn = _init_conn()
+    _seed_graph(conn)
+    path = find_path(conn, "a.md", "a.md")
+    assert path is not None
+    assert len(path) == 1
+    assert path[0]["path"] == "a.md"
+
+
 @pytest.mark.xfail(strict=False, reason="templates created in plan 04-03")
 def test_work_templates_exist():
     """Work templates exist with correct section headers."""

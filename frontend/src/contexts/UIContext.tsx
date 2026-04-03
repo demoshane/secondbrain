@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useRef } from 'react'
 
-type View = 'notes' | 'actions' | 'people' | 'meetings' | 'projects' | 'intelligence' | 'performance' | 'inbox' | 'links'
+type View = 'notes' | 'actions' | 'people' | 'meetings' | 'projects' | 'intelligence' | 'performance' | 'inbox' | 'links' | 'graph'
 
 interface NavEntry {
   view: View

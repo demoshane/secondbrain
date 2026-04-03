@@ -1,4 +1,4 @@
-import { FileText, CheckSquare, Users, Calendar, Briefcase, Brain, Gauge, Inbox, Link } from 'lucide-react'
+import { FileText, CheckSquare, Users, Calendar, Briefcase, Brain, Gauge, Inbox, Link, Network } from 'lucide-react'
 import { useUIContext } from '@/contexts/UIContext'
 import { cn } from '@/lib/utils'
 
@@ -12,6 +12,7 @@ const TABS = [
   { id: 'performance' as const, label: 'Performance', icon: Gauge },
   { id: 'inbox' as const, label: 'Inbox', icon: Inbox },
   { id: 'links' as const, label: 'Links', icon: Link },
+  { id: 'graph' as const, label: 'Graph', icon: Network },
 ]
 
 export function TabBar() {

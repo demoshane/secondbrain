@@ -13,6 +13,7 @@ import { IntelligencePage } from './components/IntelligencePage'
 import { InboxPage } from './components/InboxPage'
 import { LinksPage } from './components/LinksPage'
 import { PerformancePage } from './components/PerformancePage'
+import { GraphPage } from './components/GraphPage'
 import { NewNoteModal } from './components/NewNoteModal'
 import { DeleteNoteModal } from './components/DeleteNoteModal'
 import { FileUploadModal } from './components/FileUploadModal'
@@ -104,6 +105,8 @@ export default function App() {
             <LinksPage />
           ) : currentView === 'performance' ? (
             <PerformancePage />
+          ) : currentView === 'graph' ? (
+            <GraphPage />
           ) : null}
         </div>
         {currentView === 'notes' && <RightPanel />}

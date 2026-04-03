@@ -728,6 +728,19 @@ def _migrate_action_items_note_path_nullable(conn: sqlite3.Connection) -> None:
     logger.info("_migrate_action_items_note_path_nullable: complete")
 
 
+def migrate_add_relationship_strength(conn: sqlite3.Connection) -> None:
+    """Add strength column to relationships table for weighted graph traversal.
+
+    Idempotent — uses try/except to handle pre-existing column.
+    """
+    try:
+        conn.execute("ALTER TABLE relationships ADD COLUMN strength REAL NOT NULL DEFAULT 1.0")
+    except sqlite3.OperationalError:
+        pass
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_rel_source_type ON relationships(source_path, rel_type)")
+    conn.commit()
+
+
 def migrate_add_access_tracking(conn: sqlite3.Connection) -> None:
     """Add last_accessed_at and access_count columns to notes table.
 
@@ -857,5 +870,6 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_relationships_target ON relationships(target_path)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_action_items_assignee ON action_items(assignee_path)")
     migrate_add_access_tracking(conn)
+    migrate_add_relationship_strength(conn)
     _migrate_junction_triggers(conn)
     conn.commit()

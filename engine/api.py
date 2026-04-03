@@ -26,6 +26,7 @@ from werkzeug.utils import secure_filename
 from engine.db import PERSON_TYPES, PERSON_TYPES_PH, _escape_like, _json_list, _now_utc, get_connection, touch_note_access
 import engine.paths as _engine_paths
 from engine.paths import BRAIN_ROOT, store_path
+from engine.links import traverse_graph
 from engine.search import search_hybrid, search_notes, _apply_filters
 from engine.intelligence import list_actions
 from engine.watcher import suppress_next_delete
@@ -2153,6 +2154,56 @@ def create_relationship():
     finally:
         conn.close()
     return jsonify({"created": True})
+
+
+@app.get("/graph/overview")
+def graph_overview():
+    """Return all relationships as nodes + edges for full graph view."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT DISTINCT source_path FROM relationships "
+            "UNION SELECT DISTINCT target_path FROM relationships"
+        ).fetchall()
+        note_paths = [r[0] for r in rows]
+
+        nodes = []
+        for p in note_paths:
+            row = conn.execute(
+                "SELECT title, type FROM notes WHERE path = ?", (p,)
+            ).fetchone()
+            title = row[0] if row else p.rsplit("/", 1)[-1].replace(".md", "")
+            note_type = row[1] if row else "unknown"
+            nodes.append({"path": p, "title": title, "note_type": note_type})
+
+        edges_rows = conn.execute(
+            "SELECT source_path, target_path, rel_type, "
+            "COALESCE(strength, 1.0) as strength FROM relationships"
+        ).fetchall()
+        edges = [
+            {"source": r[0], "target": r[1], "type": r[2], "strength": r[3]}
+            for r in edges_rows
+        ]
+    finally:
+        conn.close()
+    return jsonify({"nodes": nodes, "edges": edges})
+
+
+@app.get("/graph")
+def graph_traverse():
+    """Return traversal subgraph from a starting note."""
+    start = request.args.get("start", "")
+    if not start:
+        return jsonify({"error": "start parameter required"}), 400
+    depth = min(int(request.args.get("depth", "2")), 3)
+    types_param = request.args.get("types", "")
+    rel_types = [t.strip() for t in types_param.split(",") if t.strip()] or None
+    conn = get_connection()
+    try:
+        result = traverse_graph(conn, start, max_depth=depth, rel_types=rel_types)
+    finally:
+        conn.close()
+    return jsonify(result)
 
 
 @app.post("/smart-capture")

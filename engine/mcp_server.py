@@ -24,6 +24,7 @@ from engine.forget import forget_person
 from engine.anonymize import anonymize_note
 from engine.intelligence import find_dormant_related, find_similar, get_overdue_actions, list_actions, recap_entity
 from engine.link_capture import fetch_link_metadata
+from engine.links import traverse_graph
 from engine.paths import BRAIN_ROOT, CONFIG_PATH, store_path
 from engine.router import get_adapter
 from engine.search import search_hybrid, search_notes, search_semantic, _apply_filters
@@ -1412,6 +1413,34 @@ def sb_unlink(source_path: str, target_path: str, rel_type: str | None = None) -
 
 
 @mcp.tool()
+def sb_traverse(start_path: str, max_depth: int = 2, rel_types: str | None = None) -> dict:
+    """Explore associative connections from a starting note.
+
+    Follow relationship chains up to N hops to discover indirect connections
+    between notes, people, and projects. Use when you want to understand how
+    topics are connected beyond direct links.
+
+    Args:
+        start_path: Path of the note to start traversal from.
+        max_depth: Maximum hops to follow (1-3, default 2).
+        rel_types: Comma-separated relationship types to follow (e.g. "wiki-link,connection").
+                   If omitted, follows all types.
+
+    Returns:
+        {nodes: [{path, title, note_type, depth, activation}],
+         edges: [{source, target, type, strength}]}
+    """
+    parsed_types = [t.strip() for t in rel_types.split(",") if t.strip()] if rel_types else None
+    conn = get_connection()
+    try:
+        result = traverse_graph(conn, start_path, max_depth=max_depth, rel_types=parsed_types)
+        log_audit(conn, "mcp_traverse", start_path, f"depth={max_depth}")
+        return result
+    finally:
+        conn.close()
+
+
+@mcp.tool()
 def sb_person_context(name_or_path: str) -> dict:
     """Return full context for a person: note body, meetings, actions, mentions, and relationship metrics.
 
@@ -1556,6 +1585,38 @@ def sb_person_context(name_or_path: str) -> dict:
             "total_mentions": len(mentions),
             "total_actions": len(actions),
         }
+
+        # 6. 2nd-degree connections via graph traversal
+        try:
+            graph = traverse_graph(conn, person_path, max_depth=2)
+            connected_people = []
+            for node in graph["nodes"]:
+                if node["path"] == person_path:
+                    continue
+                if node.get("note_type") not in PERSON_TYPES:
+                    continue
+                # Find the intermediate note connecting them
+                via = None
+                for edge in graph["edges"]:
+                    if node["path"] in (edge["source"], edge["target"]):
+                        other = edge["source"] if edge["target"] == node["path"] else edge["target"]
+                        if other != person_path:
+                            via_row = conn.execute(
+                                "SELECT title FROM notes WHERE path = ?", (other,)
+                            ).fetchone()
+                            via = via_row[0] if via_row else other
+                            break
+                connected_people.append({
+                    "path": node["path"],
+                    "title": node["title"],
+                    "via": via,
+                    "depth": node["depth"],
+                })
+            result["connected_people"] = connected_people
+        except Exception:
+            result["connected_people"] = []
+
+        return result
     finally:
         conn.close()
 

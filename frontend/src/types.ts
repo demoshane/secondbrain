@@ -84,3 +84,23 @@ export interface InboxData {
   empty_notes: NoteSummary[]
   total_count: number
 }
+
+export interface GraphNode {
+  path: string
+  title: string
+  note_type: string
+  depth?: number
+  activation?: number
+}
+
+export interface GraphEdge {
+  source: string
+  target: string
+  type: string
+  strength: number
+}
+
+export interface GraphData {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+}
