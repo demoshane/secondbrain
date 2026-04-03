@@ -572,6 +572,114 @@ def surface_relevant(
     return results
 
 
+def cluster_recent_notes(
+    conn,
+    window_days: int = 7,
+    min_cluster_size: int = 3,
+) -> list[dict]:
+    """Identify clusters of related recent notes for synthesis.
+
+    Groups notes created/updated in the last window_days by shared people
+    (via note_people junction) and shared tags (via note_tags junction).
+    Merges overlapping clusters and filters below min_cluster_size.
+
+    Returns: [{"cluster_id": str, "topic": str, "notes": [paths],
+               "shared_people": [...], "shared_tags": [...]}]
+    """
+    cutoff = (
+        datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+        - datetime.timedelta(days=window_days)
+    ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    # Get recent non-synthesis notes
+    recent_rows = conn.execute(
+        "SELECT path FROM notes WHERE "
+        "(created_at >= ? OR updated_at >= ?) AND type != 'synthesis'",
+        (cutoff, cutoff),
+    ).fetchall()
+    recent_paths = {r[0] for r in recent_rows}
+
+    if not recent_paths:
+        return []
+
+    # Step 1: Group by shared people
+    person_clusters: dict[str, set[str]] = {}
+    for path in recent_paths:
+        people_rows = conn.execute(
+            "SELECT person FROM note_people WHERE note_path = ?", (path,)
+        ).fetchall()
+        for (person,) in people_rows:
+            person_clusters.setdefault(person, set()).add(path)
+
+    # Step 2: Group by shared tags (exclude generic tags)
+    tag_clusters: dict[str, set[str]] = {}
+    generic_tags = {"auto-synthesized", "auto-captured", "imported"}
+    for path in recent_paths:
+        tag_rows = conn.execute(
+            "SELECT tag FROM note_tags WHERE note_path = ?", (path,)
+        ).fetchall()
+        for (tag,) in tag_rows:
+            if tag.lower() not in generic_tags:
+                tag_clusters.setdefault(tag, set()).add(path)
+
+    # Step 3: Collect candidate clusters
+    candidates: list[tuple[set[str], list[str], list[str]]] = []
+    for person, notes in person_clusters.items():
+        if len(notes) >= min_cluster_size:
+            candidates.append((notes, [person], []))
+    for tag, notes in tag_clusters.items():
+        if len(notes) >= min_cluster_size:
+            candidates.append((notes, [], [tag]))
+
+    # Step 4: Merge overlapping clusters (>50% note overlap)
+    merged: list[tuple[set[str], list[str], list[str]]] = []
+    used = [False] * len(candidates)
+    for i, (notes_i, people_i, tags_i) in enumerate(candidates):
+        if used[i]:
+            continue
+        combined_notes = set(notes_i)
+        combined_people = list(people_i)
+        combined_tags = list(tags_i)
+        for j in range(i + 1, len(candidates)):
+            if used[j]:
+                continue
+            notes_j, people_j, tags_j = candidates[j]
+            overlap = len(combined_notes & notes_j)
+            smaller = min(len(combined_notes), len(notes_j))
+            if smaller > 0 and overlap / smaller > 0.5:
+                combined_notes |= notes_j
+                combined_people.extend(p for p in people_j if p not in combined_people)
+                combined_tags.extend(t for t in tags_j if t not in combined_tags)
+                used[j] = True
+        used[i] = True
+        if len(combined_notes) >= min_cluster_size:
+            merged.append((combined_notes, combined_people, combined_tags))
+
+    # Step 5: Deduplicate — each note appears in at most one cluster (largest wins)
+    merged.sort(key=lambda x: len(x[0]), reverse=True)
+    assigned: set[str] = set()
+    results: list[dict] = []
+    for idx, (notes, people, tags) in enumerate(merged):
+        unique = notes - assigned
+        if len(unique) < min_cluster_size:
+            continue
+        assigned |= unique
+        # Infer topic
+        topic = tags[0] if tags else (
+            people[0].rsplit("/", 1)[-1].replace(".md", "").replace("-", " ").title()
+            if people else "Mixed"
+        )
+        results.append({
+            "cluster_id": f"cluster-{idx}",
+            "topic": topic,
+            "notes": sorted(unique),
+            "shared_people": people,
+            "shared_tags": tags,
+        })
+
+    return results
+
+
 def _append_related_link(note_path: Path, matched_stem: str) -> None:
     """Append Related: [[stem]] to new note — one-directional, best-effort."""
     try:

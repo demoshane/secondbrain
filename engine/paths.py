@@ -31,7 +31,7 @@ CONFIG_PATH   = CONFIG_FILE  # alias used by engine/ai.py and capture.py
 
 BRAIN_SUBDIRS = [
     "coding", "person", "meetings", "strategy",
-    "projects", "personal", "ideas", "files", ".meta", ".meta/templates"
+    "projects", "personal", "ideas", "files", "syntheses", ".meta", ".meta/templates"
 ]
 
 

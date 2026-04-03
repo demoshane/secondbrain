@@ -213,6 +213,17 @@ Plans:
 - [ ] 54-02-PLAN.md — AI synthesis generation + `synthesis` note type
 - [ ] 54-03-PLAN.md — `sb_insights` MCP tool + dedup protection
 
+### Phase 56: Intelligence GUI — Synthesis, Suggestions & Contradictions
+
+**Goal:** Surface Phases 53–54 backend features in the GUI. Add "Syntheses" and "Contradictions" sections to the Intelligence page. Add "Suggested for You" section to the Inbox page showing proactive surfacing results. Synthesis notes filterable/readable like any other note type.
+**Depends on:** Phase 53, Phase 54
+**Plans:** 3 plans (not started)
+
+Plans:
+- [ ] 56-01-PLAN.md — Flask API endpoints for syntheses list, contradictions, and proactive suggestions
+- [ ] 56-02-PLAN.md — Intelligence page: Syntheses section + Contradictions alerts
+- [ ] 56-03-PLAN.md — Inbox page: "Suggested for You" section with proactive surfacing
+
 ---
 
 ## Progress

@@ -1,4 +1,5 @@
 """Second Brain MCP server — FastMCP stdio transport."""
+import datetime
 import logging
 import math
 import secrets
@@ -1503,6 +1504,92 @@ def sb_surface(context: str, max_results: int = 5, include_graph: bool = True) -
 
         log_audit(conn, "mcp_surface", context[:200])
         return {"suggestions": suggestions, "graph_additions": graph_additions}
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def sb_insights(days: int = 7) -> dict:
+    """Surface recent insights from the brain's nightly synthesis process.
+
+    Shows consolidated knowledge, patterns, and contradictions detected across
+    related notes. Call this for a high-level view of recent activity patterns.
+
+    Args:
+        days: How many days back to look for synthesis notes (default 7).
+
+    Returns:
+        {syntheses: [{path, title, summary, source_notes, tags, people}],
+         contradictions: [{notes, issue}],
+         period_days: int}
+    """
+    import json as _json
+    conn = get_connection()
+    try:
+        cutoff = (
+            datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+            - datetime.timedelta(days=days)
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        rows = conn.execute(
+            "SELECT path, title, body, tags, people FROM notes "
+            "WHERE type = 'synthesis' AND created_at >= ? "
+            "ORDER BY created_at DESC",
+            (cutoff,),
+        ).fetchall()
+
+        syntheses = []
+        for path, title, body, tags_raw, people_raw in rows:
+            tags = _json.loads(tags_raw) if tags_raw else []
+            people = _json.loads(people_raw) if people_raw else []
+            # Extract source_notes from frontmatter (stored in body via frontmatter lib)
+            summary = (body or "")[:500]
+            syntheses.append({
+                "path": path,
+                "title": title,
+                "summary": summary,
+                "tags": tags,
+                "people": people,
+            })
+
+        # Simple contradiction detection: find notes in same cluster with different dates
+        # for the same tag (heuristic — different deadline mentions)
+        contradictions: list[dict] = []
+        try:
+            from engine.intelligence import cluster_recent_notes
+            clusters = cluster_recent_notes(conn, window_days=days)
+            for cluster in clusters:
+                # Check for date conflicts in note bodies
+                dates_by_note: dict[str, list[str]] = {}
+                import re
+                for note_path in cluster["notes"]:
+                    row = conn.execute("SELECT body FROM notes WHERE path = ?", (note_path,)).fetchone()
+                    if row and row[0]:
+                        found_dates = re.findall(r"\d{4}-\d{2}-\d{2}", row[0])
+                        if found_dates:
+                            dates_by_note[note_path] = found_dates
+                if len(dates_by_note) >= 2:
+                    all_dates = set()
+                    for d_list in dates_by_note.values():
+                        all_dates.update(d_list)
+                    if len(all_dates) > 1:
+                        contradictions.append({
+                            "notes": list(dates_by_note.keys()),
+                            "issue": f"Different dates mentioned across cluster '{cluster['topic']}': {sorted(all_dates)[:5]}",
+                        })
+        except Exception:
+            pass  # contradiction detection is best-effort
+
+        if not syntheses:
+            return {
+                "syntheses": [],
+                "contradictions": contradictions,
+                "period_days": days,
+                "message": "No synthesis notes yet. They are generated nightly from clusters of 3+ related notes.",
+            }
+
+        log_audit(conn, "mcp_insights", f"days={days}")
+        return {"syntheses": syntheses, "contradictions": contradictions, "period_days": days}
     finally:
         conn.close()
 

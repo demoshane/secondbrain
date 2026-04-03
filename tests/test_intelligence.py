@@ -876,6 +876,120 @@ def test_synthesis_endpoint(tmp_path, monkeypatch):
     assert data["synthesis"] == "Test synthesis"
 
 
+# --- cluster_recent_notes tests ---
+
+class TestClusterRecentNotes:
+    """Tests for cluster_recent_notes() clustering engine."""
+
+    def test_cluster_empty_brain(self):
+        """cluster_recent_notes returns [] on empty brain."""
+        from engine.intelligence import cluster_recent_notes
+        conn = _make_db()
+        assert cluster_recent_notes(conn) == []
+
+    def test_cluster_by_shared_person(self):
+        """3 notes sharing a person within 7 days form a cluster."""
+        from engine.intelligence import cluster_recent_notes
+        conn = _make_db()
+        now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
+        for i in range(3):
+            conn.execute(
+                "INSERT INTO notes (path, type, title, body, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+                (f"meetings/m{i}.md", "meeting", f"Meeting {i}", "", now, now),
+            )
+            conn.execute(
+                "INSERT OR IGNORE INTO note_people (note_path, person) VALUES (?,?)",
+                (f"meetings/m{i}.md", "person/alice.md"),
+            )
+        conn.commit()
+        clusters = cluster_recent_notes(conn)
+        assert len(clusters) == 1
+        assert len(clusters[0]["notes"]) == 3
+        assert "person/alice.md" in clusters[0]["shared_people"]
+
+    def test_cluster_by_shared_tag(self):
+        """3 notes sharing a tag within 7 days form a cluster."""
+        from engine.intelligence import cluster_recent_notes
+        conn = _make_db()
+        now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
+        for i in range(3):
+            conn.execute(
+                "INSERT INTO notes (path, type, title, body, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+                (f"notes/n{i}.md", "note", f"Note {i}", "", now, now),
+            )
+            conn.execute(
+                "INSERT OR IGNORE INTO note_tags (note_path, tag) VALUES (?,?)",
+                (f"notes/n{i}.md", "projectx"),
+            )
+        conn.commit()
+        clusters = cluster_recent_notes(conn)
+        assert len(clusters) == 1
+        assert "projectx" in clusters[0]["shared_tags"]
+
+    def test_cluster_below_threshold_excluded(self):
+        """Only 2 notes sharing a person — below min_cluster_size of 3."""
+        from engine.intelligence import cluster_recent_notes
+        conn = _make_db()
+        now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
+        for i in range(2):
+            conn.execute(
+                "INSERT INTO notes (path, type, title, body, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+                (f"meetings/m{i}.md", "meeting", f"Meeting {i}", "", now, now),
+            )
+            conn.execute(
+                "INSERT OR IGNORE INTO note_people (note_path, person) VALUES (?,?)",
+                (f"meetings/m{i}.md", "person/bob.md"),
+            )
+        conn.commit()
+        clusters = cluster_recent_notes(conn)
+        assert len(clusters) == 0
+
+    def test_cluster_excludes_synthesis_notes(self):
+        """Synthesis-type notes are excluded from clustering."""
+        from engine.intelligence import cluster_recent_notes
+        conn = _make_db()
+        now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
+        # 2 regular + 1 synthesis = should NOT form a cluster
+        for i in range(2):
+            conn.execute(
+                "INSERT INTO notes (path, type, title, body, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+                (f"meetings/m{i}.md", "meeting", f"Meeting {i}", "", now, now),
+            )
+            conn.execute(
+                "INSERT OR IGNORE INTO note_people (note_path, person) VALUES (?,?)",
+                (f"meetings/m{i}.md", "person/alice.md"),
+            )
+        conn.execute(
+            "INSERT INTO notes (path, type, title, body, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+            ("syntheses/s1.md", "synthesis", "Synthesis 1", "", now, now),
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO note_people (note_path, person) VALUES (?,?)",
+            ("syntheses/s1.md", "person/alice.md"),
+        )
+        conn.commit()
+        clusters = cluster_recent_notes(conn)
+        assert len(clusters) == 0  # only 2 non-synthesis notes
+
+    def test_cluster_old_notes_excluded(self):
+        """Notes older than window_days are not clustered."""
+        from engine.intelligence import cluster_recent_notes
+        conn = _make_db()
+        old = (datetime.datetime.now(datetime.UTC).replace(tzinfo=None) - datetime.timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        for i in range(3):
+            conn.execute(
+                "INSERT INTO notes (path, type, title, body, created_at, updated_at) VALUES (?,?,?,?,?,?)",
+                (f"meetings/m{i}.md", "meeting", f"Meeting {i}", "", old, old),
+            )
+            conn.execute(
+                "INSERT OR IGNORE INTO note_people (note_path, person) VALUES (?,?)",
+                (f"meetings/m{i}.md", "person/alice.md"),
+            )
+        conn.commit()
+        clusters = cluster_recent_notes(conn)
+        assert len(clusters) == 0
+
+
 # --- surface_relevant tests ---
 
 class TestSurfaceRelevant:
