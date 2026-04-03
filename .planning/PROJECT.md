@@ -218,10 +218,11 @@ Model routing configurable per content-type in `.meta/config.toml`.
 
 ## Context
 
-- **Codebase**: ~8,000+ Python LOC, 80+ files (v2.0 added 81 files, +12,732 / -145 lines)
-- **Development**: 200+ commits, 20 phases, 83 plans, ~20 sessions, 3 days total
-- **Shipped**: v1.5 2026-03-15, v2.0 2026-03-16
-- **Milestone**: v2.0 Intelligence + GUI Hub
+- **Codebase**: 35,189 LOC Python + 9,996 LOC TypeScript, 100+ files
+- **Development**: 500+ commits, 68 phases, 271 plans, 4 milestones shipped
+- **Shipped**: v1.5 (2026-03-15), v2.0 (2026-03-16), v3.0 (2026-03-21), v4.0 (2026-04-03)
+- **Current milestone**: v4.0 Memory & Reliability (shipped)
+- **Next**: v5.0 Cognitive Intelligence (planned — Phases 50–54)
 
 ---
 
@@ -253,4 +254,4 @@ Model routing configurable per content-type in `.meta/config.toml`.
 
 ---
 
-*Last updated: 2026-03-28 — Phase 41.1 complete (Visual fidelity gap closure: SVG circular health gauge, sidebar folder+type grouping, ActionsPage source-note grouping, Intelligence Priority Actions + Quick Capture + stale badges, PeoplePage avatar initials, ProjectsPage stat tiles, LinksPage "Open as Note")*
+*Last updated: 2026-04-03 after v4.0 milestone — Memory & Reliability shipped (22 phases, 100 plans: architecture hardening, 100K-note scale, full visual redesign, Chrome extension, smart capture decomposer, AI provider flexibility, codebase audit remediation, data integrity triggers)*

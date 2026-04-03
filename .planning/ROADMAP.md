@@ -5,7 +5,7 @@
 - ✅ **v1.5 Second Brain MVP** — Phases 1–13 (shipped 2026-03-15)
 - ✅ **v2.0 Intelligence + GUI Hub** — Phases 14–19 (shipped 2026-03-16)
 - ✅ **v3.0 GUI Overhaul & Polish** — Phases 20–31 (shipped 2026-03-21)
-- 📋 **v4.0 Memory & Reliability** — Phases 32–49 (in progress)
+- ✅ **v4.0 Memory & Reliability** — Phases 32–49 (shipped 2026-04-03)
 - 📋 **v5.0 Cognitive Intelligence** — Phases 50–54 (planned)
 
 ## Phases
@@ -109,328 +109,52 @@ Unicode entity extraction, people column consolidation, sb_person_context (4 pla
 Freeform → typed notes, segmentation, dormant resurfacing, bidirectional links, GUI modal (6 plans, completed 2026-03-21)
 </details>
 
-## v4.0 Memory & Reliability (Phases 32–49)
-
-### Phase 32: Architecture Hardening
-
-**Goal:** Fix structural issues that will cause data loss or pain as the brain grows — relative path storage, FK cascade, connection leak safety, tags as indexed structure, action item lifecycle, security/consistency fixes
-**Depends on:** Phase 29
-**Milestone:** v4.0
-**Requirements**: ARCH-01 through ARCH-16
-**Plans:** 6/6 plans complete
-
-Plans:
-- [x] 32-01-PLAN.md — Relative path migration (ARCH-01)
-- [x] 32-02-PLAN.md — FK cascade + connection safety + upload cap (ARCH-02, ARCH-03, ARCH-04)
-- [x] 32-03-PLAN.md — Tags + note_people junction tables (ARCH-05, ARCH-15)
-- [x] 32-04-PLAN.md — Action item archiving + audit_log index (ARCH-06)
-- [x] 32-05-PLAN.md — Security + consistency fixes (ARCH-07, ARCH-08, ARCH-09, ARCH-14, ARCH-16)
-- [x] 32-06-PLAN.md — People graph correctness + shared service + parity tests (ARCH-10–ARCH-13)
-
----
-
-### Phase 33: Performance & Scale Hardening
-
-**Goal:** Keep system fast at thousands of notes — paginate all list endpoints, gate expensive O(n) operations, optimise reindex, cap LLM context
-**Depends on:** Phase 32
-**Milestone:** v4.0
-**Requirements**: PERF-01 through PERF-07
-
-Plans:
-- [x] 33-01-PLAN.md — Pagination on all list endpoints + MCP page param (PERF-01)
-- [x] 33-02-PLAN.md — check_connections gate + fast reindex (PERF-02, PERF-03)
-- [x] 33-03-PLAN.md — Recap/digest token budget + batched embedding worker (PERF-04, PERF-05)
-- [x] 33-04-PLAN.md — Entity-based filtering API + MCP (PERF-06)
-- [x] 33-05-PLAN.md — sb_person_context query consolidation (PERF-07)
-
----
-
-### Phase 34: GUI Management Productivity
-
-**Goal:** Make GUI genuinely productive — interactive action items everywhere, Cmd+K palette, entity page create/delete, sb_create_person MCP tool
-**Depends on:** Phase 30
-**Milestone:** v4.0
-**Requirements**: GUI-01 through GUI-07
-
-Plans:
-- [x] 34-01-PLAN.md — Interactive action items + Actions page source note link (GUI-01, GUI-02)
-- [x] 34-02-PLAN.md — Cmd+K command palette (GUI-03)
-- [x] 34-03-PLAN.md — Entity page create/delete + sb_create_person MCP (GUI-04, GUI-07)
-- [x] 34-04-PLAN.md — Intelligence actionable items + tag autocomplete + toasts + Inbox polish (GUI-05, GUI-06)
-
----
-
-### Phase 35: Brain Consolidation & Knowledge Hygiene
-
-**Goal:** Keep brain coherent as it grows — near-duplicate merging, stub enrichment, connection cleanup, health trends, scheduled consolidation
-**Depends on:** Phase 31, Phase 32
-**Milestone:** v4.0
-**Requirements**: CONS-01 through CONS-05
-
-Plans:
-- [x] 35-01-PLAN.md — Near-duplicate cluster detection + merge workflow (CONS-01)
-- [x] 35-02-PLAN.md — Stub enrichment + connection graph cleanup (CONS-02, CONS-03)
-- [x] 35-03-PLAN.md — Health trend tracking + scheduled consolidation (CONS-04, CONS-05)
-
----
-
-### Phase 36: Chrome Extension Capture
-
-**Goal:** Capture web content directly from Chrome into the second brain via a browser extension — full article extraction, text selection, Gmail threads, URL bookmarks, with edit-before-save popup and connection status awareness
-**Depends on:** Phase 31
-**Milestone:** v4.0
-**Requirements**: D-01 through D-17
-**Plans:** 4/4 plans complete
-
-Plans:
-- [x] 36-01-PLAN.md — Backend API: /ping, CORS, source_url/source_type (D-13, D-14, D-15)
-- [x] 36-02-PLAN.md — Extension scaffold + core capture: manifest, popup, context menus, article/selection/link capture (D-01, D-02, D-04, D-05, D-06, D-12)
-- [x] 36-03-PLAN.md — Gmail integration: injected button, thread extraction, Gmail context menu (D-07, D-08)
-- [x] 36-04-PLAN.md — Rich UX + install: badge polling, capture history, setup.sh, Intelligence page button (D-09, D-10, D-11, D-16, D-17)
-
----
-
-### Phase 37: Housekeeping
-
-**Goal:** Close known UX gaps and test coverage holes surfaced during v4.0 development: fix broken sb-recap weekly view, add action item creation from person note view, people chips in NoteViewer, cascade delete completeness, cover install_subagent.py in tests, fix failing Playwright and embedding tests, and establish Drive sync setup + health check (prerequisite for Phase 38 backup).
-**Depends on:** Phase 34
-**Milestone:** v4.0
-**Status:** ✅ Complete (UAT passed 2026-03-26)
-**Plans:** 11/11 plans complete
-
-Plans:
-- [x] 37-01-PLAN.md — Fix sb-recap weekly view (MCP `sb_recap` -> `generate_recap_on_demand`)
-- [x] 37-02-PLAN.md — Action item creation from person note view
-- [x] 37-03-PLAN.md — People chips in NoteViewer (add/remove person links on notes)
-- [x] 37-04-PLAN.md — Cascade delete completeness: impact preview + orphan cleanup
-- [x] 37-05-PLAN.md — Tests for install_subagent.py
-- [x] 37-06-PLAN.md — Fix 3 failing Playwright tests (title sync, delete flow, people badge)
-- [x] 37-07-PLAN.md — Fix 4 failing embedding reindex tests (synchronous mode)
-- [x] 37-08-PLAN.md — Drive sync setup guidance + sb-health Drive check
-- [x] 37-09-PLAN.md — [GAP] Fix action item disappearing after assigning person
-- [x] 37-10-PLAN.md — [GAP] Wire check_drive_sync into sb-health CLI
-- [x] 37-11-PLAN.md — [GAP] Fix sb_recap MCP timeout (raw mode for MCP path; content cap; adapter timeout 30s)
-
----
-
-### Phase 38: Scale Architecture (100K Notes)
-
-**Goal:** Make the brain functional and fast at 100K+ atomic notes — ANN vector index, incremental reindex, filesystem sharding, audit rotation, tiered storage, chunked embeddings, summarization layer, memory consolidation engine. Encrypted backup to secure off-machine storage with single-command restore (DB + embeddings + relationships — not just markdown files)
-**Depends on:** Phase 32, Phase 33
-**Milestone:** v4.0
-**Requirements**: SCALE-01 through SCALE-08
-**Status:** ✅ Complete (UAT skipped — infrastructure-only phase, 2026-03-27)
-**Plans:** 7/7 plans complete
-
-Plans:
-- [x] 38-01-PLAN.md — hnswlib ANN index module + reindex integration (SCALE-01)
-- [x] 38-02-PLAN.md — Audit log rotation + filesystem sharding helpers (SCALE-04, SCALE-03)
-- [x] 38-03-PLAN.md — Encrypted backup + restore + health check (SCALE-08)
-- [x] 38-04-PLAN.md — Chunked embeddings: note_chunks table + embed_chunks + reindex (SCALE-06, SCALE-02)
-- [x] 38-05-PLAN.md — Search excerpt via hnswlib ANN + API/MCP passthrough (SCALE-06, SCALE-02)
-- [x] 38-06-PLAN.md — Tiered storage (archived flag) + summarization layer (SCALE-05, SCALE-07)
-- [x] 38-07-PLAN.md — Memory consolidation engine: candidates via ANN + health reporting (SCALE-01, SCALE-06)
-
----
-
-### Phase 39: Full Codebase Review
-
-**Goal:** Cross-cutting security, architecture, performance, and test-coverage audit of the entire codebase. Produce prioritised findings and actionable fix plans.
-**Depends on:** Phase 34
-**Milestone:** v4.0
-**Requirements**: N/A (quality gate)
-**Plans:** 13/13 complete (5 remediation plans addressed by later phases; F-02 resolved 2026-04-01)
-
-Plans:
-- [x] 39-01-PLAN.md — Security audit: API surfaces, MCP tools, Chrome extension
-- [x] 39-02-PLAN.md — Architecture audit: module coupling, dead code, dual-write consistency
-- [x] 39-03-PLAN.md — Performance audit: queries, loops, indexes, scale bottlenecks
-- [x] 39-04-PLAN.md — Test coverage audit: module mapping, MCP tools, thin tests
-- [x] 39-05-PLAN.md — Dead code + optimisation audit: stale paths, duplication, cleanup
-- [x] 39-06-PLAN.md — Triage: consolidate findings into 39-FINDINGS.md
-- [x] 39-07-PLAN.md — User review + remediation scope approval
-- [x] 39-08-PLAN.md — Group A: API input hardening (F-01, F-07, F-08, F-09) — addressed by Phase 48
-- [x] 39-09-PLAN.md — Group B: DB schema migration — FK CASCADE + indexes (F-10) — addressed by Phase 48.1
-- [x] 39-10-PLAN.md — Group C: Performance query fixes (F-03, F-04, F-05, F-15, F-16) — addressed by Phases 40–48
-- [x] 39-11-PLAN.md — Group D: Dead code removal (F-02, F-11) — F-11 fixed in Phase 48; F-02 resolved 2026-04-01
-- [x] 39-12-PLAN.md — Group E: MCP test coverage (F-06, F-12, F-13, F-14, F-17)
-- [x] 39-13-PLAN.md — Group F: New test files for untested modules (COV-06 through COV-10) — addressed by Phases 37–45
-
----
-
-### Phase 40: UI Feature Completeness
-
-**Goal:** Add the backend API capabilities required by the new Visily designs that don't exist yet — per-person Brain Insight, weekly synthesis endpoint, project status field + stats, linked meetings on projects, meetings participants as linkable objects, action items grouped-by-source endpoint, markdown body rendering for links.
-**Depends on:** Phase 37
-**Milestone:** v4.0
-**Requirements**: D-01 through D-21
-**Status:** ✅ Complete (all 5 backend APIs implemented and tested, verified 2026-04-01)
-**Plans:** 5/5 plans complete (backend-only phase — frontend wiring is in Phase 41)
-
-Plans:
-- [x] 40-01-PLAN.md — Per-person AI Brain Insight endpoint + person_insights cache table (D-01, D-02, D-03, D-04, D-05)
-- [x] 40-02-PLAN.md — Weekly Synthesis endpoint (D-06, D-07, D-08, D-09)
-- [x] 40-03-PLAN.md — Project status field + stats + PUT status endpoint (D-10, D-11, D-12, D-13, D-14)
-- [x] 40-04-PLAN.md — Linked meetings on projects + participant objects on meetings (D-15, D-16)
-- [x] 40-05-PLAN.md — Action items grouped-by-source endpoint (D-18, D-19, D-20, D-21)
-
----
-
-### Phase 41: Visual Redesign
-
-**Goal:** Implement the complete Visily UI redesign across the entire frontend — new design system tokens, component library overhaul, app shell, command palette, and all 8 page redesigns (Notes, Actions, People, Meetings, Projects, Intelligence, Inbox, Links) to match the approved mockups in `ui-design-files/`.
-**Depends on:** Phase 40
-**Milestone:** v4.0
-**Plans:** 5/5 plans complete
-
-Plans:
-- [x] 41-01-PLAN.md — Design system tokens + base component overhaul (colors, typography, buttons, badges, inputs, overlays, skeletons)
-- [x] 41-02-PLAN.md — App shell redesign: topbar, tabbar with icons, command palette
-- [x] 41-03-PLAN.md — Notes view redesign: sidebar, NoteViewer, NoteEditor, Right Panel
-- [x] 41-04-PLAN.md — People + Meetings + Projects page redesigns
-- [x] 41-05-PLAN.md — Actions + Inbox + Intelligence + Links page redesigns
-
-### Phase 41.1: Visual Fidelity — Visily Gap Closure
-
-**Goal:** Close all visual and functional gaps between the current implementation and the Visily mockups: circular health score gauge, sidebar folder grouping, actions grouped by source note, Intelligence right-column sections, People avatars and profile context, Projects rich header stats, and minor fixes across Links and Meetings pages.
-**Depends on:** Phase 41
-**Milestone:** v4.0
-**Plans:** 4/4 plans complete
-
-Plans:
-- [x] 41.1-01-PLAN.md — HealthScoreGauge SVG arc + Sidebar folder grouping
-- [x] 41.1-02-PLAN.md — ActionsPage source-note grouping + MeetingsPage date chips
-- [x] 41.1-03-PLAN.md — IntelligencePage right column: Priority Actions, Quick Capture, stale days-badge
-- [x] 41.1-04-PLAN.md — PeoplePage avatar + profile display, ProjectsPage stat tiles, LinksPage "Open as Note"
-
-### Phase 41.2: Interactive Feature Completion — Bug Fixes & Missing Interactions
-
-**Goal:** Fix critical bugs discovered post-Phase 41 and restore missing interactive features: note save destroys frontmatter (data loss), meetings participants render as `[object Object]`, missing Tags/People sections, no way to add actions or participants from meeting detail, no way to add connections from person detail, no markdown preview in editor, and link-meeting failure.
-**Depends on:** Phase 41.1
-**Milestone:** v4.0
-**Plans:** 6/6 plans complete
-
-Plans:
-- [x] 41.2-01-PLAN.md — Projects detail: Tags + People sections
-- [x] 41.2-02-PLAN.md — Meetings detail: Fix participants bug + Add Action + Add Participant + Tags
-- [x] 41.2-03-PLAN.md — Debug + fix "Link Meeting" failure
-- [x] 41.2-04-PLAN.md — Person detail: "Link Note" / Add Connection button
-- [x] 41.2-05-PLAN.md — NoteEditor: markdown preview toggle
-- [x] 41.2-06-PLAN.md — CRITICAL: Fix note save data loss (frontmatter overwritten) + title not saved
-
-### Phase 41.3: UI Polish — Sidebar, Chrome Extension & Action Item Interactivity
-
-**Goal:** UI polish pass discovered during Phase 41.2 execution: collapse sidebar grouping, retheme Chrome extension, make action items fully interactive, inline editing on detail pages, connections panel cleanup, attachments visibility, chrome page summarisation, and wiki-link navigation.
-**Depends on:** Phase 41.2
-**Milestone:** v4.0
-**Plans:** 8/8 plans complete
-
-Plans:
-- [x] 41.3-01-PLAN.md — Sidebar: collapse folder->type grouping to single-level by type
-- [x] 41.3-02-PLAN.md — Chrome extension: retheme popup to dark Visily design tokens
-- [x] 41.3-03-PLAN.md — Action items: mark done + set deadline + add new in all detail views
-- [x] 41.3-04-PLAN.md — Inline note editing on all detail-panel pages
-- [x] 41.3-05-PLAN.md — Connections panel: proper sections, tags, add/remove
-- [x] 41.3-06-PLAN.md — Attachments section on all detail panels
-- [x] 41.3-07-PLAN.md — Chrome extension: page summarisation (LLM summary -> Add to brain)
-- [x] 41.3-08-PLAN.md — NoteViewer: [[wiki-links]] clickable navigation
-
-### Phase 42: Add importance field to notes
-
-**Goal:** Add an optional importance field (low/medium/high) to notes across all four layers — DB schema, capture/edit pipeline + MCP tools, Flask API + search filter, and React frontend (sidebar badges + detail panel dropdown + sort option)
-**Requirements**: IMP-01 through IMP-08
-**Depends on:** Phase 41.1
-**Plans:** 3 plans
-
-Plans:
-- [x] 42-01-PLAN.md — DB migration + capture pipeline + MCP tools (IMP-01, IMP-02, IMP-03)
-- [x] 42-02-PLAN.md — API endpoint + search filter (IMP-04, IMP-05)
-- [x] 42-03-PLAN.md — Frontend badges + dropdown + sort (IMP-06, IMP-07, IMP-08)
-
-### Phase 43: Smart Capture Multi-Pass Decomposer (completed 2026-03-30)
-
-**Goal:** Refactor smart capture from a single-pass segmenter into a modular multi-pass decomposer. Current architecture forces every blob into one type and lets URL presence override all other signals. New architecture: Pass 1 extracts entities (people, links, dates) unconditionally; Pass 2 pulls URLs out as separate link notes; Pass 3 classifies the URL-stripped content (meeting/note/etc.); Pass 4 extracts action items with owner+date; Pass 5 assembles the primary note + link notes + person stubs + action items. Each pass lives in its own module under `engine/passes/` for independent testability and replaceability. Fix URL hard-override in typeclassifier, add conversation-format signal (Name [HH:MM] pattern), align GUI path with MCP path for person stub creation.
-**Requirements:** D-01 through D-13
-**Depends on:** Phase 42
-**Plans:** 4/4 plans executed
-
-Plans:
-- [x] 43-01-PLAN.md — Pass architecture + types + Pass 1-3 + typeclassifier URL fix (D-01, D-02, D-03, D-04, D-05, D-06, D-11)
-- [x] 43-02-PLAN.md — Pass 4 (keyword actions) + Pass 5 (assembly) + config markers API (D-07, D-08, D-09)
-- [x] 43-03-PLAN.md — Caller wiring: api.py + mcp_server.py + segment_blob deletion + test migration (D-02, D-08, D-12, D-13)
-- [x] 43-04-PLAN.md — GUI: SettingsModal markers panel + SmartCaptureModal person stubs display (D-10, D-12)
-
-### Phase 44: AI provider settings: Groq API key via macOS Keychain, all-local Ollama toggle, auto-routing logic, Settings UI
-
-**Goal:** Make Ask Brain fast and snappy (<20s). Add Groq as an AI provider option: store API key securely in macOS Keychain (via Python `keyring`), auto-route public queries to Groq when key is present, add "use all-local Ollama" toggle for full privacy mode, expose both options in Settings UI. Auto-routing logic: Groq key present -> Groq for public/private; all-local toggle -> Ollama for everything; neither -> current `claude -p` subprocess fallback. Also switch default local model from `llama3.2` (3B) to `llama3` (8B, already installed) for better quality.
-**Requirements**: D-01 through D-12
-**Depends on:** Phase 43
-**Plans:** 3/3 plans complete
-
-Plans:
-- [x] 44-01-PLAN.md — GroqAdapter + config defaults + router extension (D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-11)
-- [x] 44-02-PLAN.md — Flask Keychain endpoints + groq-settings + ask_brain provider wiring (D-08, D-09, D-12)
-- [x] 44-03-PLAN.md — Settings UI AI Provider section + AskBrainModal fallback toast (D-10, D-12)
-
-### Phase 45: Performance Testing Framework
-
-**Goal:** Build a performance testing framework that tracks how system performance evolves over time as the brain grows. Command `sb-perf` runs a timed benchmark suite against all MCP tools, `ask_brain` (POST /ask), and recap. Soft limits per tool trigger warnings when breached. Results include a delta vs the previous run to surface regressions or improvements. One result per calendar day (most recent wins), retained 30 days; last run always available. Results stored at `~/SecondBrain/.meta/perf_results/`. GUI gains a dedicated Performance page showing history and delta. Read-only tests use real brain data; write-path tests use synthetic fixtures cleaned up after the run.
-**Requirements:** PERF-01 through PERF-13
-**Depends on:** Phase 44
-**Plans:** 2 plans
-
-Plans:
-- [x] 45-01-PLAN.md — Perf engine: test_utils cleanup, benchmark runner, result storage, delta, soft limits, CLI (PERF-01 through PERF-11)
-- [x] 45-02-PLAN.md — Flask API routes + GUI Performance page with summary table and sparkline charts (PERF-05, PERF-06, PERF-12, PERF-13)
-
-### Phase 46: Universal Capture Enrichment
-
-**Goal:** Wire person stub creation (Pass 5 from Phase 43 decomposer) into `capture_note()` so every capture path — `sb_capture`, `sb_capture_batch`, `sb_capture_link` — builds person stubs consistently with `sb_capture_smart`. Two-layer gate: skip for coding/link/files types and when no people extracted. Runs async in existing background thread.
-**Requirements:** UCE-01 through UCE-03
-**Depends on:** Phase 45
-**Plans:** 3 plans
-
-Plans:
-- [x] 46-01-PLAN.md — Person stub creation in capture_note background thread + tests (UCE-01, UCE-02, UCE-03)
-
-### Phase 47: Fix pre-existing test failures (completed 2026-03-30)
-
-**Goal:** Fix 4 tests that have been failing since before phase 40: `test_delete_endpoint_404` (Flask returns 308 instead of 404), `test_bidirectional_relationships`, `TestSimilarRelationshipAutoLink::test_similar_relationship_inserted_on_confirm`, and `test_smart_capture_golden_path` (sb_capture_smart relationship writing broken).
-**Requirements:** FIX-01, FIX-02, FIX-03
-**Depends on:** Phase 46
-**Plans:** 1/1 plans complete
-
-Plans:
-- [x] 47-01-PLAN.md — Fix delete 404 + FK path mismatch in relationship inserts + remove xfails (FIX-01, FIX-02, FIX-03)
-
-### Phase 48: Backend Code Cleanup (completed 2026-03-31)
-
-**Goal:** Eliminate accumulated technical debt flagged in the Phase 39 audit: remove deprecated `/people` route aliases (F-27), replace `datetime.utcnow()` deprecated in Python 3.12+ across 14 files (F-31), consolidate the 13x repeated `os.environ.get("BRAIN_PATH")` pattern (F-28), add a shared `json.loads(col or "[]")` helper (F-29), fix `ensure_person_profile()` writing to wrong path `person/` vs `people/` (F-30), begin `api.py` Blueprint partitioning (F-22, now 2149 lines), and clarify the misleading "circular import" comment in `consolidate.py` lazy import block (F-23).
-**Requirements**: F-22, F-23, F-27, F-28, F-29, F-30, F-31 (from 39-FINDINGS.md)
-**Depends on:** Phase 47
-**Plans:** 3/3 plans complete
-
-Plans:
-- [x] 48-01-PLAN.md — Shared helpers (_json_list, _now_utc) + consolidate.py comment + links.py path verify (F-23, F-29, F-30, F-31)
-- [x] 48-02-PLAN.md — Remove /people aliases + BRAIN_PATH consolidation + apply helpers across engine (F-27, F-28, F-29, F-31)
-- [x] 48-03-PLAN.md — Blueprint partitioning: extract config routes to api_config.py (F-22)
-
-### Phase 48.1: Data Integrity Hardening (completed 2026-03-31)
-
-**Goal:** Fix junction table dual-write fragility (SQLite triggers), fix `POST /batch-capture` bypassing `capture_note()`, migrate remaining `store_path()` calls to `_NP.relative`
-**Depends on:** Phase 48
-**Plans:** 2/2 plans complete
-
-Plans:
-- [x] 48.1-01-PLAN.md — SQLite triggers for junction table consistency
-- [x] 48.1-02-PLAN.md — batch-capture → capture_note + api.py _NP migration
-
-### Phase 49: Chrome Extension Page Summarisation
-
-**Goal:** Add a page summarisation feature to the Chrome extension: summarise the active page via LLM, show the summary in the extension popup with an "Add to brain" button that saves the summary as a note. Builds on Phase 36 extension infrastructure and Phase 41.3 `/summarise-url` endpoint.
-**Depends on:** Phase 48
-**Status:** ✅ Complete (already delivered in Phase 41.3 — POST /summarise-url endpoint + extension popup summarise flow + "Add to brain" save path)
-**Plans:** 0 plans (delivered as part of Phase 41.3, no separate plans needed)
+<details>
+<summary>v4.0 Memory & Reliability (Phases 32–49) — SHIPPED 2026-04-03</summary>
+
+#### Phase 32: Architecture Hardening
+Relative path storage, FK cascades, junction tables, connection safety (6 plans, completed 2026-03-22)
+
+#### Phase 33: Performance & Scale Hardening
+Pagination, O(n) gates, reindex optimization, LLM context caps (5 plans, completed 2026-03-22)
+#### Phase 34: GUI Management Productivity
+Interactive action items, Cmd+K palette, entity CRUD, sb_create_person MCP (4 plans, completed 2026-03-22)
+#### Phase 35: Brain Consolidation
+Near-duplicate merging, stub enrichment, connection cleanup, health trends (3 plans, completed 2026-03-23)
+#### Phase 36: Chrome Extension Capture
+Full article/selection/Gmail/URL capture with edit-before-save popup (4 plans, completed 2026-03-25)
+#### Phase 37: Housekeeping
+UX gaps, test coverage holes, Drive sync, 3 gap closures (11 plans, completed 2026-03-26)
+#### Phase 38: Scale Architecture (100K Notes)
+ANN vector index, encrypted backup, chunked embeddings, tiered storage, consolidation engine (7 plans, completed 2026-03-27)
+#### Phase 39: Full Codebase Review
+Security/architecture/performance/test audit, 31 findings, 6 remediation groups (13 plans, completed 2026-04-01)
+#### Phase 40: UI Feature Completeness
+Backend APIs for Visily designs: Brain Insight, weekly synthesis, project stats (5 plans, completed 2026-03-28)
+#### Phase 41: Visual Redesign
+Complete React + Tailwind redesign matching Visily mockups, all 8 pages (5 plans, completed 2026-03-28)
+#### Phase 41.1–41.3: Visual Fidelity + Interactive Gaps + UI Polish
+Gap closure, bug fixes, sidebar/extension retheme, wiki-links (18 plans, completed 2026-03-28)
+#### Phase 42: Importance Field
+Low/medium/high importance across DB, capture, MCP, API, frontend (3 plans, completed 2026-03-29)
+#### Phase 43: Smart Capture Decomposer
+Multi-pass pipeline: entities → URLs → classification → actions → assembly (4 plans, completed 2026-03-30)
+#### Phase 44: AI Provider Settings
+Groq via Keychain, Ollama toggle, auto-routing, Settings UI (3 plans, completed 2026-03-30)
+#### Phase 45: Performance Testing Framework
+sb-perf benchmarks, soft limits, delta reporting, GUI Performance page (2 plans, completed 2026-03-30)
+#### Phase 46: Universal Capture Enrichment
+Person stub creation in all capture paths (1 plan, completed 2026-03-30)
+#### Phase 47: Fix Pre-existing Test Failures
+4 long-standing test failures resolved (1 plan, completed 2026-03-30)
+#### Phase 48: Backend Code Cleanup
+Phase 39 audit remediation: dead routes, helpers, Blueprint partitioning (3 plans, completed 2026-03-31)
+#### Phase 48.1: Data Integrity Hardening
+SQLite triggers for junction tables, batch-capture fix (2 plans, completed 2026-03-31)
+#### Phase 49: Chrome Extension Page Summarisation
+Delivered in Phase 41.3 (0 plans needed)
+
+</details>
 
 ---
 
@@ -498,25 +222,7 @@ Plans:
 | 1-13 | v1.5 | 60/60 | Complete | 2026-03-15 |
 | 14-19 | v2.0 | 23/23 | Complete | 2026-03-16 |
 | 20-31 | v3.0 | 88/88 | Complete | 2026-03-21 |
-| 32 | v4.0 | 6/6 | Complete | 2026-03-22 |
-| 33 | v4.0 | 5/5 | Complete | 2026-03-22 |
-| 34 | v4.0 | 4/4 | Complete | 2026-03-22 |
-| 35 | v4.0 | 3/3 | Complete | 2026-03-23 |
-| 36 | v4.0 | 4/4 | Complete | 2026-03-25 |
-| 37 | v4.0 | 11/11 | Complete | 2026-03-26 |
-| 38 | v4.0 | 7/7 | Complete | 2026-03-27 |
-| 39 | v4.0 | 13/13 | Complete | 2026-04-01 |
-| 40 | v4.0 | 5/5 | Complete | 2026-03-28 |
-| 41 | v4.0 | 5/5 | Complete    | 2026-03-28 |
-| 42 | v4.0 | 3/3 | Complete | 2026-03-29 |
-| 43 | v4.0 | 4/4 | Complete | 2026-03-30 |
-| 44 | v4.0 | 3/3 | Complete    | 2026-03-30 |
-| 45 | v4.0 | 2/2 | Complete | 2026-03-30 |
-| 46 | v4.0 | 1/1 | Complete | 2026-03-30 |
-| 47 | v4.0 | 1/1 | Complete | 2026-03-30 |
-| 48 | v4.0 | 3/3 | Complete | 2026-03-31 |
-| 48.1 | v4.0 | 2/2 | Complete | 2026-03-31 |
-| 49 | v4.0 | 0/? | Not started | - |
+| 32-49 | v4.0 | 100/100 | Complete | 2026-04-03 |
 | 50 | v5.0 | 0/3 | Not started | - |
 | 51 | v5.0 | 0/2 | Not started | - |
 | 52 | v5.0 | 0/3 | Not started | - |

@@ -1,5 +1,44 @@
 # Milestones
 
+## v4.0 Memory & Reliability (Shipped: 2026-04-03)
+
+**Phases completed:** 22 phases (32–49), 100 plans
+**Commits:** 314
+**Timeline:** 11 days (2026-03-21 → 2026-04-01)
+**Codebase:** 35,189 LOC Python + 9,996 LOC TypeScript
+
+**Key accomplishments:**
+1. Architecture hardening — relative path storage, FK cascades, junction tables with SQLite triggers (Phase 32, 48.1)
+2. Scale to 100K notes — ANN vector index, encrypted backup/restore, chunked embeddings, tiered storage (Phase 38)
+3. Complete visual redesign — React + Tailwind frontend matching Visily mockups across all 8 pages (Phases 41–41.3)
+4. Chrome extension — full capture (articles, selections, Gmail, URLs) + page summarisation (Phases 36, 41.3)
+5. Smart capture decomposer — 5-pass pipeline: entity extraction → URL splitting → classification → action items → assembly (Phase 43)
+6. AI provider flexibility — Groq API via Keychain, all-local Ollama toggle, auto-routing, Settings UI (Phase 44)
+7. Full codebase audit — 31 findings across security/architecture/performance/testing, all remediated (Phase 39 + 40–48.1)
+8. Data integrity hardening — SQLite triggers for junction table consistency, backend cleanup, Blueprint partitioning (Phases 48, 48.1)
+
+### Known Gaps
+
+Process debt accepted (no functional gaps):
+- Nyquist validation incomplete for 17/22 phases (paperwork, not code)
+- No VERIFICATION.md files created during v4.0 (verification via UAT and test suites)
+- REQUIREMENTS.md was v3.0 vintage; v4.0 used per-phase requirements in ROADMAP.md
+
+---
+
+## v3.0 GUI Overhaul & Polish (Shipped: 2026-03-21)
+
+**Phases completed:** 20 phases (20–31), 88 plans
+
+**Key accomplishments:**
+1. React + shadcn/UI frontend rewrite with 8 pages (Notes, Actions, People, Meetings, Projects, Intelligence, Inbox, Links)
+2. Live refresh via SSE, note deletion with cascade, collapsible sidebar
+3. Smart capture with entity extraction, deduplication, and multi-capture
+4. People graph hardening, link capture, MCP server expansion to 22 tools
+5. Playwright end-to-end test suite
+
+---
+
 ## v2.0 Intelligence + GUI Hub (Shipped: 2026-03-16)
 
 **Phases completed:** 6 phases (14–19), 23 plans

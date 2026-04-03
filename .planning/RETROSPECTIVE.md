@@ -103,6 +103,50 @@
 
 ---
 
+## Milestone: v4.0 — Memory & Reliability
+
+**Shipped:** 2026-04-03
+**Phases:** 22 | **Plans:** 100
+
+### What Was Built
+- Architecture hardening: relative paths, FK cascades, junction tables with SQLite auto-sync triggers
+- Scale infrastructure: hnswlib ANN index, encrypted backup/restore, chunked embeddings, tiered storage, memory consolidation
+- Complete visual redesign: React + Tailwind matching Visily mockups across 8 pages (4 iterative sub-phases)
+- Chrome extension: article/selection/Gmail/URL capture + LLM page summarisation
+- Smart capture: 5-pass decomposer pipeline replacing monolithic segmenter
+- AI provider flexibility: Groq + Ollama + auto-routing with Settings UI
+- Comprehensive codebase audit: 31 findings, all remediated across 6 phases
+
+### What Worked
+- **Per-phase requirements in ROADMAP.md**: Tracking requirements (ARCH-01, PERF-01, etc.) directly in the roadmap next to phase goals was more practical than a separate centralized REQUIREMENTS.md. Each phase was self-contained.
+- **Iterative visual design (41 → 41.1 → 41.2 → 41.3)**: Accepting that a UI redesign needs multiple passes was more efficient than trying to get it perfect in one phase. Each sub-phase had clear scope.
+- **Phase 39 codebase audit as quality gate**: A dedicated audit phase before the final stretch caught 31 real issues. The remediation was distributed across subsequent phases rather than creating a single massive fix phase.
+- **SQLite triggers for junction tables (48.1)**: Replacing manual dual-write with database triggers eliminated an entire class of consistency bugs permanently.
+
+### What Was Inefficient
+- **No centralized v4.0 REQUIREMENTS.md**: While per-phase requirements worked for execution, it made milestone auditing harder — no single place to check coverage.
+- **VERIFICATION.md skipped entirely**: The v4.0 workflow didn't create phase VERIFICATION.md files, making the milestone audit rely on inferring completion from summaries. Not a problem in practice but created process debt.
+- **4 decimal phases for visual redesign**: Phases 41.1, 41.2, 41.3 were reactive (discovered during execution). Better up-front Visily → implementation gap analysis could have reduced the iteration count.
+- **Phase renumbering churn (44→45→46...)**: Inserting phases mid-milestone caused 4 renumbering cascades. Decimal numbering (used for 41.x and 48.1) would have avoided this.
+
+### Patterns Established
+- **SQLite triggers over dual-write**: When a JSON column and a junction table must stay in sync, use AFTER INSERT/UPDATE triggers. Never rely on application-level dual-write.
+- **Per-phase requirements**: Define requirements with prefixed IDs (ARCH-01, PERF-01) directly in the ROADMAP.md phase section. Self-contained and easy to trace.
+- **Codebase audit as milestone quality gate**: Before closing a major milestone, run a structured audit (security, architecture, performance, test coverage) and create remediation phases.
+
+### Key Lessons
+1. **Decimal phases are better than renumbering.** Phases 41.1–41.3 and 48.1 caused no disruption. Renumbering 44→48 caused confusion and stale references. Always use decimals for insertions.
+2. **Visual redesigns need iterative sub-phases.** A single "redesign everything" phase will always discover gaps on execution. Plan for at least one gap-closure sub-phase from the start.
+3. **SQLite triggers > application-level consistency.** The junction table dual-write bug class was eliminated permanently by 4 triggers. This should be the default pattern for any derived data.
+4. **Per-phase requirements work for execution but need a milestone-level summary for auditing.** Consider a lightweight rollup step at milestone close.
+
+### Cost Observations
+- Model mix: ~70% Sonnet (execution), ~30% Opus (planning, auditing, complex phases)
+- Sessions: ~25 sessions over 11 days
+- Notable: Phase 39 (codebase audit) was the most cost-effective phase — one Opus session produced 31 actionable findings that shaped 6 subsequent phases
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -111,6 +155,8 @@
 |-----------|----------|--------|------------|
 | v1.5 | ~15 | 13 | First milestone — established stub-first TDD, wave-based execution, Nyquist discipline |
 | v2.0 | ~5 | 6 | Layered architecture (CLI→API→GUI→MCP); two-step token confirmation pattern; traceability gap identified |
+| v3.0 | ~15 | 20 | React + shadcn/UI rewrite; Playwright e2e; 8-page GUI; smart capture; people graph |
+| v4.0 | ~25 | 22 | Per-phase requirements; iterative visual design; codebase audit as quality gate; SQLite triggers |
 
 ### Cumulative Quality
 
@@ -125,3 +171,6 @@
 2. Architecture decisions that change mid-project waste earlier work — lock the runtime before Phase 1.
 3. Update traceability rows at phase close — stale rows create ambiguity at milestone completion.
 4. Two-step confirmation is the correct default for any destructive operation exposed via MCP.
+5. Use decimal phases for insertions — renumbering cascades cause confusion and stale references. (v4.0)
+6. SQLite triggers > application-level dual-write for any derived data that must stay in sync. (v4.0)
+7. Visual redesigns need iterative sub-phases — plan for at least one gap-closure pass from the start. (v4.0)
