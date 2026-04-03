@@ -728,6 +728,35 @@ def _migrate_action_items_note_path_nullable(conn: sqlite3.Connection) -> None:
     logger.info("_migrate_action_items_note_path_nullable: complete")
 
 
+def migrate_add_access_tracking(conn: sqlite3.Connection) -> None:
+    """Add last_accessed_at and access_count columns to notes table.
+
+    Idempotent — uses try/except to handle pre-existing columns.
+    """
+    try:
+        conn.execute("ALTER TABLE notes ADD COLUMN last_accessed_at TEXT NULL")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("ALTER TABLE notes ADD COLUMN access_count INTEGER NOT NULL DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+    conn.commit()
+
+
+def touch_note_access(conn: sqlite3.Connection, path: str) -> bool:
+    """Record that a note was accessed. Increments access_count and sets last_accessed_at.
+
+    Returns True if the note was found and updated, False otherwise.
+    """
+    cur = conn.execute(
+        "UPDATE notes SET access_count = access_count + 1, last_accessed_at = ? WHERE path = ?",
+        (_now_utc(), path),
+    )
+    conn.commit()
+    return cur.rowcount > 0
+
+
 def _migrate_junction_triggers(conn: sqlite3.Connection) -> None:
     """Add AFTER INSERT/UPDATE triggers on notes to auto-sync note_tags and note_people.
 
@@ -827,5 +856,6 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_action_items_note_path ON action_items(note_path)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_relationships_target ON relationships(target_path)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_action_items_assignee ON action_items(assignee_path)")
+    migrate_add_access_tracking(conn)
     _migrate_junction_triggers(conn)
     conn.commit()

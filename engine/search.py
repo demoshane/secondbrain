@@ -9,6 +9,46 @@ import sqlite3
 logger = logging.getLogger(__name__)
 
 
+def _access_boost(last_accessed_at: str | None, access_count: int) -> float:
+    """Return a score multiplier based on note access history.
+
+    Frequently accessed, recently used notes get up to ~15% boost.
+    Notes never accessed return 1.0 (no penalty, no boost).
+
+    Formula: 1.0 + 0.15 * min(count, 20) / 20 * exp(-days_since / 60)
+    """
+    if not last_accessed_at or access_count <= 0:
+        return 1.0
+    try:
+        accessed = datetime.datetime.fromisoformat(str(last_accessed_at).rstrip("Z"))
+        days_since = max(0, (datetime.datetime.now(datetime.UTC).replace(tzinfo=None) - accessed).days)
+        freq = min(access_count, 20) / 20.0
+        return 1.0 + 0.15 * freq * math.exp(-days_since / 60.0)
+    except Exception:
+        return 1.0
+
+
+def _apply_access_boost(results: list[dict], conn: sqlite3.Connection) -> list[dict]:
+    """Enrich search results with access-based ranking boost.
+
+    Looks up access_count and last_accessed_at for each result path
+    and multiplies the score by _access_boost().
+    """
+    if not results:
+        return results
+    paths = [r["path"] for r in results]
+    placeholders = ",".join("?" * len(paths))
+    rows = conn.execute(
+        f"SELECT path, access_count, last_accessed_at FROM notes WHERE path IN ({placeholders})",  # noqa: S608
+        paths,
+    ).fetchall()
+    access_map = {row[0]: (row[1] or 0, row[2]) for row in rows}
+    return [
+        {**r, "score": r["score"] * _access_boost(access_map.get(r["path"], (0, None))[1], access_map.get(r["path"], (0, None))[0])}
+        for r in results
+    ]
+
+
 def _recency_multiplier(created_at_str: str, half_life_days: int = 30) -> float:
     """Return a score multiplier >= 1.0 based on note age.
 
@@ -143,7 +183,7 @@ def search_notes(
         {**r, "score": r["score"] * _recency_multiplier(r.get("created_at", ""))}
         for r in results
     ]
-    return results
+    return _apply_access_boost(results, conn)
 
 
 def _rrf_merge(
@@ -254,6 +294,7 @@ def search_semantic(
                         "created_at": row[3], "score": score * _recency_multiplier(row[3]),
                     })
             if results:
+                results = _apply_access_boost(results, conn)
                 results = sorted(results, key=lambda r: r["score"], reverse=True)[:limit]
                 return _enrich_with_excerpts(conn, results, query)
     except Exception as e:
@@ -318,6 +359,7 @@ def search_semantic(
         }
         for row in rows
     ]
+    results = _apply_access_boost(results, conn)
     return _enrich_with_excerpts(conn, results, query)
 
 
@@ -350,6 +392,7 @@ def search_hybrid(
         return bm25[:limit]
 
     merged = _rrf_merge(bm25, vec_results, k=60, limit=limit)
+    merged = _apply_access_boost(merged, conn)
     return _enrich_with_excerpts(conn, merged, query)
 
 

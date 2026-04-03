@@ -280,3 +280,58 @@ class TestApplyFilters:
         ]
         out = _apply_filters(results, seeded_db, importance=None)
         assert len(out) == 2
+
+
+# ---------------------------------------------------------------------------
+# Phase 50: Access boost tests
+# ---------------------------------------------------------------------------
+
+
+class TestAccessBoost:
+    def test_no_access_returns_one(self):
+        from engine.search import _access_boost
+        assert _access_boost(None, 0) == 1.0
+
+    def test_none_timestamp_returns_one(self):
+        from engine.search import _access_boost
+        assert _access_boost(None, 10) == 1.0
+
+    def test_zero_count_returns_one(self):
+        from engine.search import _access_boost
+        assert _access_boost("2026-04-03T12:00:00Z", 0) == 1.0
+
+    def test_recent_access_boosts(self):
+        from engine.search import _access_boost
+        from engine.db import _now_utc
+        result = _access_boost(_now_utc(), 20)
+        assert result > 1.0
+        assert result <= 1.16  # max ~15%
+
+    def test_old_access_decays(self):
+        from engine.search import _access_boost
+        # 120 days ago — should be near 1.0
+        result = _access_boost("2026-01-01T00:00:00Z", 20)
+        assert result < 1.05  # heavily decayed
+
+    def test_cap_at_20_accesses(self):
+        from engine.search import _access_boost
+        from engine.db import _now_utc
+        now = _now_utc()
+        boost_20 = _access_boost(now, 20)
+        boost_100 = _access_boost(now, 100)
+        assert abs(boost_20 - boost_100) < 0.001  # capped, no difference
+
+    def test_apply_access_boost_enriches_results(self, seeded_db):
+        from engine.search import _apply_access_boost
+        from engine.db import touch_note_access
+        # Touch a note a few times (seeded_db uses notes/note_NNNN.md paths)
+        touch_note_access(seeded_db, "notes/note_0000.md")
+        touch_note_access(seeded_db, "notes/note_0000.md")
+        touch_note_access(seeded_db, "notes/note_0000.md")
+        results = [
+            {"path": "notes/note_0000.md", "score": 1.0},
+            {"path": "notes/note_0001.md", "score": 1.0},
+        ]
+        boosted = _apply_access_boost(results, seeded_db)
+        scores = {r["path"]: r["score"] for r in boosted}
+        assert scores["notes/note_0000.md"] > scores["notes/note_0001.md"]

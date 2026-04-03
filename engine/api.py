@@ -23,7 +23,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
-from engine.db import PERSON_TYPES, PERSON_TYPES_PH, _escape_like, _json_list, _now_utc, get_connection
+from engine.db import PERSON_TYPES, PERSON_TYPES_PH, _escape_like, _json_list, _now_utc, get_connection, touch_note_access
 import engine.paths as _engine_paths
 from engine.paths import BRAIN_ROOT, store_path
 from engine.search import search_hybrid, search_notes, _apply_filters
@@ -368,6 +368,12 @@ def read_note(note_path):
             except Exception:
                 people = []
         rel_path = np.relative
+        try:
+            _conn = get_connection()
+            touch_note_access(_conn, rel_path)
+            _conn.close()
+        except Exception:
+            pass
         return jsonify({
             "body": post.content,
             "path": rel_path,

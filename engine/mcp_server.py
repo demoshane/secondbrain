@@ -18,7 +18,7 @@ from tenacity import (
 )
 
 from engine.capture import build_post, capture_note, check_capture_dedup, log_audit, update_note, write_note_atomic
-from engine.db import get_connection, PERSON_TYPES, PERSON_TYPES_PH, _escape_like, _json_list
+from engine.db import get_connection, PERSON_TYPES, PERSON_TYPES_PH, _escape_like, _json_list, touch_note_access
 from engine.digest import generate_digest
 from engine.forget import forget_person
 from engine.anonymize import anonymize_note
@@ -595,6 +595,12 @@ def sb_read(path: str) -> dict:
         adapter = get_adapter("pii", CONFIG_PATH)
         content = adapter.summarize(content)
         pii_flag = True
+    try:
+        _conn = get_connection()
+        touch_note_access(_conn, rp.relative)
+        _conn.close()
+    except Exception:
+        pass
     _log_mcp_audit("mcp_read", path)
     return {"content": content, "path": rp.relative, "pii": pii_flag}
 
@@ -1533,6 +1539,10 @@ def sb_person_context(name_or_path: str) -> dict:
         if last_interaction_date:
             last_interaction_date = last_interaction_date[:10]
 
+        try:
+            touch_note_access(conn, person_path)
+        except Exception:
+            pass
         return {
             "found": True,
             "path": person_path,
