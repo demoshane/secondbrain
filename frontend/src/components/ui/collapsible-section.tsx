@@ -1,6 +1,7 @@
 import * as React from "react"
 import { ChevronRight, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { InfoTip } from "@/components/ui/info-tip"
 
 interface CollapsibleSectionProps {
   title: string
@@ -9,6 +10,7 @@ interface CollapsibleSectionProps {
   defaultOpen?: boolean
   children: React.ReactNode
   className?: string
+  infoTip?: string
 }
 
 function CollapsibleSection({
@@ -18,6 +20,7 @@ function CollapsibleSection({
   defaultOpen = true,
   children,
   className,
+  infoTip,
 }: CollapsibleSectionProps) {
   const storageKey = `collapsible-section-${sectionId}`
 
@@ -53,7 +56,10 @@ function CollapsibleSection({
         ) : (
           <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
         )}
-        <span className="flex-1 text-sm font-medium text-foreground">{title}</span>
+        <span className="flex-1 text-sm font-medium text-foreground flex items-center">
+          {title}
+          {infoTip && <InfoTip text={infoTip} />}
+        </span>
         <span className="inline-flex items-center justify-center rounded-full bg-secondary text-muted-foreground px-2 text-xs min-w-[1.25rem]">
           {count}
         </span>

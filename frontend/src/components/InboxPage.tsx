@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Inbox } from 'lucide-react'
+import { Inbox, Lightbulb } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { CollapsibleSection } from '@/components/ui/collapsible-section'
@@ -15,6 +15,14 @@ import type { ActionItem, InboxData, NoteSummary, Note } from '@/types'
 type InboxItem =
   | { kind: 'action'; id: string; path: string; title: string; text: string }
   | { kind: 'note'; id: string; path: string; title: string }
+
+interface Suggestion {
+  path: string
+  title: string
+  snippet: string
+  relevance_score: number
+  reason: string
+}
 
 // ─── Backlink picker (inline search) ─────────────────────────────────────────
 
@@ -104,6 +112,10 @@ export function InboxPage() {
   // Backlink picker state: keyed by note path
   const [backlinkOpen, setBacklinkOpen] = useState<string | null>(null)
 
+  // Proactive suggestions
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([])
+  const [suggestionsLoading, setSuggestionsLoading] = useState(true)
+
   const loadInbox = useCallback(
     async (offset = 0, sourceNote = '') => {
       setLoading(true)
@@ -145,6 +157,11 @@ export function InboxPage() {
         )
       )
       .catch(() => {})
+    setSuggestionsLoading(true)
+    fetch(`${getAPI()}/inbox/suggestions`)
+      .then(r => r.json())
+      .then(d => { setSuggestions(d.suggestions ?? []); setSuggestionsLoading(false) })
+      .catch(() => setSuggestionsLoading(false))
   }, [loadInbox])
 
   const dismiss = useCallback(
@@ -275,6 +292,7 @@ export function InboxPage() {
                 count={data?.unassigned_actions_total ?? 0}
                 sectionId="inbox-unassigned-actions"
                 defaultOpen={true}
+                infoTip="Action items extracted from notes that haven't been assigned to anyone yet. Assign or dismiss to clear your inbox."
               >
                 <div className="px-3 pb-3">
                   <div className="mb-2">
@@ -356,6 +374,7 @@ export function InboxPage() {
                 count={data?.unprocessed_notes.length ?? 0}
                 sectionId="inbox-unprocessed-notes"
                 defaultOpen={true}
+                infoTip="Recent notes without tags or relationships. Add a backlink to connect them, or dismiss once reviewed."
               >
                 <div className="px-3 pb-3">
                   {(data?.unprocessed_notes.length ?? 0) === 0 ? (
@@ -411,12 +430,62 @@ export function InboxPage() {
                 </div>
               </CollapsibleSection>
 
-              {/* Section 3 — Empty Notes */}
+              {/* Section 3 — Suggested for You */}
+              <CollapsibleSection
+                title="Suggested for You"
+                count={suggestions.length}
+                sectionId="inbox-suggestions"
+                defaultOpen={true}
+                infoTip="Notes you haven't looked at recently but are relevant to your recent activity. Dormant notes are 30+ days old."
+              >
+                <div className="px-3 pb-3">
+                  {suggestionsLoading ? (
+                    <SkeletonList count={3} rowHeight="h-10" className="p-0" />
+                  ) : suggestions.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2">No suggestions right now.</p>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      {suggestions.map(s => (
+                        <div
+                          key={s.path}
+                          className="rounded border border-border p-2 text-xs cursor-pointer hover:bg-secondary/30"
+                          onClick={() =>
+                            setSelectedItem({
+                              kind: 'note',
+                              id: s.path,
+                              path: s.path,
+                              title: s.title,
+                            })
+                          }
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <Lightbulb className="h-3 w-3 text-amber-400 flex-shrink-0" />
+                            <p className="font-medium truncate text-foreground flex-1">{s.title}</p>
+                          </div>
+                          <p className="text-muted-foreground line-clamp-1 mt-0.5">{s.snippet}</p>
+                          <span className={`inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded ${
+                            s.reason === 'dormant_but_relevant'
+                              ? 'bg-amber-500/15 text-amber-400'
+                              : s.reason === 'frequently_accessed'
+                              ? 'bg-green-500/15 text-green-400'
+                              : 'bg-secondary text-muted-foreground'
+                          }`}>
+                            {s.reason === 'dormant_but_relevant' ? 'Dormant' : s.reason === 'frequently_accessed' ? 'Popular' : 'Related'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CollapsibleSection>
+
+              {/* Section 4 — Empty Notes */}
               <CollapsibleSection
                 title="Empty Notes"
                 count={data?.empty_notes.length ?? 0}
                 sectionId="inbox-empty-notes"
                 defaultOpen={true}
+                infoTip="Notes with no body content. Usually auto-created placeholders — safe to delete or fill in."
               >
                 <div className="px-3 pb-3">
                   {(data?.empty_notes.length ?? 0) === 0 ? (

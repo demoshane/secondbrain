@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getAPI } from '@/lib/utils'
 import { CollapsibleSection } from '@/components/ui/collapsible-section'
+import { InfoTip } from '@/components/ui/info-tip'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -175,7 +176,7 @@ export function PerformancePage() {
     <div className="flex-1 overflow-auto">
       {/* Page header */}
       <div className="p-6">
-        <h1 className="text-xl font-semibold">Performance</h1>
+        <h1 className="text-xl font-semibold flex items-center">Performance<InfoTip text="MCP tool response times and throughput. Benchmarks run periodically — shows trends over time." /></h1>
         <p className="text-sm text-muted-foreground mt-1">
           Benchmark results from <code className="text-xs bg-muted px-1 py-0.5 rounded">sb-perf</code>.{' '}
           Run <code className="text-xs bg-muted px-1 py-0.5 rounded">sb-perf</code> in a terminal to update.

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { CheckCircle2, ChevronDown, ChevronRight, Filter, Plus, CalendarDays, List } from 'lucide-react'
+import { InfoTip } from '@/components/ui/info-tip'
 import { Button } from '@/components/ui/button'
 import { ActionItemRow } from '@/components/ui/action-item-row'
 import { ActionDetailModal } from '@/components/ui/action-detail-modal'
@@ -201,7 +202,7 @@ export function ActionsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <h2 className="text-xl font-semibold">Action Items</h2>
+          <h2 className="text-xl font-semibold flex items-center">Action Items<InfoTip text="Tasks extracted from your notes. Filter by assignee, source note, or completion status. Toggle done to mark complete." /></h2>
           {/* List / Calendar tab toggle */}
           <div className="flex items-center gap-0.5 border border-border rounded-md p-0.5">
             <button

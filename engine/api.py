@@ -2012,6 +2012,89 @@ def intelligence_synthesis():
         conn.close()
 
 
+@app.get("/intelligence/insights")
+def intelligence_insights():
+    """Return recent synthesis notes and detected contradictions."""
+    import json as _json
+    import re as _re
+    days = int(request.args.get("days", "7"))
+    conn = get_connection()
+    try:
+        cutoff = (
+            datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+            - datetime.timedelta(days=days)
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        rows = conn.execute(
+            "SELECT path, title, body, tags, people, created_at FROM notes "
+            "WHERE type = 'synthesis' AND created_at >= ? "
+            "ORDER BY created_at DESC",
+            (cutoff,),
+        ).fetchall()
+
+        syntheses = []
+        for path, title, body, tags_raw, people_raw, created_at in rows:
+            tags = _json.loads(tags_raw) if tags_raw else []
+            people = _json.loads(people_raw) if people_raw else []
+            syntheses.append({
+                "path": path,
+                "title": title,
+                "summary": (body or "")[:500],
+                "tags": tags,
+                "people": people,
+                "created_at": created_at,
+            })
+
+        # Contradiction detection
+        contradictions = []
+        try:
+            from engine.intelligence import cluster_recent_notes
+            clusters = cluster_recent_notes(conn, window_days=days)
+            for cluster in clusters:
+                dates_by_note = {}
+                for note_path in cluster["notes"]:
+                    row = conn.execute("SELECT body FROM notes WHERE path = ?", (note_path,)).fetchone()
+                    if row and row[0]:
+                        found_dates = _re.findall(r"\d{4}-\d{2}-\d{2}", row[0])
+                        if found_dates:
+                            dates_by_note[note_path] = found_dates
+                if len(dates_by_note) >= 2:
+                    all_dates = set()
+                    for d_list in dates_by_note.values():
+                        all_dates.update(d_list)
+                    if len(all_dates) > 1:
+                        contradictions.append({
+                            "topic": cluster["topic"],
+                            "notes": list(dates_by_note.keys()),
+                            "issue": f"Different dates mentioned: {', '.join(sorted(all_dates)[:5])}",
+                        })
+        except Exception:
+            pass
+
+        return jsonify({"syntheses": syntheses, "contradictions": contradictions, "period_days": days})
+    finally:
+        conn.close()
+
+
+@app.get("/inbox/suggestions")
+def inbox_suggestions():
+    """Return proactive surfacing suggestions for the inbox."""
+    from engine.intelligence import surface_relevant
+    conn = get_connection()
+    try:
+        # Use a generic context hint based on recent activity
+        recent = conn.execute(
+            "SELECT title FROM notes ORDER BY updated_at DESC LIMIT 5"
+        ).fetchall()
+        context = " ".join(r[0] for r in recent if r[0])
+        if not context:
+            return jsonify({"suggestions": []})
+        suggestions = surface_relevant(conn, context, max_results=5, session_minutes=60)
+        return jsonify({"suggestions": suggestions})
+    finally:
+        conn.close()
+
+
 @app.post("/ask")
 def ask_brain_endpoint():
     """Answer a freeform question using the brain's notes as context.

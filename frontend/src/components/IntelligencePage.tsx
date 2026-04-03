@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Brain, RefreshCw, Sparkles, Chrome } from 'lucide-react'
+import { Brain, RefreshCw, Sparkles, Chrome, AlertTriangle, Layers } from 'lucide-react'
+import { InfoTip } from '@/components/ui/info-tip'
 import { cn, getAPI } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { HealthScoreGauge } from '@/components/ui/health-score-gauge'
@@ -19,6 +20,21 @@ interface Nudge {
   path: string
   title: string
   updated_at: string
+}
+
+interface SynthesisNote {
+  path: string
+  title: string
+  summary: string
+  tags: string[]
+  people: string[]
+  created_at: string
+}
+
+interface Contradiction {
+  topic: string
+  notes: string[]
+  issue: string
 }
 
 function daysSince(dateStr: string): number {
@@ -56,6 +72,9 @@ export function IntelligencePage() {
   const [synthesisLoading, setSynthesisLoading] = useState(false)
   const [showExtensionInstructions, setShowExtensionInstructions] = useState(false)
   const [extensionApiReachable, setExtensionApiReachable] = useState(false)
+  const [nightlySyntheses, setNightlySyntheses] = useState<SynthesisNote[]>([])
+  const [contradictions, setContradictions] = useState<Contradiction[]>([])
+  const [insightsLoading, setInsightsLoading] = useState(true)
 
   const fetchPriorityActions = useCallback(() => {
     fetch(`${getAPI()}/actions?done=0&limit=5`)
@@ -78,6 +97,15 @@ export function IntelligencePage() {
       .then(res => setExtensionApiReachable(res.ok))
       .catch(() => setExtensionApiReachable(false))
     fetchPriorityActions()
+    setInsightsLoading(true)
+    fetch(`${getAPI()}/intelligence/insights`)
+      .then(r => r.json())
+      .then(d => {
+        setNightlySyntheses(d.syntheses ?? [])
+        setContradictions(d.contradictions ?? [])
+        setInsightsLoading(false)
+      })
+      .catch(() => setInsightsLoading(false))
   }, [fetchPriorityActions])
 
   const togglePriorityAction = useCallback(async (id: number) => {
@@ -226,7 +254,7 @@ export function IntelligencePage() {
       <div className="flex-[2] overflow-y-auto p-6 bg-background">
         {/* Brain Health card */}
         <div className="bg-card rounded-lg border border-border p-6 mb-6">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase mb-4">Brain Health</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase mb-4 flex items-center">Brain Health<InfoTip text="Overall health score based on orphaned notes, broken links, empty notes, and duplicates. Higher is better." /></h2>
           {healthLoading ? (
             <SkeletonList count={3} rowHeight="h-8" className="p-0" />
           ) : health ? (
@@ -268,7 +296,7 @@ export function IntelligencePage() {
               {/* Orphans */}
               {health.orphan_count > 0 && (
                 <div className="mb-2">
-                  <CollapsibleSection title="Orphaned Notes" count={health.orphan_count} sectionId="health-orphans" defaultOpen={false}>
+                  <CollapsibleSection title="Orphaned Notes" count={health.orphan_count} sectionId="health-orphans" defaultOpen={false} infoTip="Notes with no incoming links or relationships. Consider linking them or archiving.">
                     <ul className="px-3 pb-3 space-y-1">
                       {health.orphans.map(o => (
                         <li key={o.path}>
@@ -283,7 +311,7 @@ export function IntelligencePage() {
               {/* Empty notes */}
               {health.empty_count > 0 && (
                 <div className="mb-2">
-                  <CollapsibleSection title="Empty Notes" count={health.empty_count} sectionId="health-empty" defaultOpen={false}>
+                  <CollapsibleSection title="Empty Notes" count={health.empty_count} sectionId="health-empty" defaultOpen={false} infoTip="Notes with no body content. Usually created as placeholders — safe to delete or fill in.">
                     <ul className="px-3 pb-3 space-y-1">
                       {health.empty_notes.map(n => (
                         <li key={n.path}>
@@ -298,7 +326,7 @@ export function IntelligencePage() {
               {/* Broken links */}
               {health.broken_link_count > 0 && (
                 <div className="mb-2">
-                  <CollapsibleSection title="Broken Links" count={health.broken_link_count} sectionId="health-broken-links" defaultOpen={false}>
+                  <CollapsibleSection title="Broken Links" count={health.broken_link_count} sectionId="health-broken-links" defaultOpen={false} infoTip="Wiki-links pointing to notes that no longer exist on disk. The source or target was deleted.">
                     <ul className="px-3 pb-3 space-y-1">
                       {health.broken_links.map((bl, i) => (
                         <li key={i} className="text-xs text-muted-foreground truncate">
@@ -315,7 +343,7 @@ export function IntelligencePage() {
               {/* Duplicates */}
               {health.duplicate_count > 0 && (
                 <div className="mb-2">
-                  <CollapsibleSection title="Potential Duplicates" count={health.duplicate_count} sectionId="health-duplicates" defaultOpen={false}>
+                  <CollapsibleSection title="Potential Duplicates" count={health.duplicate_count} sectionId="health-duplicates" defaultOpen={false} infoTip="Pairs of notes with very similar content (>90% match). Merge to keep one, or dismiss if they're intentionally separate.">
                     <ul className="px-3 pb-3 space-y-1">
                       {health.duplicate_candidates.map((dc, i) => (
                         <li key={i} className="flex items-center gap-2">
@@ -354,7 +382,7 @@ export function IntelligencePage() {
         </div>
 
         {/* Stale Notes section */}
-        <CollapsibleSection title="Stale Notes" count={nudges.length} sectionId="intelligence-stale-notes" defaultOpen={true}>
+        <CollapsibleSection title="Stale Notes" count={nudges.length} sectionId="intelligence-stale-notes" defaultOpen={true} infoTip="Notes not updated in 30+ days that may need a refresh or archiving.">
           <div className="px-3 pb-3">
             {nudges.length === 0 ? (
               <p className="text-sm text-muted-foreground py-2">No stale notes.</p>
@@ -376,12 +404,81 @@ export function IntelligencePage() {
 
       {/* Right column ~35% — Synthesis + Recap + Quick Actions */}
       <div className="flex-1 border-l border-border bg-card overflow-y-auto p-6">
+        {/* Nightly Syntheses card */}
+        <div className="rounded-lg border border-border bg-card p-6 mb-6">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase flex items-center gap-1.5 mb-3">
+            <Layers className="h-4 w-4 text-primary" />
+            Nightly Syntheses
+            <InfoTip text="Auto-generated summaries from clusters of 3+ related notes within a 7-day window. Created nightly by the consolidation job." />
+          </h2>
+          {insightsLoading ? (
+            <SkeletonList count={2} rowHeight="h-12" className="p-0" />
+          ) : nightlySyntheses.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic">
+              No synthesis notes yet. They are generated nightly from clusters of 3+ related notes.
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {nightlySyntheses.map(s => (
+                <li key={s.path} className="rounded border border-border p-3">
+                  <button
+                    className="font-medium text-sm text-foreground hover:text-primary text-left w-full"
+                    onClick={() => goToNote(s.path)}
+                  >
+                    {s.title}
+                  </button>
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{s.summary}</p>
+                  {s.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {s.tags.filter(t => t !== 'auto-synthesized').map(t => (
+                        <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">{t}</span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground mt-1">{s.created_at?.slice(0, 10)}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Contradictions card */}
+        {contradictions.length > 0 && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-6 mb-6">
+            <h2 className="text-sm font-semibold uppercase flex items-center gap-1.5 mb-3 text-amber-400">
+              <AlertTriangle className="h-4 w-4" />
+              Contradictions ({contradictions.length})
+              <InfoTip text="Notes in the same cluster that mention conflicting dates or facts. Review to resolve inconsistencies." />
+            </h2>
+            <ul className="space-y-3">
+              {contradictions.map((c, i) => (
+                <li key={i} className="rounded border border-amber-500/20 p-3">
+                  <p className="text-sm font-medium text-foreground">{c.topic}</p>
+                  <p className="text-xs text-amber-400 mt-1">{c.issue}</p>
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {c.notes.map(n => (
+                      <button
+                        key={n}
+                        className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground hover:text-foreground"
+                        onClick={() => goToNote(n)}
+                      >
+                        {n.split('/').pop()?.replace('.md', '')}
+                      </button>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Weekly Synthesis card */}
         <div className="rounded-lg border border-accent/30 bg-accent/5 p-6 mb-6">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold uppercase flex items-center gap-1.5 text-accent">
               <Sparkles className="h-4 w-4" />
               Weekly Synthesis
+              <InfoTip text="On-demand AI summary of the past week's notes — themes, decisions, and open threads. Click Generate to create." />
             </h2>
             <Button
               size="sm"
@@ -411,6 +508,7 @@ export function IntelligencePage() {
             <h2 className="text-sm font-semibold text-muted-foreground uppercase flex items-center gap-2">
               <Brain className="h-4 w-4 text-orange-400" />
               Weekly Recap
+              <InfoTip text="AI-generated recap of recent brain activity — what you captured, who was mentioned, and what's trending." />
             </h2>
             <Button
               size="sm"
@@ -441,7 +539,7 @@ export function IntelligencePage() {
 
         {/* Priority Actions card */}
         <div className="bg-card rounded-lg border border-border p-6 mb-6">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Priority Actions</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase mb-3 flex items-center">Priority Actions<InfoTip text="Your top 5 open action items sorted by due date. Manage all actions from the Actions tab." /></h3>
           {priorityActions.length === 0 ? (
             <p className="text-sm text-muted-foreground">No open actions</p>
           ) : (
@@ -473,7 +571,7 @@ export function IntelligencePage() {
 
         {/* Quick Capture card */}
         <div className="bg-card rounded-lg border border-border p-6 mb-6">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Quick Capture</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase mb-3 flex items-center">Quick Capture<InfoTip text="Drop a quick thought or note. Saved as a new note in your inbox for later processing." /></h3>
           <textarea
             value={captureText}
             onChange={e => setCaptureText(e.target.value)}
@@ -493,7 +591,7 @@ export function IntelligencePage() {
 
         {/* Quick Actions */}
         <div className="mb-6">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Quick Actions</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase mb-3 flex items-center">Quick Actions<InfoTip text="Maintenance shortcuts — run a health check or clean up empty notes." /></h3>
           <div className="flex flex-col gap-2">
             <Button variant="outline" size="sm" onClick={runHealthCheck} disabled={healthLoading}>
               <RefreshCw className={cn('h-4 w-4 mr-2', healthLoading && 'animate-spin')} />
@@ -509,7 +607,7 @@ export function IntelligencePage() {
 
         {/* Chrome Extension */}
         <div className="bg-card rounded-lg border border-border p-6">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Chrome Extension</h3>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase mb-3 flex items-center">Chrome Extension<InfoTip text="Capture web pages, text selections, and Gmail threads directly from Chrome into your brain." /></h3>
           <p className="text-sm text-muted-foreground mb-3">
             Capture web pages, selections, and Gmail threads directly from Chrome.
           </p>

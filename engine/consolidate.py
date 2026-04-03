@@ -154,5 +154,14 @@ def consolidate_main() -> None:
     finally:
         conn.close()
 
+    # Performance benchmarks — runs after DB is closed (uses its own connections)
+    try:
+        from engine.perf import run_benchmarks
+        bench = run_benchmarks()
+        results["perf"] = {"tools_tested": len(bench.get("results", [])), "stored": True}
+    except Exception as exc:
+        logger.warning("Perf benchmarks failed: %s", exc)
+        results["perf"] = {"error": str(exc)}
+
     # Log to stdout — captured by launchd StandardOutPath
     print(json.dumps({"at": datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat(), **results}))

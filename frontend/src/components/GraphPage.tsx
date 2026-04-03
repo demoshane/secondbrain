@@ -4,6 +4,7 @@ import { GraphCanvas } from './GraphCanvas'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { FileText, X } from 'lucide-react'
+import { InfoTip } from '@/components/ui/info-tip'
 import { useUIContext } from '@/contexts/UIContext'
 import { useNoteContext } from '@/contexts/NoteContext'
 import type { GraphNode, GraphData } from '@/types'
@@ -120,7 +121,7 @@ export function GraphPage() {
     <div className="flex flex-col flex-1 overflow-hidden" data-testid="graph-page">
       {/* Header */}
       <div className="p-4 border-b border-border flex-shrink-0">
-        <h1 className="text-xl font-semibold">Graph</h1>
+        <h1 className="text-xl font-semibold flex items-center">Graph<InfoTip text="Visual map of how your notes connect via links, backlinks, and relationships. Click nodes to inspect, use badges to filter by type." /></h1>
         <p className="text-sm text-muted-foreground mt-1">
           {graphData.nodes.length} nodes, {graphData.edges.length} edges
         </p>
