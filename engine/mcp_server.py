@@ -22,7 +22,7 @@ from engine.db import get_connection, PERSON_TYPES, PERSON_TYPES_PH, _escape_lik
 from engine.digest import generate_digest
 from engine.forget import forget_person
 from engine.anonymize import anonymize_note
-from engine.intelligence import find_dormant_related, find_similar, get_overdue_actions, list_actions, recap_entity
+from engine.intelligence import find_dormant_related, find_similar, get_overdue_actions, list_actions, recap_entity, surface_relevant
 from engine.link_capture import fetch_link_metadata
 from engine.links import traverse_graph
 from engine.paths import BRAIN_ROOT, CONFIG_PATH, store_path
@@ -177,6 +177,7 @@ def sb_search(
     from_date: str | None = None,
     to_date: str | None = None,
     importance: str | None = None,
+    context_hint: str | None = None,
 ) -> dict:
     """Search brain notes by keyword, semantic, or hybrid mode.
 
@@ -186,6 +187,8 @@ def sb_search(
     - note_type: match notes with this exact type value
     - from_date: ISO date string YYYY-MM-DD — exclude notes created before this date
     - to_date: ISO date string YYYY-MM-DD — exclude notes created after this date
+    - context_hint: optional free-text describing conversation context. When provided,
+      appends 2-3 proactive suggestions (notes you didn't search for but may be relevant).
     """
     _ensure_ready()
     if len(query) > _MAX_QUERY_LEN:
@@ -220,7 +223,24 @@ def sb_search(
     results = all_results[offset:offset + limit]
     total_pages = math.ceil(total / limit) if limit else 1
     _log_mcp_audit("mcp_search", query)
-    return {"results": results, "total": total, "page": page, "total_pages": total_pages}
+    response = {"results": results, "total": total, "page": page, "total_pages": total_pages}
+
+    # Proactive suggestions when context_hint is provided
+    if context_hint:
+        try:
+            conn2 = get_connection()
+            try:
+                suggestions = surface_relevant(conn2, context_hint, max_results=3)
+                # Remove duplicates with primary results
+                result_paths = {r["path"] for r in results}
+                suggestions = [s for s in suggestions if s["path"] not in result_paths]
+                response["proactive_suggestions"] = suggestions
+            finally:
+                conn2.close()
+        except Exception:
+            response["proactive_suggestions"] = []
+
+    return response
 
 
 @mcp.tool()
@@ -1436,6 +1456,53 @@ def sb_traverse(start_path: str, max_depth: int = 2, rel_types: str | None = Non
         result = traverse_graph(conn, start_path, max_depth=max_depth, rel_types=parsed_types)
         log_audit(conn, "mcp_traverse", start_path, f"depth={max_depth}")
         return result
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def sb_surface(context: str, max_results: int = 5, include_graph: bool = True) -> dict:
+    """Proactively surface notes relevant to the current conversation context.
+
+    Call this when: starting work on a topic, the user mentions a person/project
+    you haven't looked up, or you sense historical context would help.
+    Do NOT call this on every message — use judgment.
+
+    Args:
+        context: Free-text describing what's being discussed (you provide this).
+        max_results: Maximum suggestions to return (default 5).
+        include_graph: If True, follow 1-hop graph links from top results to find
+                       associatively connected notes (requires Phase 52).
+
+    Returns:
+        {suggestions: [{path, title, snippet, relevance_score, reason}],
+         graph_additions: [{path, title, note_type, via}]}
+    """
+    conn = get_connection()
+    try:
+        suggestions = surface_relevant(conn, context, max_results=max_results)
+
+        graph_additions: list[dict] = []
+        if include_graph and suggestions:
+            try:
+                seen_paths = {s["path"] for s in suggestions}
+                # Follow 1-hop graph links from top 2 results
+                for s in suggestions[:2]:
+                    graph_result = traverse_graph(conn, s["path"], max_depth=1)
+                    for node in graph_result["nodes"]:
+                        if node["path"] not in seen_paths and node["note_type"] in ("person", "project"):
+                            graph_additions.append({
+                                "path": node["path"],
+                                "title": node["title"],
+                                "note_type": node["note_type"],
+                                "via": s["title"],
+                            })
+                            seen_paths.add(node["path"])
+            except Exception:
+                pass  # graph enrichment is best-effort
+
+        log_audit(conn, "mcp_surface", context[:200])
+        return {"suggestions": suggestions, "graph_additions": graph_additions}
     finally:
         conn.close()
 

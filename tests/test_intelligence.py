@@ -874,3 +874,128 @@ def test_synthesis_endpoint(tmp_path, monkeypatch):
     data = json.loads(resp.data)
     assert "synthesis" in data
     assert data["synthesis"] == "Test synthesis"
+
+
+# --- surface_relevant tests ---
+
+class TestSurfaceRelevant:
+    """Tests for surface_relevant() proactive surfacing engine."""
+
+    def test_surface_returns_list(self):
+        """surface_relevant returns a list (possibly empty) without crashing."""
+        from engine.intelligence import surface_relevant
+        conn = _make_db()
+        result = surface_relevant(conn, "test context")
+        assert isinstance(result, list)
+
+    def test_surface_empty_brain(self):
+        """surface_relevant returns [] on empty brain without error."""
+        from engine.intelligence import surface_relevant
+        conn = _make_db()
+        result = surface_relevant(conn, "anything at all")
+        assert result == []
+
+    def test_surface_result_shape(self):
+        """Each result has required fields: path, title, snippet, relevance_score, reason."""
+        from engine.intelligence import surface_relevant
+        conn = _make_db()
+        # Insert some notes
+        for i in range(5):
+            conn.execute(
+                "INSERT INTO notes (path, type, title, body) VALUES (?,?,?,?)",
+                (f"n/{i}.md", "note", f"Topic {i}", f"Content about topic {i}"),
+            )
+        conn.commit()
+
+        # Mock search_semantic to return fake results
+        fake_results = [
+            {"path": "n/0.md", "title": "Topic 0", "score": 0.9, "excerpt": "Content about topic 0"},
+            {"path": "n/1.md", "title": "Topic 1", "score": 0.8, "excerpt": "Content about topic 1"},
+        ]
+        with patch("engine.search.search_semantic", return_value=fake_results):
+            results = surface_relevant(conn, "test context", max_results=5)
+
+        for r in results:
+            assert "path" in r
+            assert "title" in r
+            assert "snippet" in r
+            assert "relevance_score" in r
+            assert "reason" in r
+            assert r["reason"] in ("semantically_similar", "dormant_but_relevant", "frequently_accessed")
+
+    def test_surface_session_dedup(self):
+        """Notes already seen in the session are excluded."""
+        from engine.intelligence import surface_relevant
+        from engine.db import _now_utc
+        conn = _make_db()
+
+        conn.execute(
+            "INSERT INTO notes (path, type, title, body) VALUES (?,?,?,?)",
+            ("seen.md", "note", "Seen Note", "Content"),
+        )
+        conn.execute(
+            "INSERT INTO notes (path, type, title, body) VALUES (?,?,?,?)",
+            ("unseen.md", "note", "Unseen Note", "Content"),
+        )
+        # Mark seen.md as recently read in audit_log
+        conn.execute(
+            "INSERT INTO audit_log (event_type, note_path, created_at) VALUES (?,?,?)",
+            ("mcp_read", "seen.md", _now_utc()),
+        )
+        conn.commit()
+
+        fake_results = [
+            {"path": "seen.md", "title": "Seen Note", "score": 0.95, "excerpt": "Content"},
+            {"path": "unseen.md", "title": "Unseen Note", "score": 0.85, "excerpt": "Content"},
+        ]
+        with patch("engine.search.search_semantic", return_value=fake_results):
+            results = surface_relevant(conn, "test", max_results=5, session_minutes=30)
+
+        paths = [r["path"] for r in results]
+        assert "seen.md" not in paths
+        assert "unseen.md" in paths
+
+    def test_surface_dormant_flagging(self):
+        """Notes not updated in 30+ days get reason='dormant_but_relevant'."""
+        from engine.intelligence import surface_relevant
+        conn = _make_db()
+
+        old_date = (
+            datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+            - datetime.timedelta(days=60)
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+        conn.execute(
+            "INSERT INTO notes (path, type, title, body, updated_at) VALUES (?,?,?,?,?)",
+            ("old.md", "note", "Old Note", "Content", old_date),
+        )
+        conn.commit()
+
+        fake_results = [
+            {"path": "old.md", "title": "Old Note", "score": 0.8, "excerpt": "Content"},
+        ]
+        with patch("engine.search.search_semantic", return_value=fake_results):
+            results = surface_relevant(conn, "test")
+
+        assert len(results) == 1
+        assert results[0]["reason"] == "dormant_but_relevant"
+
+    def test_surface_respects_max_results(self):
+        """surface_relevant returns at most max_results items."""
+        from engine.intelligence import surface_relevant
+        conn = _make_db()
+
+        for i in range(10):
+            conn.execute(
+                "INSERT INTO notes (path, type, title, body) VALUES (?,?,?,?)",
+                (f"n/{i}.md", "note", f"Note {i}", f"Content {i}"),
+            )
+        conn.commit()
+
+        fake_results = [
+            {"path": f"n/{i}.md", "title": f"Note {i}", "score": 0.9 - i * 0.05, "excerpt": f"Content {i}"}
+            for i in range(10)
+        ]
+        with patch("engine.search.search_semantic", return_value=fake_results):
+            results = surface_relevant(conn, "test", max_results=3)
+
+        assert len(results) <= 3

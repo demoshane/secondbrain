@@ -486,6 +486,92 @@ def find_dormant_related(note_path: str, conn, limit: int = 3) -> list[dict]:
         return []
 
 
+def surface_relevant(
+    conn,
+    context: str,
+    max_results: int = 5,
+    session_minutes: int = 30,
+) -> list[dict]:
+    """Find contextually relevant notes the user didn't ask for but should see.
+
+    Pipeline:
+    1. Semantic search against context text (wide net)
+    2. Apply relevance decay (access + type-aware aging from Phase 51)
+    3. Exclude notes already surfaced in current session (audit_log dedup)
+    4. Flag dormant notes (not updated in 30+ days)
+    5. Sort by combined score, take top max_results
+
+    Returns: [{"path", "title", "snippet", "relevance_score", "reason"}]
+    """
+    from engine.search import search_semantic, _relevance_decay
+
+    # Step 1: Semantic search with headroom
+    try:
+        candidates = search_semantic(conn, context, limit=max_results * 3)
+    except Exception:
+        return []
+
+    if not candidates:
+        return []
+
+    # Step 2: Already has decay applied via search_semantic -> _apply_relevance_decay
+    # (search_semantic calls _apply_relevance_decay internally)
+
+    # Step 3: Session dedup — exclude notes seen recently
+    cutoff_time = (
+        datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+        - datetime.timedelta(minutes=session_minutes)
+    ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    try:
+        seen_rows = conn.execute(
+            "SELECT DISTINCT note_path FROM audit_log "
+            "WHERE event_type IN ('mcp_read', 'mcp_search', 'mcp_surface') "
+            "AND created_at >= ? AND note_path IS NOT NULL",
+            (cutoff_time,),
+        ).fetchall()
+        seen_paths = {r[0] for r in seen_rows}
+    except Exception:
+        seen_paths = set()
+
+    candidates = [c for c in candidates if c["path"] not in seen_paths]
+
+    # Step 4: Flag dormant notes and assign reasons
+    dormant_cutoff = (
+        datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+        - datetime.timedelta(days=30)
+    ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    results = []
+    for c in candidates[:max_results]:
+        # Determine reason
+        reason = "semantically_similar"
+        try:
+            row = conn.execute(
+                "SELECT updated_at, access_count FROM notes WHERE path = ?",
+                (c["path"],),
+            ).fetchone()
+            if row:
+                updated_at = row[0]
+                access_count = row[1] or 0
+                if updated_at and updated_at < dormant_cutoff:
+                    reason = "dormant_but_relevant"
+                elif access_count >= 5:
+                    reason = "frequently_accessed"
+        except Exception:
+            pass
+
+        results.append({
+            "path": c["path"],
+            "title": c.get("title", ""),
+            "snippet": c.get("excerpt", c.get("title", ""))[:200],
+            "relevance_score": round(c.get("score", 0.0), 4),
+            "reason": reason,
+        })
+
+    return results
+
+
 def _append_related_link(note_path: Path, matched_stem: str) -> None:
     """Append Related: [[stem]] to new note — one-directional, best-effort."""
     try:
