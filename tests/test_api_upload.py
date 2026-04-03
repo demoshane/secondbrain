@@ -126,9 +126,10 @@ class TestBatchCapture:
             "---\ntitle: Existing Note\n---\n\nContent.\n", encoding="utf-8"
         )
         conn = sqlite3.connect(str(db_file))
+        rel_path = str(note_file.relative_to(tmp_path))
         conn.execute(
             "INSERT INTO notes (path, title, type, body) VALUES (?, ?, ?, ?)",
-            (str(note_file), "Existing Note", "note", "Content."),
+            (rel_path, "Existing Note", "note", "Content."),
         )
         conn.commit()
         conn.close()

@@ -127,19 +127,23 @@ def test_extract_compound_hyphenated_names():
 
 
 def test_extract_van_prefix_names():
-    """Compound names with van/von/de prefixes are extracted."""
+    """Compound names with van/von/de prefixes are extracted (regex path)."""
+    from unittest.mock import patch
     from engine.entities import extract_entities
 
-    result = extract_entities("", "Jan van der Berg led the session")
+    with patch("engine.entities._extract_people_llm", return_value=None):
+        result = extract_entities("", "Jan van der Berg led the session")
     people_str = " ".join(result["people"])
     assert "Jan" in people_str or "Berg" in people_str
 
 
 def test_extract_obrien_style_names():
-    """O'Brien style names with apostrophe prefix are extracted."""
+    """O'Brien style names with apostrophe prefix are extracted (regex path)."""
+    from unittest.mock import patch
     from engine.entities import extract_entities
 
-    result = extract_entities("", "Patrick O'Brien reviewed the PR")
+    with patch("engine.entities._extract_people_llm", return_value=None):
+        result = extract_entities("", "Patrick O'Brien reviewed the PR")
     people_str = " ".join(result["people"])
     assert "Patrick" in people_str or "Brien" in people_str
 

@@ -108,15 +108,15 @@ def test_pii_routing():
     mock_adapter = MagicMock()
     mock_adapter.summarize.return_value = "[REDACTED SUMMARY]"
 
+    mock_resolved = MagicMock()
+    mock_resolved.absolute = MagicMock()
+    mock_resolved.absolute.read_text.return_value = "Alice's private note body"
+    mock_resolved.relative = "fake/path/note.md"
+
     with patch("engine.mcp_server.get_connection") as mock_conn_fn, \
          patch("engine.mcp_server.get_adapter", return_value=mock_adapter), \
          patch("engine.mcp_server._log_mcp_audit"), \
-         patch("engine.mcp_server._safe_path") as mock_safe_path:
-
-        mock_path = MagicMock()
-        mock_path.read_text.return_value = "Alice's private note body"
-        mock_path.__str__ = lambda self: "/fake/path/note.md"
-        mock_safe_path.return_value = mock_path
+         patch("engine.mcp_server._resolve", return_value=mock_resolved):
 
         mock_conn = MagicMock()
         mock_conn_fn.return_value = mock_conn
@@ -867,11 +867,8 @@ def test_sb_person_context_uses_note_people_fast_path(tmp_path, monkeypatch):
         "INSERT INTO notes (path, title, body, type, people) VALUES (?,?,?,?,?)",
         (meeting_path, "Standup", "Bob attended standup.", "meeting", _json.dumps([person_path])),
     )
-    # Populate note_people junction table (fast path)
-    conn.execute(
-        "INSERT INTO note_people (note_path, person) VALUES (?,?)",
-        (meeting_path, person_path),
-    )
+    # note_people junction table is auto-populated by SQLite trigger
+    # from the people JSON column inserted above
     conn.commit()
     conn.close()
 

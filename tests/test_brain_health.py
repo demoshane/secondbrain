@@ -399,14 +399,11 @@ def test_merge_deletes_discard_note(merge_conn):
     from engine.brain_health import merge_notes
     conn, tmp_path, keep_path, discard_path = merge_conn
 
-    # Add an action item and note_people row for the discard note
+    # Add an action item for the discard note
+    # (note_tags already populated by SQLite trigger from notes.tags JSON column)
     conn.execute(
         "INSERT INTO action_items (note_path, text, done) VALUES (?,?,?)",
         (discard_path, "Do something", 0),
-    )
-    conn.execute(
-        "INSERT INTO note_tags (note_path, tag) VALUES (?,?)",
-        (discard_path, "gamma"),
     )
     conn.commit()
 

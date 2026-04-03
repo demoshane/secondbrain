@@ -165,9 +165,10 @@ class TestWatcherDedup:
         conn = sqlite3.connect(str(db_file))
         init_schema(conn)
         note_path = str(tmp_path / "already-indexed.md")
+        rel_path = "already-indexed.md"
         conn.execute(
             "INSERT INTO notes (path, title, type, body) VALUES (?, ?, ?, ?)",
-            (note_path, "Existing", "note", "content"),
+            (rel_path, "Existing", "note", "content"),
         )
         conn.commit()
         conn.close()
