@@ -21,7 +21,8 @@ def test_claude_adapter_generate():
     mock_result = MagicMock()
     mock_result.returncode = 0
     mock_result.stdout = "  response text  "
-    with patch("subprocess.run", return_value=mock_result) as mock_run:
+    with patch("shutil.which", return_value="/usr/local/bin/claude"), \
+         patch("subprocess.run", return_value=mock_result) as mock_run:
         result = adapter.generate("user content", "system prompt")
     assert result == "response text"
     # Verify user content is not in the system_prompt position
@@ -53,7 +54,8 @@ def test_system_prompt_not_in_system_field_of_subprocess(mock_subprocess_claude)
     # AI-10: user_content must not appear in system_prompt position
     from engine.adapters.claude_adapter import ClaudeAdapter
     adapter = ClaudeAdapter()
-    with mock_subprocess_claude as mock_run:
+    with patch("shutil.which", return_value="/usr/local/bin/claude"), \
+         mock_subprocess_claude as mock_run:
         adapter.generate(user_content="INJECT_MARKER", system_prompt="static system")
     call_args = mock_run.call_args[0][0]
     full_prompt = call_args[2]

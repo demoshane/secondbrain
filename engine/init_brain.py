@@ -363,14 +363,22 @@ def main():
 
     print("[sb-init] Checking Ollama...")
     if ollama_ensure():
-        ollama_model_size_warning()
+        ollama_model_size_warning()  # nomic-embed-text for embeddings
+        ollama_model_size_warning("llama3.2")  # entity extraction + PII routing
         print("  [OK] Ollama ready")
     else:
-        print("  [WARN] Ollama not ready — PII routing will be unavailable")
+        print("  [WARN] Ollama not ready — entity extraction and PII routing will fall back to spaCy/regex")
 
     print("[sb-init] Writing AI config...")
     config_path = BRAIN_ROOT / ".meta" / "config.toml"
     if not config_path.exists():
+        # Use localhost on host installs; host.docker.internal inside devcontainers
+        import os
+        ollama_host = (
+            "http://host.docker.internal:11434"
+            if os.path.exists("/workspace") and os.environ.get("UV_PROJECT_ENVIRONMENT")
+            else "http://localhost:11434"
+        )
         config_path.write_text(
             '[routing]\n'
             'pii_model    = "ollama/llama3.2"\n'
@@ -378,7 +386,7 @@ def main():
             'public_model  = "claude"\n'
             '\n'
             '[ollama]\n'
-            'host = "http://host.docker.internal:11434"\n'
+            f'host = "{ollama_host}"\n'
             '\n'
             '[models]\n'
             '"ollama/llama3.2" = {adapter = "ollama", model = "llama3.2"}\n'

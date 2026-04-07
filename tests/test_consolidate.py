@@ -1,6 +1,7 @@
 """Tests for engine/consolidate.py — scheduled consolidation job."""
 import sqlite3
 import pytest
+from unittest.mock import patch
 from engine.db import init_schema
 
 
@@ -15,6 +16,13 @@ def cons_conn(tmp_path):
     init_schema(conn)
     yield conn
     conn.close()
+
+
+@pytest.fixture(autouse=True)
+def _no_perf_benchmarks():
+    """Prevent run_benchmarks() from writing to real brain during consolidate tests."""
+    with patch("engine.perf.run_benchmarks", return_value={"results": []}):
+        yield
 
 
 def test_consolidate_main_runs_clean(cons_conn, capsys):

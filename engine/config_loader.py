@@ -11,7 +11,7 @@ DEFAULT_CONFIG = {
         "all_local": False,
     },
     "ollama": {
-        "host": "http://host.docker.internal:11434",
+        "host": "http://localhost:11434",
     },
     "models": {
         # llama3 (8B) — new default for pii/fallback routing (D-07)

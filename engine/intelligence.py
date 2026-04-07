@@ -794,7 +794,7 @@ def recap_entity(name: str, conn) -> str | None:
     # 4. Empty state
     if not merged_paths:
         msg = f"No notes found about '{name}'. Capture a meeting or note to build context."
-        print(msg)
+        logger.info(msg)
         return None
 
     # 5. Load full note bodies from DB (individual lookups avoid dynamic IN clause)
@@ -817,7 +817,7 @@ def recap_entity(name: str, conn) -> str | None:
 
     if not rows:
         msg = f"No notes found about '{name}'. Capture a meeting or note to build context."
-        print(msg)
+        logger.info(msg)
         return None
 
     # 6. Split by sensitivity and truncate bodies to 500 chars

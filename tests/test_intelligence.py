@@ -379,12 +379,13 @@ class TestRecapEntity:
 
 
 class TestRecapEntityEmpty:
-    def test_unknown_entity_graceful(self, seeded_db, capsys):
-        """recap_entity with unknown entity prints 'No notes found about' — fails RED."""
-        from engine.intelligence import recap_entity  # ImportError until Plan 03 implements
-        recap_entity("unknown_xyz_entity_404", seeded_db)
-        captured = capsys.readouterr()
-        assert "No notes found about" in captured.out
+    def test_unknown_entity_graceful(self, seeded_db, caplog):
+        """recap_entity with unknown entity logs 'No notes found about'."""
+        import logging
+        from engine.intelligence import recap_entity
+        with caplog.at_level(logging.INFO, logger="engine.intelligence"):
+            recap_entity("unknown_xyz_entity_404", seeded_db)
+        assert "No notes found about" in caplog.text
 
 
 class TestRecapEntityPIIRouting:
