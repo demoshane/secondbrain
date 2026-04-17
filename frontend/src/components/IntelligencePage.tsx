@@ -77,6 +77,7 @@ export function IntelligencePage() {
   const [contradictions, setContradictions] = useState<Contradiction[]>([])
   const [insightsLoading, setInsightsLoading] = useState(true)
   const [mergeTarget, setMergeTarget] = useState<{ a: string; b: string; a_title: string; b_title: string; similarity: number } | null>(null)
+  const [batchMerging, setBatchMerging] = useState(false)
 
   const fetchPriorityActions = useCallback(() => {
     fetch(`${getAPI()}/actions?done=0&limit=5`)
@@ -165,6 +166,34 @@ export function IntelligencePage() {
       toast.error('Merge failed: network error')
     }
   }, [])
+
+  const batchMergeAll = useCallback(async () => {
+    if (!health?.duplicate_candidates.length) return
+    setBatchMerging(true)
+    let merged = 0
+    let failed = 0
+    for (const dc of health.duplicate_candidates) {
+      try {
+        const res = await fetch(`${getAPI()}/brain-health/merge`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keep_path: dc.a, discard_path: dc.b }),
+        })
+        if (res.ok) merged++
+        else failed++
+      } catch {
+        failed++
+      }
+    }
+    setBatchMerging(false)
+    if (failed === 0) {
+      toast.success(`Merged ${merged} duplicate pair${merged !== 1 ? 's' : ''} — content combined`)
+    } else {
+      toast.warning(`Merged ${merged}, failed ${failed}`)
+    }
+    const healthRes = await fetch(`${getAPI()}/brain-health`)
+    setHealth(await healthRes.json())
+  }, [health])
 
   const dismissDuplicate = useCallback(async (dc: { a: string; b: string; similarity: number }) => {
     try {
@@ -342,6 +371,22 @@ export function IntelligencePage() {
               {health.duplicate_count > 0 && (
                 <div className="mb-2">
                   <CollapsibleSection title="Potential Duplicates" count={health.duplicate_count} sectionId="health-duplicates" defaultOpen={false} infoTip="Pairs of notes with very similar content (>90% match). Merge to keep one, or dismiss if they're intentionally separate.">
+                    {health.duplicate_candidates.length > 1 && (
+                      <div className="px-3 pb-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          disabled={batchMerging}
+                          onClick={batchMergeAll}
+                        >
+                          {batchMerging ? 'Merging...' : `Merge All (${health.duplicate_candidates.length} pairs)`}
+                        </Button>
+                        <span className="text-xs text-muted-foreground ml-2">
+                          Keeps first note, AI-merges second into it
+                        </span>
+                      </div>
+                    )}
                     <ul className="px-3 pb-3 space-y-1">
                       {health.duplicate_candidates.map((dc, i) => (
                         <li key={i} className="flex items-center gap-2">
