@@ -172,19 +172,44 @@ export function IntelligencePage() {
     setBatchMerging(true)
     let merged = 0
     let failed = 0
-    for (const dc of health.duplicate_candidates) {
-      try {
-        const res = await fetch(`${getAPI()}/brain-health/merge`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ keep_path: dc.a, discard_path: dc.b }),
-        })
-        if (res.ok) merged++
-        else failed++
-      } catch {
-        failed++
+    const total = health.duplicate_candidates.length
+
+    for (let i = 0; i < total; i++) {
+      const dc = health.duplicate_candidates[i]
+      let ok = false
+
+      // Try up to 2 attempts (retry once on 502/network error)
+      for (let attempt = 0; attempt < 2 && !ok; attempt++) {
+        try {
+          if (attempt > 0) await new Promise(r => setTimeout(r, 2000))
+          const res = await fetch(`${getAPI()}/brain-health/merge`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keep_path: dc.a, discard_path: dc.b }),
+          })
+          if (res.ok) {
+            ok = true
+            merged++
+          } else if (res.status >= 500 && attempt === 0) {
+            continue // retry
+          } else {
+            failed++
+            ok = true // don't retry 4xx
+          }
+        } catch {
+          if (attempt > 0) { failed++; ok = true }
+        }
       }
+
+      // Brief pause between merges to let Flask recover
+      if (i < total - 1) await new Promise(r => setTimeout(r, 500))
+
+      // Update progress toast
+      toast.dismiss('batch-merge')
+      toast.loading(`Merging ${i + 1}/${total}...`, { id: 'batch-merge' })
     }
+
+    toast.dismiss('batch-merge')
     setBatchMerging(false)
     if (failed === 0) {
       toast.success(`Merged ${merged} duplicate pair${merged !== 1 ? 's' : ''} — content combined`)
