@@ -115,9 +115,10 @@ _QUESTION_STOP_WORDS = frozenset({
     "who", "what", "when", "where", "why", "how", "is", "are", "was", "were",
     "do", "does", "did", "tell", "me", "about", "know", "have", "i", "you",
     "the", "a", "an", "of", "in", "on", "at", "to", "for", "with", "and",
-    "or", "that", "this", "it", "he", "she", "his", "her", "my", "any",
+    "or", "that", "this", "it", "he", "she", "his", "her", "my", "any", "our",
     "can", "could", "would", "should", "please", "give", "show", "list",
-    "get", "find", "remember",
+    "get", "find", "remember", "we", "us", "they", "them", "their", "its",
+    "been", "be", "has", "had", "will", "not", "but", "from", "by",
 })
 
 

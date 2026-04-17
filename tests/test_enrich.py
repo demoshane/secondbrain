@@ -130,12 +130,15 @@ def test_enrich_reembed(enrich_conn, tmp_path, monkeypatch):
     _insert_note_db(enrich_conn, rel, "Embed", "Body here")
 
     mock_embed = MagicMock(return_value=[b"\x00" * 16])
-    with patch("engine.embeddings.embed_texts", mock_embed):
+    with patch("engine.embeddings.embed_texts", mock_embed), \
+         patch("engine.intelligence._router") as mock_router:
+        mock_router.get_adapter.side_effect = Exception("no adapter")
         from engine.intelligence import enrich_note
         enrich_note(rel, "new stuff", enrich_conn, adapter=None)
 
     mock_embed.assert_called_once()
-    assert "new stuff" in mock_embed.call_args[0][0][0] or "Body here" in mock_embed.call_args[0][0][0]
+    # Fallback body: original + "## Update" + new content
+    assert "new stuff" in mock_embed.call_args[0][0][0]
 
 
 def test_enrich_fts5_rebuild(enrich_conn, tmp_path, monkeypatch):
