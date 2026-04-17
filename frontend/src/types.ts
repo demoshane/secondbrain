@@ -68,7 +68,7 @@ export interface BrainHealth {
   broken_link_count: number
   broken_links: { source: string; target: string }[]
   duplicate_count: number
-  duplicate_candidates: { a: string; b: string; similarity: number }[]
+  duplicate_candidates: { a: string; b: string; similarity: number; a_title?: string; b_title?: string }[]
 }
 
 export interface NoteSummary {

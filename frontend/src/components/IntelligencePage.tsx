@@ -13,6 +13,7 @@ import { ActionItemRow } from '@/components/ui/action-item-row'
 import { ActionDetailModal } from '@/components/ui/action-detail-modal'
 import { useUIContext } from '@/contexts/UIContext'
 import { useNoteContext } from '@/contexts/NoteContext'
+import { MergeDialog } from '@/components/MergeDialog'
 import { toast } from 'sonner'
 import type { BrainHealth, ActionItem } from '@/types'
 
@@ -75,6 +76,7 @@ export function IntelligencePage() {
   const [nightlySyntheses, setNightlySyntheses] = useState<SynthesisNote[]>([])
   const [contradictions, setContradictions] = useState<Contradiction[]>([])
   const [insightsLoading, setInsightsLoading] = useState(true)
+  const [mergeTarget, setMergeTarget] = useState<{ a: string; b: string; a_title: string; b_title: string; similarity: number } | null>(null)
 
   const fetchPriorityActions = useCallback(() => {
     fetch(`${getAPI()}/actions?done=0&limit=5`)
@@ -144,23 +146,19 @@ export function IntelligencePage() {
     }
   }, [captureText])
 
-  const handleMerge = useCallback(async (dc: { a: string; b: string; similarity: number }) => {
-    const choice = window.confirm(
-      `Merge duplicate pair?\n\nA: ${dc.a}\nB: ${dc.b}\n\nClick OK to keep A (discard B), or Cancel to skip.`
-    )
-    if (!choice) return
+  const executeMerge = useCallback(async (keepPath: string, discardPath: string) => {
     try {
       const res = await fetch(`${getAPI()}/brain-health/merge`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keep_path: dc.a, discard_path: dc.b }),
+        body: JSON.stringify({ keep_path: keepPath, discard_path: discardPath }),
       })
       if (!res.ok) {
         const err = await res.json()
         toast.error(`Merge failed: ${err.error}`)
         return
       }
-      toast.success('Notes merged successfully')
+      toast.success('Notes merged — content combined into kept note')
       const healthRes = await fetch(`${getAPI()}/brain-health`)
       setHealth(await healthRes.json())
     } catch {
@@ -348,9 +346,9 @@ export function IntelligencePage() {
                       {health.duplicate_candidates.map((dc, i) => (
                         <li key={i} className="flex items-center gap-2">
                           <span className="text-xs text-muted-foreground truncate flex-1">
-                            <button className="hover:text-foreground" onClick={() => goToNote(dc.a)}>{dc.a.split('/').pop()?.replace('.md', '')}</button>
+                            <button className="hover:text-foreground" onClick={() => goToNote(dc.a)}>{dc.a_title || dc.a.split('/').pop()?.replace('.md', '')}</button>
                             {' / '}
-                            <button className="hover:text-foreground" onClick={() => goToNote(dc.b)}>{dc.b.split('/').pop()?.replace('.md', '')}</button>
+                            <button className="hover:text-foreground" onClick={() => goToNote(dc.b)}>{dc.b_title || dc.b.split('/').pop()?.replace('.md', '')}</button>
                             {' '}({Math.round(dc.similarity * 100)}%)
                           </span>
                           <Button
@@ -365,7 +363,13 @@ export function IntelligencePage() {
                             size="sm"
                             variant="ghost"
                             className="h-6 px-2 text-xs shrink-0"
-                            onClick={() => handleMerge(dc)}
+                            onClick={() => setMergeTarget({
+                              a: dc.a,
+                              b: dc.b,
+                              a_title: dc.a_title || dc.a.split('/').pop()?.replace('.md', '') || dc.a,
+                              b_title: dc.b_title || dc.b.split('/').pop()?.replace('.md', '') || dc.b,
+                              similarity: dc.similarity,
+                            })}
                           >
                             Merge
                           </Button>
@@ -652,6 +656,16 @@ export function IntelligencePage() {
           setDetailAction(null)
         }}
       />
+      {mergeTarget && (
+        <MergeDialog
+          open={!!mergeTarget}
+          onClose={() => setMergeTarget(null)}
+          onMerge={executeMerge}
+          noteA={{ path: mergeTarget.a, title: mergeTarget.a_title }}
+          noteB={{ path: mergeTarget.b, title: mergeTarget.b_title }}
+          similarity={mergeTarget.similarity}
+        />
+      )}
     </div>
   )
 }

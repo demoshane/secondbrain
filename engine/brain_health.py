@@ -154,6 +154,19 @@ def get_duplicate_candidates(
                             "similarity": m["similarity"],
                         }
                     )
+
+        # Enrich with titles for UI display
+        if pairs:
+            all_paths = list({p["a"] for p in pairs} | {p["b"] for p in pairs})
+            ph = ",".join("?" for _ in all_paths)
+            title_rows = conn.execute(
+                f"SELECT path, title FROM notes WHERE path IN ({ph})", all_paths  # noqa: S608
+            ).fetchall()
+            title_map = {r[0]: r[1] for r in title_rows}
+            for p in pairs:
+                p["a_title"] = title_map.get(p["a"], p["a"].split("/")[-1].replace(".md", ""))
+                p["b_title"] = title_map.get(p["b"], p["b"].split("/")[-1].replace(".md", ""))
+
         return pairs
     except Exception:
         return []
