@@ -42,7 +42,7 @@ SOFT_LIMITS: dict[str, int] = {
     "sb_unlink": 5000,
     "sb_remind": 5000,
     # AI-heavy tools
-    "sb_recap": 20000,
+    "sb_recap": 45000,
     "sb_digest": 30000,
     # HTTP sidecar
     "ask_brain": 5000,
