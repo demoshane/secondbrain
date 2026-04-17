@@ -184,8 +184,8 @@ def reindex_brain(brain_root: Path, conn=None, full: bool = False, entities: boo
             ).fetchone()
             if existing_row is not None and existing_row[0]:
                 try:
-                    file_mtime_utc = datetime.datetime.utcfromtimestamp(md_path.stat().st_mtime)
-                    db_updated_at = datetime.datetime.fromisoformat(existing_row[0])
+                    file_mtime_utc = datetime.datetime.fromtimestamp(md_path.stat().st_mtime, tz=datetime.UTC).replace(tzinfo=None)
+                    db_updated_at = datetime.datetime.fromisoformat(existing_row[0]).replace(tzinfo=None)
                     if file_mtime_utc <= db_updated_at:
                         skipped += 1
                         continue
