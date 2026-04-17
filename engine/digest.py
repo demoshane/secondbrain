@@ -96,7 +96,7 @@ def generate_digest(conn, digests_dir: Path) -> Path:
                     system_prompt=DIGEST_SYSTEM_PROMPT,
                 ))
             if public_texts:
-                adapter = _router.get_adapter("public", CONFIG_PATH)
+                adapter = _router.get_adapter("public", CONFIG_PATH, feature="digest")
                 summaries.append(adapter.generate(
                     user_content="\n\n".join(public_texts),
                     system_prompt=DIGEST_SYSTEM_PROMPT,

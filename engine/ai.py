@@ -87,7 +87,7 @@ def ask_followup_questions(
     system = QUESTION_SYSTEM_PROMPTS.get(note_type, QUESTION_SYSTEM_PROMPTS["note"])
 
     try:
-        adapter = _router.get_adapter(sensitivity, config_path)
+        adapter = _router.get_adapter(sensitivity, config_path, feature="followup_questions")
         from engine.rag import augment_prompt
         user_content = augment_prompt(title, conn) if conn is not None else title
         raw = adapter.generate(user_content=user_content, system_prompt=system)

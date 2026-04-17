@@ -1110,7 +1110,7 @@ def generate_person_insight(conn, person_path: str, force: bool = False) -> str:
         text = f"Person name: {person_title}\n\n" + "\n\n".join(parts) if parts else f"Person: {person_title}"
 
         from engine.paths import CONFIG_PATH
-        adapter = _router.get_adapter("public", CONFIG_PATH)
+        adapter = _router.get_adapter("public", CONFIG_PATH, feature="person_synthesis")
         insight = adapter.generate(user_content=text, system_prompt=PERSON_INSIGHT_SYSTEM_PROMPT)
 
         conn.execute(
@@ -1267,7 +1267,7 @@ def generate_weekly_synthesis(conn) -> str:
             text = "\n\n".join(public_parts)
             if enrichment:
                 text = enrichment + "\n\n" + text
-            adapter = _router.get_adapter("public", CONFIG_PATH)
+            adapter = _router.get_adapter("public", CONFIG_PATH, feature="digest")
             result = adapter.generate(user_content=text, system_prompt=WEEKLY_SYNTHESIS_SYSTEM_PROMPT)
             if result:
                 result_parts.append(result)
