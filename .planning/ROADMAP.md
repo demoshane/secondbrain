@@ -239,7 +239,7 @@ Plans:
 
 **Goal:** Add a memory consolidation lifecycle: capture-time similarity awareness (detect related existing notes post-capture), AI-assisted note enrichment (update-in-place instead of creating duplicates), nightly consolidation sweep (enrichment candidates, stale review, backlink repair), and user-facing MCP tools (`sb_enrich`, `sb_consolidation_review`). Upgrades existing `merge_notes()` with frontmatter merge + backlink repair. Nightly AI operations use local Ollama only.
 **Depends on:** Phase 54; benefits from 50-53
-**Plans:** 5 plans (estimated)
+**Plans:** 5 plans
 
 Plans:
 - [ ] 57-01-PLAN.md — consolidation_queue table + AI enrich_note() function + tests
