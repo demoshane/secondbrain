@@ -534,7 +534,17 @@ def enrich_note(existing_path: str, new_content: str, conn, adapter=None) -> dic
     enriched = False
     if adapter is None:
         try:
-            adapter = _router.get_adapter("public", CONFIG_PATH)
+            # Check note's sensitivity to route PII to local-only adapter
+            note_sensitivity = "public"
+            try:
+                sens_row = conn.execute(
+                    "SELECT sensitivity FROM notes WHERE path=?", (existing_path,)
+                ).fetchone()
+                if sens_row and sens_row[0]:
+                    note_sensitivity = sens_row[0]
+            except Exception:
+                pass
+            adapter = _router.get_adapter(note_sensitivity, CONFIG_PATH, feature="enrich")
         except Exception:
             adapter = None
 

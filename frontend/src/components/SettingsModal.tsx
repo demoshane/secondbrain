@@ -48,6 +48,7 @@ const FIELD_DESCRIPTIONS: Record<keyof Routing, string> = {
 
 const GROQ_FEATURES = [
   { key: 'ask_brain', label: 'Ask Brain', desc: 'Route brain queries to Groq' },
+  { key: 'enrich', label: 'Note enrichment', desc: 'AI-merge content into existing notes via Groq (non-PII only)' },
   { key: 'followup_questions', label: 'Follow-up questions', desc: 'Generate follow-up prompts via Groq' },
   { key: 'digest', label: 'Weekly digest', desc: 'Synthesise your digest using Groq' },
   { key: 'person_synthesis', label: 'Person insights', desc: 'Generate people context via Groq' },
@@ -72,7 +73,7 @@ export function SettingsModal({ open, onClose }: Props) {
   const [testingConnection, setTestingConnection] = useState(false)
   const [allLocal, setAllLocal] = useState(false)
   const [groqToggles, setGroqToggles] = useState({
-    ask_brain: false, followup_questions: false, digest: false, person_synthesis: false,
+    ask_brain: false, enrich: false, followup_questions: false, digest: false, person_synthesis: false,
   })
 
   useEffect(() => {
@@ -108,6 +109,7 @@ export function SettingsModal({ open, onClose }: Props) {
         setAllLocal(data.all_local || false)
         setGroqToggles({
           ask_brain: data.groq?.ask_brain || false,
+          enrich: data.groq?.enrich || false,
           followup_questions: data.groq?.followup_questions || false,
           digest: data.groq?.digest || false,
           person_synthesis: data.groq?.person_synthesis || false,
