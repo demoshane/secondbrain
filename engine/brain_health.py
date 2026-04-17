@@ -295,12 +295,54 @@ def merge_notes(
 
     keep_body = keep_row[2] or ""
     discard_body = discard_row[2] or ""
-    if keep_body and discard_body:
-        merged_body = keep_body + "\n\n---\n\n" + discard_body
-    elif discard_body:
-        merged_body = discard_body
-    else:
-        merged_body = keep_body
+
+    # Phase 57: Frontmatter merge — union people/tags, keep earlier created_at
+    from engine.paths import BRAIN_ROOT
+    keep_file = Path(keep_path)
+    if not keep_file.is_absolute():
+        keep_file = BRAIN_ROOT / keep_path
+    discard_file = Path(discard_path)
+    if not discard_file.is_absolute():
+        discard_file = BRAIN_ROOT / discard_path
+
+    keep_post = _fm.load(str(keep_file)) if keep_file.exists() else None
+    discard_post = _fm.load(str(discard_file)) if discard_file.exists() else None
+
+    if keep_post and discard_post:
+        for field in ("people", "tags"):
+            keep_val = keep_post.get(field, []) or []
+            discard_val = discard_post.get(field, []) or []
+            if isinstance(keep_val, str):
+                keep_val = [keep_val]
+            if isinstance(discard_val, str):
+                discard_val = [discard_val]
+            merged_fm = sorted(set(keep_val + discard_val))
+            if merged_fm:
+                keep_post[field] = merged_fm
+
+        d_created = discard_post.get("created_at", "")
+        k_created = keep_post.get("created_at", "")
+        if d_created and (not k_created or str(d_created) < str(k_created)):
+            keep_post["created_at"] = d_created
+
+        import datetime as _dt
+        keep_post["updated_at"] = _dt.datetime.now(_dt.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    # Phase 57: AI-assisted body merge (fall back to --- separator)
+    ai_merged = False
+    try:
+        from engine.intelligence import enrich_note
+        enrich_result = enrich_note(keep_path, discard_body, conn)
+        ai_merged = True
+        merged_body = None  # enrich_note already wrote to disk + DB
+    except Exception:
+        # Fallback: current --- separator approach
+        if keep_body and discard_body:
+            merged_body = keep_body + "\n\n---\n\n" + discard_body
+        elif discard_body:
+            merged_body = discard_body
+        else:
+            merged_body = keep_body
 
     keep_tags = _json_list(keep_row[3])
     discard_tags = _json_list(discard_row[3])
@@ -308,11 +350,17 @@ def merge_notes(
     merged_tags_json = json.dumps(merged_tags)
 
     with conn:
-        # Update keep note body, tags, updated_at
-        conn.execute(
-            "UPDATE notes SET body=?, tags=?, updated_at=datetime('now') WHERE path=?",
-            (merged_body, merged_tags_json, keep_path),
-        )
+        # Update keep note — if AI merge handled body, only update tags
+        if ai_merged:
+            conn.execute(
+                "UPDATE notes SET tags=?, updated_at=datetime('now') WHERE path=?",
+                (merged_tags_json, keep_path),
+            )
+        else:
+            conn.execute(
+                "UPDATE notes SET body=?, tags=?, updated_at=datetime('now') WHERE path=?",
+                (merged_body, merged_tags_json, keep_path),
+            )
 
         # Remap relationships: discard→X becomes keep→X (skip duplicates)
         conn.execute(
@@ -355,14 +403,17 @@ def merge_notes(
     conn.execute("INSERT INTO notes_fts(notes_fts) VALUES('rebuild')")
     conn.commit()
 
-    # Write merged body back to the keep file on disk (atomic, frontmatter-safe)
-    keep_file = Path(keep_path)
-    if not keep_file.is_absolute():
-        from engine.paths import BRAIN_ROOT
-        keep_file = BRAIN_ROOT / keep_path
+    # Write merged body + frontmatter back to keep file on disk
+    # (skip body write if AI merge already handled it via enrich_note)
     if keep_file.exists():
         post = _fm.load(str(keep_file))
-        post.content = merged_body
+        if not ai_merged and merged_body is not None:
+            post.content = merged_body
+        # Always write back frontmatter updates (people/tags union, created_at)
+        if keep_post:
+            for field in ("people", "tags", "created_at", "updated_at"):
+                if field in keep_post.metadata:
+                    post[field] = keep_post[field]
         fd, tmp = tempfile.mkstemp(dir=keep_file.parent, suffix=".tmp")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
@@ -373,11 +424,43 @@ def merge_notes(
             raise
 
     # Delete discard file from disk (after DB commit per ARCH-08)
-    discard_file = Path(discard_path)
-    if not discard_file.is_absolute():
-        from engine.paths import BRAIN_ROOT
-        discard_file = BRAIN_ROOT / discard_path
     discard_file.unlink(missing_ok=True)
+
+    # Phase 57: Backlink repair — replace [[discard_path]] with [[keep_path]] in all notes
+    rows = conn.execute(
+        "SELECT path, body FROM notes WHERE body LIKE ?",
+        (f"%[[{discard_path}]]%",),
+    ).fetchall()
+    for note_path, body in rows:
+        if body and f"[[{discard_path}]]" in body:
+            new_body = body.replace(f"[[{discard_path}]]", f"[[{keep_path}]]")
+            conn.execute("UPDATE notes SET body=? WHERE path=?", (new_body, note_path))
+            note_file_path = BRAIN_ROOT / note_path
+            if note_file_path.exists():
+                try:
+                    npost = _fm.load(str(note_file_path))
+                    npost.content = new_body
+                    with open(note_file_path, "w", encoding="utf-8") as fh:
+                        fh.write(_fm.dumps(npost))
+                except Exception:
+                    pass
+
+    # Phase 57: Repair source_notes in synthesis note frontmatter
+    synth_rows = conn.execute(
+        "SELECT path FROM notes WHERE type='synthesis'"
+    ).fetchall()
+    for (synth_path,) in synth_rows:
+        synth_file = BRAIN_ROOT / synth_path
+        if synth_file.exists():
+            try:
+                spost = _fm.load(str(synth_file))
+                sources = spost.get("source_notes", []) or []
+                if discard_path in sources:
+                    spost["source_notes"] = [keep_path if s == discard_path else s for s in sources]
+                    with open(synth_file, "w", encoding="utf-8") as fh:
+                        fh.write(_fm.dumps(spost))
+            except Exception:
+                pass
 
     # Write audit log entry
     conn.execute(
@@ -704,6 +787,17 @@ def get_brain_health_report(conn: sqlite3.Connection) -> dict:
         duplicates=len(duplicates),
     )
 
+    # Phase 57: consolidation queue stats
+    try:
+        cq_rows = conn.execute(
+            "SELECT action, COUNT(*) FROM consolidation_queue WHERE status='pending' GROUP BY action"
+        ).fetchall()
+        consolidation_pending = {row[0]: row[1] for row in cq_rows}
+        consolidation_total = sum(consolidation_pending.values())
+    except Exception:
+        consolidation_pending = {}
+        consolidation_total = 0
+
     return {
         "score": score,
         "total_notes": total_notes,
@@ -713,4 +807,8 @@ def get_brain_health_report(conn: sqlite3.Connection) -> dict:
         "empty_notes": empty,
         "archived_action_items": archived_count,
         "drive_sync": check_drive_sync(),
+        "consolidation_queue": {
+            "pending_total": consolidation_total,
+            "by_action": consolidation_pending,
+        },
     }

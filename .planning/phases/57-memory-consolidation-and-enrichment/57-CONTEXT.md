@@ -192,7 +192,7 @@ Each plan must include:
 1. `engine/intelligence.py` — `enrich_note()` function
 2. `engine/brain_health.py` — upgraded `merge_notes()` with frontmatter + backlink repair
 3. `engine/consolidate.py` — enrichment_sweep, stale_review, backlink_repair in nightly job
-4. `engine/capture.py` — similarity hint after capture
+4. `engine/mcp_server.py` — similarity hint in MCP layer post-capture (capture_note() returns Path, not dict — hints belong in MCP response)
 5. `engine/mcp_server.py` — `sb_enrich`, `sb_consolidation_review` tools
 6. `engine/db.py` — consolidation_queue migration
 7. `tests/test_consolidation.py` — new test module for full consolidation lifecycle
@@ -206,7 +206,7 @@ Each plan must include:
 - `engine/intelligence.py` — add `enrich_note()` function
 - `engine/brain_health.py` — upgrade `merge_notes()` (frontmatter, backlinks, synthesis refs)
 - `engine/consolidate.py` — add enrichment_sweep, stale_review, backlink_repair to nightly job
-- `engine/capture.py` — add similarity hint after capture_note()
+- `engine/mcp_server.py` — add similarity hint in sb_capture/sb_capture_smart post-capture (MCP layer, not capture.py — capture_note() returns Path)
 - `engine/mcp_server.py` — add `sb_enrich`, `sb_consolidation_review` MCP tools
 - `engine/db.py` — add consolidation_queue table migration
 

@@ -88,6 +88,7 @@ All commands installed via `uv tool install .` (see `pyproject.toml [project.scr
 | `entities.py` | Regex entity extraction (people, places, topics) |
 | `brain_health.py` | Orphan, duplicate, broken-link health checks |
 | `paths.py` | Canonical paths: `BRAIN_ROOT`, `DB_PATH`, `CONFIG_PATH` |
+| `consolidate.py` | Nightly consolidation: synthesis, enrichment sweep, stale review, backlink repair |
 | `watcher.py` | FSEvents file watcher; debounce + suppress logic |
 
 ## Database
@@ -106,13 +107,14 @@ uv run pytest tests/ -q          # full suite (~15s)
 uv run pytest tests/test_capture.py -x  # single file, stop on first failure
 ```
 
-## MCP tools (22 tools as of Phase 30-03)
+## MCP tools (24 tools as of Phase 57)
 
 `sb_capture`, `sb_capture_batch`, `sb_capture_smart`, `sb_capture_link`,
 `sb_search`, `sb_read`, `sb_edit`, `sb_recap`, `sb_digest`, `sb_connections`,
 `sb_actions`, `sb_actions_done`, `sb_files`, `sb_forget`, `sb_anonymize`,
 `sb_tools`, `sb_tag`, `sb_remind`, `sb_link`, `sb_unlink`,
-`sb_person_context`, `sb_list_persons`
+`sb_person_context`, `sb_list_persons`,
+`sb_enrich`, `sb_consolidation_review`
 
 Configure in Claude Desktop: tool prefix `mcp__second-brain__sb_*`.
 

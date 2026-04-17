@@ -30,10 +30,12 @@ SOFT_LIMITS: dict[str, int] = {
     "sb_person_context": 2000,
     "sb_tag": 2000,
     "sb_tools": 2000,
+    "sb_consolidation_review": 2000,
     # Write-path tools
     "sb_capture": 5000,
     "sb_capture_batch": 5000,
     "sb_edit": 5000,
+    "sb_enrich": 5000,
     "sb_forget": 5000,
     "sb_anonymize": 5000,
     "sb_link": 5000,
@@ -218,7 +220,7 @@ def _benchmark_read_tools() -> list[dict]:
     from engine.mcp_server import (  # noqa: PLC0415
         sb_search, sb_read, sb_files, sb_connections,
         sb_actions, sb_list_persons, sb_person_context,
-        sb_tag, sb_tools,
+        sb_tag, sb_tools, sb_consolidation_review,
     )
     from engine.db import get_connection
     from engine.paths import BRAIN_ROOT as _BRAIN_ROOT
@@ -251,6 +253,7 @@ def _benchmark_read_tools() -> list[dict]:
         ("sb_list_persons", sb_list_persons, (), {}),
         ("sb_tools", sb_tools, (), {}),
         ("sb_tag", sb_tag, (note_path, "remove", "__perf_test_noop__"), {}),
+        ("sb_consolidation_review", sb_consolidation_review, (), {"action": "all", "limit": 5}),
     ]
     if person_path:
         tools_to_run.append(("sb_person_context", sb_person_context, (person_path,), {}))
@@ -267,7 +270,7 @@ def _benchmark_write_tools() -> list[dict]:
     from engine.mcp_server import (  # noqa: PLC0415
         sb_capture, sb_capture_batch, sb_edit,
         sb_link, sb_unlink, sb_remind,
-        sb_anonymize,
+        sb_anonymize, sb_enrich,
     )
     from engine.test_utils import cleanup_test_notes
     from engine.paths import BRAIN_ROOT as _BRAIN_ROOT
@@ -335,6 +338,15 @@ def _benchmark_write_tools() -> list[dict]:
             body="performance test note — edited",
         )
         results.append(_make_result("sb_edit", elapsed_ms, error))
+
+    # sb_enrich — enrich the captured note with additional content
+    if captured_path:
+        elapsed_ms, error = _time_tool(
+            sb_enrich,
+            target_path=captured_path,
+            new_content="additional performance test information",
+        )
+        results.append(_make_result("sb_enrich", elapsed_ms, error))
 
     # sb_link / sb_unlink — need two note paths
     if len(batch_paths) >= 2:

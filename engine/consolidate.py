@@ -122,11 +122,163 @@ def synthesize_clusters(conn) -> dict:
     return stats
 
 
+def enrichment_sweep(conn) -> dict:
+    """Find note pairs with similarity 0.80-0.92 and queue as enrichment candidates.
+
+    Returns: {"queued": int, "scanned": int}
+    """
+    from engine.intelligence import find_similar
+
+    rows = conn.execute(
+        "SELECT note_path FROM note_embeddings ORDER BY rowid DESC LIMIT 500"
+    ).fetchall()
+
+    queued = 0
+    scanned = 0
+    seen_pairs = set()
+
+    for (path,) in rows:
+        scanned += 1
+        try:
+            matches = find_similar(path, conn, threshold=0.72, limit=5)
+        except Exception:
+            continue
+
+        for m in matches:
+            sim = m["similarity"]
+            if sim >= 0.92:
+                continue
+
+            pair_key = tuple(sorted([path, m["note_path"]]))
+            if pair_key in seen_pairs:
+                continue
+            seen_pairs.add(pair_key)
+
+            source_json = json.dumps(list(pair_key))
+            existing = conn.execute(
+                "SELECT id FROM consolidation_queue WHERE source_paths = ? AND status IN ('pending', 'dismissed')",
+                (source_json,),
+            ).fetchone()
+            if existing:
+                continue
+
+            conn.execute(
+                "INSERT INTO consolidation_queue (action, source_paths, reason, similarity, detected_at) "
+                "VALUES (?, ?, ?, ?, datetime('now'))",
+                ("enrich", source_json, "embedding_similarity", sim),
+            )
+            queued += 1
+
+    conn.commit()
+    return {"queued": queued, "scanned": scanned}
+
+
+def stale_review(conn) -> dict:
+    """Queue notes older than 90 days with low access for review.
+
+    Returns: {"queued": int, "scanned": int}
+    """
+    stale_rows = conn.execute("""
+        SELECT n.path, n.title, n.updated_at
+        FROM notes n
+        WHERE date(n.updated_at) < date('now', '-90 days')
+          AND (n.access_count IS NULL OR n.access_count < 3)
+          AND n.path NOT IN (
+              SELECT json_each.value FROM consolidation_queue cq,
+              json_each(cq.source_paths)
+              WHERE cq.action = 'stale' AND cq.status IN ('pending', 'dismissed')
+          )
+        ORDER BY n.updated_at ASC
+        LIMIT 50
+    """).fetchall()
+
+    queued = 0
+    for path, title, updated_at in stale_rows:
+        conn.execute(
+            "INSERT INTO consolidation_queue (action, source_paths, reason, detected_at) "
+            "VALUES (?, ?, ?, datetime('now'))",
+            ("stale", json.dumps([path]), f"Not updated since {updated_at}, low access"),
+        )
+        queued += 1
+
+    conn.commit()
+    return {"queued": queued, "scanned": len(stale_rows)}
+
+
+def backlink_repair(conn) -> dict:
+    """Repair dead wiki-links caused by note merges. Scoped to last 7 days.
+
+    Returns: {"repaired_links": int, "repaired_synthesis_refs": int, "merges_checked": int}
+    """
+    import frontmatter as _fm
+    from engine.paths import BRAIN_ROOT
+
+    merge_rows = conn.execute(
+        "SELECT note_path, detail FROM audit_log "
+        "WHERE event_type = 'merge' AND created_at > datetime('now', '-7 days')"
+    ).fetchall()
+
+    repaired_links = 0
+    repaired_synth = 0
+
+    for kept_path, detail in merge_rows:
+        if not detail or not detail.startswith("merged:"):
+            continue
+        discard_path = detail[len("merged:"):]
+
+        body_rows = conn.execute(
+            "SELECT path, body FROM notes WHERE body LIKE ?",
+            (f"%[[{discard_path}]]%",),
+        ).fetchall()
+
+        for note_path, body in body_rows:
+            if not body or f"[[{discard_path}]]" not in body:
+                continue
+            new_body = body.replace(f"[[{discard_path}]]", f"[[{kept_path}]]")
+            conn.execute("UPDATE notes SET body=? WHERE path=?", (new_body, note_path))
+
+            note_file = BRAIN_ROOT / note_path
+            if note_file.exists():
+                try:
+                    npost = _fm.load(str(note_file))
+                    npost.content = new_body
+                    with open(note_file, "w", encoding="utf-8") as fh:
+                        fh.write(_fm.dumps(npost))
+                except Exception:
+                    pass
+            repaired_links += 1
+
+        synth_rows = conn.execute(
+            "SELECT path FROM notes WHERE type = 'synthesis' LIMIT 200"
+        ).fetchall()
+        for (synth_path,) in synth_rows:
+            synth_file = BRAIN_ROOT / synth_path
+            if not synth_file.exists():
+                continue
+            try:
+                spost = _fm.load(str(synth_file))
+                sources = spost.get("source_notes", []) or []
+                if discard_path in sources:
+                    spost["source_notes"] = [kept_path if s == discard_path else s for s in sources]
+                    with open(synth_file, "w", encoding="utf-8") as fh:
+                        fh.write(_fm.dumps(spost))
+                    repaired_synth += 1
+            except Exception:
+                pass
+
+    conn.commit()
+    return {
+        "repaired_links": repaired_links,
+        "repaired_synthesis_refs": repaired_synth,
+        "merges_checked": len(merge_rows),
+    }
+
+
 def consolidate_main() -> None:
     """Entry point for sb-consolidate launchd job. Per D-16 order."""
     # Lazy imports: deferred to avoid slow module-level load of brain_health
     # (heavy dependencies). Reason is startup performance, not import ordering.
-    from engine.db import get_connection, init_schema
+    from engine.db import get_connection, init_schema, record_job_start, record_job_finish
     from engine.brain_health import (
         archive_old_action_items,
         archive_old_audit_entries,
@@ -137,6 +289,7 @@ def consolidate_main() -> None:
 
     conn = get_connection()
     init_schema(conn)
+    job_id = record_job_start(conn, "consolidate")
     results = {}
     try:
         results["archived_actions"] = archive_old_action_items(conn)
@@ -151,6 +304,25 @@ def consolidate_main() -> None:
         except Exception as exc:
             logger.warning("Synthesis phase failed: %s", exc)
             results["synthesis"] = {"error": str(exc)}
+
+        # Phase 57: enrichment sweep, stale review, backlink repair
+        try:
+            results["enrichment_sweep"] = enrichment_sweep(conn)
+        except Exception as exc:
+            logger.warning("Enrichment sweep failed: %s", exc)
+            results["enrichment_sweep"] = {"error": str(exc)}
+
+        try:
+            results["stale_review"] = stale_review(conn)
+        except Exception as exc:
+            logger.warning("Stale review failed: %s", exc)
+            results["stale_review"] = {"error": str(exc)}
+
+        try:
+            results["backlink_repair"] = backlink_repair(conn)
+        except Exception as exc:
+            logger.warning("Backlink repair failed: %s", exc)
+            results["backlink_repair"] = {"error": str(exc)}
     finally:
         conn.close()
 
@@ -162,6 +334,16 @@ def consolidate_main() -> None:
     except Exception as exc:
         logger.warning("Perf benchmarks failed: %s", exc)
         results["perf"] = {"error": str(exc)}
+
+    # Record job completion
+    try:
+        _finish_conn = get_connection()
+        try:
+            record_job_finish(_finish_conn, job_id, "success", json.dumps({k: str(v)[:100] for k, v in results.items()}))
+        finally:
+            _finish_conn.close()
+    except Exception:
+        pass
 
     # Log to stdout — captured by launchd StandardOutPath
     print(json.dumps({"at": datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat(), **results}))

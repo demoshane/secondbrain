@@ -116,6 +116,37 @@ def _log_mcp_audit(event: str, path: str) -> None:
         conn.close()
 
 
+def _find_similar_hints(note_path_str: str, conn) -> list[dict]:
+    """Best-effort similarity hint after capture. Returns [] on any failure."""
+    try:
+        from engine.intelligence import find_similar
+        from engine.paths import store_path as _sp
+        # note_path_str may be absolute or relative; find_similar expects relative DB path
+        p = Path(note_path_str)
+        if p.is_absolute():
+            try:
+                rel = _sp(p)
+            except ValueError:
+                rel = note_path_str
+        else:
+            rel = note_path_str
+
+        matches = find_similar(rel, conn, threshold=0.72, limit=3)
+        if not matches:
+            return []
+        return [
+            {
+                "path": m["note_path"],
+                "title": m.get("title", ""),
+                "similarity": round(m["similarity"], 2),
+                "hint": f"Similar note found ({round(m['similarity'] * 100)}%). Use sb_enrich to combine.",
+            }
+            for m in matches
+        ]
+    except Exception:
+        return []
+
+
 def _auto_co_capture(conn, new_path: str, created_at: str, capture_session: str | None = None) -> list[dict]:
     """Find temporal neighbors + same-session notes, create co-captured relationships.
 
@@ -408,6 +439,13 @@ def sb_capture(
         elif len(co_captured_with) > 1:
             nudge = f"Auto-linked with {len(co_captured_with)} recent captures from this session."
 
+        # Phase 57: similarity hints — best-effort, ~200ms
+        similar_hints = _find_similar_hints(src_path, conn)
+        if similar_hints:
+            result_similar = similar_hints
+        else:
+            result_similar = None
+
         _log_mcp_audit("mcp_capture", str(path))
         result = {
             "status": "created",
@@ -418,6 +456,8 @@ def sb_capture(
         }
         if nudge:
             result["nudge"] = nudge
+        if result_similar:
+            result["similar"] = result_similar
         return result
     finally:
         conn.close()
@@ -839,8 +879,22 @@ def sb_recap(name: str | None = None, days: int | None = None) -> str:
             if overdue:
                 lines = [f"- {a['text']} (due {a['due_date']})" for a in overdue[:10]]
                 overdue_section = "**Overdue action items:**\n" + "\n".join(lines) + "\n\n"
+
+            # Phase 57: pending consolidation items
+            consol_section = ""
+            try:
+                cq_rows = conn.execute(
+                    "SELECT action, COUNT(*) FROM consolidation_queue WHERE status='pending' GROUP BY action"
+                ).fetchall()
+                if cq_rows:
+                    lines = [f"- {row[1]} {row[0]} item(s)" for row in cq_rows]
+                    consol_section = "**Pending consolidation:**\n" + "\n".join(lines) + "\n_(Use sb_consolidation_review to review)_\n\n"
+            except Exception:
+                pass
+
             recap = recap_entity(name, conn)
-            return (overdue_section + recap) if recap else overdue_section or None
+            preamble = overdue_section + consol_section
+            return (preamble + recap) if recap else preamble or None
         finally:
             conn.close()
 
@@ -1380,6 +1434,19 @@ def sb_capture_smart(content: str) -> dict:
 
     finally:
         conn.close()
+
+    # Phase 57: similarity hints per saved note — best-effort
+    try:
+        _hint_conn = get_connection()
+        try:
+            for note in saved_notes:
+                hints = _find_similar_hints(note["path"], _hint_conn)
+                if hints:
+                    note["similar"] = hints
+        finally:
+            _hint_conn.close()
+    except Exception:
+        logger.debug("similarity hints skipped", exc_info=True)
 
     result = {
         "status": "created",
@@ -2041,6 +2108,108 @@ def sb_merge_confirm(keep_path: str, discard_path: str, confirm_token: str = "")
     try:
         result = merge_notes(keep_path, discard_path, conn)
         return {"status": "merged", **result}
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def sb_enrich(target_path: str, new_content: str) -> dict:
+    """Enrich an existing note by AI-merging new content into it.
+
+    Non-destructive: updates the note in place. No two-step confirmation needed.
+    Use after sb_capture suggests similar notes, or after sb_consolidation_review.
+
+    Args:
+        target_path: Path to the note to enrich (relative or absolute)
+        new_content: New information to integrate into the existing note
+
+    Returns:
+        {"status": "enriched", "path": str, "before_length": int,
+         "after_length": int, "enriched": bool}
+    """
+    _ensure_ready()
+    conn = get_connection()
+    try:
+        from engine.intelligence import enrich_note
+        result = enrich_note(target_path, new_content, conn)
+        _log_mcp_audit("mcp_enrich", target_path)
+        return {"status": "enriched", **result}
+    except ValueError as exc:
+        return {"error": str(exc)}
+    except Exception as exc:
+        return {"error": f"Enrichment failed: {exc}"}
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def sb_consolidation_review(
+    action: str = "all",
+    limit: int = 10,
+    dismiss_id: int = 0,
+) -> dict:
+    """Review pending consolidation candidates or dismiss an item.
+
+    Use to see merge/enrich/stale suggestions from the nightly consolidation sweep.
+    To dismiss an item, pass its id as dismiss_id.
+
+    Args:
+        action: Filter by action type: 'all', 'merge', 'enrich', 'stale', 'review'
+        limit: Maximum number of items to return (default 10)
+        dismiss_id: If > 0, dismiss this queue item instead of listing
+
+    Returns:
+        {"items": [...], "count": int} or {"dismissed": int} if dismiss_id provided
+    """
+    import json
+    _ensure_ready()
+    conn = get_connection()
+    try:
+        if dismiss_id > 0:
+            conn.execute(
+                "UPDATE consolidation_queue SET status = 'dismissed', resolved_at = datetime('now') "
+                "WHERE id = ? AND status = 'pending'",
+                (dismiss_id,),
+            )
+            conn.commit()
+            row = conn.execute(
+                "SELECT status FROM consolidation_queue WHERE id = ?",
+                (dismiss_id,),
+            ).fetchone()
+            if row and row[0] == "dismissed":
+                return {"dismissed": dismiss_id}
+            return {"error": f"Item {dismiss_id} not found or already resolved"}
+
+        if action == "all":
+            rows = conn.execute(
+                "SELECT id, action, source_paths, target_path, reason, similarity, detected_at "
+                "FROM consolidation_queue WHERE status = 'pending' "
+                "ORDER BY detected_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT id, action, source_paths, target_path, reason, similarity, detected_at "
+                "FROM consolidation_queue WHERE status = 'pending' AND action = ? "
+                "ORDER BY detected_at DESC LIMIT ?",
+                (action, limit),
+            ).fetchall()
+
+        items = []
+        for row in rows:
+            items.append({
+                "id": row[0],
+                "action": row[1],
+                "source_paths": json.loads(row[2]) if row[2] else [],
+                "target_path": row[3],
+                "reason": row[4],
+                "similarity": row[5],
+                "detected_at": row[6],
+            })
+
+        return {"items": items, "count": len(items)}
+    except Exception as exc:
+        return {"error": f"Review failed: {exc}"}
     finally:
         conn.close()
 

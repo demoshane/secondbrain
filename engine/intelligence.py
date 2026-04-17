@@ -499,6 +499,120 @@ def find_similar(note_path: str, conn, threshold: float = 0.7, limit: int = 3) -
         return []
 
 
+ENRICH_SYSTEM_PROMPT = (
+    "You are a knowledge management assistant. "
+    "Update the existing note by integrating new information. "
+    "Preserve all existing facts. Add new information naturally. "
+    "Don't duplicate content. Maintain the note's style and structure. "
+    "Output only the updated note body — no preamble."
+)
+
+
+def enrich_note(existing_path: str, new_content: str, conn, adapter=None) -> dict:
+    """Integrate new_content into an existing note using AI-assisted merge.
+
+    Returns: {"path": str, "before_length": int, "after_length": int, "enriched": bool}
+    """
+    import frontmatter as _fm
+    import tempfile
+    import os as _os
+    from engine.paths import BRAIN_ROOT, CONFIG_PATH, store_path as _store_path
+    from engine.embeddings import embed_texts
+
+    # Resolve path
+    p = Path(existing_path)
+    if not p.is_absolute():
+        p = BRAIN_ROOT / existing_path
+    if not p.exists():
+        raise ValueError(f"Note not found: {existing_path!r}")
+
+    post = _fm.load(str(p))
+    existing_body = post.content or ""
+    before_len = len(existing_body)
+
+    # Try AI merge
+    enriched = False
+    if adapter is None:
+        try:
+            adapter = _router.get_adapter("public", CONFIG_PATH)
+        except Exception:
+            adapter = None
+
+    merged_body = None
+    if adapter and existing_body:
+        try:
+            merged_body = adapter.generate(
+                user_content=f"EXISTING NOTE:\n{existing_body}\n\nNEW INFORMATION:\n{new_content}",
+                system_prompt=ENRICH_SYSTEM_PROMPT,
+            )
+            enriched = True
+        except Exception:
+            merged_body = None
+
+    if not merged_body:
+        # Structured fallback — NOT raw --- concatenation
+        today = datetime.date.today().isoformat()
+        merged_body = existing_body + f"\n\n## Update {today}\n\n{new_content}"
+
+    post.content = merged_body
+    now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
+    post["updated_at"] = now
+    after_len = len(merged_body)
+
+    # Compute DB path
+    try:
+        db_path = _store_path(p.resolve())
+    except ValueError:
+        db_path = existing_path
+
+    # Atomic write: tempfile in same dir, UPDATE DB, commit, os.replace
+    tmp_fd, tmp_name = tempfile.mkstemp(dir=p.parent, suffix=".md")
+    try:
+        with _os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
+            fh.write(_fm.dumps(post))
+        tmp_fd = None  # fd now closed by context manager
+        conn.execute(
+            "UPDATE notes SET body=?, updated_at=? WHERE path=?",
+            (merged_body, now, db_path),
+        )
+        conn.execute(
+            "INSERT INTO audit_log (event_type, note_path, detail, created_at) VALUES (?,?,?,datetime('now'))",
+            ("enriched", db_path, f"before:{before_len},after:{after_len}"),
+        )
+        conn.commit()
+        _os.replace(tmp_name, str(p))
+    except Exception:
+        if tmp_fd is not None:
+            try:
+                _os.close(tmp_fd)
+            except OSError:
+                pass
+        Path(tmp_name).unlink(missing_ok=True)
+        raise
+
+    # Re-embed (best-effort)
+    try:
+        blobs = embed_texts([merged_body[:4000]])
+        if blobs:
+            conn.execute(
+                "INSERT OR REPLACE INTO note_embeddings (note_path, embedding) VALUES (?,?)",
+                (db_path, blobs[0]),
+            )
+    except Exception:
+        pass
+
+    # Rebuild FTS5
+    conn.execute("INSERT INTO notes_fts(notes_fts) VALUES('rebuild')")
+    conn.commit()
+
+    return {
+        "path": existing_path,
+        "before_length": before_len,
+        "after_length": after_len,
+        "enriched": enriched,
+    }
+
+
 def find_dormant_related(note_path: str, conn, limit: int = 3) -> list[dict]:
     """Return up to `limit` notes similar to note_path that haven't been updated in 30+ days.
 

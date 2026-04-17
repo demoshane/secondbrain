@@ -833,6 +833,74 @@ def _migrate_junction_triggers(conn: sqlite3.Connection) -> None:
     """)
 
 
+def record_job_start(conn: sqlite3.Connection, job_name: str) -> int:
+    """Record a job starting. Returns the row id for later update."""
+    cur = conn.execute(
+        "INSERT INTO job_runs (job_name, started_at, status) VALUES (?, datetime('now'), 'running')",
+        (job_name,),
+    )
+    conn.commit()
+    return cur.lastrowid
+
+
+def record_job_finish(conn: sqlite3.Connection, row_id: int, status: str = "success", detail: str | None = None) -> None:
+    """Mark a job as finished."""
+    conn.execute(
+        "UPDATE job_runs SET finished_at = datetime('now'), status = ?, detail = ? WHERE id = ?",
+        (status, detail, row_id),
+    )
+    conn.commit()
+
+
+def get_last_job_runs(conn: sqlite3.Connection) -> list[dict]:
+    """Return the most recent successful run for each job."""
+    rows = conn.execute("""
+        SELECT job_name, finished_at, detail
+        FROM job_runs
+        WHERE status = 'success'
+          AND finished_at IS NOT NULL
+        GROUP BY job_name
+        HAVING finished_at = MAX(finished_at)
+        ORDER BY job_name
+    """).fetchall()
+    return [{"job_name": r[0], "last_success": r[1], "detail": r[2]} for r in rows]
+
+
+def migrate_add_job_runs(conn: sqlite3.Connection) -> None:
+    """Idempotent: create job_runs table for tracking scheduled job executions."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS job_runs (
+            id INTEGER PRIMARY KEY,
+            job_name TEXT NOT NULL,
+            started_at TEXT NOT NULL,
+            finished_at TEXT,
+            status TEXT DEFAULT 'running',
+            detail TEXT
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_job_runs_name ON job_runs(job_name, finished_at)")
+    conn.commit()
+
+
+def migrate_add_consolidation_queue(conn: sqlite3.Connection) -> None:
+    """Idempotent: create consolidation_queue table if absent."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS consolidation_queue (
+            id INTEGER PRIMARY KEY,
+            action TEXT NOT NULL,
+            source_paths TEXT NOT NULL,
+            target_path TEXT,
+            reason TEXT,
+            similarity REAL,
+            detected_at TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            resolved_at TEXT
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_cq_status ON consolidation_queue(status, action)")
+    conn.commit()
+
+
 def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     """Create (or optionally recreate) the full schema.
 
@@ -886,4 +954,6 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     migrate_add_relationship_strength(conn)
     migrate_add_capture_session(conn)
     _migrate_junction_triggers(conn)
+    migrate_add_job_runs(conn)
+    migrate_add_consolidation_queue(conn)
     conn.commit()

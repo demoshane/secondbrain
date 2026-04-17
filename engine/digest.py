@@ -119,12 +119,19 @@ def generate_digest(conn, digests_dir: Path) -> Path:
 
 def digest_main(argv=None) -> None:
     """CLI entry point for sb-digest."""
-    from engine.db import get_connection, init_schema
+    from engine.db import get_connection, init_schema, record_job_start, record_job_finish
     from engine.paths import BRAIN_ROOT
 
     conn = get_connection()
     init_schema(conn)
-    digests_dir = BRAIN_ROOT / ".meta" / "digests"
-    out_path = generate_digest(conn, digests_dir)
-    print(f"Digest written: {out_path}")
-    conn.close()
+    job_id = record_job_start(conn, "digest")
+    try:
+        digests_dir = BRAIN_ROOT / ".meta" / "digests"
+        out_path = generate_digest(conn, digests_dir)
+        record_job_finish(conn, job_id, "success", str(out_path))
+        print(f"Digest written: {out_path}")
+    except Exception as exc:
+        record_job_finish(conn, job_id, "failed", str(exc))
+        raise
+    finally:
+        conn.close()

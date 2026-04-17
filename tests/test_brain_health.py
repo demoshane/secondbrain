@@ -351,7 +351,15 @@ def merge_conn(tmp_path):
     conn.close()
 
 
-def test_merge_copies_body_tags_relationships(merge_conn):
+@pytest.fixture(autouse=False)
+def _skip_enrich(monkeypatch):
+    """Force merge_notes to use --- fallback (no AI merge) in legacy tests."""
+    from unittest.mock import patch
+    with patch("engine.intelligence.enrich_note", side_effect=Exception("test: skip AI")):
+        yield
+
+
+def test_merge_copies_body_tags_relationships(merge_conn, _skip_enrich):
     """35-01: merge_notes merges body with separator, unions tags, remaps relationships."""
     from engine.brain_health import merge_notes
     conn, tmp_path, keep_path, discard_path = merge_conn
@@ -394,7 +402,7 @@ def test_merge_copies_body_tags_relationships(merge_conn):
     assert discard_path not in sources
 
 
-def test_merge_deletes_discard_note(merge_conn):
+def test_merge_deletes_discard_note(merge_conn, _skip_enrich):
     """35-01: discard note is removed from notes, embeddings, action_items, note_people, note_tags tables."""
     from engine.brain_health import merge_notes
     conn, tmp_path, keep_path, discard_path = merge_conn
@@ -417,7 +425,7 @@ def test_merge_deletes_discard_note(merge_conn):
     assert conn.execute("SELECT 1 FROM note_tags WHERE note_path=?", (discard_path,)).fetchone() is None
 
 
-def test_merge_fts5_rebuilt(merge_conn):
+def test_merge_fts5_rebuilt(merge_conn, _skip_enrich):
     """35-01: after merge, FTS5 search by discard title (title column only) returns no results."""
     from engine.brain_health import merge_notes
     conn, tmp_path, keep_path, discard_path = merge_conn
@@ -447,7 +455,7 @@ def test_merge_fts5_rebuilt(merge_conn):
     assert len(rows) >= 1
 
 
-def test_merge_discard_file_deleted(merge_conn):
+def test_merge_discard_file_deleted(merge_conn, _skip_enrich):
     """35-01: discard markdown file is deleted from disk after merge."""
     from engine.brain_health import merge_notes
     from pathlib import Path
@@ -458,7 +466,7 @@ def test_merge_discard_file_deleted(merge_conn):
     assert not Path(discard_path).exists(), "Discard file must be deleted after merge"
 
 
-def test_merge_audit_logged(merge_conn):
+def test_merge_audit_logged(merge_conn, _skip_enrich):
     """35-01: audit_log has event_type='merge' entry after merge_notes."""
     from engine.brain_health import merge_notes
     conn, tmp_path, keep_path, discard_path = merge_conn
@@ -473,13 +481,211 @@ def test_merge_audit_logged(merge_conn):
     assert discard_path in row[1]
 
 
-def test_merge_nonexistent_discard_raises(merge_conn):
+def test_merge_nonexistent_discard_raises(merge_conn, _skip_enrich):
     """35-01: merge_notes raises ValueError when discard_path not in DB."""
     from engine.brain_health import merge_notes
     conn, tmp_path, keep_path, discard_path = merge_conn
 
     with pytest.raises(ValueError, match="not found"):
         merge_notes(keep_path, "/nonexistent/path.md", conn)
+
+
+# ---------------------------------------------------------------------------
+# Phase 57: merge_notes upgrades — frontmatter merge, backlink repair
+# ---------------------------------------------------------------------------
+
+def test_merge_frontmatter_union(tmp_path):
+    """57-02: merge_notes unions people and tags from both notes."""
+    import engine.db as _db
+    import engine.paths as _paths
+    import frontmatter as _fm
+    from unittest.mock import patch
+
+    db_path = tmp_path / "fm_merge.db"
+    _db.DB_PATH = db_path
+    _paths.DB_PATH = db_path
+    _paths.BRAIN_ROOT = tmp_path
+
+    conn = _db.get_connection()
+    _db.init_schema(conn)
+
+    keep_file = tmp_path / "keep.md"
+    discard_file = tmp_path / "discard.md"
+
+    keep_post = _fm.Post("Keep body")
+    keep_post["title"] = "Keep"
+    keep_post["people"] = ["Alice", "Bob"]
+    keep_post["tags"] = ["project"]
+    keep_post["created_at"] = "2026-04-10T10:00:00Z"
+    keep_file.write_text(_fm.dumps(keep_post), encoding="utf-8")
+
+    discard_post = _fm.Post("Discard body")
+    discard_post["title"] = "Discard"
+    discard_post["people"] = ["Bob", "Charlie"]
+    discard_post["tags"] = ["meeting", "project"]
+    discard_post["created_at"] = "2026-04-05T08:00:00Z"
+    discard_file.write_text(_fm.dumps(discard_post), encoding="utf-8")
+
+    conn.execute(
+        "INSERT INTO notes (path, title, type, body, tags, people, created_at) VALUES (?,?,?,?,?,?,?)",
+        (str(keep_file), "Keep", "note", "Keep body", '["project"]', '["Alice","Bob"]', "2026-04-10T10:00:00Z"),
+    )
+    conn.execute(
+        "INSERT INTO notes (path, title, type, body, tags, people, created_at) VALUES (?,?,?,?,?,?,?)",
+        (str(discard_file), "Discard", "note", "Discard body", '["meeting","project"]', '["Bob","Charlie"]', "2026-04-05T08:00:00Z"),
+    )
+    conn.commit()
+
+    from engine.brain_health import merge_notes
+    with patch("engine.intelligence.enrich_note", side_effect=Exception("skip AI")):
+        merge_notes(str(keep_file), str(discard_file), conn)
+
+    post = _fm.load(str(keep_file))
+    assert sorted(post.get("people", [])) == ["Alice", "Bob", "Charlie"]
+    assert sorted(post.get("tags", [])) == ["meeting", "project"]
+    conn.close()
+
+
+def test_merge_created_at_earlier(tmp_path):
+    """57-02: merge_notes keeps the earlier created_at."""
+    import engine.db as _db
+    import engine.paths as _paths
+    import frontmatter as _fm
+    from unittest.mock import patch
+
+    db_path = tmp_path / "ca_merge.db"
+    _db.DB_PATH = db_path
+    _paths.DB_PATH = db_path
+    _paths.BRAIN_ROOT = tmp_path
+
+    conn = _db.get_connection()
+    _db.init_schema(conn)
+
+    keep_file = tmp_path / "keep.md"
+    discard_file = tmp_path / "discard.md"
+
+    keep_post = _fm.Post("Keep body")
+    keep_post["title"] = "Keep"
+    keep_post["created_at"] = "2026-04-10T10:00:00Z"
+    keep_file.write_text(_fm.dumps(keep_post), encoding="utf-8")
+
+    discard_post = _fm.Post("Discard body")
+    discard_post["title"] = "Discard"
+    discard_post["created_at"] = "2026-04-05T08:00:00Z"
+    discard_file.write_text(_fm.dumps(discard_post), encoding="utf-8")
+
+    conn.execute(
+        "INSERT INTO notes (path, title, type, body, tags) VALUES (?,?,?,?,?)",
+        (str(keep_file), "Keep", "note", "Keep body", "[]"),
+    )
+    conn.execute(
+        "INSERT INTO notes (path, title, type, body, tags) VALUES (?,?,?,?,?)",
+        (str(discard_file), "Discard", "note", "Discard body", "[]"),
+    )
+    conn.commit()
+
+    from engine.brain_health import merge_notes
+    with patch("engine.intelligence.enrich_note", side_effect=Exception("skip AI")):
+        merge_notes(str(keep_file), str(discard_file), conn)
+
+    post = _fm.load(str(keep_file))
+    assert str(post.get("created_at", "")).startswith("2026-04-05")
+    conn.close()
+
+
+def test_merge_backlink_repair(tmp_path):
+    """57-02: merge_notes replaces [[discard_path]] with [[keep_path]] in other notes."""
+    import engine.db as _db
+    import engine.paths as _paths
+    import frontmatter as _fm
+    from unittest.mock import patch
+
+    db_path = tmp_path / "bl_merge.db"
+    _db.DB_PATH = db_path
+    _paths.DB_PATH = db_path
+    _paths.BRAIN_ROOT = tmp_path
+
+    conn = _db.get_connection()
+    _db.init_schema(conn)
+
+    keep_file = tmp_path / "keep.md"
+    discard_file = tmp_path / "discard.md"
+    referrer_file = tmp_path / "referrer.md"
+
+    keep_file.write_text("---\ntitle: Keep\n---\nKeep body", encoding="utf-8")
+    discard_file.write_text("---\ntitle: Discard\n---\nDiscard body", encoding="utf-8")
+    referrer_file.write_text(f"---\ntitle: Referrer\n---\nSee [[{str(discard_file)}]] for details.", encoding="utf-8")
+
+    for f, title, body in [(keep_file, "Keep", "Keep body"),
+                           (discard_file, "Discard", "Discard body"),
+                           (referrer_file, "Referrer", f"See [[{str(discard_file)}]] for details.")]:
+        conn.execute(
+            "INSERT INTO notes (path, title, type, body, tags) VALUES (?,?,?,?,?)",
+            (str(f), title, "note", body, "[]"),
+        )
+    conn.commit()
+
+    from engine.brain_health import merge_notes
+    with patch("engine.intelligence.enrich_note", side_effect=Exception("skip AI")):
+        merge_notes(str(keep_file), str(discard_file), conn)
+
+    # Check DB
+    row = conn.execute("SELECT body FROM notes WHERE path=?", (str(referrer_file),)).fetchone()
+    assert f"[[{str(keep_file)}]]" in row[0]
+    assert f"[[{str(discard_file)}]]" not in row[0]
+
+    # Check disk
+    post = _fm.load(str(referrer_file))
+    assert f"[[{str(keep_file)}]]" in post.content
+    conn.close()
+
+
+def test_merge_synthesis_ref_repair(tmp_path):
+    """57-02: merge_notes repairs source_notes in synthesis note frontmatter."""
+    import engine.db as _db
+    import engine.paths as _paths
+    import frontmatter as _fm
+    from unittest.mock import patch
+
+    db_path = tmp_path / "sr_merge.db"
+    _db.DB_PATH = db_path
+    _paths.DB_PATH = db_path
+    _paths.BRAIN_ROOT = tmp_path
+
+    conn = _db.get_connection()
+    _db.init_schema(conn)
+
+    keep_file = tmp_path / "keep.md"
+    discard_file = tmp_path / "discard.md"
+    synth_file = tmp_path / "synth.md"
+
+    keep_file.write_text("---\ntitle: Keep\n---\nKeep body", encoding="utf-8")
+    discard_file.write_text("---\ntitle: Discard\n---\nDiscard body", encoding="utf-8")
+
+    synth_post = _fm.Post("Synthesis content")
+    synth_post["title"] = "Synthesis"
+    synth_post["source_notes"] = [str(discard_file), "other/note.md"]
+    synth_file.write_text(_fm.dumps(synth_post), encoding="utf-8")
+
+    for f, title, body, ntype in [(keep_file, "Keep", "Keep body", "note"),
+                                   (discard_file, "Discard", "Discard body", "note"),
+                                   (synth_file, "Synthesis", "Synthesis content", "synthesis")]:
+        conn.execute(
+            "INSERT INTO notes (path, title, type, body, tags) VALUES (?,?,?,?,?)",
+            (str(f), title, ntype, body, "[]"),
+        )
+    conn.commit()
+
+    from engine.brain_health import merge_notes
+    with patch("engine.intelligence.enrich_note", side_effect=Exception("skip AI")):
+        merge_notes(str(keep_file), str(discard_file), conn)
+
+    post = _fm.load(str(synth_file))
+    sources = post.get("source_notes", [])
+    assert str(keep_file) in sources
+    assert str(discard_file) not in sources
+    assert "other/note.md" in sources
+    conn.close()
 
 
 # ---------------------------------------------------------------------------

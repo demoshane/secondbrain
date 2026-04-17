@@ -2667,6 +2667,18 @@ def brain_health_endpoint():
             broken=len(broken),
             duplicates=len(duplicates),
         )
+        # Phase 57: consolidation queue stats
+        import json as _json
+        try:
+            cq_rows = conn.execute(
+                "SELECT action, COUNT(*) FROM consolidation_queue WHERE status='pending' GROUP BY action"
+            ).fetchall()
+            cq_pending = {r[0]: r[1] for r in cq_rows}
+            cq_total = sum(cq_pending.values())
+        except Exception:
+            cq_pending = {}
+            cq_total = 0
+
         return jsonify(
             {
                 "score": score,
@@ -2684,6 +2696,10 @@ def brain_health_endpoint():
                 "duplicate_count": len(duplicates),
                 "duplicate_candidates": duplicates[:20],
                 "archived_action_items": archived_count,
+                "consolidation_queue": {
+                    "pending_total": cq_total,
+                    "by_action": cq_pending,
+                },
             }
         )
     except Exception as exc:
@@ -2748,6 +2764,87 @@ def dismiss_duplicate():
     return jsonify({"dismissed": True, "pair": [a, b]})
 
 
+@app.get("/consolidation-queue")
+def consolidation_queue_list():
+    """Return pending consolidation queue items, optionally filtered by action type."""
+    import json as _json
+    action = request.args.get("action", "all")
+    limit = _int_param("limit", 10, min_val=1, max_val=100)
+    conn = get_connection()
+    try:
+        if action == "all":
+            rows = conn.execute(
+                "SELECT id, action, source_paths, target_path, reason, similarity, detected_at "
+                "FROM consolidation_queue WHERE status = 'pending' "
+                "ORDER BY detected_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT id, action, source_paths, target_path, reason, similarity, detected_at "
+                "FROM consolidation_queue WHERE status = 'pending' AND action = ? "
+                "ORDER BY detected_at DESC LIMIT ?",
+                (action, limit),
+            ).fetchall()
+
+        items = [
+            {
+                "id": r[0], "action": r[1],
+                "source_paths": _json.loads(r[2]) if r[2] else [],
+                "target_path": r[3], "reason": r[4],
+                "similarity": r[5], "detected_at": r[6],
+            }
+            for r in rows
+        ]
+        return jsonify({"items": items, "count": len(items)})
+    finally:
+        conn.close()
+
+
+@app.post("/consolidation-queue/dismiss")
+def consolidation_queue_dismiss():
+    """Dismiss a consolidation queue item by ID."""
+    data = request.get_json(force=True) or {}
+    item_id = data.get("id")
+    if not item_id:
+        return jsonify({"error": "id required"}), 400
+    conn = get_connection()
+    try:
+        conn.execute(
+            "UPDATE consolidation_queue SET status = 'dismissed', resolved_at = datetime('now') "
+            "WHERE id = ? AND status = 'pending'",
+            (item_id,),
+        )
+        conn.commit()
+        row = conn.execute("SELECT status FROM consolidation_queue WHERE id = ?", (item_id,)).fetchone()
+        if row and row[0] == "dismissed":
+            return jsonify({"dismissed": item_id})
+        return jsonify({"error": f"Item {item_id} not found or already resolved"}), 404
+    finally:
+        conn.close()
+
+
+@app.post("/enrich-note")
+def enrich_note_api():
+    """Enrich an existing note with new content via AI merge."""
+    data = request.get_json(force=True) or {}
+    target_path = (data.get("target_path") or "").strip()
+    new_content = (data.get("new_content") or "").strip()
+    if not target_path or not new_content:
+        return jsonify({"error": "target_path and new_content required"}), 400
+    conn = get_connection()
+    try:
+        from engine.intelligence import enrich_note
+        result = enrich_note(target_path, new_content, conn)
+        return jsonify({"status": "enriched", **result})
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except Exception as exc:
+        return jsonify({"error": f"Enrichment failed: {exc}"}), 500
+    finally:
+        conn.close()
+
+
 @app.post("/summarise-url")
 def summarise_url():
     """Summarise a web page's content via LLM.
@@ -2782,6 +2879,18 @@ def summarise_url():
         return jsonify({"summary": summary})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
+
+
+@app.get("/perf/job-runs")
+def perf_job_runs():
+    """Return the most recent successful run for each scheduled job."""
+    conn = get_connection()
+    try:
+        from engine.db import get_last_job_runs
+        runs = get_last_job_runs(conn)
+        return jsonify({"jobs": runs})
+    finally:
+        conn.close()
 
 
 @app.get("/perf/results")
