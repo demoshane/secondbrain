@@ -1715,22 +1715,9 @@ def ask_brain(question: str, conn, history: list[dict] | None = None) -> dict:
             except Exception as exc:
                 logger.warning("ask_brain parallel task failed: %s", exc)
         for future in not_done:
-            key, sensitivity = future_map[future]
-            logger.warning("ask_brain: %s adapter timed out after %ss — falling back to public", sensitivity, _PARALLEL_TIMEOUT_S)
+            _, sensitivity = future_map[future]
+            logger.warning("ask_brain: %s adapter timed out after %ss — dropped (PII not sent to cloud)", sensitivity, _PARALLEL_TIMEOUT_S)
             future.cancel()
-            # Fallback: re-run timed-out PII notes through public adapter
-            if sensitivity == "pii" and pii_items:
-                try:
-                    ctx = "\n\n".join(
-                        f"Note [{date}]: {title}\n{_truncate(body)}" if date else f"Note: {title}\n{_truncate(body)}"
-                        for title, body, _, date in pii_items[:5]
-                    )
-                    fallback_ans, fallback_provider = _call_adapter("public", f"{history_prefix}Question: {question}\n\nRelevant notes:\n{ctx}")
-                    if fallback_ans:
-                        answer_parts.append(fallback_ans)
-                        providers.append(fallback_provider)
-                except Exception:
-                    logger.warning("ask_brain: PII fallback to public also failed")
         # wait=False: return immediately; timed-out Ollama threads finish in background.
         executor.shutdown(wait=False)
     elif tasks:
