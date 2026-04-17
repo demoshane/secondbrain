@@ -246,11 +246,12 @@ def write_note_atomic(
             resolved_path = _store_path(target.resolve())
         except ValueError:
             resolved_path = str(target.resolve())
+        capture_session = post.get("capture_session")
         sql_verb = "INSERT OR REPLACE" if update else "INSERT"
         conn.execute(
             f"{sql_verb} INTO notes"
-            " (path, type, title, body, tags, people, created_at, updated_at, sensitivity, url, deadline, meeting_date, importance)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " (path, type, title, body, tags, people, created_at, updated_at, sensitivity, url, deadline, meeting_date, importance, capture_session)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 resolved_path,
                 post.get("type", "note"),
@@ -265,6 +266,7 @@ def write_note_atomic(
                 deadline,
                 meeting_date,
                 importance,
+                capture_session,
             ),
         )
         log_audit(conn, "update" if update else "create", resolved_path)
@@ -474,6 +476,7 @@ def capture_note(
     url: str | None = None,
     source_type: str | None = None,
     importance: str = "medium",
+    capture_session: str | None = None,
 ) -> Path:
     """Build and atomically write a note, returning its final path.
 
@@ -488,6 +491,7 @@ def capture_note(
         conn: Open SQLite connection.
         url: Optional URL for link captures — written into frontmatter and DB.
         source_type: Optional source type (e.g. 'article', 'video') — written into frontmatter.
+        capture_session: Optional UUID grouping notes captured together.
 
     Returns:
         Path to the written note file.
@@ -539,6 +543,8 @@ def capture_note(
     if source_type:
         post["source_type"] = source_type
     post["entities"] = entities
+    if capture_session:
+        post["capture_session"] = capture_session
     write_note_atomic(target, post, conn, url=url)
 
     # Auto-backlink: update referenced people's profiles

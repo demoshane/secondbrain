@@ -6,7 +6,7 @@
 - ✅ **v2.0 Intelligence + GUI Hub** — Phases 14–19 (shipped 2026-03-16)
 - ✅ **v3.0 GUI Overhaul & Polish** — Phases 20–31 (shipped 2026-03-21)
 - ✅ **v4.0 Memory & Reliability** — Phases 32–49 (shipped 2026-04-03)
-- 📋 **v5.0 Cognitive Intelligence** — Phases 50–54 (planned)
+- 📋 **v5.0 Cognitive Intelligence** — Phases 50–57 (planned)
 
 ## Phases
 
@@ -158,7 +158,7 @@ Delivered in Phase 41.3 (0 plans needed)
 
 ---
 
-## v5.0 Cognitive Intelligence (Phases 50–54)
+## v5.0 Cognitive Intelligence (Phases 50–57)
 
 ### Phase 50: Retrieval Reinforcement (Learning from Use)
 
@@ -224,6 +224,30 @@ Plans:
 - [ ] 55-02-PLAN.md — Intelligence page: Syntheses section + Contradictions alerts
 - [ ] 55-03-PLAN.md — Inbox page: "Suggested for You" section with proactive surfacing
 
+### Phase 56: Co-capture Grouping — Temporal Proximity + MCP Tool Nudges
+
+**Goal:** Make co-capture relationships work automatically across separate `sb_capture` calls using temporal proximity (15-min window). Persist capture_session in DB for retrieval. Surface recent captures as MCP nudges. Fix `/smart-capture/confirm` path bug.
+**Depends on:** Phase 54; benefits from 50-53
+**Plans:** 3 plans
+
+Plans:
+- [ ] 56-01-PLAN.md — Foundation: capture_session column + find_temporal_neighbors() + tests
+- [ ] 56-02-PLAN.md — Auto co-capture linking in all capture paths + confirm handler fix + tests
+- [ ] 56-03-PLAN.md — MCP capture nudges (recent_context) + session retrieval endpoint + integration tests
+
+### Phase 57: Memory Consolidation & Enrichment
+
+**Goal:** Add a memory consolidation lifecycle: capture-time similarity awareness (detect related existing notes post-capture), AI-assisted note enrichment (update-in-place instead of creating duplicates), nightly consolidation sweep (enrichment candidates, stale review, backlink repair), and user-facing MCP tools (`sb_enrich`, `sb_consolidation_review`). Upgrades existing `merge_notes()` with frontmatter merge + backlink repair. Nightly AI operations use local Ollama only.
+**Depends on:** Phase 54; benefits from 50-53
+**Plans:** 5 plans (estimated)
+
+Plans:
+- [ ] 57-01-PLAN.md — consolidation_queue table + AI enrich_note() function + tests
+- [ ] 57-02-PLAN.md — Upgrade merge_notes(): frontmatter merge, backlink repair, synthesis ref repair + tests
+- [ ] 57-03-PLAN.md — Capture-time similarity detection in capture pipeline + tests
+- [ ] 57-04-PLAN.md — Extended nightly consolidation: enrichment sweep, stale review, backlink repair + tests
+- [ ] 57-05-PLAN.md — MCP tools: sb_enrich + sb_consolidation_review + integration tests
+
 ---
 
 ## Progress
@@ -234,8 +258,11 @@ Plans:
 | 14-19 | v2.0 | 23/23 | Complete | 2026-03-16 |
 | 20-31 | v3.0 | 88/88 | Complete | 2026-03-21 |
 | 32-49 | v4.0 | 100/100 | Complete | 2026-04-03 |
-| 50 | v5.0 | 0/3 | Not started | - |
-| 51 | v5.0 | 0/2 | Not started | - |
-| 52 | v5.0 | 0/3 | Not started | - |
-| 53 | v5.0 | 0/2 | Not started | - |
-| 54 | v5.0 | 0/3 | Not started | - |
+| 50 | v5.0 | 3/3 | Complete | 2026-04-03 |
+| 51 | v5.0 | 2/2 | Complete | 2026-04-03 |
+| 52 | v5.0 | 3/3 | Complete | 2026-04-03 |
+| 53 | v5.0 | 2/2 | Complete | 2026-04-03 |
+| 54 | v5.0 | 3/3 | Complete | 2026-04-03 |
+| 55 | v5.0 | 3/3 | Complete | 2026-04-03 |
+| 56 | v5.0 | 0/3 | Not started | - |
+| 57 | v5.0 | 0/5 | Not started | - |

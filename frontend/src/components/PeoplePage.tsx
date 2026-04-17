@@ -421,7 +421,7 @@ export function PeoplePage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="px-4 py-3 prose prose-sm prose-invert max-w-none leading-relaxed">
+                  <div className="px-4 py-3 max-w-none leading-relaxed">
                     {personNote?.body
                       ? <WikiMarkdown>{personNote.body}</WikiMarkdown>
                       : <p className="text-sm text-muted-foreground">No profile written yet.</p>

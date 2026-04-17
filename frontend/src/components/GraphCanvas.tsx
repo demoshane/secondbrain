@@ -40,6 +40,7 @@ const EDGE_COLORS: Record<string, string> = {
   connection: 'hsl(45, 50%, 50%)',
   similar: 'hsl(0, 0%, 40%)',
   'co-captured': 'hsl(150, 30%, 40%)',
+  person: 'hsl(210, 60%, 55%)',
 }
 const DEFAULT_EDGE_COLOR = 'hsl(0, 0%, 35%)'
 
@@ -92,13 +93,8 @@ export function GraphCanvas({
       filteredEdges = filteredEdges.filter((e) => filterRelTypes.has(e.type))
     }
 
-    const connectedPaths = new Set<string>()
-    for (const e of filteredEdges) {
-      connectedPaths.add(e.source)
-      connectedPaths.add(e.target)
-    }
-
-    let filteredNodes = nodes.filter((n) => connectedPaths.has(n.path))
+    // All nodes are shown; isolates appear as dim dots
+    let filteredNodes = nodes
     if (filterNoteTypes.size > 0) {
       filteredNodes = filteredNodes.filter((n) => filterNoteTypes.has(n.note_type))
       // Re-filter edges to only include nodes that survived
@@ -177,10 +173,12 @@ export function GraphCanvas({
       .join('circle')
       .attr('r', nodeRadius)
       .attr('fill', (d) => NODE_COLORS[d.note_type] ?? DEFAULT_NODE_COLOR)
+      .attr('fill-opacity', (d) => (d.connectionCount > 0 ? 1 : 0.3))
       .attr('stroke', (d) =>
         d.path === selectedNodePath ? 'hsl(243, 90%, 66%)' : 'hsl(0, 0%, 30%)'
       )
       .attr('stroke-width', (d) => (d.path === selectedNodePath ? 2.5 : 1))
+      .attr('stroke-opacity', (d) => (d.connectionCount > 0 ? 1 : 0.25))
       .attr('cursor', 'pointer')
       .on('click', (_event, d) => {
         onNodeClick({
@@ -199,6 +197,7 @@ export function GraphCanvas({
       .text((d) => truncate(d.title, 20))
       .attr('font-size', 10)
       .attr('fill', 'hsl(0, 0%, 70%)')
+      .attr('fill-opacity', (d) => (d.connectionCount > 0 ? 1 : 0.25))
       .attr('text-anchor', 'middle')
       .attr('pointer-events', 'none')
 

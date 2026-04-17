@@ -23,7 +23,7 @@ from engine.db import get_connection, PERSON_TYPES, PERSON_TYPES_PH, _escape_lik
 from engine.digest import generate_digest
 from engine.forget import forget_person
 from engine.anonymize import anonymize_note
-from engine.intelligence import find_dormant_related, find_similar, get_overdue_actions, list_actions, recap_entity, surface_relevant
+from engine.intelligence import find_dormant_related, find_similar, find_temporal_neighbors, get_overdue_actions, list_actions, recap_entity, surface_relevant
 from engine.link_capture import fetch_link_metadata
 from engine.links import traverse_graph
 from engine.paths import BRAIN_ROOT, CONFIG_PATH, store_path
@@ -114,6 +114,46 @@ def _log_mcp_audit(event: str, path: str) -> None:
         conn.commit()
     finally:
         conn.close()
+
+
+def _auto_co_capture(conn, new_path: str, created_at: str, capture_session: str | None = None) -> list[dict]:
+    """Find temporal neighbors + same-session notes, create co-captured relationships.
+
+    Returns list of all linked notes (temporal + session-based) for response nudges.
+    """
+    neighbors = find_temporal_neighbors(conn, created_at, exclude_path=new_path)
+    neighbor_map = {n["path"]: n for n in neighbors}
+
+    # Also find same-session notes if a capture_session is provided
+    if capture_session:
+        rows = conn.execute(
+            "SELECT path, title, type, created_at FROM notes WHERE capture_session = ? AND path != ?",
+            (capture_session, new_path),
+        ).fetchall()
+        for r in rows:
+            if r[0] not in neighbor_map:
+                neighbor_map[r[0]] = {
+                    "path": r[0], "title": r[1], "type": r[2],
+                    "created_at": r[3], "delta_seconds": 0,
+                }
+
+    for target_path in neighbor_map:
+        try:
+            conn.execute(
+                "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?, ?, ?)",
+                (new_path, target_path, "co-captured"),
+            )
+            conn.execute(
+                "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?, ?, ?)",
+                (target_path, new_path, "co-captured"),
+            )
+        except Exception:
+            logger.debug("co-captured relationship insert skipped", exc_info=True)
+
+    if neighbor_map:
+        conn.commit()
+
+    return list(neighbor_map.values())
 
 
 def _retry_call(fn, *args, **kwargs):
@@ -253,11 +293,27 @@ def sb_capture(
     sensitivity: str = "public",
     confirm_token: str = "",
     importance: str = "medium",
+    session_id: str = "",
 ) -> dict:
     """Capture a new note. Idempotent — identical title+body returns existing note.
 
     If a near-duplicate exists (cosine similarity >= 0.92), returns a duplicate_warning
     with a confirm_token. Pass that token back to save despite the similarity match.
+
+    IMPORTANT — session_id usage:
+    Generate ONE session UUID at the start of any conversation that involves captures.
+    Pass the SAME session_id to every sb_capture call in that conversation thread.
+    If the user continues the same topic in a later conversation (even days later),
+    reuse the same session_id. This groups related captures across time — they are
+    auto-linked as co-captured regardless of time gap.
+
+    Without session_id, captures are linked by temporal proximity only (15-minute window).
+    With session_id, captures are linked by shared context even across days.
+
+    Args:
+        session_id: UUID to group captures from the same conversation thread.
+                    Generate once per topic, reuse across calls and sessions.
+                    Notes sharing a session_id are auto-linked as co-captured.
     """
     _ensure_ready()
     tags = _to_list(tags)
@@ -292,6 +348,7 @@ def sb_capture(
 
         if importance not in ("low", "medium", "high"):
             raise ValueError("importance must be low, medium, or high")
+        _cap_session = session_id or None
         path = capture_note(
             note_type=note_type,
             title=title,
@@ -302,6 +359,7 @@ def sb_capture(
             brain_root=BRAIN_ROOT,
             conn=conn,
             importance=importance,
+            capture_session=_cap_session,
         )
         conn.commit()
 
@@ -329,8 +387,38 @@ def sb_capture(
         except Exception:
             logger.debug("dormant resurfacing skipped", exc_info=True)
 
+        # Phase 56: auto co-capture with temporal neighbors + nudges
+        co_captured_with: list[str] = []
+        recent_context: list[dict] = []
+        try:
+            neighbors = _auto_co_capture(conn, src_path, now_ts, _cap_session)
+            co_captured_with = [n["path"] for n in neighbors]
+            recent_context = [
+                {"path": n["path"], "title": n["title"], "type": n["type"],
+                 "minutes_ago": max(1, n["delta_seconds"] // 60)}
+                for n in neighbors
+            ]
+        except Exception:
+            logger.debug("auto co-capture skipped", exc_info=True)
+
+        nudge = ""
+        if len(co_captured_with) == 1:
+            _t = recent_context[0]["title"] if recent_context else co_captured_with[0]
+            nudge = f"Auto-linked with recent capture: {_t}"
+        elif len(co_captured_with) > 1:
+            nudge = f"Auto-linked with {len(co_captured_with)} recent captures from this session."
+
         _log_mcp_audit("mcp_capture", str(path))
-        return {"status": "created", "path": str(path), "dormant_notes": dormant_notes}
+        result = {
+            "status": "created",
+            "path": str(path),
+            "dormant_notes": dormant_notes,
+            "co_captured_with": co_captured_with,
+            "recent_context": recent_context,
+        }
+        if nudge:
+            result["nudge"] = nudge
+        return result
     finally:
         conn.close()
 
@@ -358,9 +446,12 @@ def sb_capture_batch(notes: list[dict]) -> dict:
     from engine.paths import BRAIN_ROOT as _BRAIN_ROOT
     from engine.smart_classifier import classify_smart as _classify_smart
 
+    import uuid as _uuid
+
     conn = _get_connection()
     _init_schema(conn)
 
+    capture_session = str(_uuid.uuid4())
     succeeded = []
     failed = []
     dedup_warnings = []
@@ -399,7 +490,7 @@ def sb_capture_batch(notes: list[dict]) -> dict:
             if matches:
                 dedup_warnings.append({"index": i, "intra_batch_match": matches[0]})
 
-            path = _capture_note(note_type, title, body, tags, people, effective_sensitivity, _BRAIN_ROOT, conn, importance=importance)
+            path = _capture_note(note_type, title, body, tags, people, effective_sensitivity, _BRAIN_ROOT, conn, importance=importance, capture_session=capture_session)
             succeeded.append({"index": i, "path": str(path)})
             seen_titles.append(title)
         except Exception as e:
@@ -439,6 +530,37 @@ def sb_capture_batch(notes: list[dict]) -> dict:
                     "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
                     (row[0], path_map[i], "link"),
                 )
+    # Phase 56: intra-batch co-captured relationships + temporal neighbors
+    import itertools as _itertools
+    batch_db_paths = list(path_map.values())
+    for src, tgt in _itertools.combinations(batch_db_paths, 2):
+        try:
+            conn.execute(
+                "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?, ?, ?)",
+                (src, tgt, "co-captured"),
+            )
+        except Exception:
+            logger.debug("co-captured relationship insert skipped", exc_info=True)
+
+    # Link with temporal neighbors outside the batch
+    now_ts = _dt.datetime.now(_dt.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
+    batch_path_set = set(batch_db_paths)
+    for db_path in batch_db_paths:
+        try:
+            neighbors = find_temporal_neighbors(conn, now_ts, exclude_path=db_path)
+            for n in neighbors:
+                if n["path"] not in batch_path_set:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?, ?, ?)",
+                        (db_path, n["path"], "co-captured"),
+                    )
+                    conn.execute(
+                        "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?, ?, ?)",
+                        (n["path"], db_path, "co-captured"),
+                    )
+        except Exception:
+            logger.debug("temporal neighbor linking skipped", exc_info=True)
+
     conn.commit()
     conn.close()
 
@@ -501,7 +623,7 @@ def sb_capture_batch(notes: list[dict]) -> dict:
 
     _spawn_background(target=_run_batch_intelligence)
 
-    return {"succeeded": succeeded, "failed": failed, "dedup_warnings": dedup_warnings}
+    return {"succeeded": succeeded, "failed": failed, "dedup_warnings": dedup_warnings, "capture_session": capture_session}
 
 
 @mcp.tool()
@@ -910,13 +1032,18 @@ def sb_capture_smart(content: str) -> dict:
     PII-scanned, and saved immediately — no confirm round-trip required.
 
     Co-captured notes are linked via 'co-captured' relationships and share a
-    capture_session UUID so they can be retrieved as a group.
+    capture_session UUID so they can be retrieved as a group. Notes captured within
+    15 minutes before this call are also auto-linked as co-captured.
+
+    The returned capture_session UUID can be reused as session_id in subsequent
+    sb_capture calls to continue grouping notes from the same conversation thread.
 
     Args:
         content: Freeform text to classify, segment, and save.
 
     Returns:
-        {"status": "created", "notes": [...], "capture_session": str, "count": int}
+        {"status": "created", "notes": [...], "capture_session": str, "count": int,
+         "recent_context": [...], "nudge": str (if linked with prior captures)}
         Each note dict contains: title, type, path, sensitivity, links, entities.
     """
     import datetime as _dt
@@ -1216,10 +1343,45 @@ def sb_capture_smart(content: str) -> dict:
             except Exception:
                 logger.debug("dormant resurfacing skipped", exc_info=True)
 
+        # Phase 56: find temporal neighbors OUTSIDE the batch for nudges
+        recent_context: list[dict] = []
+        nudge = ""
+        if saved_notes:
+            batch_paths = set(_norm_paths)
+            import datetime as _dt
+            _now = _dt.datetime.now(_dt.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
+            try:
+                ext_neighbors = find_temporal_neighbors(conn, _now, exclude_path=_norm_paths[0] if _norm_paths else None)
+                ext_neighbors = [n for n in ext_neighbors if n["path"] not in batch_paths]
+                recent_context = [
+                    {"path": n["path"], "title": n["title"], "type": n["type"],
+                     "minutes_ago": max(1, n["delta_seconds"] // 60)}
+                    for n in ext_neighbors
+                ]
+                # Create co-captured links with external neighbors
+                for n in ext_neighbors:
+                    for bp in _norm_paths:
+                        try:
+                            conn.execute(
+                                "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?, ?, ?)",
+                                (bp, n["path"], "co-captured"),
+                            )
+                            conn.execute(
+                                "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?, ?, ?)",
+                                (n["path"], bp, "co-captured"),
+                            )
+                        except Exception:
+                            logger.debug("co-captured relationship insert skipped", exc_info=True)
+                if ext_neighbors:
+                    conn.commit()
+                    nudge = f"Also linked with {len(ext_neighbors)} note(s) captured earlier in this session."
+            except Exception:
+                logger.debug("temporal neighbor linking skipped", exc_info=True)
+
     finally:
         conn.close()
 
-    return {
+    result = {
         "status": "created",
         "notes": saved_notes,
         "capture_session": capture_session,
@@ -1227,7 +1389,11 @@ def sb_capture_smart(content: str) -> dict:
         "dormant_notes": dormant_notes,
         "ambiguous_segments": ambiguous_segments,
         "pending_review": pending_review,
+        "recent_context": recent_context,
     }
+    if nudge:
+        result["nudge"] = nudge
+    return result
 
 
 

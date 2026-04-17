@@ -741,6 +741,19 @@ def migrate_add_relationship_strength(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def migrate_add_capture_session(conn: sqlite3.Connection) -> None:
+    """Add capture_session TEXT column to notes table.
+
+    Stores a UUID grouping notes captured together in one session/conversation.
+    Idempotent — uses try/except to handle pre-existing column.
+    """
+    try:
+        conn.execute("ALTER TABLE notes ADD COLUMN capture_session TEXT NULL")
+    except sqlite3.OperationalError:
+        pass
+    conn.commit()
+
+
 def migrate_add_access_tracking(conn: sqlite3.Connection) -> None:
     """Add last_accessed_at and access_count columns to notes table.
 
@@ -871,5 +884,6 @@ def init_schema(conn: sqlite3.Connection, reset: bool = False) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_action_items_assignee ON action_items(assignee_path)")
     migrate_add_access_tracking(conn)
     migrate_add_relationship_strength(conn)
+    migrate_add_capture_session(conn)
     _migrate_junction_triggers(conn)
     conn.commit()

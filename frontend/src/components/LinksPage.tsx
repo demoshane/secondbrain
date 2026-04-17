@@ -331,7 +331,7 @@ export function LinksPage() {
               </div>
             ) : linkDetail?.body ? (
               <div className="px-6 py-4">
-                <div className="prose prose-sm prose-invert max-w-none">
+                <div className="max-w-none">
                   <WikiMarkdown>{linkDetail.body}</WikiMarkdown>
                 </div>
               </div>

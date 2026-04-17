@@ -828,7 +828,7 @@ export function ProjectsPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="px-4 py-3 prose prose-sm prose-invert max-w-none leading-relaxed">
+                  <div className="px-4 py-3 max-w-none leading-relaxed">
                     {projectDetail?.body
                       ? <WikiMarkdown>{projectDetail.body}</WikiMarkdown>
                       : <p className="text-sm text-muted-foreground">No project notes yet.</p>

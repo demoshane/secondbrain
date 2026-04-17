@@ -518,7 +518,7 @@ export function MeetingsPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="px-4 py-3 prose prose-sm prose-invert max-w-none leading-relaxed">
+                  <div className="px-4 py-3 max-w-none leading-relaxed">
                     {meetingDetail?.body
                       ? <WikiMarkdown>{meetingDetail.body}</WikiMarkdown>
                       : <p className="text-sm text-muted-foreground">No meeting notes yet.</p>

@@ -407,6 +407,60 @@ def check_stale_nudge(conn) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Temporal proximity (Phase 56)
+# ---------------------------------------------------------------------------
+
+def find_temporal_neighbors(
+    conn,
+    reference_time: str,
+    window_minutes: int = 15,
+    exclude_path: str | None = None,
+    limit: int = 10,
+) -> list[dict]:
+    """Find notes created within window_minutes of reference_time.
+
+    Args:
+        conn: Open SQLite connection.
+        reference_time: ISO 8601 timestamp (e.g. '2026-04-17T12:00:00Z').
+        window_minutes: Time window in minutes (default 15).
+        exclude_path: Note path to exclude from results (typically the just-captured note).
+        limit: Max results (default 10).
+
+    Returns:
+        List of dicts: [{"path", "title", "type", "created_at", "delta_seconds"}]
+        sorted by delta_seconds ascending (closest first).
+    """
+    window_seconds = window_minutes * 60
+    rows = conn.execute(
+        """
+        SELECT path, title, type, created_at,
+               ABS(CAST(
+                   (julianday(created_at) - julianday(?)) * 86400
+               AS INTEGER)) AS delta_seconds
+        FROM notes
+        WHERE ABS(
+            (julianday(created_at) - julianday(?)) * 86400
+        ) <= ?
+          AND (path != ? OR ? IS NULL)
+          AND type != 'synthesis'
+        ORDER BY delta_seconds ASC
+        LIMIT ?
+        """,
+        (reference_time, reference_time, window_seconds, exclude_path, exclude_path, limit),
+    ).fetchall()
+    return [
+        {
+            "path": r[0],
+            "title": r[1],
+            "type": r[2],
+            "created_at": r[3],
+            "delta_seconds": r[4],
+        }
+        for r in rows
+    ]
+
+
+# ---------------------------------------------------------------------------
 # Connection suggestions (INTL-09)
 # ---------------------------------------------------------------------------
 

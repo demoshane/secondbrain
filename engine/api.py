@@ -2241,24 +2241,24 @@ def create_relationship():
 
 @app.get("/graph/overview")
 def graph_overview():
-    """Return all relationships as nodes + edges for full graph view."""
+    """Return all notes as nodes + edges for full graph view.
+
+    Nodes: every non-archived note.
+    Edges: explicit relationships table rows + synthetic 'person' edges
+    derived from the note_people junction table.
+    """
     conn = get_connection()
     try:
-        rows = conn.execute(
-            "SELECT DISTINCT source_path FROM relationships "
-            "UNION SELECT DISTINCT target_path FROM relationships"
+        # All non-archived notes as nodes
+        note_rows = conn.execute(
+            "SELECT path, title, type FROM notes WHERE archived = 0"
         ).fetchall()
-        note_paths = [r[0] for r in rows]
+        nodes = [
+            {"path": r[0], "title": r[1], "note_type": r[2]}
+            for r in note_rows
+        ]
 
-        nodes = []
-        for p in note_paths:
-            row = conn.execute(
-                "SELECT title, type FROM notes WHERE path = ?", (p,)
-            ).fetchone()
-            title = row[0] if row else p.rsplit("/", 1)[-1].replace(".md", "")
-            note_type = row[1] if row else "unknown"
-            nodes.append({"path": p, "title": title, "note_type": note_type})
-
+        # Explicit relationship edges
         edges_rows = conn.execute(
             "SELECT source_path, target_path, rel_type, "
             "COALESCE(strength, 1.0) as strength FROM relationships"
@@ -2267,6 +2267,26 @@ def graph_overview():
             {"source": r[0], "target": r[1], "type": r[2], "strength": r[3]}
             for r in edges_rows
         ]
+
+        # Synthetic person edges from note_people junction table.
+        # Only emit when both note and person actually exist in notes table.
+        existing = {(e["source"], e["target"]) for e in edges}
+        person_rows = conn.execute("""
+            SELECT np.note_path, np.person
+            FROM note_people np
+            JOIN notes src ON src.path = np.note_path AND src.archived = 0
+            JOIN notes prs ON prs.path = np.person  AND prs.archived = 0
+            WHERE np.note_path != np.person
+        """).fetchall()
+        for note_path, person_path in person_rows:
+            if (note_path, person_path) not in existing:
+                edges.append({
+                    "source": note_path,
+                    "target": person_path,
+                    "type": "person",
+                    "strength": 0.8,
+                })
+                existing.add((note_path, person_path))
     finally:
         conn.close()
     return jsonify({"nodes": nodes, "edges": edges})
@@ -2349,6 +2369,7 @@ def smart_capture():
                         conn=conn,
                         url=link.url,
                         source_type=source_type or None,
+                        capture_session=session_id,
                     )
                     saved.append({
                         "title": link.title,
@@ -2374,6 +2395,7 @@ def smart_capture():
                         content_sensitivity="public",
                         brain_root=_engine_paths.BRAIN_ROOT,
                         conn=conn,
+                        capture_session=session_id,
                     )
                     person_stubs_created.append(stub_name)
                     saved.append({
@@ -2399,6 +2421,7 @@ def smart_capture():
                     conn=conn,
                     url=source_url or None,
                     source_type=source_type or None,
+                    capture_session=session_id,
                 )
                 saved.append({
                     "title": result.primary_title,
@@ -2427,7 +2450,14 @@ def smart_capture():
                 })
 
         # Co-captured relationships between all saved notes
-        all_paths = [s["path"] for s in saved if "path" in s]
+        # Normalize to relative paths — capture_note() returns absolute Path objects
+        _raw_paths = [s["path"] for s in saved if "path" in s]
+        all_paths = []
+        for _p in _raw_paths:
+            try:
+                all_paths.append(store_path(Path(_p).resolve()))
+            except Exception:
+                all_paths.append(_p)
         for a, b in itertools.combinations(all_paths, 2):
             try:
                 conn.execute(
@@ -2436,6 +2466,28 @@ def smart_capture():
                 )
             except Exception:
                 pass  # Non-fatal — FK constraint may fail if path format mismatches
+
+        # Phase 56: link with temporal neighbors outside this batch
+        import datetime as _dt
+        from engine.intelligence import find_temporal_neighbors
+        _now = _dt.datetime.now(_dt.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
+        batch_set = set(all_paths)
+        for bp in all_paths:
+            try:
+                neighbors = find_temporal_neighbors(conn, _now, exclude_path=bp)
+                for n in neighbors:
+                    if n["path"] not in batch_set:
+                        conn.execute(
+                            "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+                            (bp, n["path"], "co-captured"),
+                        )
+                        conn.execute(
+                            "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+                            (n["path"], bp, "co-captured"),
+                        )
+            except Exception:
+                logger.debug("temporal neighbor linking skipped", exc_info=True)
+
         conn.commit()
     finally:
         conn.close()
@@ -2489,23 +2541,99 @@ def smart_capture_confirm():
                     note_type=note_type, title=title, body=body,
                     tags=[], people=people,
                     content_sensitivity="public", brain_root=_engine_paths.BRAIN_ROOT, conn=conn,
+                    capture_session=session_id,
                 )
                 saved.append({"title": title, "type": note_type, "path": str(path)})
             except Exception as e:
                 saved.append({"title": title, "type": note_type, "error": str(e)})
 
-        paths = [s["path"] for s in saved if "path" in s]
-        for a, b in itertools.combinations(paths, 2):
-            conn.execute(
-                "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
-                (a, b, "co-captured"),
-            )
+        # Normalize to relative DB paths — raw capture_note() returns absolute Paths
+        _norm_paths = []
+        for s in saved:
+            if "path" not in s:
+                continue
+            try:
+                _norm_paths.append(_engine_paths.store_path(Path(s["path"]).resolve()))
+            except Exception:
+                _norm_paths.append(s["path"])
+        for a, b in itertools.combinations(_norm_paths, 2):
+            try:
+                conn.execute(
+                    "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+                    (a, b, "co-captured"),
+                )
+            except Exception:
+                logger.debug("co-captured relationship insert skipped", exc_info=True)
+
+        # Phase 56: link with temporal neighbors outside this batch
+        import datetime as _dt
+        from engine.intelligence import find_temporal_neighbors
+        _now = _dt.datetime.now(_dt.UTC).replace(tzinfo=None).strftime("%Y-%m-%dT%H:%M:%SZ")
+        batch_set = set(_norm_paths)
+        for bp in _norm_paths:
+            try:
+                neighbors = find_temporal_neighbors(conn, _now, exclude_path=bp)
+                for n in neighbors:
+                    if n["path"] not in batch_set:
+                        conn.execute(
+                            "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+                            (bp, n["path"], "co-captured"),
+                        )
+                        conn.execute(
+                            "INSERT OR IGNORE INTO relationships (source_path, target_path, rel_type) VALUES (?,?,?)",
+                            (n["path"], bp, "co-captured"),
+                        )
+            except Exception:
+                logger.debug("temporal neighbor linking skipped", exc_info=True)
+
         conn.commit()
     finally:
         conn.close()
 
     _broadcast({"type": "refresh"})
     return jsonify({"notes": saved, "capture_session": session_id, "count": len(saved)})
+
+
+@app.get("/capture-session/<session_id>")
+def capture_session_endpoint(session_id: str):
+    """Retrieve all notes belonging to a capture session.
+
+    Returns notes and co-captured relationships for the session.
+    """
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT path, type, title, created_at FROM notes WHERE capture_session = ? ORDER BY created_at",
+            (session_id,),
+        ).fetchall()
+        if not rows:
+            return jsonify({"error": "No notes found for this session"}), 404
+
+        notes = [
+            {"path": r[0], "type": r[1], "title": r[2], "created_at": r[3]}
+            for r in rows
+        ]
+        paths = [r[0] for r in rows]
+
+        # Get co-captured relationships between session notes
+        relationships = []
+        if len(paths) > 1:
+            placeholders = ",".join(["?"] * len(paths))
+            rel_rows = conn.execute(
+                f"SELECT source_path, target_path FROM relationships "
+                f"WHERE rel_type = 'co-captured' AND source_path IN ({placeholders}) AND target_path IN ({placeholders})",
+                paths + paths,
+            ).fetchall()
+            relationships = [{"source": r[0], "target": r[1]} for r in rel_rows]
+
+        return jsonify({
+            "session_id": session_id,
+            "notes": notes,
+            "count": len(notes),
+            "relationships": relationships,
+        })
+    finally:
+        conn.close()
 
 
 @app.get("/brain-health")

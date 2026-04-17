@@ -30,6 +30,11 @@ Next: v5.0 Cognitive Intelligence (Phases 50–54, 13 plans planned).
 
 ## Accumulated Context
 
+### Roadmap Evolution
+- Phase 56 added: Co-capture grouping: temporal proximity + MCP tool nudges
+- Phase 57 added: Memory Consolidation & Enrichment — capture-time similarity, AI enrich, nightly sweep, sb_enrich + sb_consolidation_review MCP tools
+
+
 ### Decisions
 
 Active decisions affecting upcoming work:

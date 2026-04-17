@@ -492,7 +492,7 @@ export function IntelligencePage() {
             </Button>
           </div>
           {synthesis ? (
-            <div className="prose prose-sm prose-invert max-w-none">
+            <div className="max-w-none">
               <Markdown remarkPlugins={[remarkGfm]}>{synthesis}</Markdown>
             </div>
           ) : (
@@ -523,7 +523,7 @@ export function IntelligencePage() {
             </Button>
           </div>
           {recap ? (
-            <div className="prose prose-sm prose-invert max-w-none">
+            <div className="max-w-none">
               <Markdown remarkPlugins={[remarkGfm]}>{recap}</Markdown>
             </div>
           ) : (

@@ -72,6 +72,47 @@ export function WikiMarkdown({ children, className }: Props) {
   }, [buildMaps])
 
   const markdownComponents: Components = {
+    p({ children }) {
+      return <p className="text-sm text-foreground/85 leading-relaxed my-2 first:mt-0 last:mb-0">{children}</p>
+    },
+    strong({ children }) {
+      return <strong className="font-semibold text-foreground">{children}</strong>
+    },
+    em({ children }) {
+      return <em className="italic text-foreground/75">{children}</em>
+    },
+    ul({ children }) {
+      return <ul className="list-disc pl-4 my-2 space-y-1">{children}</ul>
+    },
+    ol({ children }) {
+      return <ol className="list-decimal pl-4 my-2 space-y-1">{children}</ol>
+    },
+    li({ children }) {
+      return <li className="text-sm text-foreground/85 leading-relaxed pl-0.5">{children}</li>
+    },
+    blockquote({ children }) {
+      return <blockquote className="border-l-2 border-border pl-3 my-3 text-muted-foreground italic">{children}</blockquote>
+    },
+    hr() {
+      return <hr className="border-border my-4" />
+    },
+    code({ children }) {
+      return <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono text-foreground/90">{children}</code>
+    },
+    h2({ children }) {
+      return (
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-4 first:mt-0 mb-1.5 pb-1 border-b border-border">
+          {children}
+        </h2>
+      )
+    },
+    h3({ children }) {
+      return (
+        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground/70 mt-3 first:mt-0 mb-1">
+          {children}
+        </h3>
+      )
+    },
     a({ href, children }) {
       if (href?.startsWith('open-file:')) {
         const path = decodeURIComponent(href.slice('open-file:'.length))
@@ -94,7 +135,7 @@ export function WikiMarkdown({ children, className }: Props) {
       }
       if (href?.startsWith('wiki:')) {
         const ref = decodeURIComponent(href.slice(5))
-        const { byTitle } = buildMaps()
+        const { byTitle, byRelPath } = buildMaps()
 
         // Path-based: [[/absolute/path/to/note.md]]
         if (ref.startsWith('/')) {
@@ -120,6 +161,22 @@ export function WikiMarkdown({ children, className }: Props) {
               {filename}
             </span>
           )
+        }
+
+        // Relative path-based: [[person/note.md]] or [[folder/slug.md]]
+        if (ref.includes('/')) {
+          const title = byRelPath.get(ref)
+          if (title) {
+            return (
+              <button
+                className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+                onClick={() => { setCurrentView('notes'); openNote(ref) }}
+                title={`Go to: ${title}`}
+              >
+                {title}
+              </button>
+            )
+          }
         }
 
         // Title-based: [[Note Title]]

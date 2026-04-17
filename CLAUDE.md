@@ -116,6 +116,17 @@ uv run pytest tests/test_capture.py -x  # single file, stop on first failure
 
 Configure in Claude Desktop: tool prefix `mcp__second-brain__sb_*`.
 
+### Capture session grouping (Phase 56)
+
+`sb_capture` accepts `session_id` — a UUID grouping captures from the same conversation
+thread. Notes sharing a session_id are auto-linked as `co-captured` regardless of time gap.
+Without session_id, captures are linked by temporal proximity (15-minute window).
+
+Session IDs are persistent — reuse the same ID when a topic continues in a later conversation,
+even days apart. The `capture_session` is stored in the DB and retrievable via
+`GET /capture-session/<id>`. `sb_capture_smart` returns a `capture_session` UUID that can
+be reused as `session_id` in subsequent `sb_capture` calls.
+
 ## Usage profile
 
 - Primary interface: **MCP via Claude Desktop and Claude Code** (95% of captures). GUI is management-only.
