@@ -1,5 +1,6 @@
 """Intelligence layer: session recap, action items, stale nudges, connection suggestions."""
 import json
+import sqlite3
 import datetime
 import logging
 import re
@@ -229,6 +230,8 @@ def extract_action_items(note_path: Path, body_or_conn=None, sensitivity: str = 
                     (rel_note_path, line, assignee, due_date),
                 )
         conn.commit()
+    except sqlite3.IntegrityError:
+        logger.debug("Action item extraction skipped — note may have been deleted (FK constraint)")
     except Exception:
         logger.warning("Action item extraction failed", exc_info=True)
 
