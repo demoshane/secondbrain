@@ -1635,16 +1635,16 @@ def ask_brain(question: str, conn, history: list[dict] | None = None) -> dict:
     _all_local = _load_config(CONFIG_PATH).get("routing", {}).get("all_local", False)
 
     public_items = [
-        (r.get("title", ""), r["body"][:2000], r.get("path", ""), r.get("created_at", "")[:10])
+        (r.get("title", ""), r["body"][:4000], r.get("path", ""), r.get("created_at", "")[:10])
         for r in results if _all_local or r.get("sensitivity") != "pii"
     ]
     pii_items = [] if _all_local else [
-        (r.get("title", ""), r["body"][:2000], r.get("path", ""), r.get("created_at", "")[:10])
+        (r.get("title", ""), r["body"][:4000], r.get("path", ""), r.get("created_at", "")[:10])
         for r in results if r.get("sensitivity") == "pii"
     ]
 
     # Build tasks: public and PII calls run in parallel to halve wall-clock time.
-    def _truncate(text: str, max_chars: int = 2000) -> str:
+    def _truncate(text: str, max_chars: int = 4000) -> str:
         return text if len(text) <= max_chars else text[:max_chars] + "…"
 
     # Build conversation history prefix (last 5 exchanges max)
