@@ -1694,9 +1694,10 @@ def ask_brain(question: str, conn, history: list[dict] | None = None) -> dict:
 
     answer_parts: list[str] = []
     providers: list[str] = []
-    # Parallel timeout: Groq answers in ~1-2s; Ollama (PII path) on local CPU can take 60-120s.
-    # We wait at most _PARALLEL_TIMEOUT_S seconds total. Any task not done by then is dropped.
-    _PARALLEL_TIMEOUT_S = 3.0
+    # Parallel timeout: Groq answers in ~1-2s; Ollama (PII path) can take 10-30s.
+    # If PII times out, we fall through to a single public-only call (some context lost,
+    # but better than dropping the entire answer). Timeout raised from 3s to 15s.
+    _PARALLEL_TIMEOUT_S = 15.0
     if len(tasks) > 1:
         import concurrent.futures
         # Don't use context manager — its __exit__ calls shutdown(wait=True) which blocks
@@ -1714,9 +1715,22 @@ def ask_brain(question: str, conn, history: list[dict] | None = None) -> dict:
             except Exception as exc:
                 logger.warning("ask_brain parallel task failed: %s", exc)
         for future in not_done:
-            _, sensitivity = future_map[future]
-            logger.warning("ask_brain: %s adapter timed out after %ss — dropping", sensitivity, _PARALLEL_TIMEOUT_S)
+            key, sensitivity = future_map[future]
+            logger.warning("ask_brain: %s adapter timed out after %ss — falling back to public", sensitivity, _PARALLEL_TIMEOUT_S)
             future.cancel()
+            # Fallback: re-run timed-out PII notes through public adapter
+            if sensitivity == "pii" and pii_items:
+                try:
+                    ctx = "\n\n".join(
+                        f"Note [{date}]: {title}\n{_truncate(body)}" if date else f"Note: {title}\n{_truncate(body)}"
+                        for title, body, _, date in pii_items[:5]
+                    )
+                    fallback_ans, fallback_provider = _call_adapter("public", f"{history_prefix}Question: {question}\n\nRelevant notes:\n{ctx}")
+                    if fallback_ans:
+                        answer_parts.append(fallback_ans)
+                        providers.append(fallback_provider)
+                except Exception:
+                    logger.warning("ask_brain: PII fallback to public also failed")
         # wait=False: return immediately; timed-out Ollama threads finish in background.
         executor.shutdown(wait=False)
     elif tasks:
