@@ -35,7 +35,7 @@ SOFT_LIMITS: dict[str, int] = {
     "sb_capture": 5000,
     "sb_capture_batch": 5000,
     "sb_edit": 5000,
-    "sb_enrich": 5000,
+    "sb_enrich": 60000,
     "sb_forget": 5000,
     "sb_anonymize": 5000,
     "sb_link": 5000,
