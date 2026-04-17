@@ -172,10 +172,12 @@ export function IntelligencePage() {
     setBatchMerging(true)
     let merged = 0
     let failed = 0
-    const total = health.duplicate_candidates.length
+    // Copy the list — earlier merges may delete notes referenced by later pairs
+    const candidates = [...health.duplicate_candidates]
+    const total = candidates.length
 
     for (let i = 0; i < total; i++) {
-      const dc = health.duplicate_candidates[i]
+      const dc = candidates[i]
       let ok = false
 
       // Try up to 2 attempts (retry once on 502/network error)
@@ -190,11 +192,13 @@ export function IntelligencePage() {
           if (res.ok) {
             ok = true
             merged++
+          } else if (res.status === 404) {
+            ok = true // note already merged/deleted by earlier pair — skip
           } else if (res.status >= 500 && attempt === 0) {
             continue // retry
           } else {
             failed++
-            ok = true // don't retry 4xx
+            ok = true // don't retry other 4xx
           }
         } catch {
           if (attempt > 0) { failed++; ok = true }

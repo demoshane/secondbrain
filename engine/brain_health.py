@@ -117,17 +117,15 @@ def get_duplicate_candidates(
         except Exception:
             pass
 
-        # Build a set of person-type note paths to skip person-vs-person pairs.
+        # Build a set of ALL person-type note paths to skip person-vs-person pairs.
         # Person stubs often have empty/minimal bodies → near-identical embeddings
         # that produce false-positive duplicates (different people, same template).
-        person_paths: set[str] = set()
-        if paths:
-            ph = ",".join("?" for _ in paths)
-            person_rows = conn.execute(
-                f"SELECT path FROM notes WHERE path IN ({ph}) AND type IN ('person')",
-                paths,
-            ).fetchall()
-            person_paths = {r[0] for r in person_rows}
+        # Query ALL persons, not just those in the scan window — find_similar can
+        # return matches outside the cap'd paths list.
+        person_rows = conn.execute(
+            "SELECT path FROM notes WHERE type IN ('person')"
+        ).fetchall()
+        person_paths = {r[0] for r in person_rows}
 
         seen: set[tuple[str, str]] = set()
         pairs: list[dict] = []
